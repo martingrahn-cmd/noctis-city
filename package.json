@@ -1,0 +1,38 @@
+{
+  "name": "noctis",
+  "version": "0.1.0",
+  "description": "First-person open-world city in Three.js — neon, day/night cycle, enterable buildings, drivable vehicles.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --port 5173",
+    "gates": "npm run parsecheck && npm run faultcheck && npm run lookcheck && npm run windcheck && npm run inputcheck && npm run gateaudit && npm run citycheck && npm run perfcheck",
+    "parsecheck": "node tools/parsecheck.mjs",
+    "faultcheck": "node tools/faultcheck.mjs",
+    "lookcheck": "node tools/lookcheck.mjs",
+    "gateaudit": "node tools/gateaudit.mjs",
+    "perfcheck": "node tools/perfcheck.mjs",
+    "perfcheck:fast": "node tools/perfcheck.mjs --route=downtown_dense",
+    "citycheck": "node tools/citycheck.mjs",
+    "inputcheck": "node tools/inputcheck.mjs",
+    "windcheck": "node tools/windcheck.mjs",
+    "clustercheck": "node tools/clustercheck.mjs",
+    "motioncheck": "node tools/motioncheck.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "vite": "^6.4.3"
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

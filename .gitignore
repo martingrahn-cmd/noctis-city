@@ -1,0 +1,35 @@
+# Dependencies and build output.
+node_modules/
+dist/
+
+# macOS.
+.DS_Store
+
+# GATE AND PROBE OUTPUT — every one of these directories is REGENERABLE.
+#
+# `npm run gates` rewrites look-out, perf-out, city-out and wind-out; the
+# not-a-gate probes rewrite the rest. Together they are ~410 MB of PNGs, logs,
+# traces and one mp4 against 3.7 MB of source, and none of it is an input to
+# anything: the gates read `budget.json`, `city-budget.json` and
+# `look-budget.json`, which are tracked.
+#
+# What this costs, said out loud rather than discovered by a reader following a
+# link: STATE.md cites frames in tools/walk-out/ and tools/look-out/ by name,
+# and those paths will not resolve in a fresh clone until the gates and
+# `node tools/walkprobe.mjs` have been run. The numbers beside each citation are
+# in STATE.md itself, which is the part that has to survive.
+#
+# `docs/` is NOT ignored: README.md embeds docs/gait-coated-cycle.png and the
+# design notes there are authored rather than generated.
+tools/look-out/
+tools/perf-out/
+tools/city-out/
+tools/wind-out/
+tools/shot-out/
+tools/gait-out/
+tools/film-out/
+tools/loft-out/
+tools/hull-out/
+tools/motion-out/
+tools/profile-out/
+tools/walk-out/

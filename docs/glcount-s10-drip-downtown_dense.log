@@ -1,0 +1,58 @@
+GPU: ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)
+arm A  ?fieldDrip=4   (one file: src/modules/traffic.js untouched)
+arm B  ?fieldDrip=0
+route downtown_dense, 6 arms x 1800 frames, interleaved A/B, fresh page per arm, wall ceiling 12.5 ms, cpu ceiling 12 ms
+
+arm 0 A  cpu p50 8.60  cpu p95 13.00  wall p50 9.30  wall p95 13.80  p99 17.40/16.50cpu  max 41.00/39.80cpu  tail 212/2296 over 12.5, 94 past 14.5 (gap med 1, 69 consecutive)  gc 48 (gap med 50) far∩gc 16/94  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip4
+    gl: far-frame mean 15.56ms inside GL vs all-frame mean 8.34ms; biggest call on far frames: bufferSubData x43 (mean biggest call 14.17ms),  texSubImage2D x39 (mean biggest call 14.42ms),  texSubImage3D x10 (mean biggest call 10.18ms)
+    counts: texSub3D:array 1960 calls (245 frames, gap med 1), slow>1ms 62, 519.7 ms, 24.6 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 6929 calls (2297 frames, gap med 1), slow>1ms 346, 3080.4 ms, 1401.9 MB;  bufferSubData 41346 calls (2297 frames, gap med 1), slow>1ms 1884, 15406.9 ms, 1124.6 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 4, 46.3 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 10 texSubImage3D-topped far frames
+arm 1 B  cpu p50 8.60  cpu p95 11.80  wall p50 9.20  wall p95 12.70  p99 16.90/16.20cpu  max 42.40/41.60cpu  tail 134/2196 over 12.5, 25 past 14.5 (gap med 24, 0 consecutive)  gc 47 (gap med 49.5) far∩gc 4/25  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip0
+    gl: far-frame mean 17.38ms inside GL vs all-frame mean 7.93ms; biggest call on far frames: texSubImage3D x21 (mean biggest call 8.72ms),  bufferSubData x2 (mean biggest call 12.75ms),  texSubImage2D x1 (mean biggest call 12.00ms)
+    counts: texSub3D:array 1568 calls (28 frames, gap med 19), slow>1ms 22, 189.2 ms, 19.7 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 6621 calls (2197 frames, gap med 1), slow>1ms 193, 1544.7 ms, 1340.8 MB;  bufferSubData 39546 calls (2197 frames, gap med 1), slow>1ms 1980, 15571.2 ms, 1075.7 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 2, 22.2 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 21 texSubImage3D-topped far frames
+arm 2 A  cpu p50 9.00  cpu p95 12.30  wall p50 9.80  wall p95 13.30  p99 16.40/15.40cpu  max 41.90/41.00cpu  tail 151/2176 over 12.5, 56 past 14.5 (gap med 1, 28 consecutive)  gc 47 (gap med 50) far∩gc 6/56  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip4
+    gl: far-frame mean 15.39ms inside GL vs all-frame mean 8.31ms; biggest call on far frames: texSubImage2D x24 (mean biggest call 13.19ms),  bufferSubData x21 (mean biggest call 13.57ms),  texSubImage3D x11 (mean biggest call 10.23ms)
+    counts: texSub3D:array 1568 calls (196 frames, gap med 1), slow>1ms 57, 501.8 ms, 19.7 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 6561 calls (2177 frames, gap med 1), slow>1ms 259, 2328.0 ms, 1328.6 MB;  bufferSubData 39186 calls (2177 frames, gap med 1), slow>1ms 1858, 15126.7 ms, 1065.9 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 4, 38.7 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 11 texSubImage3D-topped far frames
+arm 3 B  cpu p50 8.60  cpu p95 11.60  wall p50 9.30  wall p95 12.40  p99 18.10/17.40cpu  max 33.00/32.00cpu  tail 103/2336 over 12.5, 35 past 14.5 (gap med 20, 1 consecutive)  gc 52 (gap med 48) far∩gc 9/35  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip0
+    gl: far-frame mean 17.29ms inside GL vs all-frame mean 7.92ms; biggest call on far frames: texSubImage3D x26 (mean biggest call 9.25ms),  bufferSubData x6 (mean biggest call 10.72ms),  texSubImage2D x3 (mean biggest call 12.07ms)
+    counts: texSub3D:array 2016 calls (36 frames, gap med 19), slow>1ms 29, 270.9 ms, 25.3 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 7050 calls (2337 frames, gap med 1), slow>1ms 265, 2188.8 ms, 1426.3 MB;  bufferSubData 42066 calls (2337 frames, gap med 1), slow>1ms 2040, 15935.0 ms, 1144.2 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 2, 18.9 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 26 texSubImage3D-topped far frames
+arm 4 A  cpu p50 8.60  cpu p95 12.00  wall p50 9.20  wall p95 12.80  p99 15.80/15.00cpu  max 39.70/38.50cpu  tail 147/2336 over 12.5, 45 past 14.5 (gap med 2.5, 14 consecutive)  gc 49 (gap med 54) far∩gc 7/45  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip4
+    gl: far-frame mean 15.89ms inside GL vs all-frame mean 7.94ms; biggest call on far frames: bufferSubData x19 (mean biggest call 13.45ms),  texSubImage3D x17 (mean biggest call 9.24ms),  texSubImage2D x8 (mean biggest call 12.93ms)
+    counts: texSub3D:array 1960 calls (245 frames, gap med 1), slow>1ms 76, 619.6 ms, 24.6 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 7049 calls (2337 frames, gap med 1), slow>1ms 330, 2694.6 ms, 1426.3 MB;  bufferSubData 42066 calls (2337 frames, gap med 1), slow>1ms 1929, 15102.8 ms, 1144.2 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 3, 31.3 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 17 texSubImage3D-topped far frames
+arm 5 B  cpu p50 8.60  cpu p95 11.80  wall p50 9.30  wall p95 12.60  p99 18.00/17.20cpu  max 42.50/41.60cpu  tail 115/2146 over 12.5, 38 past 14.5 (gap med 9, 5 consecutive)  gc 46 (gap med 49) far∩gc 4/38  381 draws  1.036M tris  1920 body rows  type0 5.4/1.28/dorgh5k/drip0
+    gl: far-frame mean 16.92ms inside GL vs all-frame mean 7.97ms; biggest call on far frames: texSubImage3D x20 (mean biggest call 9.63ms),  bufferSubData x13 (mean biggest call 13.07ms),  texSubImage2D x5 (mean biggest call 12.98ms)
+    counts: texSub3D:array 1568 calls (28 frames, gap med 17), slow>1ms 20, 199.0 ms, 19.7 MB;  texSub3D:3d 0 calls;  texSub3D:other 0 calls
+    counts: texSubImage2D 6471 calls (2147 frames, gap med 1), slow>1ms 185, 1611.8 ms, 1310.3 MB;  bufferSubData 38646 calls (2147 frames, gap med 1), slow>1ms 1938, 15186.3 ms, 1051.2 MB;  bufferData 688 calls (7 frames, gap med 1), slow>1ms 3, 32.7 ms, 3.3 MB
+    count-alignment vs maxName: 0 mismatches on 20 texSubImage3D-topped far frames
+
+wall p95  A 13.30 ms [13.80 13.30 12.80] spread 1.00   B 12.60 ms [12.70 12.40 12.60] spread 0.30   A-B +0.70 ms
+cpu p95   A 12.30 ms [13.00 12.30 12.00] spread 1.00   B 11.80 ms [11.80 11.60 11.80] spread 0.20   A-B +0.50 ms
+wall p50  A 9.30 ms [9.30 9.80 9.20] spread 0.60   B 9.30 ms [9.20 9.30 9.30] spread 0.10   A-B +0.00 ms
+cpu p50   A 8.60 ms [8.60 9.00 8.60] spread 0.40   B 8.60 ms [8.60 8.60 8.60] spread 0.00   A-B +0.00 ms
+paired wallP95 A_i−B_i over 3 pairs: mean +0.733 ms, SD 0.473, SE 0.273, |mean|/SE 2.7, 3/3 positive
+paired cpuP95  A_i−B_i over 3 pairs: mean +0.700 ms, SD 0.500, SE 0.289, |mean|/SE 2.4, 3/3 positive
+paired wallP50 A_i−B_i over 3 pairs: mean +0.167 ms, SD 0.306, SE 0.176, |mean|/SE 0.9, 2/3 positive
+
+GL CALL COUNTS, per pool (equal counts + doubled slow rate proves the staging-pool theory; unequal counts kill it):
+texSub3D:array calls A [1960 1568 1960] B [1568 2016 1568]   slow A [62 57 76] B [22 29 20]   slow rate A 3.6% vs B 1.4%   bytes/arm A 24.6 MB vs B 19.7 MB
+texSubImage2D  calls A [6929 6561 7049] B [6621 7050 6471]   slow A [346 259 330] B [193 265 185]   slow rate A 4.6% vs B 3.2%   bytes/arm A 1401.9 MB vs B 1340.8 MB
+bufferSubData  calls A [41346 39186 42066] B [39546 42066 38646]   slow A [1884 1858 1929] B [1980 2040 1938]   slow rate A 4.6% vs B 5.0%   bytes/arm A 1124.6 MB vs B 1075.7 MB
+bufferData     calls A [688 688 688] B [688 688 688]   slow A [4 4 3] B [2 2 3]   slow rate A 0.5% vs B 0.3%   bytes/arm A 3.3 MB vs B 3.3 MB
+texSub3D:array upload cadence, gap median per arm: A [1 1 1] B [19 19 17]
+
+triangles A-B 0.0k, draws 381 vs 381, body rows 1920 vs 1920
+wall delta +0.70 ms against a per-arm spread of 1.00 ms; cpu delta +0.50 ms
+the delta is INSIDE the per-arm spread — it is a bound, not a measurement (CONTRACT §0 rule 6)
+arms over the wall ceiling 12.5 ms: A 3/3 (range 12.80..13.80)   B 2/3 (range 12.40..12.70)
+arms over the cpu ceiling 12 ms:  A 2/3 (range 12.00..13.00)   B 0/3 (range 11.60..11.80)
+
+src/modules/traffic.js restored to the arm it started as.

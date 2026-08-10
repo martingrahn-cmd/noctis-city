@@ -1,0 +1,35 @@
+{
+  "$SESSION_NOTE": "Session 18. The input contract: what each device must DELIVER per unit of input, not merely that it delivers something. Session 17 specified a keyboard, a mouse and a gamepad; session 18's walkthrough reported two of the three dead. Nothing could adjudicate that, because tools/walkprobe.mjs drives player.setSynthetic() — it enters BELOW the listeners, so the whole input layer had no test at all. Every threshold here is a comparison between a DELIVERED measurement taken through the real listener target and the constant that is supposed to produce it (CONTRACT §9.1: comparing the module's own declaration to the budget would compare two declarations and verify neither).",
+
+  "speed": {
+    "toleranceFraction": 0.06,
+    "$toleranceFraction": "The delivered speed is (distance travelled) / (simulated seconds elapsed), both read from the live modules either side of a hold. The player integrates time.now in whole frames, so the window's two endpoints can each be up to one frame out: 2 frames of 1/60 s over a ~1.2 s window is 2.8%. 0.06 is 2.14x that, which leaves room for a frame the machine dropped without leaving room for a wrong constant — the smallest error this is meant to catch is PLAYER.walkSpeedMps being read as GAIT.walkSpeedMps, which is 1.43x = 43%, seven times the tolerance."
+  },
+
+  "look": {
+    "toleranceFraction": 0.08,
+    "$toleranceFraction": "Delivered degrees of yaw per mouse count, against PLAYER.mouseRadPerCount. Wider than the speed tolerance because a browser COALESCES pointer events: several movementX deltas arrive as one event and the sum is preserved, but the count of events is not, so a test that counted events would drift. This measures the SUM of movementX actually delivered against the SUM of yaw actually applied, so coalescing cancels and 0.08 covers the residual half-count at each end.",
+
+    "minCmPer360": 27.2,
+    "maxCmPer360": 60.0,
+    "$cmPer360": "THE ASSERTION THAT WOULD HAVE CAUGHT THE REPORT, and the reason it is a band rather than a floor. 'The mouse does not work' and 'the mouse works and is unusable' produce the same sentence from an operator and different code from a programmer, so the gate has to be able to tell them apart. FROM BELOW, 27.2 cm: one mouse count must move at most one pixel or aiming is quantised — at fov 75 the horizontal field is 107.51 deg over 2560 internal px = 0.0420 deg/px, so 360/0.0420 = 8571 counts, which at 800 cpi is 27.2 cm. FROM ABOVE, 60.0 cm: a 180 deg turn — the 'what is behind me' gesture — must be reachable in one 30 cm sweep of desk without re-gripping, and 180 deg in 30 cm is 360 deg in 60 cm. The shipped 40 cm/360 sits inside both, so this assertion is GREEN on the delivered value and the band is what holds it there.",
+
+    "maxDeviceAuthorityRatio": 3.0,
+    "$maxDeviceAuthorityRatio": "One gesture, two devices: 1.0 s of full look-stick delivers PLAYER.maxLookRateDegPerS = 180 deg, and one 30 cm mouse sweep delivers 30/40 x 360 = 270 deg. Ratio 270/180 = 1.50. The bound is 3.0 because a factor of three is where the slower device stops reading as 'slower' and starts reading as 'not working' — which is precisely the report this gate exists to adjudicate, and the number is the one thing here taken from the incident rather than from arithmetic. It is recorded as such rather than dressed up."
+  },
+
+  "geometry": {
+    "strafeDotMax": 0.02,
+    "$strafeDotMax": "A strafe must be perpendicular to the facing. dot(normalise(displacement), forward) over a pure-A hold. Not exactly 0: the walk is committed axis-by-axis through moveWithSlide, so a strafe that grazes a blocked cell picks up a component of the other axis. 0.02 is 1.15 deg of heading error, which is under the 1 px of yaw the look curve can deliver in a frame and therefore under anything a player could have caused."
+  },
+
+  "field": {
+    "toleranceDeg": 0.01,
+    "$toleranceDeg": "The camera's delivered fov against PLAYER.fovDeg, as a float comparison with slack for nothing in particular — they are set from the same number in the same statement, so any difference at all means something else wrote the camera. This is the assertion that catches the player silently inheriting a route's field, which is what would happen if a gate ran with ?player=1 or if camera.setDriven stopped holding."
+  },
+
+  "falsify": {
+    "requireCoverage": 1.0,
+    "$requireCoverage": "CONTRACT §7.1. Every failure site in judgeInput() carries a case that makes it fire, counted from the source rather than declared. Anything under 1.0 is the rule with an exception in it."
+  }
+}
