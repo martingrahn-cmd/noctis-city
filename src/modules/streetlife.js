@@ -2010,7 +2010,10 @@ export function createStreetlife(options = {}) {
       arr[o] = cos; arr[o + 1] = 0; arr[o + 2] = -sin; arr[o + 3] = 0;
       arr[o + 4] = 0; arr[o + 5] = sc; arr[o + 6] = 0; arr[o + 7] = 0;
       arr[o + 8] = sin; arr[o + 9] = 0; arr[o + 10] = cos; arr[o + 11] = 0;
-      arr[o + 12] = a.x; arr[o + 13] = 0; arr[o + 14] = a.z; arr[o + 15] = 1;
+      // arr[13] is the instance's world Y. It was the literal 0 until session
+      // 19; `a.y` is `city.groundYAt` at the agent's own position, set in
+      // `updateAgentPosition`, which is where the reasoning is.
+      arr[o + 12] = a.x; arr[o + 13] = a.y; arr[o + 14] = a.z; arr[o + 15] = 1;
     }
     return arr;
   }
@@ -2280,6 +2283,16 @@ export function createStreetlife(options = {}) {
         type,
         slot: 0,
         height,
+        /**
+         * World Y of the feet. Session 19: written every frame by
+         * `updateAgentPosition` from `city.groundYAt`, and seeded at the ground
+         * datum here so that the very first `writeMatrices` — which can run
+         * before any position update on the frame a chunk lands — puts the
+         * figure on the carriageway rather than at `undefined`, which would
+         * write NaN into an instance matrix and remove it from the frame with
+         * no error anywhere.
+         */
+        y: 0,
         scale: height / BODY_REF_HEIGHT,
         speed: Math.max(
           WALK_SPEED_MIN,
@@ -2681,7 +2694,7 @@ export function createStreetlife(options = {}) {
     historyHead[a.index] = -1;
     historyFilled[a.index] = 0;
     planTrip(ctx, a, rng);
-    updateAgentPosition(a);
+    updateAgentPosition(a, ctx);
   }
 
   /**
@@ -2745,10 +2758,41 @@ export function createStreetlife(options = {}) {
     }
   }
 
-  function updateAgentPosition(a) {
+  /**
+   * THE FEET FOLLOW THE GROUND — session 19, and until this session they did
+   * not: `writeMatrices` wrote a literal `0` into every pedestrian's instance
+   * matrix and the crowd stood on the plane y = 0 whatever was under it.
+   *
+   * That was invisible while the streamed pavement was 0.030 m high, because
+   * 30 mm is a third of a shoe sole. Declaring the ground datum
+   * (`constants.js` → `GROUND`) put the pavement at `BLOCK.kerbHeight` =
+   * 0.160 m, so the same literal would have buried 360 people to the ankle —
+   * the datum makes this error EIGHT TIMES LARGER for anything standing on a
+   * pavement, which is why it is fixed in the same change rather than after it.
+   *
+   * ONE QUERY, THE SAME ONE THE PLAYER USES. `city.groundYAt` is the world
+   * ground height — the maximum over the streamed quads, the origin block and
+   * the river's decks — so a pedestrian crossing the origin block's kerb and a
+   * player crossing it are answered by the same function rather than by two
+   * that agree today. See `city.js` → `worldSurfaceAt`.
+   *
+   * PER AGENT PER FRAME, AND THE COST IS WHY `groundYAt` EXISTS AT ALL. 360
+   * agents against the player's one, so the query had to lose its allocation
+   * and gain the per-chunk bound that rejects eight of nine neighbours in four
+   * comparisons. What remains is about ten rectangle tests an agent.
+   *
+   * A SNAP, NOT AN INTERPOLATION, for the reason `player.js` gives about a
+   * kerb: a 0.160 m rise smoothed over three frames is a lift, and a pedestrian
+   * stepping up a kerb steps up it. The gait model's vertical bob rides on top
+   * of this in the vertex shader and is unaffected — it is a displacement about
+   * the instance origin, and the instance origin is what moved.
+   */
+  function updateAgentPosition(a, ctx) {
     loopPoint(a.cx, a.cz, a.p, a.spread, scratchPoint);
     a.x = scratchPoint.x;
     a.z = scratchPoint.z;
+    const city = ctx && ctx.get ? ctx.get('city') : null;
+    a.y = city && city.groundYAt ? city.groundYAt(a.x, a.z) : 0;
     if (a.dwell > 0) {
       a.yaw = a.dwellYaw;
     } else {
@@ -2854,6 +2898,27 @@ export function createStreetlife(options = {}) {
             kind: thisKind,
             x: scratchPoint.x,
             z: scratchPoint.z,
+            /**
+             * THE PAVEMENT UNDER THIS PITCH — session 19, and it is queried
+             * ONCE, here, rather than every frame.
+             *
+             * A stall does not move, so the frame loop has nothing to ask: its
+             * base was the literal `0` handed to `composeScaledYaw`, which put
+             * every stall on the plane y = 0 while its pitch is on a pavement.
+             * That was a 0.030 m error before the ground datum was declared and
+             * would be a 0.160 m one after it — a stall sunk to the top of its
+             * own kick rail. See `constants.js` → `GROUND`.
+             *
+             * A pitch is on a pavement by construction (`fp.inset` puts it
+             * between the kerb and the facade), so this is `GROUND.pavement` in
+             * almost every case — and it is READ rather than assumed, because
+             * "almost every" is exactly the kind of claim that is false at the
+             * bridges and in the origin block.
+             */
+            groundY: (() => {
+              const city = ctx.get('city');
+              return city && city.groundYAt ? city.groundYAt(scratchPoint.x, scratchPoint.z) : 0;
+            })(),
             yawDeg: Math.atan2(scratchPoint.ox, scratchPoint.oz) / DEG + fp.faceDeg,
             chroma: rng.int(0, STALL_CHROMA.length - 1),
             /**
@@ -2919,7 +2984,10 @@ export function createStreetlife(options = {}) {
       const clothCol = new Float32Array(of.length * 4);
       const mesh_ = mesh;
       for (let i = 0; i < of.length; i++) {
-        mesh_.setMatrixAt(i, composeScaledYaw(of[i].x, 0, of[i].z, of[i].yawDeg, 1, 1, 1));
+        // `of[i].groundY`, not the literal 0 it was until session 19 — the
+        // pitch's own pavement height, queried once at placement. See `groundY`
+        // in `buildStallChunk`.
+        mesh_.setMatrixAt(i, composeScaledYaw(of[i].x, of[i].groundY, of[i].z, of[i].yawDeg, 1, 1, 1));
         const m = of[i].soil;
         // Soiling darkens and warms. A SIGNED colour jitter used as a soiling
         // term is CONTRACT §9 row 14; this one only ever multiplies down.
@@ -2979,7 +3047,11 @@ export function createStreetlife(options = {}) {
         for (const g of STALL_KINDS[q.kind].glow) {
           const wx = q.x + g.x * cos + g.z * sin;
           const wz = q.z - g.x * sin + g.z * cos;
-          glow.setMatrixAt(gi, composeScaledYaw(wx, g.y, wz, q.yawDeg, g.w, g.h, g.d));
+          // `g.y` is the glow box's height in the STALL's own frame; the stall's
+          // frame now sits on the pavement rather than on y = 0, so the two are
+          // added. Session 19 — a glow strip left at `g.y` would have floated
+          // 0.160 m over the awning it belongs to.
+          glow.setMatrixAt(gi, composeScaledYaw(wx, q.groundY + g.y, wz, q.yawDeg, g.w, g.h, g.d));
           const c = STALL_CHROMA[g.chroma < 0 ? q.chroma : g.chroma];
           tmpColor.setRGB(c[0] * g.gain, c[1] * g.gain, c[2] * g.gain, THREE.LinearSRGBColorSpace);
           glow.setColorAt(gi, tmpColor);
@@ -3073,7 +3145,12 @@ export function createStreetlife(options = {}) {
       const rad = pick.q.yawDeg * DEG;
       slot.position.set(
         pick.q.x + STALL_WORKLIGHT_LOCAL_Z * Math.sin(rad),
-        STALL_WORKLIGHT_HEIGHT_M,
+        // `STALL_WORKLIGHT_HEIGHT_M` is a height ABOVE THE STALL — it is derived
+        // from the awning it hangs under — so it is measured from the pitch's
+        // own ground, not from the world origin. Session 19: the stall moved up
+        // onto its pavement and the lamp has to go with it, or the pool it
+        // throws lands 0.160 m into the pavement it is meant to light.
+        pick.q.groundY + STALL_WORKLIGHT_HEIGHT_M,
         pick.q.z + STALL_WORKLIGHT_LOCAL_Z * Math.cos(rad)
       );
       pick.q.light = slot;
@@ -3611,7 +3688,7 @@ export function createStreetlife(options = {}) {
         a.gaitAmp = wantAmp > a.gaitAmp
           ? Math.min(wantAmp, a.gaitAmp + fade)
           : Math.max(wantAmp, a.gaitAmp - fade);
-        updateAgentPosition(a);
+        updateAgentPosition(a, ctx);
         const key = chunkKey(a.cx, a.cz);
         pedCounts.set(key, (pedCounts.get(key) || 0) + 1);
         if (a.reseated) reseatsThisFrame++;

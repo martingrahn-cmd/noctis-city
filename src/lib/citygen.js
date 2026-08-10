@@ -56,6 +56,37 @@ export const CITY = {
   sidewalkWidth: 4.2,
 
   /**
+   * Metres from a junction's centre to the STOP LINE — session 19, item 7, and
+   * it is here rather than in `traffic.js` because it has three consumers and
+   * they must not be able to disagree.
+   *
+   * THE ONE QUANTITY, AND THE THREE THINGS THAT READ IT:
+   *
+   *   1. what a vehicle brakes to      `traffic.js`, the signal hold
+   *   2. where the signal head stands  `traffic.js`, `signalApproaches`
+   *   3. where the line is PAINTED     `city.js`, `buildGround`'s markings
+   *
+   * The brief's requirement is that the painted line and the traffic's stopping
+   * point are one number and not two, and (3) is the consumer that did not exist
+   * until this session — there were no markings anywhere in the project. Putting
+   * the number in `traffic.js` and reading it from `city.js` is impossible
+   * (CONTRACT §2.2: modules never import each other) and copying it is exactly
+   * the arrangement §9.1 is a list of. It lives in the lib both already import.
+   *
+   * 9.0 m = `roadHalfWidth` + 1.5. The 1.5 m setback is the gap between the stop
+   * line and the near edge of the crossing carriageway: enough for a crossing
+   * vehicle's overhang to swing through and enough for a pedestrian crossing to
+   * be laid in front of it, which is what the 1.5 m band is for.
+   *
+   * IT WAS ALREADY THIS NUMBER AND THE VEHICLES STILL STOPPED PAST IT, which is
+   * the part worth reading: `toStop` measured this distance to the vehicle's
+   * ORIGIN — its body centre — and used it as the distance to its NOSE. See
+   * `traffic.js`. A shared constant would not have caught that; only the front
+   * overhang does.
+   */
+  stopLineFromJunctionM: 7.5 + 1.5,
+
+  /**
    * Chebyshev radius, in chunks, of each residency ring.
    *
    *   detail    full geometry: facades, windows, signage, street furniture, lights

@@ -22,7 +22,7 @@
  */
 
 import * as THREE from 'three';
-import { BLOCK, LIGHT, LUMINAIRE } from '../core/constants.js';
+import { BLOCK, LIGHT, LUMINAIRE, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
 import { riverBankStations } from '../lib/citygen.js';
@@ -421,10 +421,14 @@ export function createBlock(options = {}) {
       {
         const E = cfg.groundExtent;
         const pos = [];
+        // `GROUND.earth`, not a literal: this plane is the reference the whole
+        // datum is stated against (constants.js → GROUND), and it was the same
+        // −0.02 in four places across two files until session 19.
+        const EY = GROUND.earth;
         const quad = (xa, za0, za1, xb, zb0, zb1) => {
           if (za1 - za0 <= 0 || zb1 - zb0 <= 0) return;
-          pos.push(xa, -0.02, za0, xb, -0.02, zb1, xb, -0.02, zb0);
-          pos.push(xa, -0.02, za0, xa, -0.02, za1, xb, -0.02, zb1);
+          pos.push(xa, EY, za0, xb, EY, zb1, xb, EY, zb0);
+          pos.push(xa, EY, za0, xa, EY, za1, xb, EY, zb1);
         };
         if (riverEnabled) {
           const st = riverBankStations(-E, E);
@@ -461,7 +465,14 @@ export function createBlock(options = {}) {
         matAsphalt
       );
       roadMain.rotation.x = -Math.PI / 2;
-      roadMain.position.y = 0.0;
+      /**
+       * THE DATUM ITSELF. `constants.js` → `GROUND.carriageway` = 0, and this
+       * 8 km ribbon is the surface that sentence is about: it has sat at exactly
+       * zero over an earth plane at −0.02 since session 1, without z-fighting,
+       * which is the only evidence anywhere in the project for the 0.020 m
+       * separation the streamed city now also uses.
+       */
+      roadMain.position.y = GROUND.carriageway;
       roadMain.receiveShadow = true;
       roadMain.name = 'block:road:main';
       root.add(roadMain);
@@ -471,13 +482,37 @@ export function createBlock(options = {}) {
         matAsphaltWorn
       );
       roadCross.rotation.x = -Math.PI / 2;
-      roadCross.position.y = 0.005;
+      /**
+       * The block's own crossing bias, and it is 0.005 rather than the streamed
+       * city's `GROUND.crossingBias` = 0.001 because these two are whole PLANES
+       * overlapping over 13 × 15 m, not two strips meeting at an edge — a
+       * larger coplanar area needs a larger separation at the same depth
+       * precision. Kept at its delivered value; the datum it is measured from is
+       * the one that moved.
+       */
+      roadCross.position.y = GROUND.carriageway + 0.005;
       roadCross.receiveShadow = true;
       roadCross.name = 'block:road:cross';
       root.add(roadCross);
 
       // Sidewalks: four runs along the main street, broken at the intersection.
-      const walkGeo = track(new THREE.BoxGeometry(1, 0.16, 1));
+      /**
+       * `cfg.kerbHeight`, NOT A LITERAL 0.16 — session 19, and it was a literal
+       * until this line was read.
+       *
+       * The box was `BoxGeometry(1, 0.16, 1)` while its centre was placed at
+       * `cfg.kerbHeight / 2`, so the two agreed only because the constant
+       * happened to be 0.16. Change `BLOCK.kerbHeight` to anything else and the
+       * pavement's CENTRE moves while its HEIGHT does not, which puts its top
+       * at `(kerbHeight + 0.16) / 2` — a pavement whose surface is no longer the
+       * kerb height, in the one place in the world with a real kerb, silently.
+       * §9.1's "a value in config the code does not read", with a box extent.
+       *
+       * It is load-bearing now rather than latent: `GROUND.pavement` IS
+       * `BLOCK.kerbHeight`, and the streamed city's pavement is emitted at that
+       * height, so this box and 25 chunks of quads have to agree.
+       */
+      const walkGeo = track(new THREE.BoxGeometry(1, cfg.kerbHeight, 1));
       let walkIndex = 0;
       const addWalk = (cx, cz, sx, sz) => {
         const wi = walkIndex++;
@@ -504,6 +539,42 @@ export function createBlock(options = {}) {
         addWalk(-(halfCross + walkSpan / 2), cz, walkSpan, cfg.sidewalkWidth);
         addWalk(halfCross + walkSpan / 2, cz, walkSpan, cfg.sidewalkWidth);
       }
+
+      /**
+       * THE BLOCK'S OWN GROUND, HOISTED OUT OF THE API — session 19, so that
+       * the sixteen lamp columns below can stand on it.
+       *
+       * It was a method on the returned api and therefore unavailable to the
+       * geometry that had to obey it: `addLamp` put every column's group at
+       * `y = 0`, and thirteen of the sixteen stand on a 0.160 m pavement. They
+       * were buried by exactly one kerb height in every frame this project has
+       * shipped. Two of the remaining three stand over bare earth at −0.020 and
+       * were floating 0.020 m; the sixteenth is in the cross-street gap.
+       *
+       * Hoisting rather than duplicating, because a second copy of these four
+       * branches is §9.1 — the api would answer one height and the geometry
+       * would stand at another, and the two would be a centimetre apart in a
+       * way nobody would think to print.
+       */
+      const blockSurfaceAt = (x, z) => {
+        const az = Math.abs(z);
+        const ax = Math.abs(x);
+        // Pavement: the four boxes, broken at the cross street.
+        if (az >= halfStreet && az <= walkOuter && ax >= halfCross && ax <= halfCross + walkSpan) {
+          return { y: cfg.kerbHeight, kind: 'walk', known: true };
+        }
+        // Cross street, which is laid 0.005 m over the main one where they
+        // meet. The same expression `roadCross.position.y` is built from.
+        if (ax <= halfCross && az <= 230) {
+          return { y: GROUND.carriageway + 0.005, kind: 'road', known: true };
+        }
+        // Main street. The plane is `groundExtent * 2` long, so it answers for
+        // the whole 8 km ribbon and not only for the block. THE DATUM.
+        if (az <= halfStreet && ax <= cfg.groundExtent) {
+          return { y: GROUND.carriageway, kind: 'road', known: true };
+        }
+        return { y: GROUND.earth, kind: 'earth', known: true };
+      };
 
       // ---- buildings ------------------------------------------------------
 
@@ -1377,7 +1448,17 @@ export function createBlock(options = {}) {
       const beamLumens = luminaireFlux(LIGHT.streetlampCandela, LUMINAIRE);
       const addLamp = (x, z, side, aimAxis = 'z') => {
         const g = new THREE.Group();
-        g.position.set(x, 0, z);
+        /**
+         * THE COLUMN STANDS ON WHATEVER IS UNDER IT — session 19. This was
+         * `set(x, 0, z)`, and thirteen of the sixteen columns are on the
+         * block's own 0.160 m pavement, so thirteen columns were buried by a
+         * whole kerb height. `lampHeight` = 8.4 m is a MOUNTING HEIGHT, and the
+         * whole group — pole, arm, bowl and the light's `worldHead` below —
+         * hangs off this one position, so lifting the group lifts the optic
+         * with it and the road's illuminance derivation is unchanged.
+         */
+        const baseY = blockSurfaceAt(x, z).y;
+        g.position.set(x, baseY, z);
         // Not parallel to the road. authored-city.md §3.
         g.rotation.y = rngLayout.gauss() * 0.9 * DEG;
 
@@ -1406,7 +1487,9 @@ export function createBlock(options = {}) {
 
         root.add(g);
 
-        const worldHead = new THREE.Vector3(x, 0, z).add(headPos);
+        // The same `baseY` the group was placed at — the light and the mesh it
+        // is inside must not be able to disagree about where the lamp is.
+        const worldHead = new THREE.Vector3(x, baseY, z).add(headPos);
 
         const beam = lights.add({
           role: 'block',
@@ -1765,39 +1848,36 @@ export function createBlock(options = {}) {
          * ON, in the same shape `city.surfaceAt` returns.
          *
          * The block authors its own street — `city.js` clips every streamed
-         * ground quad out of `BLOCK_KEEPOUT` so that this one wins — and it is
-         * the only place in the world with a REAL kerb: the pavement is a box
-         * whose top is `BLOCK.kerbHeight` = 0.160 m, against the 0.030 m the
-         * streamed pavement sits at. That 0.130 m step is what session 17's
-         * controller walks up and down, and it is the whole population of
-         * genuine kerbs the city has.
+         * ground quad out of `BLOCK_KEEPOUT` so that this one wins — and until
+         * session 19 it was the only place in the world with a REAL kerb: the
+         * pavement is a box whose top is `BLOCK.kerbHeight` = 0.160 m, against
+         * the 0.030 m the streamed pavement used to sit at.
+         *
+         * SESSION 19 MADE THE REST OF THE CITY AGREE WITH THIS FUNCTION RATHER
+         * THAN THE OTHER WAY ROUND, and that direction is the finding. Every
+         * height here — 0.000 for the carriageway, `kerbHeight` for the
+         * pavement, −0.020 for the earth — was already the datum every OBJECT
+         * in the project is authored against; `city.js`'s `GROUND_Y` was the one
+         * table that disagreed. It now reads `constants.js` → `GROUND`, and so
+         * does this. Two consequences worth stating:
+         *
+         *   the streamed kerb   0.010 m → 0.160 m, i.e. the same kerb as here
+         *   the 98.5 m overlap  the walk spans |x| ∈ [6.5, 266.5] and
+         *                       `BLOCK_KEEPOUT.x1` is 168, so for 98.5 m at each
+         *                       end this pavement stands over the streamed one.
+         *                       That overlap still EXISTS — it is a geometry
+         *                       overlap and nothing here removed it — but the
+         *                       0.130 m STEP it produced at x = ±266.5 is now
+         *                       0.000, because both pavements are
+         *                       `GROUND.pavement` by construction. A walker
+         *                       crosses it and feels nothing.
          *
          * Derived from the same four numbers the meshes above are built from
          * (`halfStreet`, `halfCross`, `walkOuter`, `walkSpan`) rather than from
          * a transcription of them, so a change to the street's width moves both
          * the geometry and this together.
-         *
-         * THE PAVEMENT RUNS 98.5 m PAST THE KEEP-OUT AT EACH END and this
-         * function reports that honestly rather than stopping at the boundary:
-         * the walk spans |x| ∈ [6.5, 266.5] and `BLOCK_KEEPOUT.x1` is 168, so
-         * for 98.5 m at each end the block's 0.160 m pavement stands over the
-         * streamed city's 0.030 m one. See STATE.md — it is a delivered
-         * geometry overlap, not a query artefact.
          */
-        surfaceAt(x, z) {
-          const az = Math.abs(z);
-          const ax = Math.abs(x);
-          // Pavement: the four boxes, broken at the cross street.
-          if (az >= halfStreet && az <= walkOuter && ax >= halfCross && ax <= halfCross + walkSpan) {
-            return { y: cfg.kerbHeight, kind: 'walk', known: true };
-          }
-          // Cross street, which is laid 0.005 m over the main one where they meet.
-          if (ax <= halfCross && az <= 230) return { y: 0.005, kind: 'road', known: true };
-          // Main street. The plane is `groundExtent * 2` long, so it answers for
-          // the whole 8 km ribbon and not only for the block.
-          if (az <= halfStreet && ax <= cfg.groundExtent) return { y: 0.0, kind: 'road', known: true };
-          return { y: -0.02, kind: 'earth', known: true };
-        },
+        surfaceAt: blockSurfaceAt,
         /** Horizontal extent of everything that occludes. The canyon module adds its own margin. */
         extent: occluders.reduce(
           (e, o) => ({

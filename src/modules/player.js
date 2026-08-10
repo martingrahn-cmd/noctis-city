@@ -115,7 +115,26 @@ export function createPlayer(options = {}) {
   /** m/s, vertical only. Horizontal motion has no inertia: a walker stops. */
   let fallVel = 0;
   let grounded = true;
-  let surface = { y: 0, kind: 'earth', known: false };
+  /**
+   * THE FEET'S OWN SURFACE RECORD, AND IT IS COPIED INTO RATHER THAN REPLACED.
+   *
+   * `city.worldSurfaceAt` returns a SHARED scratch object — it is called once
+   * per pedestrian per frame and an allocation there is 21 600 objects a
+   * second. Holding the returned reference across frames would mean this
+   * module's `surface` silently became whichever pedestrian asked last, and the
+   * HUD would report the crowd's ground as the player's. Read it now, copy what
+   * you keep. Session 19.
+   */
+  const surface = { y: 0, kind: 'earth', known: false };
+
+  /** Copy the transient world answer into `surface` and return it. */
+  function readSurface(ctx, x, z) {
+    const s = surfaceAt(ctx, x, z);
+    surface.y = s.y;
+    surface.kind = s.kind;
+    surface.known = s.known;
+    return surface;
+  }
 
   /** Pending mouse displacement, in counts. Applied and cleared each update. */
   let mouseDX = 0;
@@ -125,6 +144,33 @@ export function createPlayer(options = {}) {
   /** Set by `pointerlockerror` or a rejected request. See `onLockError`. */
   let lockError = false;
   let padIndex = null;
+
+  /**
+   * `'walk'` or `'fly'`. Session 19, and CONTRACT §11 says this module has ONE
+   * STATE — so read the argument before adding a third.
+   *
+   * A FLY MODE IS A CAMERA MODE, NOT A CHARACTER STATE, and the distinction is
+   * the whole licence. §11's rule is about the CONTROLLER growing states: a
+   * crouch, a swim, a vehicle to get into are each a new set of rules about what
+   * the body is, and every one of them doubles the surface of the collision, the
+   * ground query and the gait. Fly has NONE of that: there is no body, no
+   * ground, no mask, no step height, no fall. It is the same three input numbers
+   * — a heading, a magnitude and a look — applied to a free eye instead of to a
+   * pair of feet, and it deletes rules rather than adding them.
+   *
+   * The test that keeps it honest: `walk` and `fly` share every line of the
+   * input block below and diverge only where the walk consults the world.
+   * If a future session finds itself writing a second collision path, a second
+   * ground query or a second gait for `fly`, it has stopped being a camera mode
+   * and §11 applies again.
+   *
+   * IT IS ALSO THE MOST USEFUL DIAGNOSTIC IN THE PROJECT AFTER THE WALK ITSELF.
+   * Session 17's argument for the controller was that free movement goes places
+   * no route has been; a fly camera goes places no PERSON can, which is where
+   * the roofscape, the skyline and every landmark's upper two thirds are — all
+   * three of which this session changed and none of which a walker can see.
+   */
+  let mode = 'walk';
 
   /** Simulated seconds at the previous update. See the header. */
   let lastNow = null;
@@ -167,18 +213,25 @@ export function createPlayer(options = {}) {
    * surfaces and leaves the others, rather than throwing.
    */
   function surfaceAt(ctx, x, z) {
-    let best = null;
-    const consider = (s) => {
-      if (!s) return;
-      if (!best || s.y > best.y) best = s;
-    };
-    const river = ctx.get('river');
-    if (river && river.surfaceAt) consider(river.surfaceAt(x, z));
-    const block = ctx.get('block');
-    if (block && block.surfaceAt) consider(block.surfaceAt(x, z));
+    /**
+     * SESSION 19 — THE MAX-OVER-THREE MOVED TO `city.worldSurfaceAt` AND THIS
+     * CALLS IT. The three-line loop that used to be here is unchanged in
+     * behaviour and is now in one place instead of two, because session 19 gave
+     * the crowd, the stalls and the street furniture the same query and two
+     * copies of "which surface am I on" is §9.1's subject with a height. Its
+     * failure mode is the one that would be hardest to attribute: the walker
+     * standing on one surface and the crowd beside them standing on another, in
+     * the same frame, both looking correct.
+     *
+     * `city` quarantined is a world with no streamed ground in it at all, so
+     * the fallback is the origin block alone rather than a second copy of the
+     * maximum. There is nothing else to stand on.
+     */
     const city = ctx.get('city');
-    if (city && city.surfaceAt) consider(city.surfaceAt(x, z));
-    return best || { y: 0, kind: 'none', known: false };
+    if (city && city.worldSurfaceAt) return city.worldSurfaceAt(x, z);
+    const block = ctx.get('block');
+    if (block && block.surfaceAt) return block.surfaceAt(x, z);
+    return { y: 0, kind: 'none', known: false };
   }
 
   /**
@@ -235,6 +288,60 @@ export function createPlayer(options = {}) {
     }
     if (dz !== 0 && canStandAt(ctx, feet.x, feet.z + dz, feet.y, feet.x, feet.z + dz + Math.sign(dz) * r)) {
       feet.z += dz;
+    }
+  }
+
+  /**
+   * THE SAME MOVE, SPLIT SO THAT NO SINGLE TEST SKIPS OVER A BLOCKER — session
+   * 19, and it is the one thing the speed change actually required.
+   *
+   * `moveWithSlide` tests the DESTINATION, so a displacement larger than the
+   * thing in the way steps straight over it: the destination is clear, the
+   * origin was clear, and nothing looks at the interval between them. Session 17
+   * never had to care, because the whole frame's displacement was
+   * `2.00 · dt`, which at 60 fps is 0.033 m.
+   *
+   * WHAT CHANGED IS NOT THE SPEED, IT IS THE WORST-CASE FRAME. `core/loop.js`
+   * clamps `dt` to 0.1 s (CONTRACT §4.2) so a hitched frame delivers a whole
+   * tenth of a second at once, and at `runSpeedMps` = 7.00 that is **0.70 m** in
+   * one test — 2.8× the body radius, and wider than every landmark ground
+   * blocker thinner than a building. A pier is 1.6–2.4 m across, so 0.70 m does
+   * not tunnel one today; 0.70 m is nonetheless the first displacement in this
+   * project's history that is larger than the body making it, and the failure it
+   * invites is a player standing inside a pier with no way to see how they got
+   * there.
+   *
+   * THE SUBSTEP IS `radiusM` AND THAT IS THE DERIVATION: a body of radius r
+   * cannot pass through a blocker of thickness ≥ r if it is tested every r, and
+   * `PLAYER.radiusM` = 0.25 m is already the quantity every mask query is padded
+   * by, so this introduces no second number. Cost, in mask queries per frame:
+   *
+   *     60 fps, walk 3.50    ceil(0.0583 / 0.25) = 1     (unchanged)
+   *     60 fps, run  7.00    ceil(0.1167 / 0.25) = 1     (unchanged)
+   *     dt = 0.1, run 7.00   ceil(0.7000 / 0.25) = 3
+   *
+   * So the normal frame pays exactly what it paid before and only the frame that
+   * was already late pays more, which is the right way round.
+   *
+   * A REFUSED SUBSTEP ENDS THE AXIS RATHER THAN CONTINUING. Sliding along a wall
+   * is per-axis and already handled inside `moveWithSlide`; continuing to push a
+   * refused axis through further substeps would let a body oscillate into a
+   * corner it was refused from, at a cost of two more queries for no motion.
+   */
+  function moveSubstepped(ctx, dx, dz) {
+    const dist = Math.hypot(dx, dz);
+    const n = Math.max(1, Math.ceil(dist / PLAYER.radiusM));
+    if (n === 1) {
+      moveWithSlide(ctx, dx, dz);
+      return;
+    }
+    const sx = dx / n;
+    const sz = dz / n;
+    for (let i = 0; i < n; i++) {
+      const beforeX = feet.x;
+      const beforeZ = feet.z;
+      moveWithSlide(ctx, sx, sz);
+      if (feet.x === beforeX && feet.z === beforeZ) break;
     }
   }
 
@@ -313,7 +420,7 @@ export function createPlayer(options = {}) {
         }
       }
 
-      surface = surfaceAt(ctx, feet.x, feet.z);
+      readSurface(ctx, feet.x, feet.z);
       if (spawnY == null) feet.y = surface.y;
 
       // Face west, down the main street, which is the direction the `street`
@@ -345,6 +452,20 @@ export function createPlayer(options = {}) {
       const onKeyDown = (e) => {
         keys.add(e.code);
         if (e.code === 'KeyP') console.log(positionLine(ctx));
+        if (e.code === 'KeyF') {
+          mode = mode === 'walk' ? 'fly' : 'walk';
+          fallVel = 0;
+          // Say which mode is active, every time, because a mode you cannot see
+          // is a mode you will fight. The brief asked for this line by name.
+          console.log(
+            `[noctis] player mode: ${mode.toUpperCase()} — ` +
+            (mode === 'fly'
+              ? `${PLAYER.flySpeedMps} m/s, ${PLAYER.flySpeedMps * PLAYER.flyBoost} m/s with shift; ` +
+                'Space/Ctrl for up and down; no collision and no ground. F for walk.'
+              : `${PLAYER.walkSpeedMps} m/s, ${PLAYER.runSpeedMps} m/s with shift; ` +
+                'the walkability mask and the ground query are back. F for fly.')
+          );
+        }
         // WASD and the space bar scroll the page otherwise, and a controller
         // whose forward key also scrolls is a controller nobody can use.
         if (POINTER_KEYS.has(e.code) && pointerLocked) e.preventDefault();
@@ -433,16 +554,47 @@ export function createPlayer(options = {}) {
         const d = PLAYER.eyeHeightM / Math.tan((fovDeg * DEG) / 2);
         return ((v * PLAYER.eyeHeightM) / (PLAYER.eyeHeightM ** 2 + d * d)) / DEG;
       };
+      /**
+       * `CITY.chunkSize` and `RIVER.bridgeEvery` live in `src/lib/citygen.js`,
+       * which this module may not reach through — §2.2 allows `../lib/**` and
+       * `citygen.js` is a lib, but importing the whole city generator into the
+       * controller to print two integers is the wrong trade. They are quoted
+       * with their source instead, and the quantity DERIVED from them (the
+       * crossing time) is what gets printed — §9 rule 4 asks for the pair, and
+       * the pair here is "512 m" and "how long that takes at this constant".
+       */
+      const BRIDGE_SPACING_M = 512; // citygen.js: RIVER.bridgeEvery(4) · CITY.chunkSize(128)
+      const CHUNK_M = 128; // citygen.js: CITY.chunkSize
       console.log(
         `[noctis] player: eye ${PLAYER.eyeHeightM} m, walk ${PLAYER.walkSpeedMps} m/s ` +
         `(= PLAYER.walkSpeedMps, a TRAVERSAL rate — ${(PLAYER.walkSpeedMps / GAIT.walkSpeedMps).toFixed(2)}× ` +
         `GAIT.walkSpeedMps ${GAIT.walkSpeedMps} m/s, which is the crowd's gait model and is NOT this number; ` +
-        `0.98× the ${RUN_TRANSITION_MPS.toFixed(3)} m/s walk–run transition, so it is still a walk), ` +
+        `${(PLAYER.walkSpeedMps / RUN_TRANSITION_MPS).toFixed(2)}× the ${RUN_TRANSITION_MPS.toFixed(3)} m/s ` +
+        `walk–run transition, so it is NOT a walk by this project's own biomechanics — session 19 ` +
+        `removed that bound deliberately because nothing is derived from this number), ` +
         `run ${PLAYER.runSpeedMps} m/s (= ${(PLAYER.runSpeedMps / GAIT.walkSpeedMps).toFixed(2)}× the crowd, ` +
-        `${(PLAYER.runSpeedMps / RUN_TRANSITION_MPS).toFixed(2)}× the transition), ` +
-        `step ${PLAYER.stepUpM} m (BLOCK.kerbHeight is 0.16, the streamed kerb is 0.010), ` +
+        `${(PLAYER.runSpeedMps / RUN_TRANSITION_MPS).toFixed(2)}× the transition, ` +
+        `${(PLAYER.runSpeedMps / PLAYER.walkSpeedMps).toFixed(2)}× the walk), ` +
+        `step ${PLAYER.stepUpM} m, ` +
         `radius ${PLAYER.radiusM} m (near-plane corner at fov ${cam.fov} is ${corner.toFixed(4)} m, ` +
         `${(PLAYER.radiusM / corner).toFixed(3)}× clear)`
+      );
+      /**
+       * THE NUMBER THE SPEED WAS CHANGED FOR, printed against the world rather
+       * than against a gait model — because "2.50× the crowd" is the cost and
+       * "how long to the next bridge" is the reason.
+       */
+      console.log(
+        `[noctis] player scale: a ${CHUNK_M} m chunk takes ` +
+        `${(CHUNK_M / PLAYER.walkSpeedMps).toFixed(1)} s walking / ` +
+        `${(CHUNK_M / PLAYER.runSpeedMps).toFixed(1)} s running; ` +
+        `${BRIDGE_SPACING_M} m bridge to bridge takes ` +
+        `${(BRIDGE_SPACING_M / PLAYER.walkSpeedMps / 60).toFixed(2)} min / ` +
+        `${(BRIDGE_SPACING_M / PLAYER.runSpeedMps / 60).toFixed(2)} min ` +
+        `(it was ${(BRIDGE_SPACING_M / 2.0 / 60).toFixed(2)} min at session 18's 2.00 m/s). ` +
+        `Collision substeps at the loop's clamped dt=0.1 s: ` +
+        `${Math.max(1, Math.ceil((PLAYER.runSpeedMps * 0.1) / PLAYER.radiusM))} ` +
+        `(1 at 60 fps — see moveSubstepped)`
       );
       console.log(
         `[noctis] player fov ${cam.fov}° (the ROUTES are unchanged at 50–58; every gate sets its own). ` +
@@ -469,7 +621,13 @@ export function createPlayer(options = {}) {
         `mouse ${PLAYER.mouseCmPer360} cm/360° at ${PLAYER.mouseCpi} cpi = ` +
         `${(PLAYER.mouseRadPerCount / DEG).toFixed(5)}°/count`
       );
-      console.log(`[noctis] player spawned — click to capture the mouse, P prints the position`);
+      console.log(
+        `[noctis] player mode: WALK (F toggles walk/fly — fly is ${PLAYER.flySpeedMps} m/s, ` +
+        `${PLAYER.flySpeedMps * PLAYER.flyBoost} m/s boosted, Space/Ctrl for up and down, no collision). ` +
+        'Both modes come from the same URL; the mode is not a query parameter, because it is a thing ' +
+        'you change while looking at something rather than a thing you decide before the page loads.'
+      );
+      console.log(`[noctis] player spawned — click to capture the mouse, P prints the position, M opens the map`);
 
       return {
         get position() {
@@ -488,6 +646,8 @@ export function createPlayer(options = {}) {
           surfaceKnown: surface.known,
           grounded,
           fallVel: +fallVel.toFixed(3),
+          /** `'walk'` or `'fly'`. Session 19. See `mode`. */
+          mode,
           gamepad: padIndex != null,
           pointerLocked,
           lockError,
@@ -513,10 +673,29 @@ export function createPlayer(options = {}) {
          */
         teleport: (x, y, z, yawDeg) => {
           feet.set(x, y != null ? y : 0, z);
-          surface = surfaceAt(ctx, feet.x, feet.z);
+          readSurface(ctx, feet.x, feet.z);
           if (y == null) feet.y = surface.y;
           if (yawDeg != null) yaw = yawDeg * DEG;
           fallVel = 0;
+          /**
+           * THE TAA HISTORY IS A DESCRIPTION OF A DIFFERENT WORLD NOW — session
+           * 19, and STATE 18 §7.6 recorded this as the one missing piece before
+           * the map existed to expose it.
+           *
+           * CONTRACT §5.10: history is dropped on resize, on a discontinuous
+           * `timeOfDay`, and "by `post.resetHistory()` for anything else that
+           * makes the previous frame a description of a different world". A
+           * teleport is the plainest case of that sentence there is, and it was
+           * the one caller that did not do it — the camera reprojection would
+           * fetch a history texel from six hundred metres away, the
+           * neighbourhood clamp would reject nearly all of it, and the first
+           * frames after a jump would resolve from almost no accumulation.
+           *
+           * Cheap and unconditional: a teleport happens when a person clicks a
+           * map, not sixty times a second.
+           */
+          const post = ctx.get('post');
+          if (post && post.resetHistory) post.resetHistory();
           return true;
         },
         /**
@@ -555,7 +734,7 @@ export function createPlayer(options = {}) {
         pitch = euler.x;
         fallVel = 0;
         reseatTo = null;
-        surface = surfaceAt(ctx, feet.x, feet.z);
+        readSurface(ctx, feet.x, feet.z);
       }
 
       // --- input ------------------------------------------------------------
@@ -636,6 +815,63 @@ export function createPlayer(options = {}) {
 
       // --- walk -------------------------------------------------------------
 
+      /**
+       * FLY — the whole of the second mode, and it is deliberately shorter than
+       * the walk it replaces rather than longer.
+       *
+       * It shares the input block above verbatim: the same dead zone, the same
+       * curve, the same keyboard normalisation, the same look. What it does not
+       * share is everything the walk needs the WORLD for — `canStandAt`, the
+       * mask, the substep, the step height, the fall — because a camera has no
+       * body to keep out of a wall. That asymmetry is the argument for calling
+       * this a camera mode rather than a second character state; see `mode`.
+       *
+       * THE FORWARD VECTOR INCLUDES PITCH HERE AND NOT IN THE WALK. A walker
+       * looking at a roofline does not rise, which is why the walk builds its
+       * forward from `yaw` alone; a fly camera looking at a roofline flies
+       * toward it, which is the one thing it exists for.
+       *
+       * Vertical is on Space and Ctrl, absolute rather than camera-relative, so
+       * "up" is up whatever the eye is pointed at — the property that makes a
+       * fly camera usable for framing a shot rather than only for travelling.
+       */
+      if (mode === 'fly') {
+        const fast = run ? PLAYER.flyBoost : 1;
+        const step = PLAYER.flySpeedMps * fast * dt;
+        if (moveMag > 0 && dt > 0) {
+          const mag = Math.hypot(moveX, moveY);
+          const dirX = moveX / mag;
+          const dirY = moveY / mag;
+          const cp = Math.cos(pitch);
+          forward.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
+          rightVec.set(Math.cos(yaw), 0, -Math.sin(yaw));
+          feet.x += (forward.x * dirY + rightVec.x * dirX) * step * moveMag;
+          feet.y += forward.y * dirY * step * moveMag;
+          feet.z += (forward.z * dirY + rightVec.z * dirX) * step * moveMag;
+        }
+        let lift = 0;
+        if (keys.has('Space')) lift += 1;
+        if (keys.has('ControlLeft') || keys.has('ControlRight')) lift -= 1;
+        if (pad) {
+          const b = pad.buttons || [];
+          const held = (i) => !!(b[i] && (b[i].pressed || b[i].value > 0.5));
+          if (held(0)) lift += 1;
+          if (held(1)) lift -= 1;
+        }
+        feet.y += lift * step;
+        grounded = false;
+        fallVel = 0;
+        // The surface under the eye is still reported, because "what am I over"
+        // is the question a fly camera is usually being used to answer.
+        readSurface(ctx, feet.x, feet.z);
+        cam.position.set(feet.x, feet.y + PLAYER.eyeHeightM, feet.z);
+        cam.up.set(0, 1, 0);
+        euler.set(pitch, yaw, 0, 'YXZ');
+        cam.quaternion.setFromEuler(euler);
+        cam.updateMatrixWorld(true);
+        return;
+      }
+
       if (moveMag > 0 && dt > 0) {
         // Direction and magnitude are separated, because the pad and the keys
         // are SUMMED above and their sum can exceed 1. Normalising the
@@ -653,7 +889,7 @@ export function createPlayer(options = {}) {
         // Horizontal only. A walker looking at a roofline does not rise.
         forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
         rightVec.set(Math.cos(yaw), 0, -Math.sin(yaw));
-        moveWithSlide(
+        moveSubstepped(
           ctx,
           (forward.x * dirY + rightVec.x * dirX) * step,
           (forward.z * dirY + rightVec.z * dirX) * step
@@ -662,7 +898,7 @@ export function createPlayer(options = {}) {
 
       // --- ground -----------------------------------------------------------
 
-      surface = surfaceAt(ctx, feet.x, feet.z);
+      readSurface(ctx, feet.x, feet.z);
       const target = surface.y;
       const rise = target - feet.y;
 

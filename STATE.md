@@ -1,17 +1,17 @@
 # NOCTIS — STATE
 
-*End of session 18. The operator walked the city at night and sent back a list
-of eleven things. **Three of the eleven turned out not to be what they looked
-like, and finding that out is most of what this session produced.** The mouse
-and keyboard were never broken — all three input devices deliver their own
-constants, measured four ways, and the project now has a gate that says so. The
-traffic signals were never decorative — they were real, read by every vehicle,
-and the red light simply had no HOLD, because `toStop > 0` was standing in for
-"may I proceed". The origin block has no road markings for the streamed city to
-be missing — it has a kerb coping strip, and nothing in this project has ever
-drawn a marking. Two real defects were fixed, one correction was **measured,
-refuted and reverted**, and the night frames still look the way the operator
-said they look.*
+*End of session 19. The operator walked the city and sent a list of twelve
+items plus four carried ones. **The largest finding is that the ground datum was
+never undeclared — the origin block has obeyed it since session 1 and exactly
+one table disagreed with it**, and declaring it closed three separate defects at
+once, including the kerb repair that session 18 proved was blocked. The "cube in
+the carriageway" is not a stall: it is a road patch emitted as a 1.00 m tall box
+standing half a metre proud of its own road, from a unit SCALE used as a
+THICKNESS. Traffic stopped past its own line because the stop distance was
+measured to the vehicle's ORIGIN and used as the distance to its NOSE. And the
+lamp-bounce fix the brief asked for is real, correctly shaped, nearly free —
+and worth **+0.12 stops against the +2.2 the night frame is short**, which is an
+impossibility proof rather than a result.*
 
 Read `CONTRACT.md` before this file, and before any source file.
 
@@ -19,552 +19,557 @@ Read `CONTRACT.md` before this file, and before any source file.
 
 ## 0. The honesty line, first
 
-**Six of the eleven items are not done.** Items 3 (dynamic range), 4 (upward
-glow), 5 (markings and kerb), 6 (pop-in), 9 (map) and 11 (warning lights) are
-diagnosed to the file-and-line and not implemented. §7 is what each of them
-actually needs, and every one of them is now a smaller job than it was this
-morning because the diagnosis is done and, in three cases, the obvious repair is
-proven wrong.
-
-**What shipped:** the traffic hold (§2), a NaN in a shader uniform (§3), the
-player's field and pace (§4), `inputcheck` — a new gate (§5), and
-`tools/levels.mjs` — a new instrument (§1).
-
-**`npm run gates` DID NOT COMPLETE, AND IT FAILED ON THE MACHINE RATHER THAN ON
-A THRESHOLD.** Six of eight are green on the final tree:
+**`npm run gates` is SEVEN OF EIGHT GREEN. `perfcheck` is red on six timing
+assertions and the machine was at `load1` 4.20 against a bar of 1.6, so none of
+those six is a verdict.**
 
 ```
-✓ parsecheck   79 files
+✓ parsecheck   81 files — and it now counts CONTRACT §9's table itself
 ✓ faultcheck   7 cases
 ✓ lookcheck    all eight frames within budget, ZERO suppressions
-✓ windcheck    4 controls
-✓ inputcheck   NEW — all three devices deliver their own constants
+✓ windcheck    677 meshes, 673 ok, 0 wound backwards, 4 controls
+✓ inputcheck   all three devices deliver their own constants
 ✓ gateaudit    58 cases, 4 self-tests (perfcheck, citycheck, windcheck, inputcheck)
-? citycheck    all six criteria on the run before the last edit; HUNG on the re-run
-? perfcheck    exit 2 — "Execution context was destroyed" mid-route
+✓ citycheck    all six authored-city criteria
+✗ perfcheck    6 timing assertions, AT load1 4.20 AGAINST A BAR OF 1.6
 ```
 
-Both question marks are the same fault and it is not a threshold: chromium was
-killed under memory pressure and the gate sat waiting on a page that no longer
-existed — `citycheck` measured **0.0% CPU for 13 minutes**. `load1` was **2.65
-to 3.22** throughout, against a bar of **1.6** (CONTRACT §0.2), with two orphan
-vite servers resident. This is the observer being the load, exactly as recorded,
-and it means **no absolute measured this session may be read as a verdict.**
-`downtown_dense` reported cpu p95 13.70 ms against a carried 10.90 on the same
-content — that is drift, not a regression, and it is one-sided.
+**What perfcheck actually reported, and which half of it can be read.** §9 rule
+6's corollary is that *counts do not drift*, so the integers are evidence and the
+milliseconds are not:
 
-**`tools/quiet-gates.sh` with the app closed is the only thing that can close
-this**, and it is still the operator's. It is now also the only thing that can
-confirm the two carried reds and whatever the wider player field costs.
+```
+                 draws   tris    instances   froxel margin   CPU p95    ceiling
+downtown_dense    325   1.20M     116 491     52 of 96      12.70 ms    12.0  ✗
+highway_speed     428   1.39M     158 125     85 of 96      10.50 ms    12.0  ✓
+night_rain        332   1.20M     143 536     59 of 96      13.30 ms    12.0  ✗
+player            318   1.19M     116 491     56 of 96      13.30 ms    12.0  ✗
+```
 
-**Carried red, unchanged and untouched:** `downtown_dense` mean luminance
-0.0653 against [0.08, 0.55]; the `player` route's 13.50 / 14.30 ms. Neither was
-worked on. **Nothing was weakened to pass.** One number was changed, measured,
-found worse, and put back — §3.2.
+`highway_speed` holds the draw-call ceiling at **428 of 440**, which is the one
+number this session could have broken and did not — every piece of new content
+(the roofscape on the outer ring, the crowns, the aviation beacons) rides in
+meshes that already existed. Triangles 1.39 M of 2.00 M. Zero swap violations.
+
+**Two of session 18's carried reds are now green.** `downtown_dense` mean
+luminance was 0.0653 against a floor of 0.08 and reads **0.1377**; `night_rain`
+reads 0.0819 against the same floor, margin 0.0019 (it was 0.0032 — *tighter*,
+and that is the one number in this file moving the wrong way). The `player`
+route's two timing reds are unchanged in kind.
+
+**`tools/quiet-gates.sh` with the app closed is still the only thing that can
+close this, and it is still the operator's.** Two orphan vite servers were
+resident at the start of this session — one five hours old from session 18, one
+35 minutes old — and **this session could not kill them: the environment refused
+the `kill`.** They do not collide with any gate's port (the gates use 5179–5311
+and the orphans held 5173/5174), so they cost memory and load rather than
+correctness, but they are two of the reasons `load1` sat at 3.4–4.2 all evening.
+Kill them before running the quiet battery.
+
+**Nothing was weakened to pass.** No floor moved, no assertion was deleted. One
+correction was refused on an arithmetic impossibility proof and is recorded as
+such (§4).
 
 ---
 
-## 1. The instrument that had to exist first
+## 1. Item 1 — the ground datum, and it was already declared
 
-`tools/levels.mjs` — NOT A GATE — and `lookmetrics.tonalHistogram()`.
+`src/core/constants.js` → **`GROUND`**. **y = 0 is the carriageway surface.**
 
-The project has counted the two ENDS of the histogram since session 1
-(`clippedWhite` at code ≥ 254, `crushedBlack` at ≤ 2) and asserted a mean and an
-entropy. **Not one of those four can see the reported failure.** Both ends can
-sit inside their bounds while there is nothing in the middle, and the mean of a
-bimodal distribution sits where there are no pixels — STATE 17 §6 already said
-so with `median/mean` and nothing acted on it.
+**The finding is the direction.** STATE 18 §7.2 recorded that "`y = 0` is the
+de-facto ground datum of every object in the project — wheels, pedestrian feet,
+prop bases, lamp columns, stall bases, signal masts — and the ground quads are
+the only surfaces that are not at it." Half of that is wrong in the useful
+direction: **`block.js` has put the origin block's carriageway at exactly
+`y = 0.0` since session 1**, over an earth plane at −0.020, with its pavement at
+`BLOCK.kerbHeight`. The origin block obeys the datum. `city.js`'s `GROUND_Y` was
+the one table that did not, and it disagreed by exactly the z-fighting offset it
+was built from.
 
-The middle band is derived rather than picked: the Zone System's TEXTURED range,
-Zones III–VII, an 18% reflector ±2 stops through the sRGB OETF, computed from
-0.18 rather than written down as 60 and 221 so the two cannot drift from the
-definition.
-
-**The operator's two frames, measured:**
+**So the repair was to move one table, and it closed three defects at once:**
 
 ```
-                                pavement, x=300, eye 1.77, t=0.0   elevated, over the condenser
-crushed  ≤2                                   2.53%                          1.41%
-below Zone III (code 60)                     85.11%                         97.29%
-TEXTURED, Zones III–VII                      12.15%                          0.99%
-above Zone VII (code 221)                     2.43%                          1.69%
-clipped ≥254                                  0.10%                          0.00%
-median code                                      24                             13
+                            before      after     what it was
+carriageway (NS / EW)   0.020/0.021   0.000/0.001  the datum
+pavement    (NS / EW)   0.030/0.031   0.160/0.161  BLOCK.kerbHeight above it
+earth plane            −0.020        −0.020        unchanged
+
+160 vehicles                0.020 m sunk into their own road   →  0.000
+the streamed kerb           0.010 m  (BLOCK.kerbHeight is 0.160) →  0.160
+the 98.5 m pavement overlap 0.130 m step at x = ±266.5          →  0.000
 ```
 
-**The top end is barely clipping at all — 0.10% and 0.00%.** "The bright is
-blown" is the *contrast* reading of a 2.4% highlight population against an 85%
-shadow population with bloom spreading the highlights, and "the dark is very
-dark" is 85–97% of the frame below the range a print can hold. That is one
-statement about one distribution, exactly as the brief said, and it is now a
-number instead of an impression.
+**The kerb trap dissolved, and the arithmetic is why.** Session 18 showed the
+kerb repair blocked: pavement at 0.181 gives `0.181 − earth(−0.020)` = 0.201 m
+against `PLAYER.stepUpM` = 0.200. That is right, and its premise is not — 0.181
+is `0.020 + 0.161`, which STACKS a real kerb on the z-fighting offset instead of
+REPLACING it. Moving the datum gives **0.160 − (−0.020) = 0.180 m ≤ 0.200**,
+clear by 0.020 (1.11×). It needs no new evidence at all: the origin block has
+delivered exactly that 0.180 m step at the edge of its own pavement since
+session 1 and `walkprobe` has walked it.
 
-**And the after-frames are the same frames**, which is the session's headline
-and is stated here rather than buried:
+**A datum is what a query is measured FROM, and is not a substitute for one.**
+Declaring it makes y = 0 correct for anything on a CARRIAGEWAY — the traffic,
+and nothing else. Everything on a PAVEMENT was 0.030 m out and would have been
+0.160 m out, i.e. **the declaration makes the error eight times larger for those
+objects**, so the nine placement sites had to ship in the same change:
 
-```
-                  pavement                        elevated
-textured   12.15% → 12.12%  (−0.03 pts)    0.99% → 1.01%  (+0.02)
-crushed     2.53% →  2.58%  (+0.04)        1.41% → 1.97%  (+0.56)
-clipped     0.10% →  0.10%  (0.00)         0.00% → 0.00%  (0.00)
-mean       0.1419 → 0.1418                0.0756 → 0.0762   median 13 → 14
-```
+| what | now reads |
+|---|---|
+| 360 pedestrians | `city.groundYAt`, per agent per frame |
+| stalls, their glow strips, their work lights | `city.groundYAt` once, at placement |
+| props (1 596 delivered) | `city.groundYAt` once, at chunk build |
+| streamed lamp columns and bowls (181) | `city.groundYAt`, base and mounting height together |
+| the origin block's 16 lamp columns | `block.js`'s own ground, hoisted out of the api |
+| traffic signal masts (16 heads × 5 rows) | one query a frame at the camera |
+| freestanding sign pylons and their posts | `city.groundYAt` |
+| the river's promenade, bridge carriageway and bridge footway | `GROUND` |
+| `weather.js`'s private `GROUND_Y = 0.02` | `GROUND.carriageway` |
+| `camera.js` → `ROUTES.player.eye` | `GROUND.pavement + 1.74`, was the literal 1.77 |
 
-Nothing that moves this histogram shipped, because the one change that moved it
-moved it the wrong way (§6) and the one that was a genuine correctness fix moves
-it by hundredths of a point (§3.1). **The night frames still look exactly as the
-operator described them**, and §7 is the list of what would change that.
+**One function, and it is the only copy.** `city.worldSurfaceAt(x, z)` is the
+maximum over the streamed quads, the origin block and the river's decks.
+`player.js` had carried its own max-over-three since session 17 and now calls
+this; `city.groundYAt` is the same answer as a bare number. Two implementations
+of "which surface am I on" would fail as *the walker standing on one surface and
+the crowd beside them standing on another, in the same frame, both looking
+correct*.
 
-Frames: `tools/shot-out/s18-{pavement,eleva}-{before,after}-t0.png`, plus the
-`-lampfix-` pair that measured the refuted correction.
+**What it cost to make it callable 360 times a frame:** a union AABB per chunk
+(32 bytes) that rejects eight of the nine neighbours in four comparisons, and a
+preallocated result. The remaining allocation is `block.surfaceAt` and
+`river.surfaceAt`, which still return literals — about 720 short-lived objects a
+frame. Not measured in isolation; the diagnosis's estimate for the un-optimised
+path was 0.37 µs/call.
+
+**One ordering change this forced:** `buildGround` is now the FIRST thing
+`buildChunk` does, because the lamps and props in that function have to be able
+to ask how high their pavement is, and a query cannot answer before the surface
+exists. `buildingKey`/`buildingGround` make the chunk being built visible to the
+query before it is resident — four lines, so that the chunk builder goes through
+the same `worldSurface` the player and the crowd use rather than a second height
+lookup written locally.
 
 ---
 
-## 2. Item 1 — traffic. The signals were real; the red light had no hold
+## 2. Item 9 — the cube in the carriageway is a road patch, and it is a unit scale
 
-**The premise in the brief was wrong in the useful direction.** `signal(axis,
-now)` is real, every vehicle reads it (`traffic.js`, the per-vehicle block), the
-two axes are never simultaneously green, and 4b's "legible stopping" was
-implemented. What was missing is that **a stopped vehicle was released.**
-
-The whole stop was one expression guarded by `toStop > 0`:
+`src/modules/city.js`, the road-patch emitter. The call was
 
 ```js
-if (phase !== 0 && toStop > 0) limit = min(limit, sqrt(2·BRAKE_A·toStop))
+setMatrix(x, 0.025, along, 3 + (i % 3), 1, 5 + (i % 4) * 2.5, yaw)
+//                                      ^ sy
 ```
 
-`toStop > 0` was standing in for *may I proceed*, and it is not that quantity —
-it is *am I short of the line*, **which stops being true the moment the vehicle
-arrives.** The approach profile `v = sqrt(2·a·s)` reaches the line at v = 0 in
-finite time, the guard goes false, the constraint disappears, and the vehicle
-accelerates at 1.4 m/s² into the junction on a red light from a standing start.
-CONTRACT §9's shape with two predicates instead of two lengths, and it is now
-row 17d in that table.
-
-**The repair is a permission keyed by the junction**, which is the reservation
-model the brief asked for with the property that makes a table unnecessary: the
-phase already guarantees the crossing axis is red, so the conflict set is
-`{this junction}` and permission cannot carry because `nextJ` changes when the
-vehicle passes it. Granted on green, or on amber inside the dilemma zone;
-**never on red**; revoked if the phase leaves green while there is still room to
-stop comfortably; kept once inside the box, because the one thing worse than
-entering on red is stopping in the middle. The hold is `max(0, toStop)` so a
-vehicle a centimetre over the line is limited to zero rather than released by
-the sign of its own position.
-
-**Measured, over one whole 36 s cycle, `stats().holdingAtRed`:**
+Every other `sy` in that file is **a length in metres** — a cornice is
+`era.cornice`, a building is `bld.height`. This one was a **unit scale**.
+`geometries.box` is a unit box, so `sy = 1` is a one-metre slab:
 
 ```
-t   1.7  3.2  4.7  6.2  7.7  9.2 10.7 12.2 13.7 15.2 16.7 18.2 19.7 21.2 22.7 ...
-n    11   12   21   21   25   25   26   27   29   29   29    0    0    0    2 ...
+y ∈ [0.025 − 0.5, 0.025 + 0.5] = [−0.475, +0.525]
+→ 0.505 m proud of its own carriageway, 3 to 6 per `patched` chunk,
+  3–5 m wide, 5–12.5 m long, at a shallow angle to the kerb
 ```
 
-The queue builds to 29, empties **exactly at t = 18.2 s** — `GREEN_S + AMBER_S`
-is 18 — rebuilds on the crossing axis, and empties again at 36.2 s, which is the
-cycle. Before this change that number was **structurally always zero**: there
-was no state in which a vehicle was stopped and held. Cost: one integer field
-per vehicle, two comparisons per vehicle per frame, 160 vehicles — no allocation,
-no table, no per-frame sort.
+A dark asphalt slab half a metre out of the road **is** a cube in the
+carriageway, and traffic drives through it because a patch is not an occluder.
+Now `PATCH_THICKNESS_M = 0.01` with the centre derived from it and from the
+datum. **The centre was always right** — 0.025 is `roadNS(0.020) + t/2` for
+exactly the 10 mm this was meant to be — so the arithmetic that would have
+exposed it had been done correctly one argument earlier, in the same call. §9's
+table, row 19b.
 
-**What is NOT fixed, and it is the second half of the item.** A vehicle inside
-`veh.turn` is excluded from `tracks` (`if (veh.turn) continue`), so for the
-1.47 s of its quarter circle it follows nobody and nobody follows it, and it
-rejoins the crossing road at a computed arc length **with no occupancy test** —
-CONTRACT §9.1's "placement without a collision test against what is already
-there", with a vehicle instead of a prop. Right turns happen on green onto a red
-axis, so the exit lane is usually clear, which is why this is the smaller half;
-it is not zero.
+`citycheck` reports **0 of 1 596 props inside a building footprint**, so the
+prop scatter itself is clean; the carriageway obstruction was never a prop.
 
 ---
 
-## 3. Item 4 — one real bug, and a structural proof that the rest of the item is not the fix
+## 3. Item 7 — the stop line, and the brief's premise is half wrong
 
-### 3.1 `uNoctisFieldDefault.z` has been NaN
+**`STOP_LINE` was already `roadHalfWidth + 1.5` = 9.0 m from the junction
+centre** — 1.5 m short of the near kerb, which is what the brief asks for. The
+error is one step further in: `toStop` is the distance from the vehicle's
+**ORIGIN** (its body centre) and was used as the distance from its **FRONT**.
 
-`city.js` measures the facade openness off its own horizon march, logs it beside
-the roadway figure and the ratio between them, and passes all three numbers to
-`canyon.setFieldDefault`. **The forwarder in `canyon.js` took two.** So
-`lights.setFieldDefault` evaluated `Math.min(1, Math.max(0.04, undefined))` =
-**NaN** into `uNoctisFieldDefault.z`, which `noctisDefaultField` mixes into the
-sky visibility of every surface in every chunk **without a baked field** — that
-is everything past the 30-slot field ring, which at the elevated night view is
-most of the city and all of the skyline. The measured 0.244 that `city.js` has
-printed at boot for four sessions had never reached a shader.
+```
+front at 9.0 − len/2, near kerb at 7.5     past the kerb
+  wedge  5.40 m  →  6.30            1.20 m
+  pod    3.70 m  →  7.15            0.35 m
+  van    6.00 m  →  6.00            1.50 m
+  hauler 9.60 m  →  4.20          **3.30 m**, 80% into the kerbside crossing lane
+  moto   2.20 m  →  7.90           −0.40 m, the only type that was right
+```
 
-Fixed. **Measured effect is small and honest about it**: textured 0.99% → 1.00%,
-mean 0.0756 → 0.0765, median code 13 → 14. It is a correctness fix, not a look
-fix — a NaN in a uniform is never acceptable and the driver's clamp was
-evidently landing somewhere near the intended value.
+Fleet-weighted mean length 5.148 m, so the typical nose stopped **1.07 m** past
+the near kerb, and because the car-following model is correct the leader's error
+shifts the whole queue forward by it.
 
-### 3.2 The upward-glow term is 0.27 lux and cannot light a skyline
+**The same file already knew the difference** — car-following subtracts both
+half-lengths, the camera-as-obstacle rule subtracts half the camera's — and the
+signal stop subtracted nothing. **The signal masts were the independent
+witness**: `signalApproaches` puts each head at `STOP_LINE` under a comment
+saying that is "where the vehicles are already stopping", and a stopped hauler's
+nose was 4.8 m past its own signal head. That comment is now true.
 
-Derived rather than argued, twice, from opposite ends, agreeing:
+**One quantity, in the lib both modules import.** `citygen.js` →
+`CITY.stopLineFromJunctionM`, read by the braking constraint, by the signal head
+placement and — when the markings are written — by the painted line. `city.js`
+cannot import `traffic.js` (§2.2), so the lib is where a shared number can live.
 
-**From the physics.** Treat the lit city as a horizontal Lambertian plane of
-exitance `M = ρ·E·f`, with `LIGHT.streetAverageLux` = 16 lx, road albedo 0.10
-and a lit-corridor plan fraction of 0.33 → M = 0.53 lm/m². A vertical facade at
-height h sees it through a form factor
-`G(h) = (2/π)∫₀^{π/2} cos²φ · e^{−σh/sin φ} dφ`, which is exactly 0.5 at h = 0
-and falls with height through the extinction σ = 4.5e-4 /m. So E_v(0) = 0.27 lx,
-and on a 0.35 facade that is **0.030 cd/m² — about 1/17 of the road's own
-0.51 cd/m²**, which lands at sRGB code ≈ 2. The term is real and it is
-invisible.
-
-**From the frame.** Sampled on the delivered elevated frame: condenser shaft
-mean code **5.7–6.7 over a 2-code span**, sky immediately beside it at the same
-rows **16.8**, horizon glow band 22.1. The condenser is already receiving very
-nearly its correct airlight (τ = σ·490 m = 0.220, so 19.8% of the path) and
-almost no surface illumination.
-
-**And the ceiling is structural.** A Lambertian surface under a uniform
-hemisphere of radiance `L_s` returns at most `ρ/2 · L_s` = 0.197·L_s at the
-condenser's albedo. **No ambient term of any magnitude can bring an unlit wall
-within 5× of the sky it is seen against.** Skylines are dark in real photographs
-for the same reason. What makes a real upper storey read is its own emission —
-which is **item 11's job, not item 4's**, and item 11 is therefore promoted from
-"cheap and nice" to "the fix for item 4".
-
-Two further findings on the same path, both unfixed: at midnight `eSun` is
-**exactly [0,0,0]** (the transmittance integral returns zero for any negative
-elevation) and `eSky` excludes the urban glow, so `computeRadiance`'s ground
-radiance is exactly zero and the four facade radiances collapse to
-`S.facadeEmissive`; and the bent-normal steer tilts the sampling lobe 50.7° off
-a vertical wall, cutting the one place street lighting *does* reach a facade
-from 1.166 lux to 0.264 lux.
+**The free gate is built and not yet asserted.** `traffic.stats()` →
+`worstStopLineM`: the distance from a *held* vehicle's front to its own stop
+line, worst over the run. Positive is short of the line; **negative is a
+defect**; `Infinity` means no vehicle has been held at a red yet, which is not a
+pass. Only vehicles WITHOUT permission are counted — one that has been granted
+the junction is supposed to drive through it. **The assertion in
+`tools/budget.json` is the next session's five minutes.**
 
 ---
 
-## 4. Item 7 — the field was the larger half, and it is derived
+## 4. Item 10 — the lamp bounce is real, and it is 5% of the problem
 
-`PLAYER.fovDeg` **50 → 75**, `PLAYER.walkSpeedMps` **new, 2.00 m/s**.
-
-The derivation is **optic flow**, which is the cue the brain reads as speed. The
-ground point on the bottom edge of the frame is at `d = h/tan(fov/2)`, and as the
-walker advances it sweeps at `dθ/dt = v·h/(h² + d²)`:
-
-```
-fov 50°   d = 3.73 m   flow  8.23 °/s   1.00×
-fov 70°   d = 2.48 m   flow 15.17 °/s   1.84×
-fov 75°   d = 2.27 m   flow 17.08 °/s   2.07×   ← here
-fov 90°   d = 1.74 m   flow 23.05 °/s   2.80×
-```
-
-**The field alone is worth 2.07× the apparent pace** — 1.40 m/s at 75° flows
-exactly as fast as 2.90 m/s did at 50°, which is already inside the 2.5–4 m/s
-band first-person games use. That is why the speed only had to move to 2.00 and
-not to 4, and the two are recorded separately because they were measured
-separately. Bounded above at 90°, where `d` falls to the eye height itself and
-the ground under the camera is in shot.
-
-**`PLAYER.walkSpeedMps` is not the split-constant defect, and the constant says
-why at length.** `GAIT.walkSpeedMps` = 1.40 is an input to a BIOMECHANICAL
-MODEL — `stepM` = 0.75 m is derived from it, the cycle frequency from that, the
-bob from the cycle — and a figure drawn at a speed its step length was not
-derived for slides its feet. The player's is a CAMERA TRAVERSAL RATE with no
-gait attached. Session 17 coupled them, which is why "make the player faster"
-read as "make the crowd faster" and could not be done. **The cost, named:**
-2.00/1.40 = **1.43× the crowd's mean**, 1.05× its fastest walker — the player
-overtakes slowly rather than sweeping past, which is what keeps the pedestrians
-reading as people. Bounded above by `RUN_TRANSITION_MPS` = 2.048 m/s: at 2.00 it
-is 0.976× of the Froude-0.5 boundary, i.e. the fastest thing this project's own
-physics will still call a walk.
-
-`PLAYER.radiusM`'s near-plane-corner bound was **re-derived rather than left
-pointing at a field nothing uses**: at 75° the corner is 0.1857 m and 0.25 m
-clears it by 1.346× where it used to clear 0.1380 m by 1.811×. At 90° it would
-be 1.101×, which is the number that makes the next widening check itself.
-
-**The route captures are untouched.** Every gate and both film tools set their
-own fov on every placement; this constant is read by `player.js` and by nothing
-a gate drives.
-
-### 4.1 And widening the field broke a constant in another block, which is the session's neatest instance of its own failure mode
-
-`PLAYER.lookCurveExponent` **2 → 1.75.** Its derivation is written in pixels per
-frame, so its upper bound moves with the field and its lower bound does not:
+**Built:** `CANYON.facadeLampShare = 0.1002`, one term in `canyon.js`'s
+`computeRadiance`, three multiplies and three adds per sky rebuild. Nothing
+reaches the bake; the field stores transfer and this changes what it is
+multiplied by. Delivered at boot, printed as three terms rather than one sum:
 
 ```
-                                 fov 50°           fov 75°
-one pixel                        0.0310°           0.0420°
-upper bound (0.1 defl ≥ 1 px)    k ≤ 1.986         k ≤ 1.854
-lower bound (½ defl ≤ 1°/frame)  k ≥ 1.585         k ≥ 1.585
-k = 2 delivers                   0.97 px/frame     0.71 px/frame  ← outside
+canyon facade radiance, +X wall: total 10.8277 cd/m²
+  = emissive 2.4905 + LAMPS 0.1864 + sun and sky, the remainder
+    (16.0 lx road × 0.1002 = 1.603 lx on the wall)
 ```
 
-**The value did not move; the quantity it was derived from did, and nothing
-linked them.** k = 2 at fov 75 is the second dead zone the bound exists to
-forbid — created a few hours earlier by an edit to a different constant in the
-same file. §9 table row 18c. 1.75 is 1.10× above its lower bound and 1.06× below
-its upper, the first value in that block's history to sit inside both with
-margin rather than exactly on one.
+**The share is derived, not chosen.** Integrating this project's own optic —
+`luminaire.js`'s distribution with the elliptical shaping `tan 68°/tan 46°` =
+2.391 — over its own street geometry (head at 8.08 m, 6.7 m off centre, facade
+at 11.7 m, 30 m staggered pitch, 70.8 cd of isotropic spill) gives
+`E_road = 24.58 lx`, `E_facade = 2.464 lx`, **ratio 0.1002**. A semi-cutoff
+optic over a 15 m carriageway puts a tenth as much on the wall as on the road,
+and above lamp height it contributes *exactly nothing* by construction.
 
-Three more of the same family, found by re-reading the session's own changes:
+### 4.1 And it cannot pay for the lamp-bowl correction. This is arithmetic.
 
-- **`PLAYER.mouseRadPerCount` retyped its own inputs.** It was
-  `(2·π)/((40/2.54)·800)` two lines under `mouseCmPer360: 40` and
-  `mouseCpi: 800`, so editing either constant changed what `player.js` PRINTS
-  and not what the mouse DOES. It is a getter over the two now.
-- **`camera.js` → `ROUTES.player.speed` was the literal `1.4`** under a comment
-  saying "`GAIT.walkSpeedMps`, read from the lib the pedestrians read", in a
-  file whose only import was `three`. §9.1's "a comment that claims a link".
-  `camera.js` now imports `../lib/gait.js` — which §2.2 has always allowed — and
-  the comment is true. It stays at the CROWD's 1.40 and deliberately does not
-  follow `PLAYER.walkSpeedMps`: that route exists to measure the city at the
-  crowd's own pace, and tracking the player would break comparability with
-  STATE 17 §4.
-- **CONTRACT §9's table said "twenty-five" against 39 delivered rows**, in the
-  sentence that says the count "is now derived by counting the rows, which is
-  the only way it stays right". It was wrong a third time, in the section about
-  claims about checks. It is 42 now, and the four-line command that counts them
-  is printed beside it instead of the claim.
+The brief's plan was: put the replacement energy in first, then correct
+`LIGHT.streetlampNits` 9000 → 1952. Session 18 measured that correction at
+**12.15% → 3.26%** of Zone III–VII mass, i.e. **−8.89 points**.
+
+```
+what the lamp term delivers        +0.19 cd/m² on a facade at 2.2
+                                   = +8.5%  =  **+0.118 stops**
+what the night frame is short      median code 24, Zone III at code 60
+                                   =        **+2.2 stops**
+```
+
+**+0.118 stops is not 8.89 points**, and the ceiling is structural rather than a
+tuning failure: lifting a facade one stop needs `E_facade ≈ 2.2·π/0.4` = **17 lx**
+on the wall, which is the ROAD's own illuminance, and a cutoff optic delivers a
+tenth of that *by design*. There is no lamp specification that closes it. This is
+STATE 18 §3.2's proof about the sky term, arriving through the lamps instead.
+
+**So `LIGHT.streetlampNits` stays at 9000 for a nineteenth session**, wrong as a
+radiance and load-bearing as lighting, and what would pay for it is EMISSION —
+not transfer. The derivation and both numbers are in `constants.js` beside the
+constant.
+
+### 4.2 The ground term was already there, and adding one would double-count
+
+The brief asked for a lamp term on the ground as well. §9 rule 2, the same
+quantity two ways:
+
+```
+sky LUT lower hemisphere      [0.155,0.145,0.125] × 16/π = [0.789, 0.738, 0.637]
+block.surfaces.groundAlbedo × 16/π                       = [0.769, 0.718, 0.637]
+```
+
+**They agree to 3%.** The lamp bounce off the road is already in the frame
+through `sky.setGroundLighting`. A second term would put the same light on every
+soffit twice.
 
 ---
 
-## 5. Item 2 — the input layer was never broken, and now there is a gate that can say so
+## 5. Item 12 — the condenser is lit, and no light can reach it
 
-**Measured four ways, all negative:** real browser key and mouse events through
-the real listener targets, in the dev server and in the built `dist/` bundle,
-with and without a gamepad connected, in the real rAF loop and under
-`harness.step()`. Keyboard 1.39 m/s (the constant exactly), pointer lock
-acquired on a canvas click, mouse yaw at 0.02857°/count (`PLAYER.mouseRadPerCount`
-exactly), gamepad walking and looking. A fifth independent check drove
-`createPlayer()` against a stub DOM with no app at all and got the same numbers.
+**Both premises in the brief are wrong, and the second is fatal to the obvious
+repair.**
 
-So the honest report is: **on this machine the input layer delivers everything
-session 17 specified.** Whatever refused, refused somewhere this session cannot
-stand. Two things follow, and both are built:
+1. **The pool has 28 free slots, not 40.** `roleCensus` delivers traffic 96 +
+   stall 12 + block 52 + lamp 196 = **356 of 384**. STATE 18 §7.3's "margin 40"
+   predates the stall role, which takes 12 and says so in its own comment.
+2. **No clustered light at the condenser can ever be assigned.**
+   `lights.assign()` culls on `depth − radius > CLUSTER.far` = **320 m** before
+   it claims a slot, and the condenser is **560 m** from the closest point on any
+   route. Sixteen floodlights would be culled on every frame of every run. §9's
+   table, row 19e — a registration count used as a per-frame slot count.
 
-- **A failed lock is no longer silent.** Session 17 requested pointer lock and
-  never asked whether it arrived, so "the mouse is not wired" and "the browser
-  refused the lock" produced the same frame and the same silence. There is now a
-  `pointerlockerror` handler, a rejection handler on the promise Chrome returns
-  and Safari does not, a `warnOnce`, and `lockError` on `state()`.
-
-- **`tools/inputcheck.mjs`, a gate, and the magnitude is the whole design.** The
-  obvious test is "press W, assert the player moved" — **and that test passes on
-  the build that was reported broken.** A boolean instrument cannot tell "not
-  wired" from "wired and imperceptible", and those need different repairs. Every
-  assertion compares a DELIVERED quantity against the constant that is supposed
-  to produce it, never against another declaration (§9.1's own remedy). The
-  mouse additionally carries a **usability band in cm/360°**, bounded below by
-  one count per pixel (27.2 cm at fov 75) and above by a 180° turn in one 30 cm
-  sweep (60 cm) — which is the assertion that can tell the two failures apart.
-  Delivered: 40.0 cm, inside both.
+**So the floodlighting is emission, and the quantity that survives the lighting
+design is the illuminance it would have produced.**
 
 ```
-inputcheck — delivered response, through the real listeners
-  keyboard  walk 1.990 m/s / declared 2.000   run 3.476 / 3.500   strafe dot -0.0000
-  gamepad   walk 1.990 m/s   look 178.58°/s / declared 180.00
-  mouse     0.02858°/count / declared 0.02857 = 40.0 cm/360° (band 27.2–60)  lock acquired
-  authority 1 s of stick = 180°, one 30 cm sweep = 270°, ratio 1.50 (bound 3)
-  field     fov 75.00° / declared 75.00°
+E = 20 lx        CIE 94, light surface in a light-surround urban district;
+                 1.25× this project's own calibrated streetAverageLux = 16
+ρ = 0.394        CITY_MATERIALS.concrete
+L = ρE/π       = **2.51 cd/m²**   →  LIGHT.condenserFloodNits
+
+against the road at ρE/π = 0.509           4.93×
+against the shaft's delivered 0.034        **74×**
+against the bright-pass onset (0.414 exposed at e ≈ 0.0141)   11.7× BELOW it
 ```
 
-`--falsify`: 13 cases against 12 failure sites, 100% coverage, good fixture
-clean. Added to `npm run gates` before `gateaudit`, and to `gateaudit`'s
-`SELF_TESTS`, so there is still exactly one meta-gate.
+The last line is the check that says it is a lit surface and not a source: a
+floodlit wall that blooms is a wall somebody made into a lamp.
 
-**And the gate caught an error in itself within the hour, which is CONTRACT §7.7
-happening in the file written to catch it.** The first draft measured the pad's
-look rate by subtracting two wrapped yaw angles. A full stick turns 180 °/s, so
-a 1.2 s sweep turns 216°, which wraps to −144, and the gate reported 117.4 °/s
-and failed the one device the walkthrough said was working. It now accumulates
-short legs. An instrument that measures an angle by subtracting two wrapped
-angles is measuring the wrap.
+**Delivered as two lathes split at profile index 4** (y = 43.33 m, a vertex both
+halves share, so there is no seam), the lower one carrying `emissive` on its own
+material clone — so the band is still concrete and still reflects the sun at
+noon. **+1 draw call.** The tower now reads as curved from the ground; from the
+elevated camera its base is occluded by the near city, which is why §8's numbers
+do not move.
+
+**Red aviation lights: 18 beacons, 0 cluster slots, +2 draw calls.** ICAO Annex
+14 §6.3 intermediate levels at ≤ 105 m, so `ceil(260/105)` = 3 levels on the
+condenser (6 + 4 + 4 lamps) and `ceil(186/105)` = 2 on the mast (1 + 3). The
+mast's 1.2 m steel beacon cube — unlit since session 4 — keeps its housing and
+gains its lamp. `citycheck`'s scene walk reports **`landmarkBeacons 18`**.
+
+```
+I = 2000 cd     ICAO Type B, medium intensity
+A = 0.35²       the beacon box
+L = **16 300 cd/m²**   → LIGHT.aviationRedNits
+```
+
+**Why this may be far above the bloom onset when the lamp bowl's 9000 is a
+defect:** bloom energy is radiance × AREA. 18 boxes of 0.1225 m² at 16 300 is
+**2.5%** of 98 bowls of 1.6115 m² at 9000. An obstruction light is supposed to be
+a point of glare at two kilometres.
+
+The flash is 2.0 s at 25% duty (ICAO's 20–60 flashes/min, middle), a raised
+cosine rather than a square wave so a sub-pixel emitter does not step into the
+TAA history in one frame, phased by a hash of each lamp's own position, and
+integrating `time.now` — so `?paused=1` freezes it with everything else.
 
 ---
 
-## 6. Item 3 — a real quantity confusion, measured, and put back
+## 6. Item 11 — the roofscape existed, and its problem was kind
 
-`LIGHT.streetlampNits` = 9000 is **not a radiance.** It is an INTENSITY OVER A
-PROJECTION: the bowl is a sphere of radius 0.42 m whose projected area is
-π·0.42² = 0.5542 m², and `streetlampCandela` / 0.5542 = 12 270 cd/m². The
-radiance of an emitting surface is its flux over its own area, and every number
-needed already existed in the project without ever having been written on one
-line:
+**Premise correction.** This city already had 2 476 roof boxes over the detail
+ring — 2 to 5 plant units and a four-box parapet on every building over four
+floors. A flat roof was never the problem. **Every one of them was one shape and
+one colour**: a size-rolled rectangular box at albedo [0.3, 0.3, 0.31]. §7.2's
+rule with a roof instead of a vehicle — a count of roof boxes says nothing about
+whether the roof reads as a roof.
 
-```
-Φ = luminaireFlux(6800 cd, LUMINAIRE)   =  9883.5 lm
-A = 2π·0.42²·(cos 63° − cos 180°)       =     1.6115 m²
-L = Φ / (π·A)                           =  1952 cd/m²        9000 / 1952 = 4.61×
-```
+**Five kinds now, chosen by what they do to a silhouette rather than by what
+they are:** `plantRoom` (wide, low, the existing box), `tank` (0.45 wide × 2.30
+tall — the one kind that puts a vertical on a flat roof), `stairHouse` (the
+building's own material carried up), `duct` (4.6× as long as it is high,
+galvanised so a low sun finds it), `aerial` (0.10 × 3.60 — one pixel at 700 m,
+which is the point). Aspect ratio is the quantity; a size roll cannot distinguish
+kinds in a 3-pixel silhouette.
 
-At the exposure the night frame settles at, 9000 cd/m² is **307× the bright-pass
-onset** on ninety-eight bowls at once. §5.5: "if the whole frame glows, the
-threshold is wrong" — the threshold was not wrong.
+**And the roofscape is now built on every ring.** `if (detail)` wrapped the
+facade, the ground floor *and* the roof plant, and `detail` is ring ≤ 4 against a
+geometry radius of 5 — so **ring 5, 40 chunks, 148 buildings, 576 to 768 m out,
+was a bare box plus a cornice. That ring IS the skyline.** The facade and ground
+floor stay gated (nobody sees a window reveal at 700 m); a roof profile is
+precisely what survives that distance. ~1 200 instances, ~14 000 triangles,
+**zero draw calls** — they ride in the chunk's existing merged box mesh.
 
-**And correcting it made the frame measurably worse, so it was put back.**
-Interleaved A/B on the operator's own pavement frame:
+**`bld.crown` is read for the first time.** `citygen.js` has written
+`crown: eraName === 'contemporary' ? rng.range(0.15, 0.45) : 0` since the eras
+were added and **nothing in `src/` or `tools/` had ever read it** — §9.1's first
+variant. It lands on exactly the wrong era: `contemporary` sets `cornice: 0.0`,
+so the one era whose written identity is "a chamfered or stepped crown" was the
+one era with no crown box at all. The gate is now the sum, and the width factor
+is +1.6 for a cornice (which oversails) and −0.55 for a contemporary crown (which
+is a chamfer and steps IN). `citycheck` reports **`crowns 497`**, up from 446 —
+exactly the 51 contemporary buildings.
 
-```
-9000 → 1952     TEXTURED  12.15% → 3.26%   (−8.89 points)
-                crushed    2.53% → 6.23%   (+3.70)
-                clipped    0.10% → 0.10%   (unchanged)
-                mean      0.1419 → 0.1042
-```
-
-**The top end did not move at all**, and that is the entire explanation: a bowl
-at 9000 and a bowl at 1952 are both far above white, so dividing by 4.61 removes
-no clipping — what it removes is BLOOM ENERGY, and the veiling glare fed from
-that energy is the only thing holding 85% of a night frame off zero.
-`POST.glareStrength` says so in its own derivation: it was re-derived 0.15 →
-0.075 against a frame whose glare budget this constant was filling. **The two
-numbers are one system, and 9000 is load-bearing as LIGHTING even though it is
-wrong as a RADIANCE.**
-
-So: the defect is real, the correct value is 1952 cd/m², and it cannot ship
-alone — the 8.89 points of mid-tone have to come back as light before it goes
-in, not as camera veil. The arithmetic and the measured A/B are in
-`constants.js` beside the number so the next session argues with the derivation
-rather than the taste.
-
-**The split is also still open**, and it is the standing defect verbatim:
-`block.js` → `EMISSIVE.lampBowl` = **210** for the same object, read only by
-`block.js`, against 9000 read only by `city.js` — 42.9× = **5.42 stops**, with
-the look gates watching the 210 side and the night routes filling their frames
-from the 9000 side. Neither number is Φ/(πA). Same shape at 9.5× on the windows
-(`LIGHT.windowNits` 220 vs `EMISSIVE.windowWarm` 21) — and there the arithmetic
-exonerates `city.js`: CONTRACT §5.3 says an office window is ≈300 cd/m², so 220
-is the law's own number and 21 is 14× under it. **Windows are NOT carrying a
-tube's radiance**; that was session 14's error, it was in the signs, and it was
-fixed.
-
-Two more, unfixed and recorded: `sky.js` → `pollutionNits` is **3.2** and its own
-comment derives **1.2** ("a zenith measurement is around 0.02 cd/m², and this is
-sixty times that") — a 2.67× gap between a number and its stated reason, and it
-is the constant that makes every shadow in the frame orange, through the PMREM
-env map rather than through the haze (the haze is 0.45% at 10 m and cannot tint
-a near facade). And `POST.purkinjeStrength` cannot reach anything: its window is
-`smoothstep(0.4, 0.006, absL)` on absolute luminance, and the pavement is at
-1.32 cd/m² and facades at ~2.0.
+**Not done: roof signs, and the height spread.** See §9.
 
 ---
 
-## 7. What each unfinished item now needs, and why each is smaller than it was
+## 7. Items 3, 4, 5, 6 — the tools, and the pace
 
-1. **Item 5, markings.** *The brief's premise is wrong and this is the biggest
-   correction of the session.* `block.js` has **no lane lines, no centre line
-   and no crossings**, and neither does anything else — a tree-wide grep for a
-   drawn marking returns nothing, and the project has **no textures at all**, so
-   they cannot be hiding in one. What `block.js` has is a KERB COPING STRIP, a
-   0.32 m lighter box along each pavement edge whose own comment says "at night
-   it is the only line that tells you where the road stops". That is what reads
-   as "markings" in a frame. **There is nothing unreachable to unblock;
-   markings have to be written**, and the streamed path is the cheaper one to
-   write them in because `buildGround` already emits vertex-coloured horizontal
-   quads into one merged mesh on one material.
+**`src/modules/ui.js` is the project's first UI surface**, and it is registered
+only when `?ui` resolves true. `ui: -1` FOLLOWS `?player=1` (0 and 1 force it),
+the same shape `fieldDrip` uses — so every gate renders the same `<body>` it has
+rendered for eighteen sessions and no button reaches a screenshot. That is
+CONTRACT §11's argument for the player, applied to a DOM overlay.
 
-2. **Item 5, kerb.** `BLOCK.kerbHeight` = 0.160 is imported by `block.js` and by
-   **nothing else**; `city.js` imports `LIGHT, LUMINAIRE, CLUSTER` and never
-   `BLOCK`. The standing defect, literally. **But the naive repair is blocked by
-   arithmetic**: raising the pavement to 0.181 makes
-   `0.181 − GROUND_Y.earth(−0.020) = 0.201 m > PLAYER.stepUpM = 0.200 m`, so
-   every island interior in the city (399/399 sampled points at earth) becomes a
-   hole a player can fall into and cannot climb out of, and `stepUpM` cannot
-   absorb it — it is bounded above at 0.19–0.20 m by the maximum habitable stair
-   riser. **The road datum has to move too**, and moving it is right for a
-   second reason found on the way: **y = 0 is the de-facto ground datum of every
-   object in the project** — wheels, pedestrian feet, prop bases, lamp columns,
-   stall bases, signal masts — and the ground quads are the only surfaces that
-   are not at it. So **160 vehicles drive 0.020 m sunk into their own road, and
-   twelve lamp columns in the origin block stand 0.160 m buried in their own
-   pavement, in every frame this project has shipped.** Nobody noticed the kerb
-   because the whole world is drawn as if the ground were flat at zero.
+- **The map.** Drawn from `src/lib/citygen.js` — the same pure description the
+  generator, the worker's bake and `citycheck` all read — so it cannot show a
+  city different from the one being drawn, which a map built from resident
+  chunks WOULD. Eight landmarks marked and named with their heights, the river
+  from its own bank functions (not the envelope, which is a bound 41% too wide),
+  three bridges, the viaduct's arc and piers, the origin block, the street grid,
+  the camera and its heading, north, and a scale. 1 662 m across.
+  **Click-to-teleport is REFUSED rather than snapped** when `city.walkableAt`
+  says no — snapping would move the operator somewhere they did not click, and
+  "it said no" is a better failure than "it put me somewhere else". `teleport()`
+  now calls `post.resetHistory()`, which STATE 18 §7.6 recorded as missing.
+- **The time menu.** The four presets are the gates' own times (midnight 0.0,
+  dawn 0.25, noon 0.5, dusk 0.78), so the menu and the gates talk about the same
+  moments. The rate is a **second rate on the one clock**: `time.setSunScale`
+  multiplies the sun's advance only, so `now` — which traffic, weather,
+  streetlife, the player and the beacons all integrate — is untouched. **Every
+  rate sets `paused` explicitly, including the three that set it false**; there
+  is no path through that handler that leaves the flag alone.
+- **The arithmetic corrects the brief.** `dayLengthSeconds` is 1200 — a
+  **20-minute day, already 72× real time**. "A full day in 12 minutes is 120×" is
+  120× *real*, and against this project it is **1.667×**. The shipped default is
+  already 0.6× of the requested fast setting; the interesting rate for looking at
+  a dusk is a *smaller* number, not a bigger one.
+- **Fullscreen.** The Fullscreen API, a button that releases the pointer lock on
+  `pointerdown` so it can be clicked and `preventDefault`s so the click does not
+  also reach the world. The hazard is not the API: below 3 686 400 device pixels
+  `neverExceedNative` makes the internal buffer equal the drawing buffer, so on a
+  1920×1080 dpr-1 display fullscreen shades **1.78×** more pixels than a 1440×810
+  window. That is the operator's to spend and is written down beside the button.
 
-3. **Item 11 is now item 4's fix**, on §3.2's proof. Emissive geometry with zero
-   cluster slots, by the tail-light pattern; the pool measured 344 of 384
-   reserved with margin 40. The condenser is 260 m and the mast 186 m against a
-   mean facade height of 36.6 m over 349 buildings, so a threshold is derivable
-   from the distribution rather than picked.
+**Pace.** `PLAYER.walkSpeedMps` 2.00 → **3.50**, `runSpeedMps` 3.50 → **7.00**.
 
-4. **Item 6, pop-in.** *Not a draw-distance or LOD problem — there is no
-   distance culling of traffic anywhere* (`frustumCulled = false` on all three
-   meshes, nothing ever sets `.visible`). It is a PLACEMENT problem that
-   **actively optimises for the middle of the frame**: `seed()` scores its twelve
-   candidate re-seat sites with `score = ahead`, the cosine of the bearing from
-   the camera axis, and takes the maximum, with the only distance constraint
-   being `d ≥ CAMERA_CLEARANCE = 14 m`. A vehicle can materialise 14 m dead
-   ahead in the camera's own lane, and `carry(i)` — correctly implemented — is
-   what makes it hard-edged. Fix is a frustum rejection on recycle, in one file,
-   changing no count and no budget number. Second finding: `fwd` is the camera's
-   LOOK axis while `seed`'s own comment justifies the bias by TRAVEL; on the
-   three fixed routes those coincide and **with `?player=1` they do not**.
+```
+                     2.00 m/s     3.50 m/s     7.00 m/s
+one chunk   128 m      64.0 s       36.6 s       18.3 s
+bridge to bridge 512 m 4 min 16 s   2 min 26 s   1 min 13 s
+```
 
-5. **Item 10, time menu.** `timeScale` exists on the time module, but it scales
-   `now` AND `timeOfDay` together — and `now` is what `traffic`, `weather`,
-   `streetlife` and `player` integrate. **A 120× menu built on `setTimeScale`
-   accelerates the pedestrians, the traffic and the walker by 120× as well.**
-   The menu needs a separate sun rate, which is still one clock because `time`
-   owns both numbers. PMREM cadence derived: 200.000° of solar elevation travel
-   per in-game day / 0.35° = 571 sun rebuilds/day; simulating the actual OR-test
-   at 60 fps gives 581/day at 1× and **458/day at 120×** — fewer, not more,
-   because the test cannot fire more than once a frame. The fast rate does not
-   break the bake.
+**The Froude bound was removed deliberately, not exceeded quietly.** 3.50 m/s is
+1.71× `RUN_TRANSITION_MPS` = 2.048, i.e. **it is not a walk by this project's own
+biomechanics**. The licence is that *nothing is derived from this number*:
+`GAIT.walkSpeedMps` is an input to a model (step length, cycle frequency, bob)
+and the player has no legs. It is a deliberate exaggeration recorded as one, the
+same shape as the fleet's plan taper. The cost, named: 2.50× the crowd's mean,
+so the player now overtakes visibly rather than slowly. `inputcheck` delivers
+**3.474/3.500 and 6.942/7.000**.
 
-6. **Items 8 and 9.** There is **no UI surface at all**: `<body>` has one
-   element, and `src/core/fullscreen.js` is the full-screen *triangle* every post
-   pass draws, which will mislead anyone who greps for it. For (8) the one real
-   hazard is that the internal buffer is only *fixed* while the drawing buffer
-   exceeds 3 686 400 device pixels — below that `neverExceedNative` makes
-   internal == drawing buffer, so on a dpr-1 display fullscreen raises the
-   shading load rather than only the drawing buffer. For (9) everything a map
-   needs is already reachable in-page — `city.placement(region)` builds the same
-   4 m mask `citycheck` flood-fills, `city.walkableAt` is the point predicate,
-   `player.teleport()` exists — and the one missing piece is that `teleport()`
-   does not call `post.resetHistory()`.
+`moveWithSlide` gained a substep of `radiusM` = 0.25 m, because at the loop's
+clamped `dt` = 0.1 s a 7 m/s frame is **0.70 m** — the first displacement in this
+project's history larger than the body making it. Cost: 1 query at 60 fps
+(unchanged), 3 on a hitched frame.
+
+**The fly camera is a first-class second mode**, on `F`, both from the same URL,
+and the console says which mode is active on every toggle. CONTRACT §11's ONE
+STATE rule is about the *controller* growing states; fly has no body, no ground,
+no mask, no step height and no fall — it **deletes** rules rather than adding
+them, and it shares every line of the input block. `flySpeedMps` = 24 is
+`highway_speed`'s own rate, the one speed at which this project's streaming has
+ever been deliberately stressed; `flyBoost` = 3 crosses the map in 15.6 s.
+
+**Two silences closed.** `main.js` now logs one line naming `?player=1` when the
+controller is absent — session 18 spent a whole session measuring an input layer
+four ways against a walkthrough on a URL without the flag. And
+`camera.js`'s free-look `pointerdown` now checks `driven`: it was calling
+`setPointerCapture` on a pointer the player already owned, which threw
+`InvalidStateError` on the very first click — the click that *acquires* the
+lock. Not a try/catch; the correct behaviour is to not ask.
 
 ---
 
-## 8. Known gaps carried forward
+## 8. The frames, and the histogram
 
-**Unchanged from s8–s17**: `stats().cutoffM` hard-codes 0.8, the headroom probe
-inert, GPU timer queries advertised and never retiring, `saturation-peak.png`
-overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the sky,
-rain streaks near-invisible wide at night, `rain_spray` 0 static, right turns
-only, sun shadows to ~170 m, the bake blind to elevated slabs, the PMREM hitch,
-the too-red dawn horizon, one worker at queue depth one, the generator's four
-island frontages overlap at the corners, the far half of the river hands back to
-the night sky past ~300 m, grime is authored, the near-field washboard on the
-water, the viaduct pier across both footways, the quay wall inside the walkable
-mask, 147/147 props walk-through, the 98.5 m pavement overlap, the 3.5°–10.4°
-route camera pitch. **The frozen/running A/B is a seventh session undone**, and
-**the `player` route with `lookRise: 0.9` — last session's cheapest item — was
-not run.**
+Same camera, before and after, `t = 0.0`:
 
-**The level statistics are still a sample of one** while every millisecond
-beside them is pooled over three, and `night_rain`'s mean luminance still has
-0.0032 of margin. Neither was touched.
+```
+                    pavement                     elevated
+textured    9.96% → 10.45%  (+0.49 pts)     0.34% → 0.34%  (0.00)
+crushed     1.75% →  0.90%  (−0.85)        35.85% → 35.64% (−0.20)
+clipped     0.02% →  0.03%  (+0.00)         0.00% →  0.00% (0.00)
+shadow     84.82% → 84.26%  (−0.56)        99.30% → 99.30% (0.00)
+median code    25 → 26                          7 → 7
+```
 
-**New this session, all recorded above:** the released red light; the NaN field
-default; the 42.9× lamp-bowl split and the 4.61× quantity error inside it; the
-2.67× gap between `pollutionNits` and its own derivation; the Purkinje window
-that no surface in the frame can enter; markings that never existed; the kerb
-repair blocked by `stepUpM` and the earth plane; **y = 0 as an undeclared ground
-datum that every object obeys and no ground quad does**; traffic re-seeding
-optimised toward the centre of the frame; `timeScale` driving the simulation as
-well as the sun; and `GROUND_Y` having eight keys under a comment that says six.
+**The pavement frame moved the right way and the elevated frame did not**, and
+both are honest. Half the crushed pixels on the pavement recovered with the
+clipped fraction unchanged, which is the loop the brief asked for. The elevated
+frame is a skyline of **unlit roofs against a dark sky**: the roofscape landed,
+and at night a cluttered silhouette and a plain one are both black. §4's
+impossibility proof and STATE 18 §3.2's are the same statement — **what moves
+that frame is emitted radiance at scale**, and the only emission this session
+added up there is 18 beacons.
+
+The pavement pair is a *cumulative* before→after, not an isolated A/B of any one
+change: it carries the datum, the kerb, the removed road slabs, the camera's
+1.77 → 1.90 and the lamp term together.
+
+Frames: `tools/shot-out/s19-{pavement,eleva}-{before,after}-t0.png`, plus
+`s19-condenser-s12-t0.png` (the floodlit band from the ground) and
+`s19-ui-{menu,map}.png`.
 
 ---
 
 ## 9. What the next session starts from
 
-1. **Re-run `npm run gates` end to end.** The run in this session is mixed — it
-   started before the traffic change landed. Nothing here may be called green
-   until one clean run says so.
-2. **Item 11, and treat it as item 4.** §3.2 proves an ambient term cannot make
-   an unlit wall read against the sky it is seen against; emission can. It is
-   the highest-value visible work left and the arithmetic for it is done.
-3. **Item 6's frustum rejection on recycle.** One file, no count changes, and
-   §7.4 has the derivation of the rejection angle.
-4. **The ground datum, then the kerb, then the markings, in that order**, because
-   §7.2 shows they are one change and doing the kerb first breaks the islands.
-   Any geometry through `windcheck`.
-5. **The lamp bowl, with its compensating half.** §6 has the derivation, the
-   measured regression and the reason the two numbers are one system.
-6. **`tools/quiet-gates.sh` with the app closed.** Still the operator's, and
-   `player`'s two reds are still waiting on it — and the `player` route now runs
-   at fov 75 with more of the world in frame, so its cost has moved and nobody
-   has measured which way.
-7. `node tools/levels.mjs --a=<before> --b=<after>` on any change that touches
-   light, and `node tools/inputcheck.mjs` on any change that touches the
-   controller.
+1. **`tools/quiet-gates.sh` with the app closed, and kill the two orphan vite
+   servers first** (5173/5174; this session's environment refused the `kill`).
+   Six perfcheck timing assertions are unadjudicated at `load1` 4.20.
+2. **Assert `traffic.stats().worstStopLineM >= 0`** in `tools/budget.json` and
+   `perfcheck`. The instrument is built; the assertion is five minutes. §3.
+3. **Item 2, the viaduct — NOT STARTED, and diagnosed.** Its piers stand in the
+   streamed north–south carriageway at x ≈ 0 (the arc runs down a chunk
+   boundary, which the session-5 re-aiming argument never considered — it
+   reasoned about the origin block's east–west street). Its deck ends at
+   z ≈ −229 and +251, in streamed chunks nothing clips to. The river's session-15
+   treatment is the pattern: an envelope the generators read. The pier-nudge and
+   the building clip are the two halves worth doing first; deck traffic is a
+   spline-network change and is honestly large.
+4. **Item 8, vehicle light signatures — NOT STARTED.** Every vehicle has one
+   stripe front and back while the bodies carry five types, twelve chroma
+   clusters and four eras. Four axes at zero cluster slots: signature shape per
+   body type, front colour temperature tied to era, tail hue, side markers, and a
+   single headlamp on the motorcycle.
+5. **Item 11's remaining two: roof signs and the height spread.** Roof signs are
+   the highest-value emission left and cost no draw call (`city:signs` exists,
+   the `roof` mounting exists). The height distribution is *uniform* on 12–64 m,
+   sd/mean 0.423, capped at 66.22 — and the same file already applies a
+   heavy-tail argument to density and never to height. A log-normal at median
+   30 m, σ = 0.62 gives mean **36.4 m against the delivered 36.55**, i.e. the
+   mean is preserved to 0.4% and the whole change is in the shape, with p99 at
+   127 m. Clamp at 150 m: `LIGHTING.shadowExtent` is 170.
+6. **Item 14, pop-in — NOT STARTED, diagnosis carried.** `seed()` scores its
+   twelve candidate re-seat sites by `ahead` and takes the maximum, so a vehicle
+   can materialise 14 m dead ahead in the camera's own lane. Frustum rejection on
+   recycle, one file, no count changes.
+7. **Markings.** The kerb half of that item is done (§1); the markings half is
+   not, and `CITY.stopLineFromJunctionM` is waiting for the stop line to be
+   painted from the same number the traffic brakes against.
+8. **The condenser is absent from most of every route.** `wantedChunks` builds a
+   Chebyshev ring ≤ 5 and the condenser's chunk is at ring 6 from
+   `downtown_dense`'s and `night_rain`'s start — **it pops into existence as the
+   camera crosses x = 256 m**. `citycheck`'s "8 visible from elevation" is
+   geometric and says so in its own comment; it is not evidence of residency.
+   The repair is owed a rendering fix first (the four lathes merged into one
+   mesh), because `highway_speed` sits at 428 of 440 draws.
+
+---
+
+## 10. Known gaps carried forward
+
+**Unchanged from s8–s18**: `stats().cutoffM` hard-codes 0.8, the headroom probe
+inert, GPU timer queries advertised and never retiring (`starved 2157` this
+run), `saturation-peak.png` overwritten every run, `$fovYDrift`,
+`camera.setRouteAt(name, 1.0)` at the sky, rain streaks near-invisible wide at
+night, `rain_spray` 0 static, right turns only, sun shadows to ~170 m, the bake
+blind to elevated slabs, the PMREM hitch, the too-red dawn horizon, one worker at
+queue depth one, the four island frontages overlapping at the corners, the far
+half of the river handing back to the night sky past ~300 m, grime authored, the
+near-field washboard on the water, the quay wall inside the walkable mask,
+props absent from the walkability mask, the 3.5°–10.4° route camera pitch, the
+frozen/running A/B (an eighth session undone), and the three level assertions
+still a sample of one while every millisecond beside them is pooled over three.
+
+**Resolved this session**: the 98.5 m pavement overlap's 0.130 m step (§1); the
+1 cm streamed kerb (§1); the viaduct pier across both footways is *unchanged*
+but is now understood (§9.3).
+
+**New this session, all recorded above**: the road patch as a 1.00 m slab; the
+stop line measured to the origin; `bld.crown` never read; the roofscape absent
+from the ring that IS the skyline; the light pool's registration-vs-slot
+conflation and `CLUSTER.far` making the condenser unlightable; the 28-slot
+margin against STATE 18's 40; `river.js`'s three transcribed ground heights and
+the 10 mm lip they left at every bridge approach; `weather.js`'s private copy of
+one key of another module's ground table; `block.js`'s pavement box authored at a
+literal 0.16 beside a configurable `cfg.kerbHeight`; and the session-18 `python3`
+row counter that counts pipe-leading lines to end of file — correct only for as
+long as §9's table stays the last table in the document, which is §9's own shape
+inside the derivation printed to defend against §9.

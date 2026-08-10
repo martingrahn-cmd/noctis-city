@@ -390,6 +390,113 @@ try {
   results.push({ rel: 'index.html', fails: ['missing'] });
 }
 
+/**
+ * CONTRACT.md's §9 TABLE COUNTS ITSELF — session 19.
+ *
+ * §9's opening line has carried a hand-maintained count of its own rows and has
+ * been wrong THREE times, most memorably inside the sentence claiming the count
+ * "is now derived by counting the rows, which is the only way it stays right".
+ * A number maintained in prose beside the thing it counts is §9.1's "a value in
+ * config the code does not read" with a document instead of a config file, and
+ * it fails the same way: quietly, and only to a reader who happens to count.
+ *
+ * So the number is generated against rather than maintained. Both quantities
+ * are printed on disagreement, per §9 rule 4.
+ *
+ * THE ROWS ARE THE CONTIGUOUS BLOCK, and that is the whole of the arithmetic
+ * this replaces. Session 18's `python3` snippet counted every line beginning
+ * with `|` from the header to the end of the file — a count of pipe-leading
+ * lines in the REMAINDER OF THE DOCUMENT, used as the number of rows in ONE
+ * table. It agrees at 42 today only because §9's table is currently the last
+ * table in the file; a table added below it would make the derivation
+ * over-count without saying so. That is §9's own shape, in the derivation
+ * printed to defend against §9, which is §7.7 exactly.
+ */
+const CONTRACT_TABLE_HEADER = '| session | what was computed';
+const CONTRACT_COUNT_RE = /\*\*The (\d+) so far\*\*/;
+
+function contractDocCheck(md) {
+  const fails = [];
+  const lines = md.split('\n');
+  const h = lines.findIndex((l) => l.startsWith(CONTRACT_TABLE_HEADER));
+  if (h < 0) {
+    fails.push(`§9's table header ("${CONTRACT_TABLE_HEADER}…") is missing — the section was renamed or truncated`);
+    return fails;
+  }
+  // +2 skips the header row and the |---|---| separator beneath it.
+  let rows = 0;
+  for (let i = h + 2; i < lines.length && lines[i].startsWith('|'); i++) rows++;
+
+  const m = md.match(CONTRACT_COUNT_RE);
+  if (!m) {
+    fails.push(
+      `§9's row count sentence is missing — expected "**The <n> so far**", ` +
+      `and the table has ${rows} contiguous rows`
+    );
+    return fails;
+  }
+  const declared = Number(m[1]);
+  if (declared !== rows) {
+    fails.push(
+      `§9 says "**The ${declared} so far**" and the table has ${rows} contiguous rows ` +
+      `(counted from the line after "${CONTRACT_TABLE_HEADER}…" to the first line not ` +
+      `starting with "|"). Write ${rows}.`
+    );
+  }
+  return fails;
+}
+
+/**
+ * §7.3 / §7.7 — the instrument is run over a case that HAS the property and one
+ * that does not, both answers known from outside the instrument, in the same
+ * change as the instrument. A checker whose two answers are the same answer is
+ * the failure this whole section is about, and a count is exactly the kind of
+ * check that quietly returns "fine" for everything.
+ *
+ * The trailing table in the disagreeing fixture is the session-18 snippet's
+ * blind spot made explicit: a second table below §9's. `contractDocCheck`
+ * must stop at the blank line and read 2, not 4.
+ */
+function contractDocSelfTest() {
+  const body = (n) =>
+    `**The ${n} so far** (prose)\n\n` +
+    `${CONTRACT_TABLE_HEADER} | what it was used as | how far off |\n` +
+    '|---|---|---|---|\n' +
+    '| 1 | a | b | c |\n' +
+    '| 2 | d | e | f |\n' +
+    '\n' +
+    'Some prose, and then a SECOND table further down the document:\n\n' +
+    '| x | y |\n|---|---|\n| 1 | 2 |\n';
+  const bad = [];
+  if (contractDocCheck(body(2)).length !== 0) {
+    bad.push('a fixture whose count agrees (2 rows, says 2) was rejected');
+  }
+  const wrong = contractDocCheck(body(4));
+  if (wrong.length === 0) {
+    bad.push('a fixture whose count disagrees (2 rows, says 4 — the count a to-EOF scan gives) was accepted');
+  }
+  if (contractDocCheck('no table here').length === 0) {
+    bad.push('a document with no §9 table was accepted');
+  }
+  return bad;
+}
+
+const selfTestFails = contractDocSelfTest();
+if (selfTestFails.length) {
+  console.error('parsecheck: the CONTRACT.md row-count check failed its own self-test —');
+  for (const f of selfTestFails) console.error(`      ${f}`);
+  process.exit(2);
+}
+
+try {
+  const md = await readFile(path.join(ROOT, 'CONTRACT.md'), 'utf8');
+  const mdFails = contractDocCheck(md);
+  checkedCount++;
+  if (mdFails.length) results.push({ rel: 'CONTRACT.md', fails: mdFails });
+} catch {
+  results.push({ rel: 'CONTRACT.md', fails: ['missing — every session is required to read it first'] });
+}
+
 // A green run over zero files is the most dangerous possible result.
 if (checkedCount < 5) {
   console.error(`parsecheck: only ${checkedCount} files found — the tree looks wrong, refusing to report green`);

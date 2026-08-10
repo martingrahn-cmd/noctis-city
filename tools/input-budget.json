@@ -3,7 +3,7 @@
 
   "speed": {
     "toleranceFraction": 0.06,
-    "$toleranceFraction": "The delivered speed is (distance travelled) / (simulated seconds elapsed), both read from the live modules either side of a hold. The player integrates time.now in whole frames, so the window's two endpoints can each be up to one frame out: 2 frames of 1/60 s over a ~1.2 s window is 2.8%. 0.06 is 2.14x that, which leaves room for a frame the machine dropped without leaving room for a wrong constant — the smallest error this is meant to catch is PLAYER.walkSpeedMps being read as GAIT.walkSpeedMps, which is 1.43x = 43%, seven times the tolerance."
+    "$toleranceFraction": "The delivered speed is (distance travelled) / (simulated seconds elapsed), both read from the live modules either side of a hold. The player integrates time.now in whole frames, so the window's two endpoints can each be up to one frame out: 2 frames of 1/60 s over a ~1.2 s window is 2.8%. 0.06 is 2.14x that, which leaves room for a frame the machine dropped without leaving room for a wrong constant — the smallest error this is meant to catch is PLAYER.walkSpeedMps being read as GAIT.walkSpeedMps, which at session 19's 3.50 m/s is 2.50x = 150%, twenty-five times the tolerance (it was 1.43x = 43% at session 18's 2.00 m/s, so the assertion has got STRICTER relative to the error it was written for, not looser)."
   },
 
   "look": {

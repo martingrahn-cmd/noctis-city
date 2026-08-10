@@ -45,8 +45,14 @@ import {
   FACE_AXES,
 } from '../lib/canyon.js';
 import { skyIrradianceOnPlane } from '../lib/atmosphere.js';
+// The lamps' chromaticity, for the facade term below. A sodium street lamp is
+// not white and a facade lit by one is not neutral.
+import { EMITTER_CHROMA } from '../lib/color.js';
 import { CANYON } from '../core/constants.js';
 import { CITY, LANDMARKS, landmarkOccluders } from '../lib/citygen.js';
+
+/** Luminance-normalised sodium, so the term adds chroma and not brightness. */
+const SODIUM = EMITTER_CHROMA.sodium;
 
 const RECIP_PI = 1 / Math.PI;
 
@@ -171,10 +177,41 @@ export function createCanyon(options = {}) {
        */
       const eFaceSky = skyIrradianceOnPlane(ax[0], ax[1], ax[2], d.x, d.y, d.z);
 
+      /**
+       * THE STREET LAMPS, ON THE FACADE — session 19, item 10, and it is the
+       * one term in this function that is not natural light.
+       *
+       * At midnight `eSun` is exactly [0,0,0] (the transmittance integral
+       * returns zero for any negative elevation) and `eFaceSky` excludes the
+       * urban glow, so before this line the four facade radiances collapsed to
+       * `S.facadeEmissive` and NOTHING the city itself emits reached a wall.
+       * Ninety-eight lamps threw their pools on the road and the road threw
+       * nothing back, because the only path from a lamp to a facade in this
+       * renderer was a clustered light within `CLUSTER.far`.
+       *
+       * `sky.groundLightingLux` IS THE SOURCE, AND IT IS SHARED ON PURPOSE. It
+       * is already "lamps on × the maintained road lux" — `lighting.js` sets it
+       * on the photocell edge and `sky.js`'s lower hemisphere reads it — so the
+       * canyon and the sky LUT cannot disagree about how many lamps are lit. One
+       * number, two consumers, which is the arrangement §9.1 asks for wherever
+       * two systems describe one state.
+       *
+       * `CANYON.facadeLampShare` carries the integration of this project's own
+       * optic over its own street (0.1002) and the honest statement of what the
+       * term is worth: **+8.5% on a facade, +0.118 stops**, against the +2.2
+       * stops the night frame is short. Read it before expecting this to have
+       * fixed the dark.
+       *
+       * NOTHING HERE TOUCHES THE BAKE. The field stores transfer; this changes
+       * what it is multiplied by, once per sky rebuild, three multiplies and
+       * three adds. CONTRACT §5.7's sun-independence survives because the term
+       * is not the sun.
+       */
+      const eLamp = (sky.groundLightingLux || 0) * CANYON.facadeLampShare;
       const L = [0, 0, 0];
       for (let c = 0; c < 3; c++) {
         const e = eSun[c] * ndl * lit + eFaceSky[c] * facadeSkyVis;
-        L[c] = S.facadeAlbedo[c] * RECIP_PI * e + S.facadeEmissive[c];
+        L[c] = S.facadeAlbedo[c] * RECIP_PI * (e + eLamp * SODIUM[c]) + S.facadeEmissive[c];
       }
       faceL.push(L);
     }
@@ -184,6 +221,20 @@ export function createCanyon(options = {}) {
      * reaches downward-facing surfaces through the sky LUT's lower hemisphere
      * (sky.js, setGroundLighting), and counting it here as well would put it on
      * every soffit twice.
+     *
+     * SESSION 19 CHECKED THIS RATHER THAN TRUSTING IT, because item 10's brief
+     * asked for a lamp term on the ground as well as on the facades and the
+     * answer is that one is already here. §9 rule 2 — the same quantity two
+     * ways:
+     *
+     *     sky LUT lower hemisphere  [0.155,0.145,0.125] × 16/π
+     *                                              = [0.789, 0.738, 0.637] cd/m²
+     *     block.surfaces.groundAlbedo × 16/π       = [0.769, 0.718, 0.637] cd/m²
+     *
+     * **They agree to 3%.** So the lamp bounce off the road IS in the frame, and
+     * a second term here would be the same light counted twice on every soffit,
+     * every underside and every downward-facing surface in the city. The facade
+     * term above was missing; this one was not.
      */
     /**
      * What fraction of the carriageway the sun actually reaches.
@@ -604,6 +655,35 @@ export function createCanyon(options = {}) {
 
       computeRadiance(ctx);
       lastSkyVersion = ctx.get('sky').version;
+
+      /**
+       * THE THREE TERMS OF A FACADE'S RADIANCE, SEPARATELY — session 19, and
+       * CONTRACT §9 rule 4 in its strongest form: a value that crosses two
+       * module boundaries to reach a shader is printed at the point of USE.
+       *
+       * The lamp term added this session is 8.5% of a facade at midnight; the
+       * sum alone would hide both that it is small and that it is there at all,
+       * which is exactly how `uNoctisFieldDefault.z` was NaN for four sessions
+       * while the boot log printed the correct 0.244 the whole time.
+       */
+      {
+        const sky = ctx.get('sky');
+        const S = block.surfaces;
+        const eLampLog = (sky.groundLightingLux || 0) * CANYON.facadeLampShare;
+        const lampL = S.facadeAlbedo.map((a, c) => a * RECIP_PI * eLampLog * SODIUM[c]);
+        const lum = (v) => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+        const total = api.faceRadiance && api.faceRadiance[0] ? lum(api.faceRadiance[0]) : 0;
+        ctx.log(
+          `canyon facade radiance, +X wall: total ${total.toFixed(4)} cd/m² = ` +
+            `emissive ${lum(S.facadeEmissive).toFixed(4)} + ` +
+            `LAMPS ${lum(lampL).toFixed(4)} (session 19: ` +
+            `${sky.groundLightingLux.toFixed(1)} lx road × CANYON.facadeLampShare ` +
+            `${CANYON.facadeLampShare} = ${eLampLog.toFixed(3)} lx on the wall) + ` +
+            `sun and sky, the remainder. The lamp term is ` +
+            `${total > 0 ? ((lum(lampL) / total) * 100).toFixed(1) : '0.0'}% of the total here — ` +
+            `read CANYON.facadeLampShare before expecting it to have fixed the night.`
+        );
+      }
 
       /**
        * Read the baked field at a world point, on the CPU, in full precision.

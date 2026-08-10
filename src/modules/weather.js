@@ -52,7 +52,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, RENDER } from '../core/constants.js';
+import { LIGHT, RENDER, GROUND } from '../core/constants.js';
 import { pixelAngle } from '../core/instmotion.js';
 import { ATM } from '../lib/atmosphere.js';
 import { CITY, CORRIDOR } from '../lib/citygen.js';
@@ -284,8 +284,27 @@ const RAIN_RANGE_M = 12;
 /** m. Nearest a streak may be simulated. Inside this it is a blur across the lens. */
 const RAIN_NEAR_M = 0.45;
 
-/** m. The carriageway surface. Matches city.js buildGround's road quad. */
-const GROUND_Y = 0.02;
+/**
+ * m. THE CARRIAGEWAY SURFACE — `GROUND.carriageway`, the datum, session 19.
+ *
+ * It was the literal `0.02` under a comment saying it "matches city.js
+ * buildGround's road quad", which is §9.1's "a value in config the code does not
+ * read" with two modules instead of a config file: a private copy of ONE KEY of
+ * another module's ground table, kept in step by a sentence. It was already
+ * wrong in three of the four places it is used — 1 mm out on an east–west
+ * carriageway, 10 mm out on a pavement, and 20 mm out over the origin block's
+ * own street, which is at exactly 0. Declaring the datum makes it right on the
+ * carriageway by construction and leaves the pavement error, which is what the
+ * next paragraph is about.
+ *
+ * WHY IT IS STILL A CONSTANT AND NOT A QUERY, said out loud. Splashes, spray
+ * and the streak floor are RAIN ON THE ROAD: `SPLASH_*` seats its crowns over
+ * the carriageway, and a splash on a pavement 0.160 m higher would sit 0.160 m
+ * under it. That is a real remaining error and it is bounded — a splash is
+ * 24.6 mm across and lives for a fraction of a second — where a per-particle
+ * ground query at this population would not be. Recorded rather than fixed.
+ */
+const GROUND_Y = GROUND.carriageway;
 
 /**
  * m. Splash crown diameter. A crown is about three drop diameters across at

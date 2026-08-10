@@ -33,7 +33,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LUMINAIRE, CLUSTER } from '../core/constants.js';
+import { LIGHT, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
@@ -224,6 +224,13 @@ export function createCity(options = {}) {
       /** Facade advertising: a display panel is a window-sized emitter, not a neon tube. */
       display: emissive({ chroma: EMITTER_CHROMA.fluorescentCold, nits: 900, color: 0x0a0b0d, roughness: 0.06 }),
       lampBowl: emissive({ chroma: EMITTER_CHROMA.sodium, nits: LIGHT.streetlampNits, roughness: 0.35 }),
+      /**
+       * RED AVIATION OBSTRUCTION LIGHTS — session 19, item 12. One material for
+       * every beacon on every landmark; the FLASH rides in `instanceColor`,
+       * exactly as a traffic signal's lit lens does, so a lamp on and a lamp off
+       * are two instances rather than two materials or two draw calls.
+       */
+      beacon: emissive({ chroma: EMITTER_CHROMA.neonRed, nits: LIGHT.aviationRedNits, color: 0x0e0a0a, roughness: 0.2 }),
     };
   }
 
@@ -393,7 +400,7 @@ export function createCity(options = {}) {
    * composes first cannot be seen — the sentence is here because a reader
    * should not have to work that out to know it does not matter.
    */
-  function propMatrix(p, b, leanDeg) {
+  function propMatrix(p, b, leanDeg, baseY) {
     const s = p.scale;
     tmpQuat.setFromEuler(tmpEuler.set(0, (p.yawDeg || 0) * DEG, 0));
     if (leanDeg) {
@@ -403,7 +410,15 @@ export function createCity(options = {}) {
       tmpQuat.premultiply(tmpLeanQuat);
     }
     tmpPos.set(b.x * s, b.y * s, b.z * s).applyQuaternion(tmpQuat);
-    tmpPos.set(p.x + tmpPos.x, tmpPos.y, p.z + tmpPos.z);
+    /**
+     * `baseY` is the ground under this prop, session 19. Every `PROP_MODELS`
+     * box is authored with the model's base at y = 0 (a bollard's own bottom, a
+     * tree's root collar), which is the ground datum — so the whole model is
+     * lifted by whatever the surface at its feet is. The LEAN is applied through
+     * the prop's own base before this, so a leaning tree still pivots on the
+     * pavement it is planted in rather than about a point 0.160 m under it.
+     */
+    tmpPos.set(p.x + tmpPos.x, baseY + tmpPos.y, p.z + tmpPos.z);
     tmpScale.set(b.w * s, b.h * s, b.d * s);
     return tmpMatrix.compose(tmpPos, tmpQuat, tmpScale).clone();
   }
@@ -422,38 +437,259 @@ export function createCity(options = {}) {
    * failing silently as an eye that floats a centimetre over the pavement.
    * `buildGround` emits from this table and `surfaceAt()` reads from it.
    *
-   * WHAT THE TABLE SAYS OUT LOUD, AND IT IS THIS SESSION'S FIRST FINDING:
-   * **the streamed city's kerb is 0.010 m high.** The pavement is 0.030 and the
-   * carriageway is 0.020, and the gap between them is a z-fighting offset
+   * SESSION 19 — THIS TABLE IS NO LONGER A TABLE. It is a view onto
+   * `constants.js` → `GROUND`, which is where the datum is declared, and every
+   * number below is now an expression rather than a literal.
+   *
+   * WHAT WAS WRONG, KEPT BECAUSE THE NEXT SESSION MUST NOT RE-DERIVE IT:
+   * **the streamed city's kerb was 0.010 m high.** The pavement was 0.030 and
+   * the carriageway 0.020, and the gap between them was a z-fighting offset
    * rather than a kerb — the comment two paragraphs down has always said
    * "slightly above the global ground plane so there is no z-fighting with it",
-   * which is exactly what these numbers are for and is not what a kerb is.
+   * which is exactly what those numbers were for and is not what a kerb is.
    * `BLOCK.kerbHeight` is 0.16 m and the origin block builds a real one, so the
-   * city has a 0.16 m kerb over 336 m of its main street and a 0.01 m kerb over
-   * every other metre of road it owns. 0.16 / 0.01 = 16×.
+   * city had a 0.16 m kerb over 336 m of its main street and a 0.01 m kerb over
+   * every other metre of road it owned. 0.16 / 0.01 = 16×. It also put 160
+   * vehicles 0.020 m inside their own carriageway, because a wheel's contact
+   * patch is at y = 0 and so is everything else in this project — see `GROUND`.
    *
-   * The two `NS`/`EW` pairs differ by 0.001 m for the same z-fighting reason —
-   * where a north–south strip crosses an east–west one, one of them has to win.
-   * A walker cannot feel 1 mm and `surfaceAt` returns the higher of whatever
+   * NOTHING HERE IS A NEW DECISION. The carriageway drops 0.020 to the datum,
+   * the pavement rises 0.130 to `BLOCK.kerbHeight` above it, and the RELATIONS
+   * between grass, paths and the crossing bias are carried over unchanged, so
+   * the only quantity that moved is the one that was standing in for a kerb.
+   *
+   * The two `NS`/`EW` pairs still differ by `GROUND.crossingBias` — where a
+   * north–south strip crosses an east–west one, one of them has to win. A
+   * walker cannot feel 1 mm and `surfaceAt` returns the higher of whatever
    * applies, which is what a walker would be standing on.
    */
   const GROUND_Y = {
-    /** Carriageway, the chunk's west (north–south) corridor. */
-    roadNS: 0.02,
+    /** Carriageway, the chunk's west (north–south) corridor. THE DATUM. */
+    roadNS: GROUND.carriageway,
     /** Carriageway, the chunk's north (east–west) corridor. Wins the crossing. */
-    roadEW: 0.021,
-    /** Pavement either side of the north–south carriageway. */
-    walkNS: 0.03,
+    roadEW: GROUND.carriageway + GROUND.crossingBias,
+    /** Pavement either side of the north–south carriageway. A REAL kerb now. */
+    walkNS: GROUND.pavement,
     /** Pavement either side of the east–west carriageway. Wins the crossing. */
-    walkEW: 0.031,
+    walkEW: GROUND.pavement + GROUND.crossingBias,
     /** Mown grass on a `park` block's island. */
-    grass: 0.028,
+    grass: GROUND.grass,
     /** The two gravel paths across a park. */
-    pathEW: 0.032,
-    pathNS: 0.033,
+    pathEW: GROUND.pathEW,
+    pathNS: GROUND.pathNS,
     /** The world's earth plane, in `block.js`. Everything not listed above. */
-    earth: -0.02,
+    earth: GROUND.earth,
   };
+
+  /**
+   * THE ONE WALK OVER THE EMITTED GROUND RECTANGLES. Session 19.
+   *
+   * `surfaceAt` and `groundYAt` are two questions about one scan, and this is
+   * the scan. Two copies of it is §9.1's subject — a description of a thing and
+   * a second description of the same thing, drifting — and the drift here would
+   * be silent in the worst way: the player standing on one surface and the crowd
+   * beside them standing on another.
+   *
+   * Fills a preallocated result rather than returning one, because the caller
+   * that made this worth extracting runs it 360 times a frame and an allocation
+   * per pedestrian per frame is 21 600 objects a second.
+   *
+   * THE 3×3 NEIGHBOURHOOD IS NOT AN APPROXIMATION. A chunk emits the corridors
+   * on its own WEST and NORTH edges, so a point one metre west of a road line
+   * lies in chunk `cx − 1` and stands on chunk `cx`'s quad. Testing only the
+   * containing chunk would report bare earth along every west and north kerb in
+   * the city — a 4.2 m band, 128 m long, on every chunk boundary.
+   */
+  const scanOut = { best: null, anyGround: false };
+
+  /**
+   * THE CHUNK CURRENTLY BEING BUILT, VISIBLE TO THE QUERY BEFORE IT IS
+   * RESIDENT — session 19.
+   *
+   * `buildChunk` places this chunk's lamps and props, and each of them needs to
+   * know how high the pavement under it is. Its own ground quads exist by then
+   * (`buildGround` is hoisted to the top of that function for exactly this
+   * reason) but the chunk is not in `resident` until the build RETURNS, so the
+   * query would answer "bare earth" for every prop in the chunk that is asking.
+   *
+   * The alternative was a second height lookup inside `buildChunk` over the
+   * rectangles it has in hand, which is §9.1's subject — two descriptions of one
+   * surface, drifting — and its failure mode is a lamp column standing at a
+   * different height from the pavement quad drawn under it, by a number nobody
+   * would think to print. Four lines here instead.
+   *
+   * A prop only ever needs its OWN chunk's quads: the four kerb bands
+   * `citygen.js` furnishes are at `b.x0` and `b.z0` on both sides, and those are
+   * precisely the two corridors this chunk emits. Neighbours are still consulted
+   * through `resident` for anything that straddles.
+   */
+  let buildingKey = '';
+  let buildingGround = null;
+
+  /**
+   * THE LIVE AVIATION BEACON MESHES AND THEIR PER-LAMP PHASES — session 19.
+   *
+   * Held here rather than walked out of the scene graph each frame, because
+   * `update()` would otherwise have to traverse every resident chunk to find two
+   * meshes. Entries are dropped when their mesh leaves the scene; a chunk that
+   * streams out and back rebuilds its beacons with the same phases, because the
+   * phase is a hash of the lamp's own position and not a random draw.
+   */
+  const beaconMeshes = [];
+
+  /**
+   * THE FLASH — slow, asynchronous, and on the one clock.
+   *
+   * ICAO Annex 14 §6.3 puts medium-intensity Type B at **20 to 60 flashes a
+   * minute**; 30/min is the middle and is what an obstruction light on a tower
+   * actually does. So the period is **2.0 s** and the ON fraction is 0.25 —
+   * a half-second pulse, which is what reads as a beacon rather than as a
+   * strobe or as a lamp somebody forgot to switch off.
+   *
+   * `time.now` and not `dt`, for the reason `traffic`, `weather`, `streetlife`
+   * and `player` all carry: a system integrating wall-clock seconds arrives at a
+   * given capture in a different state on every run, and `?paused=1` must freeze
+   * this exactly as it freezes everything else that moves.
+   *
+   * OFF IS NOT ZERO. A dark obstruction light is a red lens with a filter still
+   * in front of it, seen against a sky — the same sentence `traffic.js` writes
+   * about `NITS_SIGNAL_OFF`. 0.006 of full is 98 cd/m², which is under the bloom
+   * onset and above nothing at all.
+   */
+  const BEACON_PERIOD_S = 2.0;
+  const BEACON_DUTY = 0.25;
+  const BEACON_OFF_GAIN = 0.006;
+
+  function updateBeacons(now) {
+    if (!beaconMeshes.length) return;
+    for (let m = beaconMeshes.length - 1; m >= 0; m--) {
+      const rec = beaconMeshes[m];
+      const im = rec.mesh;
+      if (!im.parent) {
+        beaconMeshes.splice(m, 1);
+        continue;
+      }
+      if (!im.instanceColor) continue;
+      const arr = im.instanceColor.array;
+      for (let i = 0; i < rec.phase.length; i++) {
+        const u = ((now / BEACON_PERIOD_S) + rec.phase[i]) % 1;
+        /**
+         * A raised cosine over the ON window rather than a square wave. A real
+         * beacon's flash has a rise and a fall — and a square wave at 60 fps
+         * would alias into the TAA history as a one-frame step on a sub-pixel
+         * emitter, which is the exact input §5.10's neighbourhood clamp rejects.
+         */
+        const g = u < BEACON_DUTY
+          ? BEACON_OFF_GAIN + (1 - BEACON_OFF_GAIN) * (0.5 - 0.5 * Math.cos((u / BEACON_DUTY) * Math.PI * 2))
+          : BEACON_OFF_GAIN;
+        arr[i * 3] = g;
+        arr[i * 3 + 1] = g;
+        arr[i * 3 + 2] = g;
+      }
+      im.instanceColor.needsUpdate = true;
+    }
+  }
+
+  function scanGround(x, z) {
+    const s = CITY.chunkSize;
+    const cx = Math.floor(x / s);
+    const cz = Math.floor(z / s);
+    let best = null;
+    let anyGround = false;
+    for (let jz = cz - 1; jz <= cz + 1; jz++) {
+      for (let jx = cx - 1; jx <= cx + 1; jx++) {
+        const k = chunkKey(jx, jz);
+        let g;
+        if (k === buildingKey) {
+          g = buildingGround;
+        } else {
+          const rec = resident.get(k);
+          g = rec ? rec.ground : null;
+        }
+        if (!g || !g.rects) continue;
+        anyGround = true;
+        // The chunk's own union bound — four comparisons that reject the eight
+        // neighbours which cannot contain the point. See `buildGround`.
+        const bb = g.bounds;
+        if (bb && (x < bb.x0 || x > bb.x1 || z < bb.z0 || z > bb.z1)) continue;
+        const rects = g.rects;
+        for (let i = 0; i < rects.length; i++) {
+          const q = rects[i];
+          if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue;
+          if (!best || q.y > best.y) best = q;
+        }
+      }
+    }
+    scanOut.best = best;
+    scanOut.anyGround = anyGround;
+    return scanOut;
+  }
+
+  /**
+   * WHAT IS UNDER (x, z) ANYWHERE IN THE WORLD — session 19, and this is THE
+   * ONE FUNCTION the ground datum points everything at.
+   *
+   * `api.surfaceAt` answers for THIS MODULE'S OWN QUADS and is deliberately
+   * left that way: `tools/walkprobe.mjs --agreement` compares it against the
+   * rasterised mask, and a query that quietly included two other modules'
+   * geometry would stop being a statement about the streamed city. This one is
+   * the WORLD query, and the difference between the two names is the difference
+   * between "what did `buildGround` emit here" and "what would a boot be
+   * resting on".
+   *
+   * THE MAXIMUM OVER THE THREE MODULES THAT EMIT GROUND, and a maximum rather
+   * than a precedence order for the reason session 17 wrote down in
+   * `player.js`: the topmost surface is the one you stand on, and a precedence
+   * order would have to be right about which of six overlaps is which — and
+   * would be wrong the first time one moved. On a bridge this module leaves its
+   * north–south corridor whole and `river.js` lays a deck across it, so both
+   * answer and the deck wins because it is higher, which is also what is drawn.
+   *
+   * IT IS THE ONLY COPY. `player.js` carried its own max-over-three from
+   * session 17 and now calls this; `streetlife.js` had no query at all and
+   * wrote a literal 0; `buildChunk` places lamps and props through it. Two
+   * implementations of "which surface am I on" is §9.1's subject with a height,
+   * and its failure mode is the worst kind — the walker standing on one surface
+   * and the crowd beside them standing on another, in the same frame, both
+   * looking plausible.
+   *
+   * No allocation: `worldOut` is filled and returned, because the caller that
+   * made this worth having runs it once per pedestrian per frame. THE RESULT IS
+   * TRANSIENT — copy what you keep.
+   */
+  const worldOut = { y: 0, kind: 'earth', known: false };
+
+  function worldSurface(ctx, x, z) {
+    const r = scanGround(x, z);
+    worldOut.y = r.best ? r.best.y : GROUND_Y.earth;
+    worldOut.kind = r.best ? r.best.kind : 'earth';
+    worldOut.known = r.best ? true : r.anyGround;
+
+    /**
+     * `ctx.get()` may return undefined for either neighbour: that is what
+     * quarantine looks like from the outside (CONTRACT §1.2), and a missing
+     * module removes its surfaces rather than throwing.
+     */
+    const blockApi = ctx.get('block');
+    if (blockApi && blockApi.surfaceAt) {
+      const b = blockApi.surfaceAt(x, z);
+      if (b && b.y > worldOut.y) {
+        worldOut.y = b.y;
+        worldOut.kind = b.kind;
+        worldOut.known = b.known;
+      }
+    }
+    const riverApi = ctx.get('river');
+    if (riverApi && riverApi.surfaceAt) {
+      const v = riverApi.surfaceAt(x, z);
+      if (v && v.y > worldOut.y) {
+        worldOut.y = v.y;
+        worldOut.kind = v.kind;
+        worldOut.known = v.known;
+      }
+    }
+    return worldOut;
+  }
 
   /**
    * The road surface for one chunk: the two corridors on its west and north
@@ -672,7 +908,36 @@ export function createCity(options = {}) {
     clipped(b.x0 + w, b.z0 + r, b.x1, b.z0 + w, Y.walkEW, walkAlbedo, 'walk');
     clipped(b.x0 + w, b.z0 - w, b.x1, b.z0 - r, Y.walkEW, walkAlbedo, 'walk');
 
-    return { positions, normals, colors, rects, bytes: positions.length * 4 * 3 };
+    /**
+     * THE UNION AABB OF THIS CHUNK'S OWN QUADS — session 19, and it exists so
+     * that `surfaceAt` can be called 360 times a frame instead of once.
+     *
+     * `surfaceAt` walks a 3×3 neighbourhood because a chunk emits the corridors
+     * on its WEST and NORTH edges, so a point can stand on a neighbour's quad.
+     * That is nine chunks × about ten rectangles = ~90 containment tests per
+     * query, which is nothing at one query a frame (the player) and is 32 400
+     * at one per pedestrian. Eight of the nine chunks cannot contain the point
+     * at all, and this bound rejects each of them in four comparisons.
+     *
+     * Computed here rather than in the query because the rectangles are already
+     * in hand and never change afterwards; it is 32 bytes a chunk against the
+     * 12 kB the rectangles themselves cost. Empty chunks — everything clipped
+     * away by the keep-out or the river — get an inverted box that fails every
+     * test, which is the correct answer for a chunk with no ground in it.
+     */
+    let bx0 = Infinity;
+    let bz0 = Infinity;
+    let bx1 = -Infinity;
+    let bz1 = -Infinity;
+    for (const q of rects) {
+      if (q.x0 < bx0) bx0 = q.x0;
+      if (q.z0 < bz0) bz0 = q.z0;
+      if (q.x1 > bx1) bx1 = q.x1;
+      if (q.z1 > bz1) bz1 = q.z1;
+    }
+    const bounds = { x0: bx0, z0: bz0, x1: bx1, z1: bz1 };
+
+    return { positions, normals, colors, rects, bounds, bytes: positions.length * 4 * 3 };
   }
 
   /**
@@ -764,6 +1029,44 @@ export function createCity(options = {}) {
     group.name = `city:${cx},${cz}`;
     let bytes = 0;
 
+    /**
+     * THE GROUND IS BUILT FIRST, BECAUSE EVERYTHING ELSE IN THIS FUNCTION
+     * STANDS ON IT — session 19.
+     *
+     * It used to be built two-thirds of the way down, after the buildings, the
+     * lamps and the props, which was harmless while nothing asked how high the
+     * ground was: every object in the chunk was authored with its base at
+     * y = 0 and the quads were 0.020 m above it. Declaring the datum
+     * (`constants.js` → `GROUND`) put the pavement at 0.160 m, so a lamp
+     * column, a bollard and a bin now have to READ their own pavement — and a
+     * query cannot answer before the surface exists.
+     *
+     * `buildingKey`/`buildingGround` make this chunk's quads visible to
+     * `scanGround` before the chunk is resident, which is what lets the lamps
+     * and props below go through the SAME `worldSurface` the player and the
+     * crowd use rather than through a second height lookup written here. See
+     * `scanGround`. Cleared in `finally` so a throw mid-build cannot leave a
+     * stale chunk shadowing a real one for the rest of the session.
+     */
+    const near = detail && ring <= CITY.nearRadius;
+    let ground = null;
+    if (near) {
+      ground = buildGround(chunk);
+      bytes += ground.bytes;
+    }
+    buildingKey = chunkKey(cx, cz);
+    buildingGround = ground;
+    try {
+      return buildChunkBody(ctx, cx, cz, detail, ring, chunk, group, bytes, near, ground);
+    } finally {
+      buildingKey = '';
+      buildingGround = null;
+    }
+  }
+
+  function buildChunkBody(ctx, cx, cz, detail, ring, chunk, group, bytesIn, near, ground) {
+    let bytes = bytesIn;
+
     const bodies = [];
     const bodySkin = [];
     const crowns = [];
@@ -805,52 +1108,62 @@ export function createCity(options = {}) {
         bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness * 0.75 });
       }
 
-      if (era.cornice > 0.02) {
+      /**
+       * THE CROWN, AND `bld.crown` IS NOW READ — session 19.
+       *
+       * `citygen.js` has written `crown: eraName === 'contemporary' ?
+       * rng.range(0.15, 0.45) : 0` on every building since the eras were added,
+       * and **a tree-wide grep found no reader anywhere in `src/` or `tools/`.**
+       * §9.1's first variant — a value in config the code does not read — and it
+       * lands on exactly the wrong era: `CITY_ERAS.contemporary` sets
+       * `cornice: 0.0`, so the ONE era whose written identity is "cantilevered
+       * upper floors, a chamfered or stepped crown" is the one era that got no
+       * crown box at all. 51 of 497 buildings in the geometry ring, flat-topped
+       * by omission, and the field that was written to fix it never arrived.
+       *
+       * The gate is now the SUM, so a contemporary building's crown comes from
+       * `bld.crown` and every other era's from `era.cornice` exactly as before —
+       * 446 of 497 crowns unchanged, +51 new ones. The width factor is 1.6 for a
+       * cornice, which OVERSAILS, and 0.55 for a contemporary crown, which is a
+       * chamfer and therefore steps IN. That sign is the whole difference
+       * between the two forms and it is why one number could not serve both.
+       */
+      const crownDepth = era.cornice + (bld.crown || 0);
+      if (crownDepth > 0.02) {
+        const oversail = era.cornice > 0.02 ? era.cornice * 1.6 : -bld.crown * 0.55;
         crowns.push(setMatrix(
-          bld.x, bld.height + era.cornice / 2, bld.z,
-          bld.width + era.cornice * 1.6, era.cornice, bld.depth + era.cornice * 1.6, bld.yawDeg
+          bld.x, bld.height + crownDepth / 2, bld.z,
+          bld.width + oversail, crownDepth, bld.depth + oversail, bld.yawDeg
         ));
         crownSkin.push({ albedo: mat.albedo, roughness: Math.min(1, mat.roughness + 0.05) });
       }
+
+      /**
+       * THE ROOFSCAPE IS BUILT ON EVERY RING, NOT ONLY THE DETAIL ONE — session
+       * 19, and it is the largest single reason the skyline read as a comb.
+       *
+       * `if (detail)` wrapped the facade, the ground floor AND the roof plant.
+       * `detail` is `ring <= CITY.detailRadius` = 4 against `geometryRadius` = 5,
+       * so **ring 5 — 40 chunks, 148 buildings, 576 to 768 m out — was a bare box
+       * plus a cornice.** That ring IS the skyline: it is the furthest thing the
+       * city draws, it is what an elevated frame is mostly made of, and it is the
+       * one ring that had nothing on top of it. The facade and the ground floor
+       * are right to stay gated — nobody can see a window reveal at 700 m — and
+       * a roof profile is precisely what survives that distance.
+       *
+       * THE COST IS INSTANCES AND NOT DRAWS, which is what makes it affordable:
+       * these boxes ride in the chunk's existing merged box mesh. 148 buildings
+       * over four floors × about 8 boxes is ~1 200 instances and ~14 000
+       * triangles against a delivered 1.45 M and a 2.00 M ceiling — 0.7%. The
+       * draw budget, which is the tight one at 438 of 440 on `highway_speed`,
+       * does not move at all.
+       */
+      buildRoofscape(bld, mat, bodies, bodySkin);
 
       if (detail) {
         buildFacade(bld, era, windows, windowTint, bodies, bodySkin, mat.albedo, mat.roughness);
         buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin);
 
-        /**
-         * Roof plant. Every building over four floors has a lift overrun, a
-         * tank, a plant enclosure and a parapet, and from any elevated view they
-         * are the difference between a city and a set of extruded footprints.
-         * Deterministic in the building's own position, so a chunk that streams
-         * out and back in has the same roof.
-         */
-        if (bld.floors > 4) {
-          const seed = Math.abs(Math.sin((bld.x * 0.37 + bld.z * 0.11) * 4711.13) % 1);
-          const units = 2 + Math.floor(seed * 4);
-          for (let u = 0; u < units; u++) {
-            const h = Math.abs(Math.sin((bld.x + bld.z + u * 19.7) * 1237.7) % 1);
-            const w = 2.2 + h * 4.5;
-            const ph = 1.8 + h * 3.4;
-            bodies.push(setMatrix(
-              bld.x + (h - 0.5) * (bld.width - w - 1.5),
-              bld.height + ph / 2,
-              bld.z + ((u / units) - 0.5) * (bld.depth - w - 1.5),
-              w, ph, w * (0.6 + h * 0.7), bld.yawDeg + (h - 0.5) * 4
-            ));
-            bodySkin.push({ albedo: [0.3, 0.3, 0.31], roughness: 0.82 });
-          }
-          // The parapet, as four thin boxes. A roof with no upstand reads as a
-          // sliced-off box, which is exactly what it is without one.
-          const pt = 0.3;
-          const ph = 1.05;
-          for (const [ox, oz, sx, sz] of [
-            [0, -bld.depth / 2, bld.width, pt], [0, bld.depth / 2, bld.width, pt],
-            [-bld.width / 2, 0, pt, bld.depth], [bld.width / 2, 0, pt, bld.depth],
-          ]) {
-            bodies.push(setMatrix(bld.x + ox, bld.height + ph / 2, bld.z + oz, sx, ph, sz, bld.yawDeg));
-            bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
-          }
-        }
       }
     }
 
@@ -1016,14 +1329,25 @@ export function createCity(options = {}) {
         const pz = s.z + out[1] * (halfOut + PYLON_STANDOFF) + tan[1] * along;
         /** A pylon is read from both directions along the pavement; both faces, rotated. */
         const py = Math.max(2.6, Math.min(s.y, 7.5));
+        /**
+         * THE WHOLE PYLON STANDS ON ITS PAVEMENT — session 19.
+         *
+         * `py` is a MOUNTING HEIGHT, not a world coordinate: it is clamped to
+         * 2.6–7.5 m, which are heights above the footway a sign is legible from,
+         * and the post below runs from the ground up to the sign's lower edge.
+         * Both were measured from y = 0, so the post was 0.030 m buried before
+         * the datum moved and would be 0.160 m buried after it. The sign and the
+         * post lift together, or the post stops reaching the sign.
+         */
+        const baseY = worldSurface(ctx, px, pz).y;
         for (const dir of [1, -1]) {
           pushSign(setMatrix(
-            px + out[0] * 0.06 * dir, py, pz + out[1] * 0.06 * dir,
+            px + out[0] * 0.06 * dir, baseY + py, pz + out[1] * 0.06 * dir,
             Math.min(s.width, 2.6), height, 1,
             s.yawDeg + yawForNormal(out[0] * dir, out[1] * dir)
           ), s);
         }
-        pushStruct(px, (py - height / 2) / 2, pz, 0.26, py - height / 2, 0.26, 0);
+        pushStruct(px, baseY + (py - height / 2) / 2, pz, 0.26, py - height / 2, 0.26, 0);
       }
     }
 
@@ -1053,8 +1377,26 @@ export function createCity(options = {}) {
         const v = model[Math.min(model.length - 1, p.variant || 0)];
         const leanDeg = v.leanRange ? v.leanRange * (p.lean || 0) : 0;
         const soil = p.soil == null ? 1 : p.soil;
+        /**
+         * ONE QUERY PER PROP, AT BUILD TIME — session 19. A prop does not move,
+         * so there is nothing for the frame loop to ask; what there was until
+         * this session was no query at all, and every bollard, bin, cabinet,
+         * bench, planter, hydrant and tree in the city stood on the plane y = 0
+         * while its own pavement was somewhere else.
+         *
+         * `p.kerb` says WHICH BAND the scatter chose (`citygen.js`), and it is
+         * deliberately not used here: a kerbside prop is on a pavement at
+         * `GROUND.pavement` in the streamed city, on the origin block's
+         * pavement inside the keep-out and on the river's promenade on a quay,
+         * and the query answers all three from the geometry that was emitted.
+         * Reading the boolean instead would be a rule about where the scatter
+         * MEANT to put it (§9.1's "a gate that reads config verifies the
+         * config"), and it would be wrong at exactly the two places that are
+         * interesting.
+         */
+        const baseY = worldSurface(ctx, p.x, p.z).y;
         for (const b of v.boxes) {
-          props.push(propMatrix(p, b, leanDeg));
+          props.push(propMatrix(p, b, leanDeg, baseY));
           propSkin.push({
             albedo: [b.albedo[0] * soil, b.albedo[1] * soil, b.albedo[2] * soil],
             roughness: b.rough,
@@ -1067,15 +1409,56 @@ export function createCity(options = {}) {
        * makes a road look maintained rather than manufactured. Rectangles of
        * different asphalt laid over the base at a shallow angle to the kerb,
        * which is what a utility trench reinstatement looks like.
+       *
+       * ────────────────────────────────────────────────────────────────────
+       * THIS IS ITEM 9. THE OPERATOR SAW "A CUBE IN THE CARRIAGEWAY, NORTH OF
+       * THE VIADUCT", AND IT IS THIS LINE — session 19.
+       *
+       * The `y` argument to `setMatrix` was 0.025 and the `sy` argument was
+       * **`1`**. Every other `sy` in this file is a LENGTH IN METRES (the
+       * cornice is `era.cornice`, a building is `bld.height`), and this one was
+       * a unit scale standing in for a thickness. `geometries.box` is a UNIT
+       * box, so `sy = 1` is a **one-metre-tall slab**: the patch spanned
+       *
+       *     y ∈ [0.025 − 0.5, 0.025 + 0.5] = [−0.475, +0.525]
+       *
+       * i.e. it stood **0.505 m proud of its own carriageway**, 3 to 6 times in
+       * every chunk whose `roadMaterials` includes `patched`, 3–5 m wide and
+       * 5–12.5 m long. A dark asphalt slab half a metre out of the road, at a
+       * shallow angle to the kerb, is exactly a cube in the carriageway — and
+       * traffic drives through it, because a patch is not an occluder and
+       * nothing in the placement chain has ever been told about it.
+       *
+       * CONTRACT §9's shape with a SCALE and a THICKNESS: both are dimensionless
+       * to `Matrix4.compose`, both are plausible at 1, and the frame renders. It
+       * survived because the centre was RIGHT — 0.025 was chosen as
+       * `roadNS(0.020) + t/2` for a 10 mm reinstatement — so the arithmetic that
+       * would have exposed it had already been done correctly one argument
+       * earlier. It is row 19b.
+       *
+       * The thickness is now stated, once, and the centre is derived FROM it and
+       * from the datum rather than being a second literal that has to agree.
        */
       const b = chunkBounds(cx, cz);
+      /**
+       * Metres. A utility trench reinstatement stands proud of the surface it
+       * was cut into by the thickness of the wearing course laid back over it —
+       * 10 mm is the low end of a 10–40 mm surface course and is the value the
+       * old 0.025 centre was already derived for (`0.025 − 0.020 = 0.005 = t/2`).
+       * Thin enough that a wheel does not visibly climb it; thick enough that
+       * the edge catches a headlight, which is the whole reason the patch is a
+       * BOX rather than another ground quad.
+       */
+      const PATCH_THICKNESS_M = 0.01;
       const patchCount = chunk.roadMaterials.includes('patched') ? 3 + (chunk.objectCount % 4) : 0;
       for (let i = 0; i < patchCount; i++) {
         const t = ((i * 37) % 100) / 100;
         const along = b.z0 + t * CITY.chunkSize;
         patches.push(setMatrix(
-          b.x0 + (i % 2 ? 3.2 : -3.4), 0.025, along,
-          3 + (i % 3), 1, 5 + (i % 4) * 2.5, ((i * 13) % 5) - 2
+          b.x0 + (i % 2 ? 3.2 : -3.4),
+          GROUND.carriageway + PATCH_THICKNESS_M / 2,
+          along,
+          3 + (i % 3), PATCH_THICKNESS_M, 5 + (i % 4) * 2.5, ((i * 13) % 5) - 2
         ));
       }
     }
@@ -1171,7 +1554,6 @@ export function createCity(options = {}) {
      * of. It was written twice — as a `2` here and as nothing at all there —
      * and the road surface was missing from 96% of the city for four sessions.
      */
-    const near = detail && ring <= CITY.nearRadius;
     bytes += addInstanced(
       group, geometries.box, materials.facade, bodies, `${rngKey}:masses`, bodySkin, casts, massCensus
     );
@@ -1194,7 +1576,10 @@ export function createCity(options = {}) {
     bytes += signQuads.length * BYTES_PER_INSTANCE;
 
     /**
-     * The road surface, on detail chunks only.
+     * The road surface, on detail chunks only — BUILT AT THE TOP OF
+     * `buildChunk` since session 19, because the lamps and props above stand on
+     * it and have to be able to ask how high it is. The bytes were counted
+     * there; `ground` is the same object, passed in.
      *
      * Beyond the detail ring the global ground plane is what is left, and that
      * is the right trade: a road four hundred metres away is a slightly darker
@@ -1202,11 +1587,6 @@ export function createCity(options = {}) {
      * a hundred and twenty chunks — the single largest line in the draw budget,
      * for the least visible thing in it.
      */
-    let ground = null;
-    if (near) {
-      ground = buildGround(chunk);
-      bytes += ground.bytes;
-    }
 
     // --- landmarks ---------------------------------------------------------
     for (const name of chunk.landmarks) {
@@ -1240,12 +1620,31 @@ export function createCity(options = {}) {
           if (riverBlocks(spot.x, spot.z, 0.6)) continue;
           const yawJitter = (((spot.x * 31 + spot.z * 17) % 100) / 100 - 0.5) * 1.6;
           const rot = spot.axis === 'x' ? 0 : 90;
-          lampBodies.push(setMatrix(spot.x, 0, spot.z, 1, 1, 1, rot + yawJitter));
+          /**
+           * THE COLUMN STANDS ON ITS OWN PAVEMENT — session 19. The base was
+           * the literal 0 and the mounting height 8.08 was measured from it, so
+           * both the column and the optic it carries were referenced to the
+           * world origin rather than to the footway. `spot.x` is
+           * `roadHalfWidth + 1.3`, which is 1.3 m outside the kerb and firmly on
+           * the pavement, so this lifts by `GROUND.pavement` in the streamed
+           * city — and by whatever the origin block or a quay actually has,
+           * because it is read rather than assumed.
+           *
+           * 8.08 m is a MOUNTING HEIGHT and mounting heights are measured from
+           * the ground the column is planted in, which is why the head moves
+           * with the base rather than staying put. The optic's whole
+           * illuminance derivation (`LIGHT.streetAverageLux`, §5.9) is stated
+           * against that height, so leaving the head at 8.08 absolute while the
+           * base rose would have quietly shortened every lamp in the city by
+           * `GROUND.pavement` and changed the road's lighting level with it.
+           */
+          const baseY = worldSurface(ctx, spot.x, spot.z).y;
+          lampBodies.push(setMatrix(spot.x, baseY, spot.z, 1, 1, 1, rot + yawJitter));
           const head = spot.axis === 'x'
             ? { x: spot.x - 2.1, z: spot.z }
             : { x: spot.x, z: spot.z - 2.1 };
-          bowls.push(setMatrix(head.x, 8.08, head.z, 1, 1, 1, 0));
-          lamps.push({ x: head.x, y: 8.08, z: head.z, axis: spot.axis, side: spot.side });
+          bowls.push(setMatrix(head.x, baseY + 8.08, head.z, 1, 1, 1, 0));
+          lamps.push({ x: head.x, y: baseY + 8.08, z: head.z, axis: spot.axis, side: spot.side });
         }
       }
       /**
@@ -1269,9 +1668,13 @@ export function createCity(options = {}) {
            * found it: the census counts the instances.
            */
           if (L.z < b.z0 || L.z >= b.z1) continue;
-          lampBodies.push(setMatrix(L.x, 0, L.z, 1, 1, 1, L.rotDeg));
-          bowls.push(setMatrix(L.headX, 8.08, L.headZ, 1, 1, 1, 0));
-          lamps.push({ x: L.headX, y: 8.08, z: L.headZ, axis: L.axis, side: L.side });
+          // The promenade's own surface, not the road's — session 19, same
+          // mounting-height argument as the kerbside lamps above. `river.js`
+          // answers for the quay, and `worldSurface` is where the two meet.
+          const baseY = worldSurface(ctx, L.x, L.z).y;
+          lampBodies.push(setMatrix(L.x, baseY, L.z, 1, 1, 1, L.rotDeg));
+          bowls.push(setMatrix(L.headX, baseY + 8.08, L.headZ, 1, 1, 1, 0));
+          lamps.push({ x: L.headX, y: baseY + 8.08, z: L.headZ, axis: L.axis, side: L.side });
         }
       }
       bytes += addInstanced(
@@ -1535,6 +1938,119 @@ export function createCity(options = {}) {
    * 1.74 m, and a facade that is beautifully modelled from the fourth floor up
    * and blank below it is a facade nobody in the world can see the good part of.
    */
+  /**
+   * WHAT A ROOF IS MADE OF — session 19, item 11, and the brief's first item in
+   * its own order of return.
+   *
+   * THE PREMISE CORRECTION FIRST, because it changes what the repair is: this
+   * city already had a roofscape. Every building over four floors carried two to
+   * five plant boxes and a four-box parapet, and over the detail ring that is
+   * 1 232 plant boxes and 1 244 parapet boxes — 2 476 in all. A flat roof was
+   * never the problem.
+   *
+   * THEY WERE ALL ONE SHAPE AND ONE COLOUR. Every unit was a rectangular box
+   * with a size roll, `w = 2.2 + h·4.5` square-ish, and every one of them was
+   * albedo `[0.3, 0.3, 0.31]` at roughness 0.82. §7.2's rule with a roof instead
+   * of a vehicle: a COUNT of roof boxes says nothing about whether the roof
+   * reads as a roof, and 2 476 identical grey blocks read as noise on top of a
+   * box rather than as plant.
+   *
+   * SO THE REPAIR IS KINDS, AND THE FIVE ARE CHOSEN BY WHAT THEY DO TO A
+   * SILHOUETTE AT DISTANCE rather than by what they are:
+   *
+   *   plantRoom   wide, low, grey       the existing box, kept — it is right
+   *   tank        NARROW AND TALL       breaks the horizontal; the one kind that
+   *                                     puts a vertical accent on a flat roof
+   *   stairHouse  tall, deep, same
+   *               material as the wall  reads as part of the building, which is
+   *                                     what a stair enclosure is
+   *   duct        LONG AND VERY LOW     a horizontal run; galvanised, so it
+   *                                     catches a low sun where grey does not
+   *   aerial      very thin, very tall  the only sub-pixel-at-distance element,
+   *                                     and the one that says "occupied"
+   *
+   * Aspect ratio is the quantity, not size: `tank` is 0.45 as wide as it is
+   * tall and `duct` is 4.2 times as long as it is high, so the two are
+   * distinguishable in a 3-pixel silhouette. A size roll cannot do that, which
+   * is the whole finding.
+   *
+   * DETERMINISTIC IN THE BUILDING'S OWN POSITION, unchanged: `Math.sin(...) % 1`
+   * on `(bld.x, bld.z)`, so a chunk that streams out and back has the same roof,
+   * and no `ctx.rng` stream is consumed (CONTRACT §8.1 — the worker bakes this
+   * city without being told what the main thread holds).
+   *
+   * COSTS NO DRAW CALL. Every box rides in the chunk's one merged box mesh.
+   */
+  const ROOF_KINDS = [
+    /** Wide and low. The existing unit, and still the commonest. */
+    { name: 'plantRoom', wide: 1.00, tall: 1.00, deep: 0.85, albedo: [0.30, 0.30, 0.31], rough: 0.82, w: 4 },
+    /** Narrow and tall — a water tank on its own legs. Breaks the horizontal. */
+    { name: 'tank', wide: 0.45, tall: 2.30, deep: 0.45, albedo: [0.26, 0.215, 0.175], rough: 0.88, w: 3 },
+    /** A stair or lift enclosure: the building's own material, carried up. */
+    { name: 'stairHouse', wide: 0.72, tall: 1.75, deep: 0.95, albedo: null, rough: null, w: 3 },
+    /** A long, low duct run. Galvanised, so a low sun finds it. */
+    { name: 'duct', wide: 1.55, tall: 0.34, deep: 0.42, albedo: [0.46, 0.47, 0.475], rough: 0.44, w: 3 },
+    /** An aerial. Thin enough to be one pixel at 700 m, which is the point. */
+    { name: 'aerial', wide: 0.10, tall: 3.60, deep: 0.10, albedo: [0.42, 0.43, 0.45], rough: 0.5, w: 2 },
+  ];
+  const ROOF_KIND_TOTAL = ROOF_KINDS.reduce((a, k) => a + k.w, 0);
+
+  function buildRoofscape(bld, mat, bodies, bodySkin) {
+    if (!(bld.floors > 4)) return;
+    const seed = Math.abs(Math.sin((bld.x * 0.37 + bld.z * 0.11) * 4711.13) % 1);
+    const units = 2 + Math.floor(seed * 4);
+    for (let u = 0; u < units; u++) {
+      const h = Math.abs(Math.sin((bld.x + bld.z + u * 19.7) * 1237.7) % 1);
+      /**
+       * A SECOND, INDEPENDENT HASH FOR THE KIND. Deriving the kind from `h` —
+       * the same number that already sets the size — would tie one to the other,
+       * so every tank would be the same size as every other tank and the
+       * variation would be one axis wearing two hats. Different multipliers and
+       * a different constant make them independent in the only sense that
+       * matters here: they do not correlate over the population.
+       */
+      const kr = Math.abs(Math.sin((bld.x * 0.53 - bld.z * 0.29 + u * 8.31) * 3391.7) % 1) * ROOF_KIND_TOTAL;
+      let acc = 0;
+      let kind = ROOF_KINDS[0];
+      for (const k of ROOF_KINDS) {
+        acc += k.w;
+        if (kr <= acc) { kind = k; break; }
+      }
+      /** The base unit the kind's aspect ratios multiply. Unchanged from s4. */
+      const base = 2.2 + h * 4.5;
+      const w = base * kind.wide;
+      const ph = (1.8 + h * 3.4) * kind.tall;
+      const d = base * kind.deep;
+      /**
+       * KEPT INSIDE THE PARAPET. `bld.width - w - 1.5` is the old expression and
+       * it used the unit's own width for both axes; a `duct` is 1.55× as wide as
+       * it is deep, so using `w` for the depth inset would hang a long duct over
+       * the edge of a narrow building. Each axis is inset by its own extent.
+       */
+      bodies.push(setMatrix(
+        bld.x + (h - 0.5) * Math.max(0, bld.width - w - 1.5),
+        bld.height + ph / 2,
+        bld.z + ((u / units) - 0.5) * Math.max(0, bld.depth - d - 1.5),
+        w, ph, d, bld.yawDeg + (h - 0.5) * 4
+      ));
+      bodySkin.push({
+        albedo: kind.albedo || mat.albedo,
+        roughness: kind.rough == null ? mat.roughness : kind.rough,
+      });
+    }
+    // The parapet, as four thin boxes. A roof with no upstand reads as a
+    // sliced-off box, which is exactly what it is without one.
+    const pt = 0.3;
+    const pph = 1.05;
+    for (const [ox, oz, sx, sz] of [
+      [0, -bld.depth / 2, bld.width, pt], [0, bld.depth / 2, bld.width, pt],
+      [-bld.width / 2, 0, pt, bld.depth], [bld.width / 2, 0, pt, bld.depth],
+    ]) {
+      bodies.push(setMatrix(bld.x + ox, bld.height + pph / 2, bld.z + oz, sx, pph, sz, bld.yawDeg));
+      bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+    }
+  }
+
   function buildGroundFloor(bld, era, mat, windows, windowTint, masses, massSkin) {
     const front = bld.facing;
     const dir = front[0] === 'x' ? [front[1] === '+' ? 1 : -1, 0] : [0, front[1] === '+' ? 1 : -1];
@@ -1650,6 +2166,30 @@ export function createCity(options = {}) {
       steel.push(setMatrix(x, y, z, sx, sy, sz, yaw));
       steelSkin.push({ albedo: a, roughness: r });
     };
+    /**
+     * A RED AVIATION OBSTRUCTION LIGHT — session 19, item 12.
+     *
+     * `BEACON_M` is the box the radiance is derived over (`LIGHT
+     * .aviationRedNits` = I/A), so the two must not drift: the size is the
+     * denominator of that constant's arithmetic and changing it here without
+     * changing it there is §9 with a length.
+     *
+     * A PHASE PER LAMP, AND IT IS SPATIAL RATHER THAN RANDOM. The brief asks for
+     * slow and asynchronous, and real obstruction lights on one structure flash
+     * together while separate structures drift — but a whole ring blinking in
+     * unison at 260 m reads as a UI element rather than as infrastructure. The
+     * phase is a hash of the lamp's own position, so it is deterministic in the
+     * geometry (no `ctx.rng` stream to keep in step across a chunk that streams
+     * out and back, CONTRACT §8.1) and no two lamps on one ring share it.
+     */
+    const beacons = [];
+    const beaconPhase = [];
+    const BEACON_M = 0.35;
+    const pushBeacon = (x, y, z) => {
+      if (!owns(x, z)) return;
+      beacons.push(setMatrix(x, y, z, BEACON_M, BEACON_M, BEACON_M, 0));
+      beaconPhase.push(Math.abs(Math.sin((x * 0.317 + y * 0.113 + z * 0.221) * 4177.7) % 1));
+    };
     let bytes = 0;
 
     /**
@@ -1667,7 +2207,7 @@ export function createCity(options = {}) {
      * for the most legible objects in the city, and they are frustum-culled like
      * everything else.
      */
-    const lathe = (profile, segments, y0 = 0) => {
+    const lathe = (profile, segments, y0 = 0, floodNits = 0, suffix = '') => {
       // A lathe is one mesh, so it cannot be split between chunks: the chunk
       // holding its axis owns it.
       if (!owns(l.x, l.z)) return 0;
@@ -1692,12 +2232,36 @@ export function createCity(options = {}) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
-      mesh.name = `landmark:${l.name}`;
+      mesh.name = `landmark:${l.name}${suffix}`;
       // The albedo of a non-instanced mesh cannot ride in instanceColor, so it
       // gets its own material clone. Eight of them, once, at init.
       const m = materials.facade.clone();
       m.color.setRGB(albedo[0], albedo[1], albedo[2], THREE.LinearSRGBColorSpace);
       m.roughness = rough;
+      /**
+       * THE FLOODLIT BAND — session 19, item 12, and it rides on THIS CLONE
+       * rather than on a shared emissive material for one reason: the band is
+       * still concrete. It reflects the sun at noon exactly as the rest of the
+       * shell does, and a material whose diffuse was replaced by an emitter's
+       * would be a tower that is black by day and glows at night.
+       *
+       * The emissive chroma is the shell's OWN ALBEDO, not a lamp's, because
+       * this radiance stands for REFLECTED light (`LIGHT.condenserFloodNits` =
+       * ρE/π). Giving it a source's chromaticity is what makes a floodlit wall
+       * read as a lamp, and it is the same distinction `city.js` already keeps
+       * between a stall's awning cloth and its strip light.
+       *
+       * IT DOES NOT SWITCH OFF AT NOON, and that is a stated limitation rather
+       * than an oversight: 2.51 cd/m² against a sunlit concrete shell at tens of
+       * thousands of lux is under one part in ten thousand, so the daytime error
+       * is smaller than the dither. A photocell would be correct and would cost
+       * a per-frame uniform write on a non-instanced material; it is not worth
+       * it until something dimmer than the sun needs one.
+       */
+      if (floodNits > 0) {
+        m.emissive.setRGB(albedo[0], albedo[1], albedo[2], THREE.LinearSRGBColorSpace);
+        m.emissiveIntensity = floodNits;
+      }
       /**
        * RE-PATCHED, BECAUSE `clone()` DOES NOT CARRY THE PATCH.
        *
@@ -1741,12 +2305,57 @@ export function createCity(options = {}) {
           const r = l.radiusWaist + (w < 0 ? (l.radiusBase - l.radiusWaist) * w * w : (l.radiusTop - l.radiusWaist) * w * w);
           prof.push([r, l.height * t]);
         }
-        bytes += lathe(prof, 28);
+        /**
+         * TWO LATHES, SPLIT AT A PROFILE VERTEX — session 19, item 12.
+         *
+         * A hyperboloid only reads as CURVED under raking light: lit flat it is
+         * a pale trapezoid, which is exactly what the elevated frame delivers
+         * (STATE 18 §3.2 measured its shaft at code 5.7–6.7 against a sky at
+         * 16.8 — a silhouette). Floodlighting the lower band puts a gradient
+         * across the one surface in this city whose whole point is its section.
+         *
+         * SPLIT AT INDEX 4, WHICH IS A VERTEX BOTH HALVES SHARE, so the two
+         * lathes meet on the same ring and there is no seam to see. That is
+         * y = height · 4/24 = **43.33 m**, i.e. the bottom sixth — where the
+         * shell is widest (r = 46.4 m against 62 m at grade) and where a
+         * ground-mounted flood can actually reach. `slice(0, 5)` and
+         * `slice(4)` overlap on that vertex deliberately.
+         *
+         * THE COST IS ONE DRAW CALL, and it is the honest price: the alternative
+         * was a height-dependent emissive term in the shared facade shader,
+         * which would put a condenser-shaped branch in every material in the
+         * city. Landmarks are eight hand-placed structures and one more mesh
+         * among them is the cheapest place in this project to spend a draw.
+         */
+        const split = 4;
+        bytes += lathe(prof.slice(0, split + 1), 28, 0, LIGHT.condenserFloodNits, ':flood');
+        bytes += lathe(prof.slice(split), 28);
         // The open lattice crown, as a ring of fins.
         for (let i = 0; i < 24; i++) {
           const a = (i / 24) * Math.PI * 2;
           pushSteel(l.x + Math.cos(a) * l.radiusTop, l.height + 5, l.z + Math.sin(a) * l.radiusTop,
             1.1, 10, 2.6, (-a * 180) / Math.PI);
+        }
+        /**
+         * RED AVIATION OBSTRUCTION LIGHTS. ICAO Annex 14 §6.3: intermediate
+         * levels at intervals not exceeding 105 m, so a 260 m structure needs
+         * `ceil(260 / 105)` = **3** levels — the crown, and two below it at
+         * 173.3 m and 86.7 m. Six lamps at the crown and four at each
+         * intermediate level, which is the Annex's "spaced so that at least
+         * three are visible from any direction" on a shell 70–90 m around.
+         *
+         * The radius at each level comes from the SAME profile expression the
+         * shell is lathed from, so a lamp cannot end up inside or outside the
+         * concrete it is bolted to.
+         */
+        for (const lvl of [{ t: 1, k: 6 }, { t: 173.3 / l.height, k: 4 }, { t: 86.7 / l.height, k: 4 }]) {
+          const w = 2 * lvl.t - 1;
+          const r = l.radiusWaist +
+            (w < 0 ? (l.radiusBase - l.radiusWaist) * w * w : (l.radiusTop - l.radiusWaist) * w * w);
+          for (let i = 0; i < lvl.k; i++) {
+            const a = (i / lvl.k) * Math.PI * 2 + lvl.t;
+            pushBeacon(l.x + Math.cos(a) * (r + 0.4), l.height * lvl.t, l.z + Math.sin(a) * (r + 0.4));
+          }
         }
         break;
       }
@@ -2001,8 +2610,28 @@ export function createCity(options = {}) {
           pushSteel(l.x + Math.cos(a) * w0 * 0.7, l.height * (t0 + t1) / 2, l.z + Math.sin(a) * w0 * 0.7,
             w0 * 2, 0.3, 0.3, (i * 47) % 360);
         }
-        // The beacon.
+        /**
+         * THE BEACON — a 1.2 m steel cube that has stood at the top of a 186 m
+         * mast, UNLIT, since session 4. A beacon is the one part of a mast that
+         * is not structure, and it was drawn as structure.
+         *
+         * It keeps its housing and gains the lamp: `ceil(186 / 105)` = **2**
+         * levels under ICAO Annex 14 §6.3, so the top and one intermediate at
+         * 93 m. One lamp at the apex — the mast is 3.4 m across up there, so a
+         * single lamp is visible from every direction — and three at 93 m, where
+         * the lattice is `baseWidth·(1 − 0.62·0.5)` = 6.4 m across and one lamp
+         * would be hidden behind a leg from two bearings out of four.
+         */
         pushSteel(l.x, l.height + 1.4, l.z, 1.2, 1.2, 1.2, 0);
+        pushBeacon(l.x, l.height + 2.3, l.z);
+        {
+          const t = 93 / l.height;
+          const w = (l.baseWidth * (1 - t * 0.62)) / 2;
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2 + Math.PI / 4;
+            pushBeacon(l.x + Math.cos(a) * (w + 0.35), 93, l.z + Math.sin(a) * (w + 0.35));
+          }
+        }
         break;
       }
       case 'cone': {
@@ -2027,6 +2656,36 @@ export function createCity(options = {}) {
       group, geometries.box, materials.landmarkSteel, steel, `landmark:${l.name}:steel`, steelSkin, true,
       { chunk: `landmark:${l.name}`, landmarkSteelBoxes: steel.length }
     );
+    /**
+     * THE BEACON MESH, AND IT IS REGISTERED FOR THE FLASH — session 19.
+     *
+     * One `InstancedMesh` per beacon-bearing landmark, which today is two of the
+     * eight (the 260 m condenser and the 186 m mast; nothing else in the world
+     * reaches ICAO's 150 m). That is **+1 draw call each**, and only in a frame
+     * that already contains the structure.
+     *
+     * `addInstanced` writes `noctisCensus` from the label, so `sceneCensus`
+     * counts these — CONTRACT §9.1's rule that a category has to be labelled
+     * where it still exists, rather than after a merge has erased it.
+     */
+    if (beacons.length) {
+      /**
+       * A SKIN IS PASSED SO THAT `instanceColor` EXISTS. `addInstanced` only
+       * allocates that buffer when there is a per-instance albedo, and the flash
+       * is written into it every frame — the same mechanism a traffic signal's
+       * lit lens uses (`traffic.js` → `writeSignals`), which is why a lamp on
+       * and a lamp off cost one draw call between them rather than two.
+       */
+      const beaconSkin = beacons.map(() => ({ albedo: [1, 1, 1], roughness: 0.2 }));
+      bytes += addInstanced(
+        group, geometries.box, materials.beacon, beacons, `landmark:${l.name}:beacons`, beaconSkin, false,
+        { chunk: `landmark:${l.name}`, landmarkBeacons: beacons.length }
+      );
+      const mesh = group.children[group.children.length - 1];
+      if (mesh && mesh.isInstancedMesh) {
+        beaconMeshes.push({ mesh, phase: beaconPhase.slice() });
+      }
+    }
     return bytes;
   }
 
@@ -2437,25 +3096,26 @@ export function createCity(options = {}) {
          * to win; the one you would be standing on is the upper.
          */
         surfaceAt(x, z) {
-          const s = CITY.chunkSize;
-          const cx = Math.floor(x / s);
-          const cz = Math.floor(z / s);
-          let best = null;
-          let anyGround = false;
-          for (let jz = cz - 1; jz <= cz + 1; jz++) {
-            for (let jx = cx - 1; jx <= cx + 1; jx++) {
-              const rec = resident.get(chunkKey(jx, jz));
-              if (!rec || !rec.ground || !rec.ground.rects) continue;
-              anyGround = true;
-              for (const q of rec.ground.rects) {
-                if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue;
-                if (!best || q.y > best.y) best = q;
-              }
-            }
-          }
-          if (best) return { y: best.y, kind: best.kind, known: true };
-          return { y: GROUND_Y.earth, kind: 'earth', known: anyGround };
+          const r = scanGround(x, z);
+          if (r.best) return { y: r.best.y, kind: r.best.kind, known: true };
+          return { y: GROUND_Y.earth, kind: 'earth', known: r.anyGround };
         },
+
+        /**
+         * THE ONE WORLD GROUND QUERY. See `worldSurface` in the closure above —
+         * it takes `ctx` because it consults `block` and `river`, and the api
+         * binds this module's own.
+         */
+        worldSurfaceAt: (x, z) => worldSurface(ctx, x, z),
+
+        /**
+         * The same answer as a bare number, which is what everything standing
+         * on a pavement actually wants — a pedestrian, a stall, a bollard, a
+         * lamp column, a signal mast. `worldSurfaceAt`'s `kind` and `known` are
+         * for the controller, which has to tell "I am on grass" and "the chunk
+         * under me has not streamed in yet" apart.
+         */
+        groundYAt: (x, z) => worldSurface(ctx, x, z).y,
 
         /**
          * THE WALKABILITY PREDICATE AT A POINT, AND ITS RELATION TO THE MASK
@@ -2725,6 +3385,10 @@ export function createCity(options = {}) {
 
     update(ctx) {
       frameStamp++;
+      // Session 19, item 12. The one clock (CONTRACT §3) — `?paused=1` stops the
+      // beacons with everything else. See `updateBeacons`.
+      const timeApi = ctx.get('time');
+      updateBeacons(timeApi ? timeApi.now : 0);
       const canyon = ctx.get('canyon');
       const wanted = wantedChunks(ctx.camera);
       const wantedKeys = new Set();

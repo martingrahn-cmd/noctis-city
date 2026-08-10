@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CITY, riverNoRoad } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
-import { CLUSTER, LIGHT } from '../core/constants.js';
+import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
 
 /**
@@ -226,8 +226,13 @@ const CAMERA_LANE_HALF = 2.2;
 
 /** Comfortable deceleration, m/s^2, and the stop line it implies. */
 const BRAKE_A = 2.0;
-/** Metres from the junction centre. The carriageway half-width plus clearance. */
-const STOP_LINE = CITY.roadHalfWidth + 1.5;
+/**
+ * Metres from the junction centre to the stop line. `citygen.js` →
+ * `CITY.stopLineFromJunctionM` since session 19 — the painted line, the signal
+ * head and the braking constraint are ONE number, and `city.js` cannot import
+ * this module to get it.
+ */
+const STOP_LINE = CITY.stopLineFromJunctionM;
 
 /**
  * TRAFFIC SIGNALS — THE GEOMETRY FOR A PHASE THAT ALREADY EXISTS.
@@ -2048,6 +2053,13 @@ export function createTraffic(options = {}) {
         stopped: 0,
         /** Vehicles at a standstill at a stop line without permission. Session 18. */
         holdingAtRed: 0,
+        /**
+         * Metres from a held vehicle's FRONT to its own stop line, worst over
+         * the run. Session 19, item 7. Positive is short of the line, which is
+         * where a vehicle should stop; **negative is a defect**. `Infinity`
+         * means no vehicle has been held at a red yet, which is not a pass.
+         */
+        worstStopLineM: Infinity,
         signalHeads: 0,
       };
 
@@ -2087,8 +2099,31 @@ export function createTraffic(options = {}) {
        * showing; when it changes, `carry()` forces previous equal to current
        * for that row and the TAA sees a new object rather than a moving one.
        */
-      function writeSignals(cam, now, arr, col) {
+      function writeSignals(ctxRef, cam, now, arr, col) {
         if (!signalCount) return;
+        /**
+         * THE MASTS STAND ON THE PAVEMENT, NOT ON THE DATUM — session 19.
+         *
+         * `SIGNAL_PARTS` says so in its own header: "y is up from the pavement".
+         * It was not — every row was written at `part.y` absolute, so a 3.10 m
+         * mast sat with its foot at y = 0 while the footway under it was
+         * elsewhere. A signal head stands at `roadHalfWidth + SIGNAL_KERB_M` =
+         * 7.5 + 1.15 = 8.65 m from the junction centre, which is 1.15 m outside
+         * the kerb and therefore on the pavement.
+         *
+         * ONE QUERY PER FRAME, NOT ONE PER HEAD. The sixteen approaches are the
+         * four nearest junctions on a 128 m lattice and every one of them is a
+         * street corner, so they are all on the same `GROUND.pavement`. Asking
+         * `city.groundYAt` sixteen times a frame to get one number sixteen times
+         * would be worse than the constant AND worse than one query: this asks
+         * once, at the camera, and uses `GROUND.pavement` if the city is not
+         * there to answer. The error this can make is a head on a bridge deck,
+         * where the footway is at the same `GROUND.pavement` anyway.
+         */
+        const cityApi = ctxRef && ctxRef.get ? ctxRef.get('city') : null;
+        const mastY = cityApi && cityApi.groundYAt
+          ? cityApi.groundYAt(cam.position.x, cam.position.z)
+          : GROUND.pavement;
         const s = CITY.chunkSize;
         const cx = Math.round(cam.position.x / s);
         const cz = Math.round(cam.position.z / s);
@@ -2123,7 +2158,7 @@ export function createTraffic(options = {}) {
               // Local (x, z) into world through the head's own yaw.
               const wx = h.x + part.x * cy + part.z * sy;
               const wz = h.z - part.x * sy + part.z * cy;
-              writeRow(arr, lightMotion, row, wx, part.y, wz, yaw, part.w, part.h, part.d, moved);
+              writeRow(arr, lightMotion, row, wx, mastY + part.y, wz, yaw, part.w, part.h, part.d, moved);
               let g = 0;
               let chroma = SIGNAL_DARK;
               if (part.lamp >= 0) {
@@ -2309,7 +2344,47 @@ export function createTraffic(options = {}) {
             const nextJ = veh.dir > 0
               ? (Math.floor(along / CITY.chunkSize) + 1) * CITY.chunkSize
               : Math.ceil(along / CITY.chunkSize) * CITY.chunkSize - CITY.chunkSize;
-            const toStop = (nextJ - along) * veh.dir - STOP_LINE;
+            /**
+             * THE NOSE, NOT THE ORIGIN — session 19, item 7, and it is CONTRACT
+             * §9's shape with two points on the same vehicle.
+             *
+             * `(nextJ - along) * veh.dir - STOP_LINE` is the distance from the
+             * vehicle's ORIGIN to the stop line, and it was used as the distance
+             * from its FRONT. The origin is the body centre — `type.boxes`'
+             * offsets and `type.wheels`' are both measured from it and straddle
+             * zero — so every vehicle stopped with its centre on the line and its
+             * nose `len/2` beyond it:
+             *
+             *     front at 9.0 − len/2 from the node, near kerb at 7.5
+             *     wedge  5.40 m → 1.20 m past the kerb
+             *     van    6.00 m → 1.50 m past
+             *     hauler 9.60 m → **3.30 m past**, 80% into the kerbside
+             *                     crossing lane — the "halfway into the crossing
+             *                     lane" the walkthrough reported
+             *     moto   2.20 m → 0.40 m short, the only type that was right
+             *
+             * Fleet-weighted mean length 5.148 m, so the TYPICAL nose stopped
+             * 1.07 m past the near kerb. And because the car-following model is
+             * correct, the leader's error shifts the whole queue forward by it.
+             *
+             * THE SAME FILE ALREADY KNEW THE DIFFERENCE, which is what makes
+             * this §9 rather than an oversight: car-following subtracts both
+             * half-lengths and the camera-as-obstacle rule subtracts half the
+             * camera's own length. The signal stop subtracted nothing.
+             *
+             * AND THE SIGNAL HEADS WERE THE INDEPENDENT WITNESS. `signalApproaches`
+             * places each head at `STOP_LINE` back from the junction centre under
+             * a comment saying that is "where the vehicles are already stopping".
+             * A stopped hauler's nose was 4.8 m past its own signal head. That
+             * comment is now true.
+             *
+             * The dilemma-zone argument is untouched: subtracting a per-vehicle
+             * constant shifts the arrival test and the braking test by the same
+             * amount. The worst case still fits — a hauler needs 36 m of braking
+             * plus 4.8 m of overhang against 48 m of amber, margin 7.2 m.
+             */
+            const frontM = type.len * 0.5;
+            const toStop = (nextJ - along) * veh.dir - STOP_LINE - frontM;
             const phase = signal(veh.axis, now);
             const brakeDist = (veh.v * veh.v) / (2 * BRAKE_A);
 
@@ -2324,7 +2399,28 @@ export function createTraffic(options = {}) {
 
             if (veh.cleared !== nextJ) {
               limit = Math.min(limit, Math.sqrt(Math.max(0, 2 * BRAKE_A * Math.max(0, toStop))));
-              if (veh.v < 0.05 && toStop < 1.0) stats.holdingAtRed++;
+              if (veh.v < 0.05 && toStop < 1.0) {
+                stats.holdingAtRed++;
+                /**
+                 * THE FREE GATE — session 19, item 7. The brief asked for it and
+                 * it costs one comparison: the distance from a STATIONARY
+                 * vehicle's front to its own stop line, worst case over the run.
+                 *
+                 * `toStop` IS that quantity now, so there is nothing to compute
+                 * — which is the point. The assertion is `>= 0`: a vehicle held
+                 * at a red whose nose is past the line it is held at is a defect,
+                 * and it is one that never shows in a single frame because the
+                 * frame it shows in is whichever one the queue happened to
+                 * settle in. Before this session the delivered figure was
+                 * −3.30 m on a hauler and −1.07 m on the fleet mean.
+                 *
+                 * Only vehicles WITHOUT permission are counted. One that has been
+                 * granted the junction is supposed to drive through it, and its
+                 * `toStop` goes negative legitimately; including it would make the
+                 * statistic measure the green light.
+                 */
+                if (toStop < stats.worstStopLineM) stats.worstStopLineM = toStop;
+              }
             }
 
             veh.braking = limit < veh.v - 0.25;
@@ -2656,7 +2752,7 @@ export function createTraffic(options = {}) {
           stats.litVehicles = lampsOn ? lit : 0;
         }
 
-        writeSignals(cam, now, lightArr, lightCol);
+        writeSignals(ctxRef, cam, now, lightArr, lightCol);
 
         bodyMotion.commit();
         lightMotion.commit();

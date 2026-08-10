@@ -43,7 +43,7 @@
  */
 
 import * as THREE from 'three';
-import { WATER, waterWaves } from '../core/constants.js';
+import { WATER, GROUND, waterWaves } from '../core/constants.js';
 import {
   CITY,
   CORRIDOR,
@@ -287,7 +287,17 @@ export function createRiver(options = {}) {
         // rides in this mesh for nothing, where a ground quad would be a fourth
         // material and a fourth draw call.
         const off = (bank < 0 ? -1 : 1) * (t / 2 + RIVER.promenade / 2);
-        push('promenade', cx, -0.03, cz + off, len, 0.12, RIVER.promenade, yaw, 0, PAVING, 0.8);
+        /**
+         * THE PROMENADE IS A FOOTWAY AND THEREFORE SITS AT `GROUND.pavement` —
+         * session 19. Its centre was the literal −0.03, chosen so that its
+         * 0.12 m slab topped out at 0.030, "which is where `buildGround` puts
+         * the carriageway either side of it" — a transcription of a z-fighting
+         * offset into a structural height. The datum moved the pavement to
+         * `BLOCK.kerbHeight`; the top is now derived from that and the slab's
+         * own thickness, so the two cannot drift again.
+         */
+        const promSlab = 0.12;
+        push('promenade', cx, GROUND.pavement - promSlab / 2, cz + off, len, promSlab, RIVER.promenade, yaw, 0, PAVING, 0.8);
       }
     }
   }
@@ -318,14 +328,27 @@ export function createRiver(options = {}) {
     const slab = 0.85;
     const deckTop = 0.0;
     push('deck', s.x, deckTop - slab / 2, mid, halfW * 2, slab, len, 0, 0, CONCRETE, 0.74);
-    // The running surface, so a bridge is the same asphalt as the street it
-    // continues. 0.03 above the slab, which is where `buildGround` puts the
-    // carriageway either side of it.
-    push('carriageway', s.x, deckTop + 0.015, mid, CITY.roadHalfWidth * 2, 0.03, len, 0, 0, ASPHALT, 0.8);
+    /**
+     * The running surface, so a bridge IS the same asphalt as the street it
+     * continues — and session 19 made that true rather than nearly true. The
+     * old expression topped this out at 0.030 under a comment saying that is
+     * "where `buildGround` puts the carriageway either side of it"; the street
+     * carriageway was at 0.020, so every bridge in the city had a 10 mm lip at
+     * each end that nothing measured. The top is now `GROUND.carriageway`
+     * exactly, i.e. the datum, and the lip is 0.000 by construction.
+     */
+    const wearing = 0.03;
+    push('carriageway', s.x, GROUND.carriageway - wearing / 2, mid, CITY.roadHalfWidth * 2, wearing, len, 0, 0, ASPHALT, 0.8);
     for (const side of [-1, 1]) {
       // Footway and parapet, one each side.
-      push('footway', s.x + side * (CITY.roadHalfWidth + CITY.sidewalkWidth / 2), deckTop + 0.03,
-        mid, CITY.sidewalkWidth, 0.06, len, 0, 0, PAVING, 0.8);
+      // The deck's footway, at the same `GROUND.pavement` as every other
+      // pavement in the world — so the kerb ONTO a bridge is the same 0.160 m
+      // kerb as the kerb off it. It was 0.060, i.e. a 0.030 m kerb on a bridge
+      // against 0.010 m on a street and 0.160 m in the origin block: three
+      // kerbs for one quantity, which is session 17's finding and is now one.
+      const deckWalk = 0.06;
+      push('footway', s.x + side * (CITY.roadHalfWidth + CITY.sidewalkWidth / 2), GROUND.pavement - deckWalk / 2,
+        mid, CITY.sidewalkWidth, deckWalk, len, 0, 0, PAVING, 0.8);
       push('parapet', s.x + side * (halfW - 0.22), deckTop + RIVER.parapet / 2, mid,
         0.44, RIVER.parapet, len, 0, 0, CONCRETE, 0.7);
     }
@@ -622,16 +645,19 @@ export function createRiver(options = {}) {
          * `pushBridge` above emit, derived from the same expressions rather
          * than transcribed:
          *
-         *   promenade   centre −0.03, thickness 0.12  → top **0.030**
-         *   bridge carriageway  centre 0.015, 0.03    → top **0.030**
-         *   bridge footway      centre 0.030, 0.06    → top **0.060**
+         *   promenade           top **`GROUND.pavement`**
+         *   bridge carriageway  top **`GROUND.carriageway`** — the datum
+         *   bridge footway      top **`GROUND.pavement`**
          *
-         * THE THIRD NUMBER IS THE ONE WORTH READING. A bridge's footway stands
-         * 0.030 m over its own carriageway where the street either side of it
-         * stands 0.010 m over its own — so the only place in the streamed city
-         * with anything a walker could call a kerb is a bridge, at 3 cm, and
-         * even that is a step DOWN from the origin block's 0.160 m pavement.
-         * The three figures together are session 17's kerb finding.
+         * ALL THREE WERE LITERALS UNTIL SESSION 19 and all three were wrong in
+         * the same direction: 0.030, 0.030 and 0.060, transcribed from the
+         * z-fighting offsets `city.js` used to emit its ground at. That gave a
+         * bridge a 0.030 m kerb where the street either side had 0.010 m and the
+         * origin block had 0.160 — three kerbs for one quantity, which is
+         * session 17's finding — and it left a 10 mm lip at every bridge
+         * approach, because the deck's asphalt topped out 10 mm above the
+         * street's. Both are now zero by construction: these read `GROUND`, and
+         * so does `buildGround`.
          *
          * `null` rather than a height when the point is not on the river's
          * geometry, because "the river has no opinion here" and "the ground is
@@ -650,9 +676,9 @@ export function createRiver(options = {}) {
             const ax = Math.abs(x - bridgeX(bridgeIndexAt(x)));
             const half = CITY.roadHalfWidth;
             if (ax > half && ax <= half + CITY.sidewalkWidth) {
-              return { y: 0.06, kind: 'walk', known: true };
+              return { y: GROUND.pavement, kind: 'walk', known: true };
             }
-            return { y: 0.03, kind: 'road', known: true };
+            return { y: GROUND.carriageway, kind: 'road', known: true };
           }
           /**
            * THE QUAY WALL, WHOSE TOP IS AT `RIVER.parapet` = 1.05 m AND WHICH
@@ -681,10 +707,10 @@ export function createRiver(options = {}) {
           const northOuter = e.north - t;
           const southOuter = e.south + t;
           if (z <= northOuter && z >= northOuter - RIVER.promenade) {
-            return { y: 0.03, kind: 'walk', known: true };
+            return { y: GROUND.pavement, kind: 'walk', known: true };
           }
           if (z >= southOuter && z <= southOuter + RIVER.promenade) {
-            return { y: 0.03, kind: 'walk', known: true };
+            return { y: GROUND.pavement, kind: 'walk', known: true };
           }
           return null;
         },

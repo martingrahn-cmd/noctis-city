@@ -23,6 +23,7 @@ import { createTraffic } from './modules/traffic.js';
 import { createWeather } from './modules/weather.js';
 import { createStreetlife } from './modules/streetlife.js';
 import { createPlayer } from './modules/player.js';
+import { createUi } from './modules/ui.js';
 import { createHarness } from './modules/harness.js';
 
 const DEFAULTS = {
@@ -122,6 +123,23 @@ const DEFAULTS = {
    * §9.1 warns about — two copies of a module that have to be kept in step.
    */
   fieldDrip: -1,
+  /**
+   * The map, the time menu and the fullscreen button. Session 19.
+   *
+   * −1 FOLLOWS `player`, 0 forces it off, 1 forces it on — the same shape
+   * `fieldDrip` uses, and for the same reason: the useful default is "whatever
+   * the other setting implies" and the other two values exist so that a session
+   * can pin it either way without arguing with the implication.
+   *
+   * WHY IT FOLLOWS THE PLAYER RATHER THAN DEFAULTING ON. This is the project's
+   * first DOM overlay, and every gate reads `page.screenshot()` — so an overlay
+   * present by default would put buttons in `tools/look-out/*.png` and in every
+   * frame eighteen sessions of thresholds were derived against. `?player=1` is
+   * already the flag no gate sets (CONTRACT §11), so following it means the
+   * gates render the same `<body>` they always have, and the one person who
+   * wants a map is the one person who has asked for a controller.
+   */
+  ui: -1,
 };
 
 function readConfig() {
@@ -276,7 +294,42 @@ if (on('streetlife')) register(createStreetlife());
  * write to `ctx.camera` is the frame's final one. `needs: ['camera']` makes
  * that a topological fact rather than a registration-order accident.
  */
-if (on('player')) register(createPlayer({ spawn: config.spawn }));
+if (on('player')) {
+  register(createPlayer({ spawn: config.spawn }));
+} else {
+  /**
+   * AN ABSENT MODULE SAYS SO — session 19, and it cost a long round of
+   * misdiagnosis to earn the line.
+   *
+   * `?player=1` is off by default and that is right (§6, and the harness safety
+   * argument above). What was wrong is that the *absence* was silent: with no
+   * controller registered the keyboard and the mouse do nothing, which is
+   * indistinguishable from a controller that is registered and broken. Session
+   * 18 spent a session measuring an input layer four ways and finding it
+   * perfect, against a walkthrough that reported it dead — the walkthrough was
+   * on a URL without the flag.
+   *
+   * This is the same class of finding as `player.js`'s `pointerlockerror`
+   * handler: two different failures were producing one silence, and the repair
+   * is an instrument rather than a fix. `console.log`, not `warn` — a default
+   * configuration is not a warning, and `tools/lib/page.mjs` collects only
+   * `error` and `warning`, so every gate's console assertions are untouched.
+   */
+  console.log(
+    '[noctis] no first-person controller — the `player` module is NOT registered, ' +
+    'because ?player=1 is absent (it is off by default; see main.js). ' +
+    'Mouse, keyboard and gamepad move nothing until it is present. ' +
+    `Try ${location.pathname}?player=1`
+  );
+}
+
+/**
+ * The UI surface — session 19. `?ui=-1` follows `?player=1`; see DEFAULTS.
+ * Registered AFTER the player so that `ctx.get('player')` is live when the map
+ * teleports, and before the harness for no reason but registration order.
+ */
+const uiOn = Number(config.ui) < 0 ? on('player') : Number(config.ui) !== 0;
+if (uiOn) register(createUi());
 
 register(createHarness({ loop }));
 

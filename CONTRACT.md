@@ -1665,20 +1665,36 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The forty-two so far** (the count in this line has now been wrong THREE times.
-It said "twenty-five" against **39** delivered rows when session 18 counted
-them, in the same sentence that says it "is now derived by counting the rows,
-which is the only way it stays right" — a claim about a check, in the section
-about claims about checks, and §9.1's own rule is that a comment which claims a
-check names the file the check is in. It does not, and there is no check. Count
-them with the four lines below before changing this number; do not trust it):
+**The 47 so far** — and that numeral is now **generated against, not
+maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
+contiguous rows of the table below and fails the gate if they disagree, printing
+both numbers. §9.1's rule is that a comment which claims a check names the file
+the check is in; this one does, because the check exists. Edit the table and
+`npm run parsecheck` tells you the new number in its failure message.
+
+**Why it needed a gate rather than a better sentence, in three failures.** The
+count said "twenty-five" against 39 delivered rows in session 18, inside the
+same sentence claiming it "is now derived by counting the rows, which is the
+only way it stays right" — a claim about a check, in the section about claims
+about checks, with no check behind it. Session 18 then wrote 42 and printed a
+four-line `python3` snippet beside it as the derivation.
+
+**That snippet is itself this section's failure mode and it is left here as the
+example.** It counts *every* line beginning with `|` from the header to the end
+of the file, which is a count of **pipe-leading lines in the remainder of the
+document** used as **the number of rows in this one table**. The two agree at
+exactly 42 today, and they agree for a reason nobody chose: §9's table happens
+to be the last table in `CONTRACT.md`. Add a table anywhere below it and the
+derivation silently over-counts, in the section about numbers that are silently
+the wrong quantity, in the instrument written to stop that happening (§7.7).
+`contractDocCheck()` stops at the first non-`|` line instead, and its own
+two-direction self-test — a fixture that agrees and a fixture that does not —
+runs on every invocation.
 
 ```
-python3 - <<'EOF'
-lines = open('CONTRACT.md').read().split('\n')
-i = next(k for k, l in enumerate(lines) if l.startswith('| session | what was computed'))
-print(sum(1 for l in lines[i + 2:] if l.startswith('|')) or 'table not found')
-EOF
+                                  counted  declared
+  contiguous rows after the header      47        47
+  every pipe-leading line to EOF        47         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1725,6 +1741,11 @@ EOF
 | 18 | **peak intensity over a projected area** — `streetlampCandela` / π·0.42² = 12 270 cd/m², rounded to `LIGHT.streetlampNits` = 9000 | the **area-average radiance of the emitting bowl**, which is Φ/(π·A) = 9883.5 lm / (π·1.6115 m²) = **1952 cd/m²** | 4.61×, and the fourth photometric instance after the luminaire leak, the tyre reflectance and the sign plate. At the night exposure it puts ninety-eight bowls at **307× the bright-pass onset**. NOT APPLIED: correcting it alone measured 12.15% → 3.26% of Zone III–VII mass, because the veil fed from that energy is what holds a night frame off zero. Wrong as a radiance, load-bearing as lighting — the two numbers are one system |
 | 18 | a **derivation written at fov 50°** — 0.0310° per pixel, bounding `PLAYER.lookCurveExponent` at k ≤ 1.986 | a bound on the same constant **at fov 75°**, where one pixel is 0.0420° and k ≤ 1.854 | the value did not move, the quantity it was derived FROM did, and nothing linked them. k = 2 delivers 0.71 px/frame at the new field — the second dead zone the bound exists to forbid, created by a change to a different constant in the same file. §9.1 with a derivation instead of a value, and it was found by a reader checking the arithmetic of a change made an hour earlier |
 | 17 | `capture.measureFrames`, a **time** (1800 frames = 30 s) | a **distance**, against `floors.metresTravelled` = 120 m | consistent only for a camera at or above 4.0 m/s. The three original routes run at 4.5, 24 and 6.0 m/s and clear it; a route walked at 1.40 m/s covers 42.0 m and the floor rejects it for being walked. §7.7 again — the gate's own two numbers, in the same file, in different units |
+| 19 | **y = 0**, which every object in this project is authored against — a wheel's contact patch, a foot, a column base, a mast base, a prop's underside | **the height of the ground under that object**, which `city.js`'s `GROUND_Y` put at 0.020–0.033 while `block.js` put it at 0.000–0.160 | 160 vehicles drove **0.020 m sunk into their own carriageway** in every frame this project has ever shipped; 13 of the origin block's 16 lamp columns stood buried by exactly one kerb height; the streamed kerb was **0.010 m against `BLOCK.kerbHeight` = 0.160**, a factor of 16, because the gap between the two streamed quads was a z-fighting offset wearing a kerb's clothes. **The origin block had obeyed the datum since session 1** — `roadMain.position.y = 0.0` over an earth plane at −0.020 — and exactly one table disagreed with it. Declaring it (`constants.js` → `GROUND`) closed all three at once and dissolved the 0.130 m step 98.5 m into a pavement that §9's row 17b records |
+| 19 | a **unit scale** (`sy = 1`) in the scale slot of `setMatrix`, where every other call in the same file passes a **length in metres** | the **thickness** of a 10 mm asphalt reinstatement | road patches emitted as **1.00 m tall boxes standing 0.505 m proud of their own carriageway** — 3 to 6 in every `patched` chunk, 3–5 m wide and 5–12.5 m long, at a shallow angle to the kerb. The operator walked into one and reported "a cube in the carriageway, north of the viaduct". **The CENTRE was right**: 0.025 is `roadNS(0.020) + t/2` for exactly the 10 mm this was meant to be, so the arithmetic that would have exposed it had already been done correctly, one argument earlier, in the same call |
+| 19 | the distance from a vehicle's **ORIGIN** to its stop line | the distance from its **FRONT** to that line | four of the five body types stopped with their nose past the near kerb of the crossing carriageway — wedge 1.20 m, van 1.50 m, **hauler 3.30 m, i.e. 80% into the kerbside crossing lane** — and the fleet-weighted mean was 1.07 m. The same file already subtracts both half-lengths in car-following and half its own length for the camera-as-obstacle; the signal stop subtracted nothing. **The signal masts were the independent witness**: `signalApproaches` puts each head at the stop line under a comment saying that is "where the vehicles are already stopping", and a stopped hauler's nose was 4.8 m past its own signal head |
+| 19 | a **mounting height** — 8.08 m to a lamp's optic, 3.05 m to a signal lens, 2.6–7.5 m to a pylon sign, `STALL_WORKLIGHT_HEIGHT_M` under an awning — every one of which is measured from the ground the thing is planted in | a **world y coordinate** | every lamp column, signal mast, sign pylon, market stall and pedestrian in the city stood at y = 0 while its own pavement was somewhere else. It was 0.030 m and invisible; declaring the ground datum put the pavement at 0.160 m and would have made the same error **eight times larger**, which is why the datum and the nine placement sites had to ship in one change rather than two. A datum is what a query is measured FROM and is not a substitute for one |
+| 19 | a **registration** count of clustered lights — `roleCensus` reporting 96 traffic + 12 stall + 52 block + 196 lamp = **356 of 384** | the number of slots **assignable in a frame** | `lights.assign()` culls on `depth − radius > CLUSTER.far` = 320 m *before* it claims a slot, and the condenser is **560 m** from the closest point on any route this project renders. **No clustered light placed at the condenser can ever be assigned**, whatever the pool has spare — so item 12's sixteen 55 000 cd floodlights had to become an emissive band at ρE/π. STATE 18 §7.3's "margin 40" was separately one session and one role out of date: the stall role takes 12 and the margin is **28** |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:

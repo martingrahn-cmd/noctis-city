@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three';
+import { GROUND } from '../core/constants.js';
 // CONTRACT §2.2: a module may import `../lib/**`. This one line is what makes
 // the comment in ROUTES.player true — see `speed` below.
 import { GAIT } from '../lib/gait.js';
@@ -149,12 +150,27 @@ const ROUTES = {
    *          what a person walking does and what a spline down the centreline
    *          cannot show: at 9.7 the facade is 2.0 m away instead of 11.7, so
    *          the near ring is being asked for the geometry it is worst at.
-   *   eye    1.77 m = the pavement's own top (0.030, `city.js` → `GROUND_Y`)
-   *          plus the 1.74 m eye every other route and every `lookat` preset in
-   *          the project stands at. The other three set 1.74 ABSOLUTE, which
-   *          over a 0.020 m carriageway is 1.72 m of actual eye height; the
-   *          2 cm has never mattered and is written down here because this is
-   *          the first route where the surface under the camera is a decision.
+   *   eye    THE PAVEMENT'S OWN TOP PLUS 1.74 m, and session 19 moved the
+   *          pavement rather than the eye. It was the literal `1.77` = the old
+   *          streamed pavement (0.030) plus the 1.74 m eye every other route
+   *          and every `lookat` preset in the project stands at. Declaring the
+   *          ground datum (`constants.js` → `GROUND`) put the pavement at
+   *          `BLOCK.kerbHeight`, so 1.77 absolute would now be **1.61 m above
+   *          the footway** — the route would have measured the city from a
+   *          height nobody chose, and the change that did it is in another
+   *          file. It is `GROUND.pavement + 1.74` = **1.90**, expressed rather
+   *          than transcribed so the next datum move carries it.
+   *
+   *          The other three routes set 1.74 ABSOLUTE, which over a carriageway
+   *          now at exactly 0 is 1.74 m of actual eye height — the 2 cm this
+   *          note used to record is gone, because that carriageway WAS the
+   *          0.020 the datum removed.
+   *
+   *          THE CONSEQUENCE FOR THE GATE, SAID PLAINLY: this route's frames
+   *          move. The camera is 0.13 m higher above its own footway than the
+   *          number it replaces would have delivered, and identical to what
+   *          session 17 and 18 measured relative to the pavement. Comparability
+   *          is with the ROUTE'S DEFINITION, not with the literal.
    *   look   `lookRise: 0`. See `setRouteAt` — the other three aim 0.9 m above
    *          the eye at the look-ahead point, which at this route's own
    *          6.3 m look-ahead is atan(0.9/6.3) = 8.1° of upward pitch and would
@@ -180,7 +196,8 @@ const ROUTES = {
      */
     fov: 50,
     speed: GAIT.walkSpeedMps,
-    eye: 1.77,
+    /** `GROUND.pavement` + the project's 1.74 m eye. See the note above. */
+    eye: GROUND.pavement + 1.74,
     lookRise: 0,
     waypoints: [
       [330, 0, 9.7],
@@ -289,7 +306,31 @@ export function createCamera(options = {}) {
       const dom = ctx.renderer.domElement;
 
       if (cfg.freeLook) {
+        /**
+         * `driven` IS CHECKED HERE AND NOT ONLY IN `pointermove` — session 19.
+         *
+         * The rule two blocks up says that while `driven` is true this module's
+         * own free-look DOES NOTHING. Until this session only `pointermove`
+         * enforced it; `pointerdown` still set `dragging` and still called
+         * `setPointerCapture`, which is not nothing — it is a claim on a pointer
+         * the player already owns. With `?player=1` the canvas is under a
+         * pointer lock, the pointer is not in the active state `setPointerCapture`
+         * requires, and every click on the world threw
+         *
+         *     InvalidStateError: Failed to execute 'setPointerCapture'
+         *
+         * out of this line. Harmless — the throw is inside a DOM listener, so
+         * nothing downstream saw it — and it is exactly the kind of harmless
+         * that makes a console useless for finding the next thing. The walkthrough
+         * reported it because clicking the canvas is how you ACQUIRE the lock,
+         * so it fired on the player's very first interaction.
+         *
+         * Not a try/catch: the correct behaviour is to not ask. A catch would
+         * have made the frame identical and left this module still trying to
+         * take a pointer that is spoken for.
+         */
         dom.addEventListener('pointerdown', (e) => {
+          if (driven) return;
           dragging = true;
           lastX = e.clientX;
           lastY = e.clientY;
@@ -297,7 +338,13 @@ export function createCamera(options = {}) {
         });
         dom.addEventListener('pointerup', (e) => {
           dragging = false;
-          dom.releasePointerCapture(e.pointerId);
+          // Release only what was actually captured. A `pointerup` whose
+          // `pointerdown` was refused above — or one that arrives after
+          // `setDriven(true)` mid-drag — has no capture to give back, and
+          // `releasePointerCapture` throws the same InvalidStateError for it.
+          if (dom.hasPointerCapture && dom.hasPointerCapture(e.pointerId)) {
+            dom.releasePointerCapture(e.pointerId);
+          }
         });
         dom.addEventListener('pointermove', (e) => {
           if (!dragging || driven) return;

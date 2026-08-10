@@ -75,6 +75,77 @@ export const LIGHT = {
    * taste.
    */
   signPlateNits: 86,
+
+  /**
+   * cd/m². THE FLOODLIT BAND AT THE CONDENSER'S FOOT — session 19, and it is a
+   * RADIANCE standing in for sixteen floodlights that the renderer cannot have.
+   *
+   * WHY IT IS NOT SIXTEEN LIGHTS. `CLUSTER.far` is 320 m and `lights.assign()`
+   * culls on `depth − radius > far` before it claims a slot. The condenser is at
+   * (−430, −560), i.e. **706 m from the origin**, and the closest any route ever
+   * comes to it is about 560 m. `560 − 30 = 530 > 320`, so **no clustered light
+   * placed at the condenser can be assigned on any frame this project renders**,
+   * whatever the pool has spare. (It has 28 spare, not 40: `roleCensus` reports
+   * traffic 96 + stall 12 + block 52 + lamp 196 = 356 of 384, and STATE 18 §7.3's
+   * "margin 40" predates the stall role. Both numbers are here because the
+   * difference between a REGISTRATION count and a per-frame SLOT is CONTRACT §9's
+   * shape with two light counts, and this constant exists because of it.)
+   *
+   * SO THE FLOODLIGHTING IS EMISSION, AND THE QUANTITY THAT SURVIVES FROM THE
+   * LIGHTING DESIGN IS THE ILLUMINANCE IT WOULD HAVE PRODUCED.
+   *
+   *     E = 20 lx        CIE 94's level for a light-coloured surface in a
+   *                      light-surround urban district. Anchored against this
+   *                      project's own calibrated night level,
+   *                      `streetAverageLux` = 16 lx, which it is 1.25× of.
+   *     ρ = 0.394        `CITY_MATERIALS.concrete` albedo [0.4, 0.395, 0.378],
+   *                      the same figure STATE 18 §3.2 uses for this shell.
+   *     L = ρE/π = 0.394 × 20 / 3.1416 = **2.51 cd/m²**
+   *
+   * WHAT IT IS WORTH, BOTH WAYS. The night carriageway is ρE/π = 0.10 × 16 / π =
+   * 0.509 cd/m², so the lit band is **4.93× the road** — which is what a
+   * floodlit landmark looks like. The shaft as delivered receives the 0.27 lx of
+   * upward glow STATE 18 §3.2 derived, i.e. about **0.034 cd/m²**, so this is
+   * **74× what is there now**. That factor is the whole of item 12: §3.2's
+   * structural proof is that no ambient term can bring an unlit wall within 5× of
+   * the sky behind it, and 74× is not an ambient term.
+   *
+   * AND IT MUST NOT BLOOM, WHICH IS THE CHECK THAT SAYS IT IS A LIT SURFACE
+   * RATHER THAN A SOURCE. At the exposure the night frame settles at (e ≈
+   * 0.0141), 2.51 × 0.0141 = 0.0354 exposed linear, against a bright-pass onset
+   * of `POST.bloomThreshold · (1 − knee)` = 0.92 × 0.45 = 0.414. It is **11.7×
+   * BELOW** the onset. A floodlit wall that blooms is a wall somebody made into a
+   * lamp.
+   */
+  condenserFloodNits: 2.51,
+
+  /**
+   * cd/m². RED AVIATION OBSTRUCTION LIGHTS on the two structures over 150 m.
+   *
+   * ICAO Annex 14 requires medium-intensity obstacle lighting above 150 m, and
+   * Type B is **2000 cd** steady red. The emitter this project draws is a box, so
+   * the radiance is that intensity over the box's own projected area rather than
+   * over a real lens — the same conversion `signPlateNits` and the lamp bowl are
+   * a list of getting wrong, done in the stated direction this time:
+   *
+   *     I = 2000 cd                       ICAO Annex 14 Type B, medium intensity
+   *     A = 0.35² = 0.1225 m²             the beacon box, `city.js` → BEACON_M
+   *     L = I / A = **16 327 cd/m²**      rounded to 16 300
+   *
+   * WHY THIS ONE IS ALLOWED TO BE FAR ABOVE THE BLOOM ONSET when the lamp bowl's
+   * 9000 is recorded as a defect. Bloom energy is radiance × AREA, and that is
+   * the term the lamp-bowl finding turns on: 98 bowls of 1.6115 m² at 9000 is
+   * 1 422 000 cd·m²/m² of emitting product. The whole aviation set is **18 boxes
+   * of 0.1225 m² at 16 300 = 35 900**, which is **2.5%** of it. An obstruction
+   * light is *supposed* to be a point of glare at two kilometres — that is its
+   * entire function — and it costs the frame a fortieth of what the streetlamps
+   * already spend. §9 rule 4: both numbers, and the ratio.
+   *
+   * ZERO CLUSTER SLOTS, by the same argument as the tail lamps: the pool a 2000 cd
+   * beacon throws at 260 m is invisible against the sky, and what makes it read
+   * is the emitter itself.
+   */
+  aviationRedNits: 16300,
   /**
    * cd/m², THE AREA-AVERAGE RADIANCE OF THE FROSTED BOWL — 9000 → 1952 in
    * session 18, and it is `signPlateNits` again with a lamp instead of a sign.
@@ -218,6 +289,137 @@ export const BLOCK = {
   /** Half-extent of the ground plane. Beyond this is sky and haze. */
   groundExtent: 4000,
   buildingCount: 10,
+};
+
+/**
+ * THE GROUND DATUM — session 19.
+ * ==============================
+ *
+ * **y = 0 IS THE CARRIAGEWAY SURFACE.**
+ *
+ * That sentence is a DECLARATION of something that was already true of every
+ * object in this project and false of one file's ground quads, which is why it
+ * is written here — in the file both `city.js` and `block.js` already import —
+ * rather than invented as a new convention.
+ *
+ * WHAT WAS ACTUALLY WRONG, AND IT IS SMALLER AND WORSE THAN "NOBODY CHOSE A
+ * DATUM". Every object that stands on the ground is authored with its base at
+ * y = 0: a wheel's centre is its own radius (`traffic.js`), a pedestrian's
+ * instance matrix writes `arr[13] = 0` (`streetlife.js`), a stall passes the
+ * literal `0` as `composeScaledYaw`'s y, and so do a prop's box, a lamp column
+ * and a signal mast.
+ * `block.js` agrees — its `surfaceAt` returns **0.0** for the main street and
+ * `BLOCK.kerbHeight` for the pavement, so THE ORIGIN BLOCK HAS OBEYED THIS
+ * DATUM SINCE SESSION 1. `city.js`'s `GROUND_Y` did not: it put the streamed
+ * carriageway at **0.020** and the streamed pavement at **0.030**, and both
+ * numbers are a z-fighting offset above `earth` wearing a kerb's clothes (§9's
+ * table, row 17a).
+ *
+ * SO THE DELIVERED ARITHMETIC, WHICH IS WHAT MAKES THIS THE FIRST ITEM:
+ *
+ *     160 vehicles, contact patch at y = 0, carriageway at 0.020
+ *         → every wheel 20 mm INSIDE its own road, in every frame ever shipped
+ *     streamed kerb  0.030 − 0.020 = 0.010 m
+ *     block kerb     0.160 − 0.000 = 0.160 m           16× the streamed one
+ *     block pavement over streamed pavement, |x| ∈ [168, 266.5]
+ *                    0.160 − 0.030 = 0.130 m step, 98.5 m at each end
+ *
+ * ALL THREE ARE ONE NUMBER, AND MOVING THE DATUM CLOSES ALL THREE. The streamed
+ * carriageway goes to 0 and the streamed pavement to `BLOCK.kerbHeight`, so the
+ * wheels land on the road, the kerb becomes the kerb, and the 0.130 m step in
+ * the middle of a pavement becomes 0.000 because the two pavements are now the
+ * same height by construction rather than by coincidence.
+ *
+ * THE OBJECTION SESSION 18 RAISED, AND WHY IT DOES NOT APPLY. STATE 18 §7.2
+ * showed that raising the pavement to **0.181** puts island interiors at
+ * `0.181 − earth(−0.020)` = **0.201 m** against `PLAYER.stepUpM` = 0.200, i.e.
+ * a hole a player falls into and cannot climb out of. That arithmetic is right
+ * and its premise is not: 0.181 is `0.020 + 0.161`, which STACKS a real kerb on
+ * top of the z-fighting offset instead of REPLACING it. Moving the datum gives
+ *
+ *     pavement − earth  =  0.160 − (−0.020)  =  **0.180 m  ≤  0.200 m**
+ *
+ * with 0.020 m of margin, 1.11×. And it needs no new evidence at all, because
+ * **the origin block has had exactly that 0.180 m step since session 1** —
+ * `block.js`'s pavement is 0.160 over the same earth plane at −0.020 — and it
+ * is walked in every `walkprobe` run. The trap was created by the repair, not
+ * by the world.
+ *
+ * WHAT STAYS BELOW ZERO, AND WHY THE GAP IS 0.020 AND NOT SOMETHING NEATER.
+ * `earth` is `block.js`'s global ground plane and the carriageway quads have to
+ * be clear of it or they z-fight. 0.020 m is not chosen here: it is the
+ * separation `block.js`'s own main street (0.000) has always had from that
+ * plane (−0.020), over 8 km of ribbon, without z-fighting. So the one piece of
+ * evidence for the number is the geometry that has been shipping on it.
+ *
+ * WHAT THIS DATUM DOES **NOT** DO, SAID HERE SO THE NEXT SESSION DOES NOT LOOK
+ * FOR IT. It makes y = 0 correct for anything standing on a CARRIAGEWAY, which
+ * is the traffic and nothing else. Everything standing on a PAVEMENT — every
+ * pedestrian, stall, bollard, bin, bench, planter, lamp column and signal mast
+ * — is now 0.160 m out instead of 0.020 m out, i.e. the declaration makes the
+ * remaining error EIGHT TIMES LARGER for those objects and there is no version
+ * of a single datum that does otherwise. They read the ground instead:
+ * `city.groundYAt(x, z)`, which is `surfaceAt` returning only the number.
+ * A datum is what a query is measured FROM; it is not a substitute for one.
+ */
+export const GROUND = {
+  /**
+   * THE DATUM. Metres. A wheel's contact patch, a foot, a column base, a mast
+   * base and a prop's underside are all at this height in their own frames.
+   */
+  carriageway: 0,
+
+  /**
+   * Metres. Where a north–south strip crosses an east–west one, one of the two
+   * coplanar quads has to win or they z-fight. The east–west strip is laid this
+   * much higher and wins every crossing in the city.
+   *
+   * 1 mm, and it is a rendering artefact rather than a feature: a tyre 1 mm
+   * into an east–west carriageway is 1/20th of the error this whole section
+   * exists to remove, and 1 mm is under the 4 mm a 0.58 m wheel subtends at one
+   * pixel from 12 m at the internal resolution. Recorded rather than hidden —
+   * the datum is exact on a north–south road and 1 mm out on an east–west one.
+   */
+  crossingBias: 0.001,
+
+  /**
+   * Metres. The pavement top. `BLOCK.kerbHeight` above the carriageway BY
+   * DEFINITION, which is what makes the kerb one quantity instead of two:
+   * before this line `BLOCK.kerbHeight` was imported by `block.js` and by
+   * nothing else, while `city.js` had 0.010 m of its own in a different file.
+   */
+  pavement: BLOCK.kerbHeight,
+
+  /**
+   * Metres. Mown grass on a park island, 20 mm below the pavement that encloses
+   * it — the relation `city.js` has always delivered (0.028 against 0.030),
+   * carried over rather than re-chosen, because nothing measured it and a new
+   * number here would be a guess (§9 rule 5).
+   */
+  grass: BLOCK.kerbHeight - 0.02,
+
+  /**
+   * Metres. The two gravel paths across a park, proud of the grass they cross.
+   * 4 mm and 5 mm, the delivered relation (0.032/0.033 over 0.028), with the
+   * north–south one upper so that it wins its crossing — the same rule
+   * `crossingBias` states for roads, one surface family over, and it is a
+   * different sign because `city.js` has always drawn it that way.
+   */
+  pathEW: BLOCK.kerbHeight - 0.02 + 0.004,
+  pathNS: BLOCK.kerbHeight - 0.02 + 0.005,
+
+  /**
+   * Metres. The world's earth plane — `block.js`'s ground quad, and what
+   * `surfaceAt` answers wherever no road, pavement, park or deck was emitted.
+   *
+   * BELOW THE DATUM, and the two numbers that bound it are on opposite sides:
+   * it must be far enough below `carriageway` not to z-fight (0.020 m,
+   * attested by eight kilometres of `block.js` ribbon) and close enough that
+   * `pavement − earth` = 0.180 m stays under `PLAYER.stepUpM` = 0.200 m. The
+   * window is [−0.040, −0.020] and this sits on the tight end of it, which is
+   * the end with the rendering evidence.
+   */
+  earth: -0.02,
 };
 
 /** Exposure model. CONTRACT §5.4. */
@@ -412,6 +614,76 @@ export const TAA = {
  * when session 3 has chunks.
  */
 export const CANYON = {
+  /**
+   * DIMENSIONLESS. THE FRACTION OF THE ROAD'S MAINTAINED ILLUMINANCE THAT THE
+   * STREET LAMPS ALSO PUT ON A FACADE — session 19, item 10.
+   *
+   * WHY IT IS A RATIO AND NOT A LUX FIGURE. The canyon field stores TRANSFER,
+   * not radiance (CONTRACT §5.7): the whole reason it is baked once and valid at
+   * every hour is that nothing in it mentions a source. This is the same
+   * discipline one level up — a maintenance factor, a lamp count or a photocell
+   * state changes the road's lux and must change the facade's by the same
+   * factor, so what is stored is the coupling and the source stays in `sky
+   * .groundLightingLux`, which is where the sky LUT's lower hemisphere already
+   * reads it from. One number for how many lamps are lit, two consumers.
+   *
+   * DERIVED BY INTEGRATING THIS PROJECT'S OWN OPTIC OVER ITS OWN STREET, not
+   * chosen. `luminaire.js`'s distribution — `I(γ) = streetlampCandela ·
+   * smoothstep(cos 68°, cos 61°, ĉ) · min(1, (cos 57°/ĉ)³)` with the elliptical
+   * shaping `tan 68°/tan 46°` = 2.391 — evaluated over the delivered geometry:
+   *
+   *     lamp head        y = 8.08 m       `city.js`, `block.js` (8.4 − 0.32)
+   *     head offset      6.7 m off centre pole at 8.8, arm reach 2.1
+   *     facade plane     11.7 m           `CORRIDOR` = 7.5 + 4.2
+   *     pitch            30 m, staggered  both rows
+   *     isotropic spill  70.8 cd          0.09 × 9883.5 lm / 4π
+   *
+   *     carriageway, both rows      E_road   = 24.58 lx
+   *     facade 0–26 m, area mean    E_facade =  2.464 lx
+   *     ratio                                =  **0.1002**
+   *
+   * **A semi-cutoff optic over a 15 m carriageway puts one tenth as much on the
+   * wall as on the road**, and the shape is why: the across-road cutoff lands
+   * about 3 m up, so the facade sees ~20 lx at the plinth and 1.2 lx at lamp
+   * height — the latter carried entirely by the isotropic spill, checked in
+   * closed form as `2·70.8/(30·5.0) + 2·70.8/(30·18.4)` = 0.944 + 0.257 =
+   * 1.20 lx. Above 8.08 m the cutoff optic contributes exactly nothing, by
+   * construction (`luminaire.js`: "the upper hemisphere is empty").
+   *
+   * WHAT IT IS WORTH, AND IT IS THE HONEST HALF OF THIS ITEM. At
+   * `LIGHT.streetAverageLux` = 16 lx the facade gains 1.60 lx, i.e.
+   * `albedo · E / π` = **+0.19 cd/m² on a facade at 2.2** — **+8.5%, or +0.118
+   * stops.** The night frame's median is code 24 and Zone III is code 60, a gap
+   * of **+2.2 stops**. So this term is real, correctly shaped, sun-independent
+   * and nearly free, AND IT IS NOT THE FIX FOR THE DARK NIGHT — it is 5% of it.
+   *
+   * The ceiling is structural, exactly as STATE 18 §3.2's is for the sky term
+   * and arriving through the lamps instead: lifting a facade one stop needs
+   * `E_facade ≈ 2.2·π/0.4` = **17 lx** on the wall, which is the ROAD's own
+   * illuminance, and a cutoff optic delivers a tenth of that BY DESIGN. There is
+   * no lamp specification that closes it, because the optic that would is the
+   * one nobody fits to a street light.
+   *
+   * SO IT CANNOT PAY FOR THE LAMP-BOWL CORRECTION, and that is written here
+   * rather than discovered next session. STATE 18 §6 measured correcting
+   * `LIGHT.streetlampNits` 9000 → 1952 as **12.15% → 3.26%** of Zone III–VII
+   * mass, i.e. −8.89 points, and left the correction unshipped pending
+   * "replacement energy in before the correction". +0.118 stops is not 8.89
+   * points. The bowl stays at 9000 for a nineteenth session, and what would pay
+   * for it is EMISSION, not transfer — item 11's roof signs and item 12's
+   * beacons and floodlighting.
+   *
+   * A CAVEAT THAT BOUNDS ITS OWN VALIDITY. `uNoctisFaceL` is one global vec3[4]
+   * for the whole city, so this lifts every facade everywhere — including an
+   * unlit alley and a wall 100 m up, where the true lamp term is zero. The
+   * solid-angle-weighted mean falls from 1.74 lx at a receiver on the road to
+   * 0.67 lx at y = 5 m, so a single scalar over-lights a high receiver by about
+   * 2.6×. At 0.19 cd/m² against 2.2 that is 7% of a facade nobody is looking at;
+   * at any larger magnitude it would need a height falloff, and that sentence is
+   * the bound on how far this number may be raised.
+   */
+  facadeLampShare: 0.1002,
+
   /** Metres. Horizontal voxel spacing. */
   voxelXZ: 1.6,
   /**
@@ -1042,14 +1314,57 @@ export const PLAYER = {
    * flow at the bottom of the frame on its own. The two are recorded separately
    * because they were measured separately.
    *
-   * THE COST, NAMED RATHER THAN HIDDEN: 2.00 / 1.40 = **1.43× the crowd's
-   * mean** and 1.05× its fastest walker at 1.90 m/s. A player therefore
-   * overtakes the crowd slowly rather than sweeping past it, which is what
-   * keeps the pedestrians reading as people walking rather than as scenery
-   * standing still. The brief's own ceiling for a RUN was 3× the crowd; this
-   * walk is less than half of that.
+   * SESSION 19: 2.00 → 3.50, AND THE BOUND THAT USED TO HOLD IT IS NOW
+   * DELIBERATELY BROKEN. Read the next four paragraphs before restoring it.
+   *
+   * THE CITY'S OWN SCALE IS THE ARGUMENT, AND IT IS ARITHMETIC RATHER THAN
+   * FEEL. `citygen.js` → `CITY.chunkSize` is 128 m and the bridges are
+   * `RIVER.bridgeEvery · chunkSize` = 4 · 128 = **512 m** apart. So:
+   *
+   *     traversal            2.00 m/s     3.50 m/s     7.00 m/s
+   *     one chunk   128 m      64.0 s       36.6 s       18.3 s
+   *     bridge to bridge 512 m 256.0 s      146.3 s      73.1 s
+   *                          = 4 min 16 s = 2 min 26 s = 1 min 13 s
+   *
+   * Four and a quarter minutes to reach the next river crossing is not a pace,
+   * it is a commute, and the operator has now walked it twice. The city was
+   * dimensioned by its street grid (a 128 m block is an ordinary city block)
+   * and never by how long a person would spend inside one.
+   *
+   * IT IS NO LONGER A WALK BY THIS PROJECT'S OWN BIOMECHANICS, AND THAT IS THE
+   * COST, STATED. `RUN_TRANSITION_MPS` = 2.048 m/s is Froude 0.5 on the gait
+   * model's 0.855 m hip, i.e. the speed above which a human gait IS a run.
+   * 3.50 m/s is **1.71×** that. Session 18 used 2.048 as an upper bound on this
+   * constant and 2.00 sat at 0.976× of it; that bound has been removed rather
+   * than quietly exceeded, and the removal is licensed by exactly one fact:
+   * **nothing is derived from this number.** `GAIT.walkSpeedMps` is an input to
+   * a model — `stepM`, the cycle frequency and the bob all come out of it, and a
+   * figure drawn at a speed its step length was not derived for slides its feet.
+   * The player has no legs. This is a CAMERA TRAVERSAL RATE, and Froude 0.5 is a
+   * statement about legs.
+   *
+   * SO IT IS A DELIBERATE EXAGGERATION, RECORDED AS ONE — the same shape as the
+   * fleet's plan taper, which is steeper than any real bodyside for a reason
+   * written down beside it. A traversal rate chosen for the size of the world is
+   * not a measurement of a person, and the two must not be confused: the crowd
+   * still walks at `GAIT.walkSpeedMps` = 1.40 m/s and nothing here touches it.
+   *
+   * THE COST, NAMED RATHER THAN HIDDEN: 3.50 / 1.40 = **2.50× the crowd's mean**
+   * and 1.84× its fastest walker at 1.90 m/s. The player now overtakes the crowd
+   * visibly rather than slowly. That is a genuine loss — session 18's reason for
+   * 2.00 was that a slow overtake keeps the pedestrians reading as people — and
+   * it is spent knowingly, because a city you cannot cross is worse than a crowd
+   * you pass. The 2.50× is still inside the brief's own 3× ceiling for a RUN,
+   * and three of this project's four route cameras have always exceeded it
+   * (`downtown_dense` at 4.5 m/s is 3.21×).
+   *
+   * AND THE FIELD IS STILL WORTH MORE THAN THE SPEED. At `fovDeg` 75 the optic
+   * flow at the bottom edge is 2.07× what it was at 50 (see below), so the
+   * delivered apparent pace against session 17's 1.40 m/s at fov 50 is
+   * 2.07 × 2.50 = **5.18×**. The two are multiplied, not chosen between, and
+   * they are still recorded separately because they were measured separately.
    */
-  walkSpeedMps: 2.0,
+  walkSpeedMps: 3.5,
 
   /**
    * m/s. Running, and it is derived from two bounds that nearly meet.
@@ -1059,18 +1374,70 @@ export const PLAYER = {
    * draws walkers up to 1.90 m/s. A "run" under 2.05 m/s would be a word for
    * something the crowd is already doing.
    *
-   * FROM ABOVE: the brief's own constraint is that a player who outpaces the
-   * crowd by 3× reads wrong. 3 × 1.40 = 4.20 m/s is the ceiling. 3.5 m/s is
-   * **2.50×** the crowd's mean, **1.84×** its fastest walker and **1.71×** the
-   * walk–run transition — a jog, comfortably inside both bounds.
+   * SESSION 19: 3.50 → 7.00, because `walkSpeedMps` took the 3.50 and a run
+   * that equals the walk is not a run.
    *
-   * AND THE NUMBER IT EXPOSES: `downtown_dense` runs its camera at 4.5 m/s and
-   * calls it "a brisk walk" in `camera.js`. 4.5 m/s is 16.2 km/h and 3.21× the
-   * crowd — i.e. past the ceiling the brief set for a RUN. Three of this
-   * project's four route cameras have always moved faster than a player is
-   * allowed to sprint.
+   * THE RATIO IS THE QUANTITY, NOT THE SPEED. 7.00 / 3.50 = **2.00×**, and a
+   * factor of two is what a run has to be worth to be worth a key: session 18's
+   * pair was 3.50/2.00 = 1.75× and the difference was reported as marginal. It
+   * is also the ratio between a human's comfortable walk (1.4 m/s) and their
+   * comfortable jog (2.8 m/s), which is the one place a real number survives
+   * this constant's exaggeration.
+   *
+   * WHAT IT DELIVERS AGAINST THE WORLD: 512 m bridge to bridge in **73 s**, a
+   * 128 m chunk in **18.3 s**. 7.00 m/s is 25.2 km/h, which is a bicycle and is
+   * not a person — see `walkSpeedMps` for why that sentence is acceptable here
+   * and would not be in `gait.js`.
+   *
+   * BOUNDED ABOVE BY THE COLLISION SUBSTEP AND NOT BY BIOMECHANICS.
+   * `player.js` → `moveWithSlide` splits a frame's displacement into substeps of
+   * at most `radiusM` = 0.25 m, so the number of mask queries a frame costs is
+   * `ceil(v · dt / 0.25)`. At 60 fps that is `ceil(7.00/60/0.25)` = **1** — the
+   * same single query session 17 shipped. At the loop's clamped worst-case
+   * `dt` = 0.1 s it is `ceil(2.8)` = **3**. Doubling this constant again would
+   * make the worst case 6, which is the point at which a stalled frame starts
+   * paying for the speed twice. The bound is therefore about 28 m/s and is
+   * nowhere near binding; it is written down because it is the only real one
+   * left after the Froude bound was removed.
+   *
+   * AND THE NUMBER IT EXPOSES, UNCHANGED AND NOW LARGER: `downtown_dense` runs
+   * its camera at 4.5 m/s and calls it "a brisk walk" in `camera.js`. That is
+   * 16.2 km/h and 3.21× the crowd — faster than the player's WALK and slower
+   * than the player's RUN, which is the first session in which the routes and
+   * the player have straddled rather than one dominating.
    */
-  runSpeedMps: 3.5,
+  runSpeedMps: 7.0,
+
+  /**
+   * m/s. THE FLY CAMERA'S BASE TRAVERSAL RATE — session 19.
+   *
+   * 24 m/s, AND IT IS NOT A NEW NUMBER: it is `camera.js` → `ROUTES
+   * .highway_speed.speed`, the rate this project has flown a camera through this
+   * city at since session 0, and the one speed at which the streaming system has
+   * ever been deliberately stressed ("at this speed a 128 m chunk crosses the
+   * horizon every five seconds"). Reusing it means the fly camera cannot ask the
+   * chunk loader for anything the perf gate has not already measured.
+   *
+   * What it delivers: the authored world is about 1 120 m across (the condenser
+   * at −430,−560 to the mast at 470,430), so corner to corner is **58 s** at the
+   * base rate and **19 s** boosted. Against the walk's 3.50 m/s that is 6.9×,
+   * which is the ratio that makes a fly camera worth having at all — at anything
+   * under about 3× it is a walk that ignores walls.
+   */
+  flySpeedMps: 24,
+
+  /**
+   * Multiplier on `flySpeedMps` while the run modifier is held. 3.0, so the
+   * boosted rate is 72 m/s and the whole map is 15.6 s corner to corner.
+   *
+   * Bounded above by the streaming rather than by taste: `CITY.generateBudget`
+   * builds at most a few chunks a frame, and at 72 m/s a 128 m chunk crosses the
+   * near ring in 1.8 s. Faster than this and the eye outruns the generator,
+   * which does not crash — the analytic default covers a chunk with no field
+   * (CONTRACT §8.1) — but it does mean flying through a city that is visibly
+   * assembling, and that is a different tool from the one this is.
+   */
+  flyBoost: 3.0,
 
   /**
    * Metres. The tallest rise the feet will step up without a fall or a block.
@@ -1087,10 +1454,25 @@ export const PLAYER = {
    * 1.05 m. So one number separates the two populations with margin on both
    * sides, and there is nothing between 0.20 and 1.05 for it to get wrong.
    *
-   * WHAT IT ACTUALLY HAS TO DO TODAY, which is much less: the largest rise a
+   * WHAT IT ACTUALLY HAS TO DO — SESSION 19, AND IT IS NOW THE WHOLE JOB
+   * RATHER THAN A TENTH OF IT. This paragraph used to read "the largest rise a
    * walker meets in the streamed city is 0.010 m (pavement 0.030 over
-   * carriageway 0.020) and on a bridge 0.030 m (footway 0.060 over carriageway
-   * 0.030). See `city.js` → `GROUND_Y`.
+   * carriageway 0.020) and on a bridge 0.030 m", i.e. the bound was derived
+   * against the origin block's kerb and exercised against a z-fighting offset.
+   * Declaring the ground datum (`GROUND`) makes every kerb in the world the
+   * same kerb, so the delivered population is now:
+   *
+   *     kerb, anywhere       `GROUND.pavement` − `GROUND.carriageway` = 0.160
+   *     pavement → earth     0.160 − (−0.020) = **0.180**, the binding case
+   *     quay parapet         1.05, which must stay REFUSED
+   *
+   * 0.180 is 0.90× of this constant — 0.020 m of margin, 1.11×. That is the
+   * tightest this bound has ever been and it is the number to check before
+   * moving `BLOCK.kerbHeight` or `GROUND.earth`: the window for the pair is
+   * `pavement − earth ≤ stepUpM`. It is not a new risk — `block.js` has
+   * delivered exactly that 0.180 m step at the edge of its own pavement since
+   * session 1, and `walkprobe` has walked it — but before session 19 it existed
+   * over 336 m of one street and now it exists everywhere.
    */
   stepUpM: 0.2,
 
