@@ -591,27 +591,38 @@ enough and it is a COUNT, so it is measurable here — see §9.
    four routes, `budget.json` → `machine` with both series. Nothing in this file
    is a millisecond and nothing in it is a pixel, so the M4 series is still the
    only performance evidence this project has.
-3. **Run the four refusing gates on a real GPU.** `faultcheck`, `lookcheck`,
+3. **`index.html` GAINED AN ELEMENT AFTER THE GATES WERE RUN.** Publishing to
+   GitHub Pages (after this session's content work, same day) added a
+   `#bootfail` paragraph and an `onerror` on the entry script, so that serving
+   the repository's ROOT — which shows a black canvas and nothing else — says
+   what is wrong. It is inert on the success path and that was checked rather
+   than assumed: against the dev server the app boots, `#bootfail` is `hidden`
+   with a 0x0 box, 238 draws, zero quarantined modules. But `lookcheck` and
+   `gateaudit` read that file and NEITHER HAS RUN AGAINST IT, because both
+   refuse a software renderer. It is the first thing to re-run on a real GPU,
+   before the four below.
+
+4. **Run the four refusing gates on a real GPU.** `faultcheck`, `lookcheck`,
    `windcheck` and `citycheck`'s saturation sample have not run against this
    session's geometry. Everything new is boxes in existing meshes on existing
    materials, so `windcheck` is the one most likely to have something to say —
    the park's pond surface, the abutment wing walls and the tilted canopy masses
    are all new emissions.
-4. **`floors.visibleInstances` and `drawCalls` against the delivered city.**
+5. **`floors.visibleInstances` and `drawCalls` against the delivered city.**
    Two draw calls were added (`moving:bodies`, `moving:lights`) against
    `highway_speed`'s 431 of 440. Both are counts and both are measurable
    anywhere; §8 is the reason to look.
-5. **The saturation reserve has a new emitter in it.** The train's lit windows
+6. **The saturation reserve has a new emitter in it.** The train's lit windows
    and the crane's obstruction light are emissive geometry at zero cluster
    slots. STATE 20 recorded 1.53 points of margin left; nothing here measured
    what these spent, because the measurement needs a rasteriser.
-6. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
-7. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
+7. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
+8. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
    the maximum `ahead` over twelve candidates, so a vehicle can materialise 14 m
    dead ahead in the camera's own lane.
-8. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged: the
+9. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged: the
    instrument is built and both arms are one command.
-9. **The retroreflective BRDF for the markings.** §5.2 has the arithmetic for
+10. **The retroreflective BRDF for the markings.** §5.2 has the arithmetic for
    what is missing: 24× at the standard entrance angle.
 
 ---
