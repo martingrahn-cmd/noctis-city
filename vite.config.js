@@ -15,7 +15,7 @@
  * default is the dev server's `/`:
  *
  *   unset            '/'                 the dev server and every gate, unchanged
- *   NOCTIS_BASE=…    whatever is given   a user page, a custom domain, a subpath
+ *   NOCTIS_BASE set  whatever is given   a user page, a custom domain, a subpath
  *
  * The Pages workflow sets it to `/<repo>/` from `github.event.repository.name`,
  * so renaming the repository cannot leave a stale prefix behind. A literal

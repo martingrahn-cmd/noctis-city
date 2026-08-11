@@ -2739,12 +2739,23 @@ export const PROP_MODELS = {
    * `leanRange` is degrees about a seeded azimuth, applied to the whole model
    * about its own base, so a leaning tree's crown moves with its trunk.
    *
-   * EVERY CROWN CLEARS `HEAD_CLEAR_M`, and that is a placement constraint
+   * EVERY CROWN CLEARS `HEAD_CLEAR_M` **AS DELIVERED**, and the two words are
+   * the whole of session 22's second finding. It is a placement constraint
    * rather than an aesthetic one: `derivePropHalfAcross` counts only what is
-   * below head height, so a tree whose lowest foliage hangs at 1.6 m would
-   * measure 1.4 m across and be refused the pavement it belongs on. A street
-   * tree is lifted clear of the footway in exactly the same way and for
-   * exactly the same reason.
+   * below head height, so a tree whose lowest foliage hangs at 1.6 m measures
+   * 1.4 m across and is refused the pavement it belongs on. A street tree is
+   * lifted clear of the footway in exactly the same way and for exactly the
+   * same reason.
+   *
+   * THIS SENTENCE WAS HERE AND WAS FALSE. Session 21 authored the clearances
+   * at scale 1 — broad 83 mm of margin, columnar 126 mm — and no delivered
+   * tree is at scale 1: the scatter draws `PROP_SCALE` = 0.85..1.25 and the
+   * variant leans by up to `leanRange`. Delivered, the broad tree's lowest
+   * foliage hung at **1.68 m**. Both crowns are lifted above, and the test in
+   * `derivePropHalfAcross` now evaluates the clearance in the space the
+   * geometry is delivered in rather than the space it is authored in, so this
+   * sentence is checkable instead of aspirational — `citycheck` → `occupancy`
+   * is where it is checked, off the delivered instance matrices.
    */
   tree: [
     /**
@@ -2765,14 +2776,29 @@ export const PROP_MODELS = {
      * 5.34 m — a 1.24 m spread over a 5.3 m tree, which is 23% of its own
      * height.
      */
+    /**
+     * THE CROWN IS 0.50 m HIGHER THAN SESSION 21 AUTHORED IT, AND THE TRUNK IS
+     * 0.50 m LONGER — session 22. The crown's own internal spread is untouched:
+     * every mass moved by the same amount, so the 4.62 / 5.01 / 5.45 → 5.12 /
+     * 5.51 / 5.95 stagger is the same 0.83 m over a taller tree.
+     *
+     * WHY. The lowest mass's underside sat at **2.183 m** against
+     * `HEAD_CLEAR_M` = 2.10, a clearance of 83 mm — AT SCALE 1, which is a size
+     * no delivered tree is. `scale` is `PROP_SCALE.min`..`max` = 0.85..1.25, so
+     * the delivered underside is 1.856 m before the lean and **1.681 m** at the
+     * variant's own 5°. Measured on the delivered census: six kerbside trees
+     * with a foliage mass in the GROUND band, every one at scale 0.863–0.933,
+     * the worst overlapping its own carriageway by 1.264 m². 1.68 m is under a
+     * person and 1.4 m under a hauler's roof.
+     */
     {
       leanRange: 5,
       boxes: [
-        bx(0, 1.05, 0, 0.36, 2.10, 0.36, BARK, 0.92),
-        bx(0.06, 1.90, -0.04, 0.30, 0.70, 0.28, BARK, 0.92),
-        bxt(-0.42, 3.40, 0.28, 2.30, 2.10, 2.05, FOLIAGE_A, 0.95, 9, 24),
-        bxt(0.62, 3.95, -0.35, 1.95, 1.75, 1.80, FOLIAGE_C, 0.95, -12, 108),
-        bxt(0.05, 4.72, 0.42, 1.45, 1.30, 1.35, FOLIAGE_B, 0.95, 7, 200),
+        bx(0, 1.30, 0, 0.36, 2.60, 0.36, BARK, 0.92),
+        bx(0.06, 2.40, -0.04, 0.30, 0.70, 0.28, BARK, 0.92),
+        bxt(-0.42, 3.90, 0.28, 2.30, 2.10, 2.05, FOLIAGE_A, 0.95, 9, 24),
+        bxt(0.62, 4.45, -0.35, 1.95, 1.75, 1.80, FOLIAGE_C, 0.95, -12, 108),
+        bxt(0.05, 5.22, 0.42, 1.45, 1.30, 1.35, FOLIAGE_B, 0.95, 7, 200),
       ],
     },
     /**
@@ -2782,14 +2808,19 @@ export const PROP_MODELS = {
      * for, and the taper is what makes it read as a spire rather than as a
      * pillar.
      */
+    /**
+     * SAME LIFT, 0.35 m, AND FOR THE SAME READING. Its lowest mass's underside
+     * was 2.226 m at scale 1 — a 126 mm clearance — and 1.831 m as delivered at
+     * scale 0.85 with the variant's 3° lean. The taper is untouched.
+     */
     {
       leanRange: 3,
       boxes: [
-        bx(0, 1.10, 0, 0.28, 2.20, 0.28, BARK, 0.92),
-        bxt(-0.10, 3.34, 0.08, 1.55, 2.10, 1.45, FOLIAGE_C, 0.95, 5, 60),
-        bxt(0.12, 4.55, -0.06, 1.35, 1.90, 1.30, FOLIAGE_A, 0.95, -6, 152),
-        bxt(-0.06, 5.80, 0.10, 1.00, 1.55, 0.98, FOLIAGE_C, 0.95, 8, 245),
-        bxt(0.04, 6.72, -0.05, 0.62, 1.05, 0.60, FOLIAGE_B, 0.95, -5, 330),
+        bx(0, 1.275, 0, 0.28, 2.55, 0.28, BARK, 0.92),
+        bxt(-0.10, 3.69, 0.08, 1.55, 2.10, 1.45, FOLIAGE_C, 0.95, 5, 60),
+        bxt(0.12, 4.90, -0.06, 1.35, 1.90, 1.30, FOLIAGE_A, 0.95, -6, 152),
+        bxt(-0.06, 6.15, 0.10, 1.00, 1.55, 0.98, FOLIAGE_C, 0.95, 8, 245),
+        bxt(0.04, 7.07, -0.05, 0.62, 1.05, 0.60, FOLIAGE_B, 0.95, -5, 330),
       ],
     },
     /**
@@ -2901,6 +2932,15 @@ function derivePropHalfWidth(perVariant = false) {
  */
 const HEAD_CLEAR_M = 2.10;
 
+/**
+ * THE SCALE EVERY PROP IS DRAWN AT, and it is here rather than as a literal in
+ * the scatter because two places now read it: the scatter draws it, and
+ * `derivePropHalfAcross` below needs its MINIMUM to know what a model-space
+ * height becomes in the world. Two literals in two places is CONTRACT §9.1's
+ * first variant and this file has supplied several of them.
+ */
+const PROP_SCALE = { min: 0.85, max: 1.25 };
+
 function derivePropHalfAcross(perVariant = false) {
   const out = {};
   for (const [kind, variants] of Object.entries(PROP_MODELS)) {
@@ -2908,10 +2948,43 @@ function derivePropHalfAcross(perVariant = false) {
     const each = [];
     for (const v of variants) {
       let across = 0;
+      const phi = ((v.leanRange || 0) * Math.PI) / 180;
       for (const b of v.boxes) {
         const th = b.tilt ? Math.abs(b.tilt * Math.PI / 180) : 0;
-        if (b.y - (b.h / 2 * Math.cos(th) + b.w / 2 * Math.sin(th)) >= HEAD_CLEAR_M) continue;
-        across = Math.max(across, Math.abs(b.z) + (b.d / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th));
+        /**
+         * THE UNDERSIDE, AS DELIVERED — session 22, and it was a MODEL-SPACE
+         * height used as a WORLD-SPACE one (CONTRACT §9's table).
+         *
+         * This test decides whether a box is overhead or underfoot, and
+         * `city.js` decides the same thing off the delivered instance matrix:
+         * `lo = e[13] − hy − baseY` against the same 2.10. The two were asking
+         * the same question in two different spaces, because the model is
+         * drawn at `p.scale` and tipped by `leanDeg` and this test knew about
+         * neither. Measured: the broad tree's lowest foliage cleared 2.10 by
+         * 83 mm at scale 1 and hung at **1.68 m** as delivered at scale 0.85
+         * with 5° of lean — so the generator claimed a trunk's worth of ground
+         * and `city.js` delivered a crown's, and `citycheck` → `occupancy`
+         * reported the difference as six trees overlapping their carriageways.
+         *
+         *   underside, model      u  = b.y − (h/2·cos θ + w/2·sin θ)
+         *   worst lean about the base, at the worst azimuth:
+         *                         u·cos φ − R·sin φ,  R = the box's own
+         *                         horizontal reach from the model axis
+         *   worst scale           × PROP_SCALE.min
+         *
+         * `R` is the circumscribing horizontal radius rather than the exact
+         * lowest corner's, so the bound is CONSERVATIVE — it can call a box
+         * underfoot that is marginally overhead, never the reverse. That is
+         * the safe direction: an over-claim shows up as a spurious conflict a
+         * reader can see, and an under-claim shows up as nothing at all
+         * (`occupancy.js`, on why a missing height defaults to a surface).
+         */
+        const gw = (b.w / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        const gd = (b.d / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        const u = b.y - ((b.h / 2) * Math.cos(th) + (b.w / 2) * Math.sin(th));
+        const R = Math.hypot(Math.abs(b.x) + gw, Math.abs(b.z) + gd);
+        if ((u * Math.cos(phi) - R * Math.sin(phi)) * PROP_SCALE.min >= HEAD_CLEAR_M) continue;
+        across = Math.max(across, Math.abs(b.z) + gd);
       }
       const lean = v.leanRange ? Math.sin((v.leanRange * Math.PI) / 180) * HEAD_CLEAR_M : 0;
       each.push(+(across + lean).toFixed(3));
@@ -4572,8 +4645,17 @@ export function generateChunk(rootSeed, cx, cz) {
   const WALK_CLEAR_M = 0.45;
   const LANE_CENTRE_M = (CITY.roadHalfWidth + CORRIDOR) / 2;
   /**
-   * The four pavement lines this chunk draws, as (fixed axis value, the axis
-   * the band runs along, the outward sign). `t` runs along the band.
+   * The four pavement lines this chunk draws, as (the FIXED axis, that axis's
+   * value, the outward sign). `t` runs along the band, on the OTHER axis.
+   *
+   * `axis` NAMES THE AXIS THAT IS HELD CONSTANT, NOT THE ONE THE BAND RUNS
+   * ALONG, and the comment here said the opposite for a session. Read the rows
+   * below rather than this sentence: a band with `axis: 'x'` carries
+   * `at: b.x0`, an x coordinate, and `t0/t1` over the chunk's **z** range — so
+   * the kerb line runs along **Z** and a prop lined up with it wants yaw 90°.
+   * The claim at the placement site has always been built that way round; the
+   * emitted yaw was not, and the mismatch is §9's table with a lattice axis
+   * (see the `kerbRef` assignment below for the measurement).
    */
   const kerbBands = [
     { axis: 'x', at: b.x0, side: +1, t0: b.z0 + CORRIDOR + 3, t1: b.z1 - 3 },
@@ -4637,7 +4719,7 @@ export function generateChunk(rootSeed, cx, cz) {
        * before there was anything to draw them with.
        */
       : propRng.pick(['bollard', 'planter', 'bin', 'cabinet', 'tree', 'bench', 'hydrant']);
-    const scale = propRng.range(0.85, 1.25);
+    const scale = propRng.range(PROP_SCALE.min, PROP_SCALE.max);
     /**
      * THE VARIANT IS DRAWN HERE, BEFORE THE FIT TEST, because which model it is
      * decides whether it fits. It used to be drawn at the end, beside `soil`
@@ -4781,7 +4863,44 @@ export function generateChunk(rootSeed, cx, cz) {
           kerbRef = (-Math.atan2(dz, 8) * 180) / Math.PI;
           kerbYaw = kerbRef + yaw();
         } else {
-          kerbRef = band.axis === 'x' ? 0 : 90;
+          /**
+           * THE LATTICE BANDS, AND THIS LINE WAS TRANSPOSED — session 22.
+           *
+           * `band.axis` is the FIXED axis (see `kerbBands`), so `axis: 'x'` is a
+           * kerb line running along **Z** and its props want **90°**; `axis:
+           * 'z'` runs along X and wants **0°**. It shipped the other way round,
+           * and the two cases are inverted against EACH OTHER — which is why
+           * both produced the same defect and why no comparison between the two
+           * lattice bands could show it.
+           *
+           * THE CLAIM WAS ALWAYS RIGHT. Twenty lines up, `axis === 'x'` claims
+           * `claimAt('prop', x, z, halfAcross, halfAlong)` — the small
+           * half-extent on X and the long one on Z, i.e. exactly yaw 90°. So
+           * the generator tested a box lying along the kerb and `city.js` drew
+           * one lying across it, and `citycheck`'s two halves disagreed by
+           * exactly that transposition. CONTRACT §9 rule 2, measured on one
+           * delivered bench at (8.097, 76.568) by `tools/benchprobe.mjs`:
+           *
+           *     claimed    half (x 0.286, z 0.944)   yaw the claim implies  90°
+           *     delivered  half (x 0.935, z 0.252)   yaw the record carries  -0.325°
+           *     transposed (x -0.008, z -0.034)  ← claimed half SWAPPED
+           *
+           * The centres agree to four decimals and the two boxes are each
+           * other's transpose to within 0.044 m, which is not slop: the claim
+           * is built at `CITY.maxYawDeg` (the worst case over the jitter) and
+           * the bench was drawn at -0.325°, so the claim is larger by exactly
+           * the margin it is supposed to carry.
+           *
+           * 90 AND -90 ARE THE SAME AXIS AND THE SAME BOX, and nothing in this
+           * project distinguishes them today: the occupancy claim reads
+           * |cos|/|sin|, the alignment check reads `yawDeg - refDeg` mod 90, and
+           * `band.side` — the field that would decide which way a bench's BACK
+           * faces — is not read here at all. That is a real gap and it is
+           * written down rather than closed on a guess, because a bench turned
+           * to face the road is a content decision with no measurement behind
+           * it yet.
+           */
+          kerbRef = band.axis === 'x' ? 90 : 0;
           kerbYaw = kerbRef + yaw();
         }
         kerb = true;
