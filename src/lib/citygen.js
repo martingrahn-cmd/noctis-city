@@ -2930,7 +2930,16 @@ function derivePropHalfWidth(perVariant = false) {
  * 2.10 clears a tall person with a hand up. Boxes whose UNDERSIDE is above it
  * are not counted.
  */
-const HEAD_CLEAR_M = 2.10;
+/**
+ * EXPORTED SINCE SESSION 22, and it is one number with one owner rather than
+ * two literals. `city.js`'s band split reads it to decide which of a prop's two
+ * claims a delivered box belongs in, and `derivePropHalfAcross` below reads it
+ * to decide which boxes count toward the across-pad. THOSE ARE THE TWO HALVES
+ * OF ONE COMPARISON — see STATE 22 §2 for what happens when they disagree —
+ * and the second literal carried a comment claiming `citycheck` printed both
+ * when they differed, which nothing did (CONTRACT §9.1).
+ */
+export const HEAD_CLEAR_M = 2.10;
 
 /**
  * THE SCALE EVERY PROP IS DRAWN AT, and it is here rather than as a literal in

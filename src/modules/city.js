@@ -68,6 +68,7 @@ import {
   ROOF_PARAPET_M,
   ROOF_SIGN,
   HEIGHT_DISTRIBUTION,
+  HEAD_CLEAR_M,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -529,15 +530,31 @@ export function createCity(options = {}) {
    */
   const MARKING_THICKNESS_M = 0.004;
   /**
-   * Metres. Where a prop stops being in the way and starts being overhead —
-   * `citygen`'s own `HEAD_CLEAR_M`, which is the height `propHalfAcross`
-   * measures below. Duplicated as a literal here rather than exported and
-   * imported, and that is a deliberate exception with its reason: it is a
-   * PROPERTY OF A PERSON (1.72 m plus a hand up) rather than of the generator,
-   * and the two readers use it for two different questions. `citycheck` prints
-   * both when they disagree.
+   * `HEAD_CLEAR_M` IS IMPORTED NOW, AND THE COMMENT THAT WAS HERE CLAIMED A
+   * CHECK THAT DID NOT EXIST — session 22.
+   *
+   * It said: *"Duplicated as a literal here rather than exported and imported,
+   * and that is a deliberate exception with its reason: it is a PROPERTY OF A
+   * PERSON rather than of the generator, and the two readers use it for two
+   * different questions. `citycheck` prints both when they disagree."*
+   *
+   * `citycheck` does not mention `HEAD_CLEAR_M` anywhere, and neither does
+   * `harness.js`. That is CONTRACT §9.1's own rule — *a comment that claims a
+   * check names the file the check is in, or it does not claim one* — and §9.1
+   * says why it is the worst variant: the silent ones are silent, and this one
+   * ADVERTISES a guarantee to the next reader.
+   *
+   * AND THE DISTINCTION IT DREW WAS FALSE. The two readers ask the SAME
+   * question: `derivePropHalfAcross` asks "is this box overhead" to decide the
+   * across-pad, and the loop below asks "is this box overhead" to decide which
+   * band to claim. They are the two halves of one split, and §2 of STATE 22 is
+   * what happens when they disagree — the generator claimed a trunk's worth of
+   * ground and this file delivered a crown's. Two literals for the two sides of
+   * one comparison is the arrangement `pierEvery: 34` sat in.
+   *
+   * One number, one owner, no gate needed — the same remedy CONTRACT §9's
+   * session-20 row applied to `ROOF_PARAPET_M`, which is imported two lines up.
    */
-  const HEAD_CLEAR_M = 2.10;
   /** Linear. Fresh white marking material, 0.55-0.70; the middle of the band. */
   const MARKING_ALBEDO = [0.62, 0.615, 0.60];
 
