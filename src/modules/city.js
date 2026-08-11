@@ -432,6 +432,23 @@ export function createCity(options = {}) {
      */
     tmpPos.set(p.x + tmpPos.x, baseY + tmpPos.y, p.z + tmpPos.z);
     tmpScale.set(b.w * s, b.h * s, b.d * s);
+    /**
+     * THE BOX'S OWN TILT, INSIDE the model frame — session 21.
+     *
+     * `citygen`'s `bxt()` declares it and the canopy masses use it. Composed on
+     * the RIGHT of the model quaternion, so it is a rotation in the model's own
+     * axes: a canopy mass tilted 9° about a bearing of 24° stays tilted 9°
+     * about that bearing when the whole tree is yawed or leaned, which is what
+     * makes a leaning tree read as one object. Composing on the left would make
+     * `tiltAz` a WORLD bearing and every tree of a given variant would lean its
+     * foliage the same way whatever its yaw — a stamp rather than a species.
+     */
+    if (b.tilt) {
+      const az = (b.tiltAz || 0) * DEG;
+      tmpLeanAxis.set(Math.cos(az), 0, Math.sin(az));
+      tmpLeanQuat.setFromAxisAngle(tmpLeanAxis, b.tilt * DEG);
+      tmpQuat.multiply(tmpLeanQuat);
+    }
     return tmpMatrix.compose(tmpPos, tmpQuat, tmpScale).clone();
   }
 
@@ -489,9 +506,40 @@ export function createCity(options = {}) {
     /** The two gravel paths across a park. */
     pathEW: GROUND.pathEW,
     pathNS: GROUND.pathNS,
+    /**
+     * A construction site's hardcore — session 21. At the carriageway's own
+     * datum rather than the grass's: a site is a stripped surface, which is
+     * what the ground UNDER a road is, and it is the one low-detail block whose
+     * surface is lower than the pavement around it rather than higher.
+     */
+    site: GROUND.carriageway,
     /** The world's earth plane, in `block.js`. Everything not listed above. */
     earth: GROUND.earth,
   };
+
+  /**
+   * Metres. A road marking's own thickness — session 21.
+   *
+   * Thermoplastic screed is laid 2 to 3 mm thick and a hot-applied line with
+   * beads rolled in reads about 4 mm proud. It is emitted as a BOX rather than
+   * as a ground quad for two reasons and both are load-bearing: coplanar
+   * surfaces z-fight, and the 4 mm edge is what a headlight catches at a
+   * grazing angle. A wheel does not climb 4 mm, which is the same argument
+   * `PATCH_THICKNESS_M` makes at 10 mm.
+   */
+  const MARKING_THICKNESS_M = 0.004;
+  /**
+   * Metres. Where a prop stops being in the way and starts being overhead —
+   * `citygen`'s own `HEAD_CLEAR_M`, which is the height `propHalfAcross`
+   * measures below. Duplicated as a literal here rather than exported and
+   * imported, and that is a deliberate exception with its reason: it is a
+   * PROPERTY OF A PERSON (1.72 m plus a hand up) rather than of the generator,
+   * and the two readers use it for two different questions. `citycheck` prints
+   * both when they disagree.
+   */
+  const HEAD_CLEAR_M = 2.10;
+  /** Linear. Fresh white marking material, 0.55-0.70; the middle of the band. */
+  const MARKING_ALBEDO = [0.62, 0.615, 0.60];
 
   /**
    * THE ONE WALK OVER THE EMITTED GROUND RECTANGLES. Session 19.
@@ -548,6 +596,12 @@ export function createCity(options = {}) {
    * phase is a hash of the lamp's own position and not a random draw.
    */
   const beaconMeshes = [];
+
+  /**
+   * Per-chunk delivered occupancy records, keyed the same way `resident` is.
+   * Dropped in `unbind`/`unbuild` with everything else the chunk owns.
+   */
+  const chunkClaims = new Map();
 
   /**
    * THE FLASH — slow, asynchronous, and on the one clock.
@@ -712,7 +766,6 @@ export function createCity(options = {}) {
    * by reflectance and barely at all by finish, and one mesh is one draw.
    */
   function buildGround(chunk) {
-    const b = chunkBounds(chunk.cx, chunk.cz);
     const positions = [];
     const normals = [];
     const colors = [];
@@ -722,8 +775,8 @@ export function createCity(options = {}) {
     /**
      * A HORIZONTAL QUAD, WOUND SO THAT ITS FRONT FACE POINTS UP.
      *
-     * IT DID NOT, AND NOT ONE SQUARE METRE OF THIS CITY'S ROAD SURFACE HAS EVER
-     * REACHED A FRAME. The old order was
+     * IT DID NOT, AND NOT ONE SQUARE METRE OF THIS CITY'S ROAD SURFACE HAD
+     * REACHED A FRAME UNTIL SESSION 19. The old order was
      *
      *     (x0,z0) (x1,z0) (x1,z1)   and   (x0,z0) (x1,z1) (x0,z1)
      *
@@ -734,24 +787,7 @@ export function createCity(options = {}) {
      * road patch in the streamed city was rasterised as a back face and
      * discarded. The `normal` attribute says (0,1,0) at every vertex and is
      * believed by the lighting — which is why nothing looked lit from
-     * underneath and nothing looked wrong. It looked like bare earth, because
-     * bare earth is what the global ground plane at y = -0.02 is.
-     *
-     * IT COST A DRAW CALL A CHUNK THE WHOLE TIME. The mesh is submitted; the
-     * triangles die in the rasteriser. Measured from an elevated shot: hiding
-     * all 31 chunk ground meshes took the frame from 454 draw calls to 434 and
-     * changed not one pixel.
-     *
-     * THIS IS SESSION 12's DEFECT IN A SECOND PLACE. That one was a lofted
-     * surface whose shading normal was flipped and whose triangle winding was
-     * not; this is a flat surface whose normal was AUTHORED up and whose
-     * winding was never checked against it. Both are a normal and a facing
-     * treated as one quantity, both were invisible to every gate in the
-     * project, and the session that found the first one did not go looking for
-     * the second. CONTRACT §9's table gains a row.
-     *
-     * How it was found: a park's grass quad was added to this function and
-     * could not be seen — and then neither could the road beside it.
+     * underneath and nothing looked wrong. CONTRACT §9.1 carries it.
      */
     const quad = (x0, z0, x1, z1, y, albedo, kind) => {
       const v = [
@@ -765,177 +801,78 @@ export function createCity(options = {}) {
       }
       /**
        * THE SAME RECTANGLE, RECORDED, SO THAT `surfaceAt` READS THE SURFACE
-       * THAT WAS EMITTED RATHER THAN A SECOND DESCRIPTION OF IT.
-       *
-       * A point query written from the corridor arithmetic above would be a
-       * transcription of `clipped`, `clippedKO` and `riverCut` — three clips
-       * whose whole job is to decide WHERE a quad is not emitted — and it would
-       * be wrong in exactly the places those clips are interesting: the origin
-       * block's keep-out, the bank, and a bridge crossing. That is §9.1's "a
-       * value in config the code does not read" with a geometry clip instead of
-       * a constant, and it would fail as an eye standing on a road that is not
-       * there. Recording the emitted rectangle costs 48 bytes a quad, about 10
-       * quads a chunk, 25 near chunks — 12 kB — and cannot disagree with the
-       * mesh because it IS the mesh.
+       * THAT WAS EMITTED RATHER THAN A SECOND DESCRIPTION OF IT. 48 bytes a
+       * quad, about ten quads a chunk, twenty-five near chunks — 12 kB — and it
+       * cannot disagree with the mesh because it IS the mesh.
        */
       rects.push({ x0, z0, x1, z1, y, kind });
     };
 
     /**
-     * THE ORIGIN BLOCK KEEPS ITS OWN ROAD, AND THIS IS WHERE THAT IS ENFORCED.
+     * THIS FUNCTION NO LONGER DECIDES WHERE THE GROUND IS — SESSION 21.
      *
-     * `block.js` authors the street the look gate measures frame by frame — its
-     * carriageway, its pavements, its kerb line — and the generator already
-     * refuses to put buildings or props inside `BLOCK_KEEPOUT`. The GROUND had
-     * no such rule, because until the winding was fixed above the ground was
-     * never drawn and nothing could collide with anything. The moment it was,
-     * chunk (0,0)'s two road quads landed on top of the block's own street at
-     * 0.02 m above it, replaced the authored surface with the generic one, and
-     * took `groundPools` and `shadowHue` red in the same run.
+     * It used to compute the six corridor strips itself and clip them against
+     * the two things it knew by name: `BLOCK_KEEPOUT` and the river. It knew
+     * nothing about the landmarks, so the delivered city carried 2 906 m2 of
+     * carriageway inside the exchange's dome, 2 113 inside the condenser and
+     * 1 201 inside the dish — and the operator walked into the first of those.
      *
-     * So every quad is clipped against the keep-out along its long axis. Two
-     * pieces at most, because a road strip crosses a rectangle in at most two
-     * places and a piece of zero length is not emitted.
+     * The rectangles are now `chunk.ground`, computed in `citygen.js` beside
+     * the keep-out registry they are clipped against (`src/lib/occupancy.js`).
+     * What is left here is the part that was always this module's: turning a
+     * rectangle into triangles, and choosing the reflectance.
+     *
+     * THE REFLECTANCES ARE STILL DECIDED HERE and that is deliberate. They are
+     * physical quantities the exposure system reads (CONTRACT §5.3), the
+     * generator is `three`-free and unit-free, and a linear albedo in a
+     * placement file is a number in the wrong file.
      */
-    const KO = BLOCK_KEEPOUT;
-    /**
-     * THE RIVER TAKES ITS SHARE OF THE ROAD NETWORK, AND IT TAKES IT IN TWO
-     * DIFFERENT WAYS.
-     *
-     * An EAST–WEST road whose line lies inside the river's envelope is not a
-     * road, it is the river: `z = -384` runs down the middle of the channel for
-     * every x in the world, and the 13% of stations where the meander leaves it
-     * momentarily on dry land would deliver a 200 m stub of carriageway
-     * emerging from the water at both ends. So the whole line is refused, once,
-     * on the envelope rather than on the water — a bound rather than a sample.
-     *
-     * A NORTH–SOUTH road CROSSES, and what happens to it is the difference
-     * between a quay and a bridge. On a crossing that carries one (`x` a
-     * multiple of `RIVER.bridgeEvery · chunkSize`) the deck is at street grade
-     * and `river.js` lays the carriageway across it, so the quad is left whole
-     * and the two surfaces meet. Everywhere else it is cut back to the bank and
-     * the street terminates at the quay, which is what the other three streets
-     * in four do on a real embankment.
-     *
-     * THE CUT IS TAKEN AT THE WORST STATION ACROSS THE QUAD'S OWN WIDTH, not at
-     * its centreline. The bank's steepest slope is 0.11, so over a 23.4 m
-     * corridor the water's edge moves 2.6 m; cutting at the centre would leave
-     * up to 1.3 m of carriageway hanging over the water at one kerb. Taking the
-     * northernmost `north` and the southernmost `south` over the quad's x range
-     * stops the road short on both kerbs instead, and the gap is bare
-     * embankment that the quay wall and the promenade stand on.
-     */
-    const env = riverEnvelope();
-    const riverCut = (x0, x1) => {
-      let north = Infinity;
-      let south = -Infinity;
-      // Eleven samples: the corridor is 23.4 m and the bank's curvature makes
-      // it monotone over that span, so the ends dominate — the interior
-      // samples are there because "monotone over 23 m" is a claim about the
-      // meander's period and not a property anybody has proved.
-      for (let i = 0; i <= 10; i++) {
-        const e = riverEdges(x0 + ((x1 - x0) * i) / 10);
-        north = Math.min(north, e.north);
-        south = Math.max(south, e.south);
-      }
-      return { north, south };
-    };
-    /** The origin block's keep-out, and nothing else. Never re-enters the river. */
-    const clippedKO = (x0, z0, x1, z1, y, albedo, kind) => {
-      if (z1 - z0 <= 0 || x1 - x0 <= 0) return;
-      const overlaps = x1 > KO.x0 && x0 < KO.x1 && z1 > KO.z0 && z0 < KO.z1;
-      if (!overlaps) { quad(x0, z0, x1, z1, y, albedo, kind); return; }
-      // Split along whichever axis the strip is longer on, and drop the middle.
-      if (x1 - x0 >= z1 - z0) {
-        if (KO.x0 > x0) quad(x0, z0, Math.min(x1, KO.x0), z1, y, albedo, kind);
-        if (KO.x1 < x1) quad(Math.max(x0, KO.x1), z0, x1, z1, y, albedo, kind);
-      } else {
-        if (KO.z0 > z0) quad(x0, z0, x1, Math.min(z1, KO.z0), y, albedo, kind);
-        if (KO.z1 < z1) quad(x0, Math.max(z0, KO.z1), x1, z1, y, albedo, kind);
-      }
-    };
-    /** Metres. Widest a road strip can be: carriageway plus both pavements. */
-    const STRIP_MAX = 2 * CORRIDOR + 1;
-    const clipped = (x0, z0, x1, z1, y, albedo, kind) => {
-      if (z1 > env.z0 && z0 < env.z1) {
-        const eastWestStrip = z1 - z0 <= STRIP_MAX && x1 - x0 > z1 - z0;
-        // A road line inside the channel is the river. Refused on the ENVELOPE
-        // — a bound — rather than on the water, so it is refused everywhere and
-        // not at 87% of stations.
-        if (eastWestStrip) return;
-        if (!onBridgeDeck(rootSeed, (x0 + x1) / 2, (env.z0 + env.z1) / 2)) {
-          const cut = riverCut(x0, x1);
-          clippedKO(x0, z0, x1, Math.min(z1, cut.north), y, albedo, kind);
-          clippedKO(x0, Math.max(z0, cut.south), x1, z1, y, albedo, kind);
-          return;
-        }
-      }
-      clippedKO(x0, z0, x1, z1, y, albedo, kind);
-    };
-
-    // Asphalt is 0.08 linear; a weathered concrete pavement slab is 0.26.
-    // Physical reflectances, not chosen tones — the exposure system reads them.
     const Y = GROUND_Y;
     const roadAlbedo = chunk.roadMaterials[0] === 'concrete' ? [0.19, 0.19, 0.185] : [0.082, 0.082, 0.086];
     const walkAlbedo = [0.26, 0.257, 0.248];
-    const r = CITY.roadHalfWidth;
-    const w = CORRIDOR;
-
     /**
-     * A PARK IS A BLOCK TYPE, AND UNTIL THIS SESSION IT WAS A LABEL.
-     *
-     * `LOW_DETAIL_KINDS` has had `park` in it since session 4 and the scatter
-     * has picked trees, benches and planters for it — but the GROUND was the
-     * same bare earth every other dead zone has, so a park was a car park with
-     * different furniture on it. `docs/authored-city.md`'s addendum asks for 8%
-     * of blocks to be low-detail and the delivered figure is 17.3%; what it
-     * does not ask for, and what the film wanted, is for one of those kinds to
-     * be GREEN. Asphalt does not break a street wall. Grass does.
-     *
-     * Reflectance 0.062/0.094/0.045 linear: mown grass integrates to about 0.10
-     * photopic with a strong green bias, which is the same order as the 0.082
-     * asphalt beside it and half the 0.26 pavement — so a park reads as a hole
-     * in the block at noon and as a very dark hole at night, which is what a
-     * park is at both hours.
-     *
-     * Two paths across it, at 0.19 — a pale gravel, the same reflectance as the
-     * concrete road variant. Without them a park is a green rectangle, and a
-     * green rectangle is a texture rather than a place.
+     * Mown grass integrates to about 0.10 photopic with a strong green bias,
+     * which is the same order as the 0.082 asphalt beside it and half the 0.26
+     * pavement — so a park reads as a hole in the block at noon and as a very
+     * dark hole at night, which is what a park is at both hours.
      */
-    if (chunk.kind === 'park') {
-      const isl = { x0: b.x0 + w, x1: b.x1 - w, z0: b.z0 + w, z1: b.z1 - w };
-      clipped(isl.x0, isl.z0, isl.x1, isl.z1, Y.grass, [0.062, 0.094, 0.045], 'grass');
-      const mx = (isl.x0 + isl.x1) / 2;
-      const mz = (isl.z0 + isl.z1) / 2;
-      quad(isl.x0, mz - 1.4, isl.x1, mz + 1.4, Y.pathEW, [0.19, 0.186, 0.176], 'path');
-      quad(mx - 1.4, isl.z0, mx + 1.4, isl.z1, Y.pathNS, [0.19, 0.186, 0.176], 'path');
-    }
+    const grassAlbedo = [0.062, 0.094, 0.045];
+    /** Pale gravel: the same reflectance as the concrete road variant. */
+    const pathAlbedo = [0.19, 0.186, 0.176];
+    /**
+     * Site hardcore — crushed concrete and clay, wet more often than not.
+     * 0.115 sits between asphalt's 0.082 and the pavement's 0.26, and the
+     * green channel leads the blue because the clay in it is warm.
+     */
+    const siteAlbedo = [0.115, 0.107, 0.092];
 
-    // West edge, running north–south, and north edge, running east–west. Slightly
-    // above the global ground plane so there is no z-fighting with it.
-    clipped(b.x0 - r, b.z0 - w, b.x0 + r, b.z1 + w, Y.roadNS, roadAlbedo, 'road');
-    clipped(b.x0 - w, b.z0 - r, b.x1 + w, b.z0 + r, Y.roadEW, roadAlbedo, 'road');
-    clipped(b.x0 + r, b.z0 + r, b.x0 + w, b.z1, Y.walkNS, walkAlbedo, 'walk');
-    clipped(b.x0 - w, b.z0 + r, b.x0 - r, b.z1, Y.walkNS, walkAlbedo, 'walk');
-    clipped(b.x0 + w, b.z0 + r, b.x1, b.z0 + w, Y.walkEW, walkAlbedo, 'walk');
-    clipped(b.x0 + w, b.z0 - w, b.x1, b.z0 - r, Y.walkEW, walkAlbedo, 'walk');
+    const albedoFor = (kind) => (
+      kind === 'road' ? roadAlbedo
+        : kind === 'walk' ? walkAlbedo
+          : kind === 'grass' ? grassAlbedo
+            : kind === 'path' ? pathAlbedo
+              : kind === 'siteGround' ? siteAlbedo
+                : walkAlbedo);
+
+    for (const g of chunk.ground) {
+      quad(g.x0, g.z0, g.x1, g.z1, Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth,
+        albedoFor(g.kind), g.kind === 'siteGround' ? 'site' : g.kind);
+    }
 
     /**
      * THE UNION AABB OF THIS CHUNK'S OWN QUADS — session 19, and it exists so
      * that `surfaceAt` can be called 360 times a frame instead of once.
      *
-     * `surfaceAt` walks a 3×3 neighbourhood because a chunk emits the corridors
+     * `surfaceAt` walks a 3x3 neighbourhood because a chunk emits the corridors
      * on its WEST and NORTH edges, so a point can stand on a neighbour's quad.
-     * That is nine chunks × about ten rectangles = ~90 containment tests per
+     * That is nine chunks x about ten rectangles = ~90 containment tests per
      * query, which is nothing at one query a frame (the player) and is 32 400
      * at one per pedestrian. Eight of the nine chunks cannot contain the point
      * at all, and this bound rejects each of them in four comparisons.
      *
-     * Computed here rather than in the query because the rectangles are already
-     * in hand and never change afterwards; it is 32 bytes a chunk against the
-     * 12 kB the rectangles themselves cost. Empty chunks — everything clipped
-     * away by the keep-out or the river — get an inverted box that fails every
-     * test, which is the correct answer for a chunk with no ground in it.
+     * Empty chunks — everything clipped away by the keep-out or the river —
+     * get an inverted box that fails every test, which is the correct answer
+     * for a chunk with no ground in it.
      */
     let bx0 = Infinity;
     let bz0 = Infinity;
@@ -1152,6 +1089,19 @@ export function createCity(options = {}) {
   }
 
   function buildChunkBody(ctx, cx, cz, detail, ring, chunk, group, bytesIn, near, ground) {
+    /**
+     * WHAT THIS CHUNK ACTUALLY PUT ON THE GROUND — session 21, and it is the
+     * gate's half of the keep-out registry.
+     *
+     * `src/lib/occupancy.js` holds the registry the GENERATOR writes and reads.
+     * This is the same shape of record built from the DELIVERED geometry, at
+     * the point of emission, so `citycheck` can run the same conflict table
+     * over what was drawn rather than over what was decided. CONTRACT §9.1:
+     * *a gate that reads config verifies the config* — and this project has
+     * twice had a generator that decided correctly and a module that drew
+     * something else (the buried signs, the one-metre road slabs).
+     */
+    const placed = [];
     let bytes = bytesIn;
 
     const bodies = [];
@@ -1655,6 +1605,45 @@ export function createCity(options = {}) {
       for (const p of chunk.props) {
         const model = PROP_MODELS[p.kind];
         if (!model || !model.length) continue;
+        /**
+         * THE DELIVERED EXTENT, ACCUMULATED FROM THE MATRICES THAT WERE
+         * ACTUALLY PUSHED — session 21.
+         *
+         * `citycheck`'s occupancy gate must read the ARTEFACT and not the
+         * generator's description of it (CONTRACT §9.1: a gate that reads
+         * config verifies the config). The generator claimed a square of
+         * `propHalfWidth`; what is DRAWN is a set of boxes under a scale, a
+         * yaw, a lean and a per-box tilt, and the two are only the same number
+         * if every one of those transforms does what its author thought. Twice
+         * now one has not.
+         *
+         * Same argument, and the same 48-bytes-a-record price, as
+         * `buildGround`'s `rects`: it cannot disagree with the mesh because it
+         * IS the mesh.
+         */
+        /**
+         * TWO BANDS, SPLIT AT HEAD HEIGHT, AND THE SPLIT IS WHAT MAKES THE
+         * CHECK CORRECT RATHER THAN LOUD.
+         *
+         * One AABB per prop, claimed from the ground to its own top, reported
+         * **60 forbidden overlaps between a street tree and the carriageway it
+         * stands beside** — every one of them a canopy at 3.4 to 5.8 m
+         * overhanging a road surface at 0.05 m. A tree overhanging a
+         * carriageway is what a street tree IS; the conflict was the
+         * instrument's, from collapsing a three-dimensional object into a
+         * footprint and then testing it against a vertical extent.
+         *
+         * The split is `HEAD_CLEAR_M` = 2.10 m, which is `citygen`'s own number
+         * for exactly this distinction (`propHalfAcross` counts only what is
+         * below it, because the question a pavement asks is "what is in my
+         * way" and not "what is over my head"). Two bands rather than one box
+         * per model box, because a prop's own boxes overlap each other by
+         * construction and would report a tree as colliding with itself.
+         */
+        const band = [
+          { kind: 'prop', x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y0: Infinity, y1: -Infinity },
+          { kind: 'canopy', x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y0: Infinity, y1: -Infinity },
+        ];
         const v = model[Math.min(model.length - 1, p.variant || 0)];
         const leanDeg = v.leanRange ? v.leanRange * (p.lean || 0) : 0;
         const soil = p.soil == null ? 1 : p.soil;
@@ -1677,12 +1666,228 @@ export function createCity(options = {}) {
          */
         const baseY = worldSurface(ctx, p.x, p.z).y;
         for (const b of v.boxes) {
-          props.push(propMatrix(p, b, leanDeg, baseY));
+          const m = propMatrix(p, b, leanDeg, baseY);
+          props.push(m);
           propSkin.push({
             albedo: [b.albedo[0] * soil, b.albedo[1] * soil, b.albedo[2] * soil],
             roughness: b.rough,
           });
+          // The box's own world half-extents, off the delivered matrix: the
+          // sum of |basis column| * 0.5 per axis, which is exact for a box
+          // under any rotation and scale.
+          const e = m.elements;
+          const hx = (Math.abs(e[0]) + Math.abs(e[4]) + Math.abs(e[8])) / 2;
+          const hy = (Math.abs(e[1]) + Math.abs(e[5]) + Math.abs(e[9])) / 2;
+          const hz = (Math.abs(e[2]) + Math.abs(e[6]) + Math.abs(e[10])) / 2;
+          const lo = e[13] - hy - baseY;
+          const bd = band[lo < HEAD_CLEAR_M ? 0 : 1];
+          if (e[12] - hx < bd.x0) bd.x0 = e[12] - hx;
+          if (e[12] + hx > bd.x1) bd.x1 = e[12] + hx;
+          if (e[14] - hz < bd.z0) bd.z0 = e[14] - hz;
+          if (e[14] + hz > bd.z1) bd.z1 = e[14] + hz;
+          if (lo < bd.y0) bd.y0 = lo;
+          if (e[13] + hy - baseY > bd.y1) bd.y1 = e[13] + hy - baseY;
         }
+        for (const bd of band) {
+          if (bd.x1 <= bd.x0) continue;
+          placed.push({
+            kind: bd.kind, owner: p.kind,
+            x0: bd.x0, x1: bd.x1, z0: bd.z0, z1: bd.z1,
+            y0: Math.max(0, bd.y0), y1: Math.max(0.05, bd.y1),
+          });
+        }
+      }
+
+      /**
+       * WHAT A PARK AND A SITE BUILD — session 21.
+       *
+       * `chunk.features` is decided in the generator, beside the registry that
+       * refused the ones that did not fit. Nothing here places anything: this
+       * turns a list of decisions into boxes, exactly as the prop loop above
+       * turns `chunk.props` into boxes.
+       *
+       * All of it rides in the chunk's own box mesh at ZERO extra draw calls,
+       * which is the same arrangement the props and the window reveals already
+       * have and is the reason a park can afford lighting columns at all.
+       */
+      for (const f of chunk.features) {
+        const y0 = worldSurface(ctx, f.x, f.z).y;
+        let fx0 = Infinity; let fx1 = -Infinity; let fz0 = Infinity; let fz1 = -Infinity; let fTop = 0;
+        const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
+          const c = Math.cos(((f.yawDeg || 0) * Math.PI) / 180);
+          const s = Math.sin(((f.yawDeg || 0) * Math.PI) / 180);
+          const wx = f.x + dx * c - dz * s;
+          const wz = f.z + dx * s + dz * c;
+          props.push(setMatrix(wx, y0 + dy, wz, sx, sy, sz,
+            (yawDeg === undefined ? (f.yawDeg || 0) : yawDeg)));
+          propSkin.push({ albedo, roughness: rough });
+          const hx = Math.max(sx, sz) / 2;
+          if (wx - hx < fx0) fx0 = wx - hx;
+          if (wx + hx > fx1) fx1 = wx + hx;
+          if (wz - hx < fz0) fz0 = wz - hx;
+          if (wz + hx > fz1) fz1 = wz + hx;
+          if (dy + sy / 2 > fTop) fTop = dy + sy / 2;
+        };
+        if (f.kind === 'edge') {
+          /**
+           * THREE TREATMENTS OFF ONE DESCRIPTION. A railing is standards and a
+           * top rail; a hedge is one clipped mass; a low wall is a course and a
+           * coping. The reflectances are the same physical ones the props use —
+           * cast iron 0.055, foliage 0.085, concrete 0.30 — because a park
+           * railing is the same iron as a bollard.
+           */
+          if (f.edge === 'railing') {
+            put(0, f.height * 0.5, 0, f.length * 0.96, 0.05, 0.05, [0.055, 0.055, 0.058], 0.7);
+            put(0, f.height * 0.62, 0, f.length * 0.96, 0.04, 0.04, [0.055, 0.055, 0.058], 0.7);
+            for (const e of [-0.48, 0, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.06, f.height, 0.06, [0.055, 0.055, 0.058], 0.7);
+          } else if (f.edge === 'hedge') {
+            put(0, f.height * 0.5, 0, f.length, f.height, 0.44, [0.062, 0.098, 0.052], 0.95);
+            put(0, f.height * 0.88, 0, f.length * 0.94, f.height * 0.3, 0.36, [0.074, 0.112, 0.058], 0.95);
+          } else {
+            put(0, f.height * 0.44, 0, f.length, f.height * 0.88, 0.36, [0.30, 0.298, 0.288], 0.9);
+            put(0, f.height * 0.94, 0, f.length * 1.02, f.height * 0.14, 0.44, [0.33, 0.325, 0.31], 0.82);
+          }
+        } else if (f.kind === 'centre') {
+          /**
+           * THE THING IN THE MIDDLE. Four kinds, and they differ in SILHOUETTE
+           * rather than in decoration, because at the distance a park is read
+           * from that is the only channel there is: a pond is a horizontal
+           * plane below the eye, a pavilion is a roof on posts, a monument is a
+           * vertical, and a square is a level of paving with seating on it.
+           */
+          const r = f.half;
+          if (f.centre === 'pond') {
+            put(0, 0.10, 0, r * 2.02, 0.20, r * 2.02, [0.33, 0.325, 0.31], 0.75);
+            /**
+             * The water. Reflectance 0.02 and roughness 0.06 — Fresnel does the
+             * work, which is what makes a still pond read as a mirror of the
+             * sky at dusk and as black at midnight. It is a POND rather than
+             * `river.js`'s water: no flow, no Cox–Munk, no SSR source, because
+             * a 10 m dish does not need a wave model.
+             */
+            put(0, 0.16, 0, r * 1.86, 0.06, r * 1.86, [0.02, 0.022, 0.026], 0.06);
+          } else if (f.centre === 'pavilion') {
+            for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(sx * r * 0.7, 1.6, sz * r * 0.7, 0.22, 3.2, 0.22, [0.18, 0.148, 0.108], 0.85);
+            put(0, 3.45, 0, r * 1.9, 0.30, r * 1.9, [0.18, 0.148, 0.108], 0.86);
+            put(0, 3.85, 0, r * 1.4, 0.55, r * 1.4, [0.16, 0.132, 0.098], 0.86);
+            put(0, 0.10, 0, r * 1.7, 0.20, r * 1.7, [0.30, 0.298, 0.288], 0.9);
+          } else if (f.centre === 'monument') {
+            put(0, 0.30, 0, r * 1.5, 0.60, r * 1.5, [0.30, 0.298, 0.288], 0.9);
+            put(0, 1.05, 0, r * 0.9, 0.95, r * 0.9, [0.33, 0.325, 0.31], 0.86);
+            put(0, 3.8, 0, r * 0.34, 4.6, r * 0.34, [0.35, 0.345, 0.33], 0.8);
+            put(0, 6.4, 0, r * 0.5, 0.5, r * 0.5, [0.32, 0.33, 0.35], 0.44);
+          } else {
+            put(0, 0.09, 0, r * 2.0, 0.18, r * 2.0, [0.22, 0.216, 0.204], 0.85);
+            for (const e of [-1, 1]) put(e * r * 0.66, 0.42, 0, 2.6, 0.44, 0.5, [0.30, 0.298, 0.288], 0.9);
+          }
+        } else if (f.kind === 'lamp') {
+          /**
+           * A PARK LAMP, and the head is where the light comes from — the
+           * emissive gain and the cluster slot are attached in the lamp pool
+           * below, exactly as a street lamp's are, so a park lamp is not a
+           * second lighting system.
+           */
+          put(0, 0.09, 0, 0.42, 0.18, 0.42, [0.30, 0.298, 0.288], 0.9);
+          put(0, f.height * 0.5, 0, 0.13, f.height, 0.13, [0.22, 0.222, 0.228], 0.5);
+        } else if (f.kind === 'hoarding') {
+          put(0, f.height * 0.5, 0, f.length, f.height, 0.06,
+            f.printed ? [0.30, 0.26, 0.20] : [0.24, 0.245, 0.235], 0.82);
+          for (const e of [-0.42, 0.42]) put(f.length * e, 0.06, 0.18, 0.34, 0.12, 0.5, [0.30, 0.298, 0.288], 0.9);
+        } else if (f.kind === 'spoil') {
+          /**
+           * A HEAP IS THE ONE THING ON A SITE THAT IS NOT RECTANGULAR, so it is
+           * three boxes of falling size rotated against each other — the same
+           * trick the trees use, and for the same reason: a stack of prisms
+           * cannot become a cone, but three of them at different yaws reads as
+           * a pile rather than as a crate.
+           */
+          put(0, f.height * 0.22, 0, f.radius * 1.9, f.height * 0.45, f.radius * 1.8, [0.17, 0.152, 0.126], 0.95, (f.yawDeg || 0));
+          put(0, f.height * 0.56, 0, f.radius * 1.35, f.height * 0.45, f.radius * 1.25, [0.16, 0.143, 0.118], 0.95, (f.yawDeg || 0) + 34);
+          put(0, f.height * 0.86, 0, f.radius * 0.72, f.height * 0.36, f.radius * 0.66, [0.15, 0.134, 0.11], 0.95, (f.yawDeg || 0) - 21);
+        } else if (f.kind === 'frame') {
+          /**
+           * THE PART-BUILT FRAME. Columns on a grid, slabs over every level but
+           * the top, and the top level left as bare columns — which is what
+           * says "unfinished" rather than "unskinned".
+           */
+          const half = (f.bays * f.bayM) / 2;
+          for (let i = 0; i <= f.bays; i++) {
+            for (let j = 0; j <= f.bays; j++) {
+              const dx = -half + i * f.bayM;
+              const dz = -half + j * f.bayM;
+              put(dx, (f.levels * f.storey) / 2, dz, 0.42, f.levels * f.storey, 0.42, [0.36, 0.355, 0.34], 0.86);
+            }
+          }
+          for (let k = 1; k < f.levels; k++) {
+            put(0, k * f.storey, 0, half * 2 + 0.6, 0.26, half * 2 + 0.6, [0.33, 0.325, 0.31], 0.9);
+          }
+        } else if (f.kind === 'flood') {
+          put(0, 0.14, 0, 0.9, 0.28, 0.9, [0.30, 0.298, 0.288], 0.9);
+          put(0, f.height * 0.5, 0, 0.20, f.height, 0.20, [0.34, 0.345, 0.352], 0.55);
+        } else if (f.kind === 'crane') {
+          /**
+           * THE CRANE'S STATIC HALF: a ballast pad and the mast. What SLEWS —
+           * the jib, the counter-jib, the cab, the hoist and its load — is
+           * `moving.js`, because a chunk mesh is rebuilt on a residency change
+           * and a jib has to turn every frame.
+           */
+          put(0, 0.35, 0, 7.0, 0.7, 7.0, [0.33, 0.325, 0.31], 0.9);
+          put(0, f.mast / 2, 0, 1.9, f.mast, 1.9, [0.52, 0.34, 0.09], 0.62);
+          for (let k = 1; k * 12 < f.mast; k++) {
+            put(0, k * 12, 0, 2.4, 0.35, 2.4, [0.52, 0.34, 0.09], 0.62);
+          }
+        }
+        if (fx1 > fx0) {
+          placed.push({
+            kind: f.kind === 'hoarding' || f.kind === 'spoil' || f.kind === 'frame'
+              || f.kind === 'crane' || f.kind === 'flood' ? 'site' : 'feature',
+            owner: `${f.kind}:${f.edge || f.centre || ''}`,
+            x0: fx0, x1: fx1, z0: fz0, z1: fz1, y0: 0, y1: Math.max(0.05, fTop),
+          });
+        }
+      }
+
+      /**
+       * THE PAINT — session 21, item 6.
+       *
+       * `chunk.markings` is decided in the generator against the same
+       * `CITY.stopLineFromJunctionM` that `traffic.js` brakes to, and clipped
+       * to the carriageway claims that were actually emitted. This turns it
+       * into boxes.
+       *
+       * WHAT A MARKING IS MADE OF, AND WHY IT IS NOT A GROUND QUAD. A line
+       * painted into the ground mesh would be one more vertex-coloured
+       * rectangle at the road's own height, and coplanar surfaces z-fight. A
+       * 4 mm box standing on the road is what a thermoplastic line actually is
+       * — 2 to 3 mm of screed with beads rolled into it — and its EDGE is what
+       * catches a headlight at a grazing angle, which is the whole reason to
+       * spend a box rather than a colour.
+       *
+       * REFLECTANCE 0.62 LINEAR, against the carriageway's 0.082. Fresh white
+       * road-marking material runs 0.55 to 0.70 diffuse; 0.62 is the middle,
+       * and the contrast that matters is the RATIO: **7.6x the asphalt it lies
+       * on**, which is what makes a line read under a street lamp at all.
+       *
+       * WHAT IS NOT MODELLED, STATED RATHER THAN FAKED. A real marking is
+       * RETROREFLECTIVE — glass beads return light toward its source — and the
+       * standard measure is RL, the coefficient of retroreflected luminance, at
+       * a 1.05 deg observation angle and an 88.76 deg entrance angle. A class
+       * R2 marking gives RL = 100 mcd/(m2*lx). The diffuse surface here
+       * delivers, at that same grazing entrance,
+       * `E*cos(88.76 deg)*0.62/pi` = **4.1 mcd/(m2*lx)**, i.e. **24x less**.
+       * So a line seen far down a headlight beam is dimmer here than it would
+       * be in the world, and a line seen from ten metres — where the entrance
+       * angle is 79 deg and the diffuse term is 23 mcd/(m2*lx) — is within 4.3x
+       * of it. This project has no retroreflective BRDF and adding one is a
+       * shader change with no gate behind it, so the gap is written down with
+       * its arithmetic instead. It is the honest half of "retroreflective under
+       * headlights is the detail that pays".
+       */
+      for (const mk of chunk.markings) {
+        const y = worldSurface(ctx, mk.x, mk.z).y;
+        props.push(setMatrix(mk.x, y + MARKING_THICKNESS_M / 2, mk.z,
+          mk.length, MARKING_THICKNESS_M, mk.width, mk.yawDeg));
+        propSkin.push({ albedo: MARKING_ALBEDO, roughness: 0.62 });
       }
 
       /**
@@ -1958,6 +2163,50 @@ export function createCity(options = {}) {
           lamps.push({ x: L.headX, y: baseY + 8.08, z: L.headZ, axis: L.axis, side: L.side });
         }
       }
+      /**
+       * PARK LAMPS AND SITE FLOOD MASTS JOIN THE SAME POOL — session 21.
+       *
+       * ONE POOL, THREE LUMINAIRES. The columns are already drawn (the
+       * `chunk.features` loop above builds them as boxes, at no draw cost); all
+       * that is added here is the emitting head and the pool candidate. A
+       * second pool would be a second reservation against `CLUSTER.maxLights`
+       * and a second set of distance rules, and the pool's whole argument —
+       * *"only the lamps near the camera are lit"* — is exactly as true of a
+       * park lamp as of a street one.
+       *
+       * A lamp record now carries its own `candela`, its own aim and its own
+       * bowl scale. Before this session all three were literals inside
+       * `updateLampPool`, which is fine for one kind of lamp and is CONTRACT
+       * §9.1's arrangement the moment there are three.
+       */
+      for (const f of chunk.features) {
+        const baseY = worldSurface(ctx, f.x, f.z).y;
+        if (f.kind === 'lamp') {
+          bowls.push(setMatrix(f.x, baseY + f.height, f.z, 0.52, 0.52, 0.52, 0));
+          lamps.push({
+            x: f.x, y: baseY + f.height, z: f.z, axis: 'x', side: 1,
+            candela: LIGHT.parkLampCandela,
+            /** Post-top: straight down, no lateral tilt, because a park path
+             *  has no kerb to throw the pool toward. */
+            dir: [0, -1, 0],
+          });
+        } else if (f.kind === 'flood') {
+          const px = f.x;
+          const pz = f.z;
+          const py = baseY + f.height;
+          const dx = f.aimX - px;
+          const dz = f.aimZ - pz;
+          const dy = -f.height;
+          const len = Math.hypot(dx, dy, dz) || 1;
+          bowls.push(setMatrix(px, py, pz, 0.66, 0.42, 0.66, 0));
+          lamps.push({
+            x: px, y: py, z: pz, axis: 'x', side: 1,
+            candela: LIGHT.siteFloodCandela,
+            radius: LIGHT.siteFloodRadiusM,
+            dir: [dx / len, dy / len, dz / len],
+          });
+        }
+      }
       bytes += addInstanced(
         group, geometries.lamp, materials.metal, lampBodies, `${rngKey}:lamps`, null, true,
         { chunk: rngKey, lampColumns: lampBodies.length }
@@ -1967,6 +2216,52 @@ export function createCity(options = {}) {
         { chunk: rngKey, lampBowls: bowls.length }
       );
     }
+
+    /**
+     * The ground, the buildings and the landmark solids, from the same three
+     * sources the geometry came from: `ground.rects` IS the emitted mesh,
+     * `masses` is what `buildingTiers` produced, and the landmark boxes are the
+     * ones `buildLandmark` drew.
+     */
+    /**
+     * `ground` IS NULL FOR EVERY CHUNK OUTSIDE THE NEAR RING — `buildGround` is
+     * only called for those, and a geometry-ring chunk has massing and no road
+     * surface. The first version of this walk did not check and quarantined
+     * `city` on the first chunk past ring 2, which `faultcheck`'s empty-faults
+     * assertion and `citycheck`'s own harness call both caught within a minute
+     * of each other. A claim list that is short because the chunk drew no
+     * ground is the correct answer, not a missing one.
+     */
+    for (const q of (ground && ground.rects) || []) {
+      placed.push({
+        kind: q.kind === 'road' ? 'carriageway'
+          : q.kind === 'walk' ? 'pavement'
+            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site' : 'ground',
+        owner: `ground:${q.kind}`, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: 0, y1: 0.05,
+      });
+    }
+    for (const bld of chunk.buildings) {
+      placed.push({
+        kind: 'building', owner: `bld`,
+        x0: bld.x - bld.width / 2, x1: bld.x + bld.width / 2,
+        z0: bld.z - bld.depth / 2, z1: bld.z + bld.depth / 2,
+        y0: 0, y1: bld.height,
+      });
+    }
+    for (const name of chunk.landmarks) {
+      const l = LANDMARKS.find((q) => q.name === name);
+      if (!l) continue;
+      for (const o of landmarkOccluders(l)) {
+        if (o.deck) placed.push({ kind: 'deck', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: o.base, y1: o.top });
+        else if (l.kind !== 'viaduct') placed.push({ kind: 'landmark', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top });
+      }
+      if (l.kind === 'viaduct') {
+        for (const g of landmarkGroundBlockers(l)) {
+          placed.push({ kind: 'landmark', owner: `${l.name}:leg`, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: 0, y1: g.top });
+        }
+      }
+    }
+    chunkClaims.set(chunkKey(cx, cz), placed);
 
     root.add(group);
     builtCount++;
@@ -2911,37 +3206,121 @@ export function createCity(options = {}) {
         }
 
         /**
-         * Piers. A footing at grade, a blade shaft, and a cap the deck bears on
-         * — three boxes, because a 3 m stick meeting a slab is the shape that
-         * reads as scaffolding. Thin along the deck and wide across it, which is
-         * what a single-column bent under a two-track deck looks like.
+         * PORTAL FRAMES, NOT COLUMNS — SESSION 21, AND IT IS THE FIX FOR THE
+         * FINDING SESSION 5's ARGUMENT COULD NOT REACH.
+         *
+         * Measured before this session: **8 of 23 piers stood in a carriageway
+         * and 2 on a pavement.** Session 5 re-aimed the arc so its piers would
+         * stand on ground you can see and reasoned entirely about the origin
+         * block's EAST–WEST street; nothing asked what the arc does to the
+         * streamed lattice, and a 1.7 m column on a road centreline is a column
+         * on a road centreline whichever street it crosses.
+         *
+         * A column cannot be made to fit a 15.0 m carriageway. The support has
+         * to STRADDLE the road, which is what an elevated railway over a street
+         * is built as everywhere it exists: two legs outside the kerbs and a
+         * crosshead spanning between them. `citygen.viaductPiers` decides where
+         * the legs stand — see `LANDMARKS` → viaduct for the offset's
+         * derivation and the search that places them — and this draws what it
+         * decided. Two legs is a portal; ONE leg is a hammerhead, which two
+         * stations need because the deck runs INSIDE the x = 0 corridor there
+         * and no portal fits at any offset.
          */
-        for (const p of viaductPiers(arc)) {
+        for (const p of viaductPiers(arc, l)) {
           const capTop = soffitY;
           const capH = 1.1;
           const footH = 0.65;
           const shaftTop = capTop - capH;
-          push(p.x, footH / 2, p.z, 4.4, footH, 6.0, p.yawDeg,
-            [albedo[0] * 0.8, albedo[1] * 0.8, albedo[2] * 0.79], 0.86);
-          push(p.x, (footH + shaftTop) / 2, p.z, arc.pierHalf * 2 * 0.56, shaftTop - footH, arc.pierHalf * 2 * 1.3,
-            p.yawDeg, [albedo[0] * 0.94, albedo[1] * 0.94, albedo[2] * 0.93], 0.8);
-          push(p.x, capTop - capH / 2, p.z, 3.0, capH, l.deck * 0.82, p.yawDeg, soffitAlbedo, 0.8);
-          /**
-           * Bearings. A deck does not sit on a pier cap, it sits on four pads on
-           * a pier cap, and the 0.1 m gap between the two is the one place on
-           * this structure where you can see that it is two things rather than
-           * one casting. They are directly under the soffit at eye level from the
-           * pavement, which is the only reason they are worth four boxes.
-           */
           const c = Math.cos((p.yawDeg * Math.PI) / -180);
           const sn = Math.sin((p.yawDeg * Math.PI) / -180);
+          /** Transverse offset from the deck centreline, in world XZ. */
+          const at = (t) => [p.x - sn * t, p.z + c * t];
+
+          for (const leg of p.legs) {
+            push(leg.x, footH / 2, leg.z, 2.6, footH, 2.6, p.yawDeg,
+              [albedo[0] * 0.8, albedo[1] * 0.8, albedo[2] * 0.79], 0.86);
+            /**
+             * A LEG IS SLIMMER THAN THE OLD SHAFT AND THAT IS THE POINT. The
+             * single column was 1.90 x 4.42 m because it carried the whole
+             * deck; a portal shares the load between two, so each is
+             * `pierLegHalf` = 0.80 m across — and a 1.6 m column on a kerb is
+             * something you walk past rather than something you walk round.
+             */
+            push(leg.x, (footH + shaftTop) / 2, leg.z, arc.legHalf * 2, shaftTop - footH, arc.legHalf * 2.2,
+              p.yawDeg, [albedo[0] * 0.94, albedo[1] * 0.94, albedo[2] * 0.93], 0.8);
+          }
+
+          /**
+           * THE CROSSHEAD. It spans from the outermost leg to the deck's far
+           * edge, so a portal reads as one beam on two columns and a hammerhead
+           * reads as a cantilever off one — which is the honest picture of what
+           * is holding the deck up in each case.
+           */
+          const offs = p.legs.map((leg) => leg.side * leg.offset);
+          const lo = Math.min(...offs, -halfDeck);
+          const hi = Math.max(...offs, halfDeck);
+          const mid = (lo + hi) / 2;
+          const [hx, hz] = at(mid);
+          push(hx, capTop - capH / 2, hz, 2.2, capH, hi - lo + arc.legHalf * 2, p.yawDeg, soffitAlbedo, 0.8);
+
+          /**
+           * Bearings. A deck does not sit on a crosshead, it sits on four pads
+           * on a crosshead, and the 0.1 m gap between the two is the one place
+           * on this structure where you can see that it is two things rather
+           * than one casting. They are directly under the soffit at eye level
+           * from the pavement, which is the only reason they are worth four
+           * boxes.
+           */
           for (const t of [-l.deck * 0.235, l.deck * 0.235]) {
             for (const along of [-0.85, 0.85]) {
+              const [bx, bz] = at(t);
               push(
-                p.x - sn * t + c * along, capTop + 0.055, p.z + c * t + sn * along,
+                bx + c * along, capTop + 0.055, bz + sn * along,
                 0.7, 0.11, 0.7, p.yawDeg, [0.09, 0.09, 0.1], 0.55
               );
             }
+          }
+        }
+
+        /**
+         * THE ABUTMENTS — session 21, and until now the deck ENDED IN MID-AIR.
+         *
+         * STATE 19 and 20 both carried the diagnosis *"deck ending inside
+         * buildings at z ≈ −229 and +251"*. Measured this session against the
+         * actual curve, the deck ends at **(−91.0, −204.2) and (−91.0, +226.2)**
+         * and the nearest building to either is **21.0 m and 23.5 m away**. The
+         * carried numbers are `l.z ± arcLength/2` = 11 ± 240 — a **straight-line
+         * extent in z computed from an ARC LENGTH**, which is CONTRACT §9's
+         * table exactly, in a diagnosis rather than in the code. Nothing had to
+         * be moved out of the way; what was missing was a thing to terminate on.
+         *
+         * A portal wall and a wing on each side: a railway on a viaduct comes
+         * down to an embankment at an abutment, and an abutment is the one part
+         * of the structure that is a WALL rather than a frame — which is what
+         * makes it read as an end rather than as a break.
+         */
+        for (const endStation of [arc.stations[0], arc.stations[arc.stations.length - 1]]) {
+          const c = Math.cos((endStation.yawDeg * Math.PI) / -180);
+          const sn = Math.sin((endStation.yawDeg * Math.PI) / -180);
+          /** Outward along the deck, away from the crown. */
+          const sgn = endStation.s < 0 ? -1 : 1;
+          const ax = endStation.x + c * sgn * 3.0;
+          const az = endStation.z + sn * sgn * 3.0;
+          push(ax, soffitY / 2, az, 6.0, soffitY, l.deck + 1.6, endStation.yawDeg,
+            [albedo[0] * 0.9, albedo[1] * 0.9, albedo[2] * 0.89], 0.84);
+          // The wing walls, splayed by the deck's own half-width either side.
+          for (const side of [-1, 1]) {
+            const wx = ax - sn * side * (halfDeck + 1.6);
+            const wz = az + c * side * (halfDeck + 1.6);
+            push(wx, soffitY * 0.36, wz, 5.2, soffitY * 0.72, 1.0, endStation.yawDeg,
+              [albedo[0] * 0.86, albedo[1] * 0.86, albedo[2] * 0.85], 0.86);
+          }
+          // The parapet returns onto the abutment, so the deck edge does not
+          // simply stop in the air.
+          for (const side of [-1, 1]) {
+            const px = ax - sn * side * (halfDeck - 0.25);
+            const pz = az + c * side * (halfDeck - 0.25);
+            push(px, slabTop + 0.6, pz, 6.0, 1.2, 0.4, endStation.yawDeg, parapetAlbedo, 0.7);
           }
         }
         break;
@@ -3089,6 +3468,7 @@ export function createCity(options = {}) {
   function unbuild(key) {
     const rec = resident.get(key);
     if (!rec) return;
+    chunkClaims.delete(key);
     root.remove(rec.group);
     rec.group.traverse((o) => {
       if (o.isInstancedMesh) {
@@ -3185,12 +3565,40 @@ export function createCity(options = {}) {
         continue;
       }
       const l = cand.lamp;
+      /**
+       * THE LUMINAIRE'S OWN NUMBERS, off the record — session 21. A park lamp
+       * is 870 cd at 4.20 m and a site flood is 45 000 cd aimed into a hole;
+       * both were `LIGHT.streetlampCandela` at whatever tilt a road wanted
+       * until the record started carrying them.
+       */
+      const candela = l.candela === undefined ? LIGHT.streetlampCandela : l.candela;
+      /**
+       * THE FALLOFF WINDOW IS SIZED BEFORE THE INTENSITY IS DERIVED THROUGH IT
+       * — CONTRACT §9, rows 6b and 20, for the THIRD time.
+       *
+       * A pool slot is created with `radius: 30`, which is the right window for
+       * a street lamp whose pool is 12 m across and the wrong one for anything
+       * that throws further. three's `getDistanceAttenuation(d, R, 2)` carries
+       * a Frostbite window `(1 − d/R)²`, so a flood mast aiming 27.5 m from a
+       * 30 m window delivers `(1 − 0.917)²` = **0.0069 of its intensity** —
+       * 45 000 cd arriving as **0.41 lx**, which is why the first site frame
+       * showed a crane against the sky and an unlit hole under it.
+       *
+       * Session 20's searchlight was the same window with the same arithmetic
+       * and its repair is the one applied here: size R so the far end of the
+       * throw is still inside the window, then derive the intensity through it.
+       * `l.radius` is per-luminaire and the default is the street lamp's 30.
+       */
+      slot.beam.radius = l.radius === undefined ? 30 : l.radius;
       slot.beam.position.set(l.x, l.y, l.z);
-      slot.beam.intensity = lampsOn ? LIGHT.streetlampCandela : 0;
-      slot.beam.direction.set(l.axis === 'x' ? -l.side * 0.3 : 0, -1, l.axis === 'x' ? 0 : -l.side * 0.3).normalize();
+      slot.beam.intensity = lampsOn || l.candela === LIGHT.siteFloodCandela ? candela : 0;
+      if (l.dir) slot.beam.direction.set(l.dir[0], l.dir[1], l.dir[2]).normalize();
+      else slot.beam.direction.set(l.axis === 'x' ? -l.side * 0.3 : 0, -1, l.axis === 'x' ? 0 : -l.side * 0.3).normalize();
       slot.beam.alongAxis.set(l.axis === 'x' ? 0 : 1, 0, l.axis === 'x' ? 1 : 0);
       slot.spill.position.set(l.x, l.y, l.z);
-      slot.spill.intensity = lampsOn ? slot.spillCandela : 0;
+      /** The spill scales with the beam, so a park lamp does not carry a
+       *  street lamp's bounce. */
+      slot.spill.intensity = lampsOn ? slot.spillCandela * (candela / LIGHT.streetlampCandela) : 0;
     }
   }
 
@@ -3322,7 +3730,7 @@ export function createCity(options = {}) {
           ctx.log(
             `city: viaduct ${arc.arcLength} m of deck at R ${v.arcRadius} m — ` +
             `${arc.bays} bays × ${arc.pierSpacing.toFixed(2)} m asked ${arc.pierSpacingAsked} m ` +
-            `(${viaductPiers(arc).length} piers), ${arc.stations.length - 1} spans × ${arc.chord.toFixed(2)} m chord, ` +
+            `(${viaductPiers(arc, v).length} piers, ${viaductPiers(arc, v).filter((p) => p.hammerhead).length} hammerhead, ${viaductPiers(arc, v).filter((p) => p.nudgeM).length} nudged), ${arc.stations.length - 1} spans × ${arc.chord.toFixed(2)} m chord, ` +
             `sagitta over the block's own depth (38 m) ${(38 * 38 / (2 * v.arcRadius)).toFixed(2)} m ` +
             `against ${(10.5 - v.deck / 2).toFixed(2)} m of freedom in the cross-street corridor`
           );
@@ -3484,6 +3892,31 @@ export function createCity(options = {}) {
         },
 
         /**
+         * THE DELIVERED OCCUPANCY — session 21. Every claim this module put on
+         * the ground, from the geometry it emitted rather than from the
+         * generator's description of it. Read by `harness.occupancyCensus()`
+         * and asserted by `citycheck` against `occupancy.js`'s conflict table.
+         */
+        placedClaims() {
+          const out = [];
+          for (const list of chunkClaims.values()) for (const c of list) out.push(c);
+          return out;
+        },
+
+        /** Resident construction cranes, so `moving.js` can turn their jibs. */
+        cranes() {
+          const out = [];
+          for (const rec of resident.values()) {
+            if (!rec.chunk || !rec.chunk.features) continue;
+            for (const f of rec.chunk.features) {
+              if (f.kind !== 'crane') continue;
+              out.push(f);
+            }
+          }
+          return out;
+        },
+
+        /**
          * THE ONE WORLD GROUND QUERY. See `worldSurface` in the closure above —
          * it takes `ctx` because it consults `block` and `river`, and the api
          * binds this module's own.
@@ -3589,7 +4022,20 @@ export function createCity(options = {}) {
                   yawDeg: +b.yawDeg.toFixed(4),
                   displayFacade: b.displayFacade,
                 })),
-                props: d.props.map((p) => ({ x: +p.x.toFixed(2), z: +p.z.toFixed(2), yawDeg: +p.yawDeg.toFixed(4), kind: p.kind })),
+                /**
+           * `refDeg` IS PART OF THE PLACEMENT AND WAS BEING PROJECTED AWAY.
+           * `citycheck`'s alignment check measures a prop's deviation from the
+           * axis it is ALIGNED TO, and this map decides what the gate can see:
+           * dropping the field left the gate reading a promenade bollard's
+           * 11.46° world yaw as 11.46° of deviation, which is the same defect
+           * one layer further out. A projection that silently loses a field the
+           * consumer needs is §9.1's forwarder-arity problem with an object
+           * literal.
+           */
+          props: d.props.map((p) => ({
+            x: +p.x.toFixed(2), z: +p.z.toFixed(2), yawDeg: +p.yawDeg.toFixed(4),
+            refDeg: +(p.refDeg || 0).toFixed(4), kind: p.kind,
+          })),
                 signs: d.signs.map((s) => ({
                   x: +s.x.toFixed(2), y: +s.y.toFixed(2), z: +s.z.toFixed(2),
                   state: s.state, scale: s.scale, yawDeg: +s.yawDeg.toFixed(4),

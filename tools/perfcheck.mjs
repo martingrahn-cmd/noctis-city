@@ -672,6 +672,25 @@ function assertTrafficContent(route, traffic, budget) {
   if (T.contentHeadlamps != null && traffic.headlamps !== T.contentHeadlamps) {
     fails.push(`${route}: ${traffic.headlamps} headlamp slots, budget says ${T.contentHeadlamps}`);
   }
+  /**
+   * THE STOP LINE — session 21, and the instrument has existed since 19.
+   * `worstStopLineM` is a signed clearance from a held vehicle's FRONT to its
+   * own painted line; its sign is the verdict, so the floor is zero.
+   */
+  if (T.minStopLineM != null) {
+    if (traffic.worstStopLineM == null || !isFinite(traffic.worstStopLineM)) {
+      fails.push(
+        `${route}: no vehicle was held at a red anywhere on this route, so the stop-line clearance is ` +
+        `UNRUN rather than passed — a check on a queue that never formed is CONTRACT §7.1's quiet gate`
+      );
+    } else if (traffic.worstStopLineM < T.minStopLineM) {
+      fails.push(
+        `${route}: a held vehicle's front stood ${(-traffic.worstStopLineM).toFixed(2)} m PAST its own ` +
+        `stop line (floor ${T.minStopLineM}) — the painted bar and the braking point are one number ` +
+        `(CITY.stopLineFromJunctionM) and this is the distance between them`
+      );
+    }
+  }
   if (traffic.bodyTypes < T.minBodyTypes) {
     fails.push(
       `${route}: ${traffic.bodyTypes} body types < ${T.minBodyTypes} — a count of kinds, which is why ` +
@@ -1229,9 +1248,47 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets =
     chunkMemoryMB: worstCeiling((r) => (r.memory ? r.memory.chunkMemoryMB : null)),
     metresTravelled: worstFloor((r) => (r.routeInfo ? r.routeInfo.metresTravelled : null)),
     ...stats,
-    /** Every run's frame, so the spread the assertion cannot see is visible. */
+    /**
+     * THE LEVEL ASSERTIONS, POOLED — session 21, and it is CONTRACT §0.1
+     * applied to the last statistic in this gate that was still a sample of
+     * one.
+     *
+     * §0.1 says of its own correction: *"It applies to every measurement in
+     * this project and not only to this gate."* Three assertions read
+     * `imageStats` off the LAST run's frame while every millisecond beside them
+     * was already the median of three. STATE 20 §7 measured what that cost:
+     * `downtown_dense`'s mean luminance was decided against a per-run range of
+     * **0.0193** with a margin of **0.0063** — 33% of the instrument's own
+     * noise floor, which is §0.1's original incident with a luminance instead
+     * of a millisecond.
+     *
+     * THE ESTIMATOR IS THE MEDIAN OF THE PER-RUN VALUES, the same one
+     * `capture.$estimator` names for the timings, and for the same reason: on a
+     * machine whose drift is one-sided, a median of three discards exactly one
+     * contaminated observation. It is NOT a mean and it is NOT a statistic over
+     * pooled pixels — the second would be the p95-of-a-mixture substitution
+     * `$estimator` already refuses, with a histogram instead of a percentile.
+     *
+     * IT CANNOT BE A LOOSENING, AND THAT IS WHY IT IS SAFE TO DO. Session 20
+     * measured `downtown_dense` at [0.0760, 0.0567, 0.0737] against a floor of
+     * 0.08: the median is 0.0737 and the last run's value was 0.0737, so the
+     * gate is red before and after. NO THRESHOLD MOVED — `meanLuminance` is
+     * [0.08, 0.55] and `screenshotEntropy` is 5.0, unchanged.
+     *
+     * `medianOverMean` stays on the LAST run's frame because it is a shape
+     * statistic about one histogram rather than a level, and medianing a ratio
+     * of two medianed quantities is a third quantity nobody derived.
+     */
+    meanLuminance: median(perRunLevel.map((s) => s.meanLuminance)),
+    entropy: median(perRunLevel.map((s) => s.entropy)),
+    /** Every run's frame, so the spread the assertion is decided against is visible. */
     meanLuminancePerRun: perRunLevel.map((s) => +s.meanLuminance.toFixed(4)),
     entropyPerRun: perRunLevel.map((s) => +s.entropy.toFixed(3)),
+    /** The spread, printed beside the estimate — `poolRuns` does the same for a millisecond. */
+    meanLuminanceSpread: +(Math.max(...perRunLevel.map((s) => s.meanLuminance))
+      - Math.min(...perRunLevel.map((s) => s.meanLuminance))).toFixed(4),
+    entropySpread: +(Math.max(...perRunLevel.map((s) => s.entropy))
+      - Math.min(...perRunLevel.map((s) => s.entropy))).toFixed(3),
   };
 
   // Console errors and lost contexts from ANY run. One bad run out of three is
@@ -1500,6 +1557,8 @@ function goodRun() {
     traffic: {
       vehicles: BUDGET.trafficLights.contentVehicles,
       headlamps: BUDGET.trafficLights.contentHeadlamps,
+      /** Session 21 — a held vehicle short of its own line, which is correct. */
+      worstStopLineM: BUDGET.trafficLights.minStopLineM + 0.4,
       bodyTypes: 5,
       // Straight off the budget, so the fixture agrees by construction and the
       // two falsifying cases below are the only way this block goes red.
@@ -1625,8 +1684,19 @@ const FALSIFY = [
    * breaches the mean floor CANNOT be constructed to pass the entropy one. The
    * two floors are not independent and the fixtures are where that shows.
    */
-  ['floor.screenshotEntropy', (g, r) => { r.shot = solidPNG(128); }],
-  ['floor.meanLuminance', (g, r) => { r.shot = solidPNG(2); }],
+  /**
+   * SESSION 21 — THEY PERTURB EVERY RUN NOW, and that is not cosmetic.
+   *
+   * Both statistics are the MEDIAN of the per-run frames as of this session
+   * (see `metrics.meanLuminance`), so a case that darkened the LAST run's shot
+   * and left the other two alone would be outvoted 2:1 and would report the
+   * assertion as unfalsifiable — which is CONTRACT §7.1's quiet gate arriving
+   * by way of an estimator change. STATE 20 §7 named this in advance: *"the two
+   * falsifying cases would have to perturb every run rather than the last,
+   * exactly as the timing cases do."* `ceiling.cpuP95` above is the shape.
+   */
+  ['floor.screenshotEntropy', (g) => { for (const x of g.runs) x.shot = solidPNG(128); }],
+  ['floor.meanLuminance', (g) => { for (const x of g.runs) x.shot = solidPNG(2); }],
   /**
    * SESSION 20. The HUD's copy of the ceilings, drifted by one key. It mutates
    * the GROUP rather than a run because the table is not a per-route quantity —
@@ -1679,6 +1749,13 @@ const FALSIFY = [
   }],
   ['cluster.missing', (g, r) => { r.routeInfo.cluster = null; }],
   ['cluster.unsaturated', (g, r) => { r.routeInfo.cluster.trafficLights = 0; }],
+  /**
+   * SESSION 21. The defect exactly as session 19 measured it — a hauler's nose
+   * 3.30 m past its own line — and the UNRUN case, which is the one an
+   * inequality alone would pass.
+   */
+  ['traffic.stopLinePast', (g, r) => { r.traffic.worstStopLineM = -3.3; }],
+  ['traffic.stopLineUnrun', (g, r) => { r.traffic.worstStopLineM = Infinity; }],
   ['cluster.overflow', (g, r) => { r.routeInfo.cluster.overflow = true; }],
   ['cluster.margin', (g, r) => { r.routeInfo.cluster.occupancyMargin = 0; }],
   ['motion.missingInstrument', (g, r) => { r.motion = null; }],

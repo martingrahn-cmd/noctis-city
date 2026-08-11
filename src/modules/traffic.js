@@ -2054,6 +2054,14 @@ export function createTraffic(options = {}) {
         /** Vehicles at a standstill at a stop line without permission. Session 18. */
         holdingAtRed: 0,
         /**
+         * Session 21. The longest queue at any single junction this frame, and
+         * how many junctions have one at all. Both are instruments; neither
+         * carries a threshold, because what the number MEANS depends on whether
+         * it empties — which is a property of the series and not of a frame.
+         */
+        worstQueue: 0,
+        queuedJunctions: 0,
+        /**
          * Metres from a held vehicle's FRONT to its own stop line, worst over
          * the run. Session 19, item 7. Positive is short of the line, which is
          * where a vehicle should stop; **negative is a defect**. `Infinity`
@@ -2064,6 +2072,14 @@ export function createTraffic(options = {}) {
       };
 
       /** Hoisted for `writeSignals`: the frame loop must not allocate. */
+      /**
+       * The per-junction queue census, rebuilt every frame. A Map rather than
+       * an object because the key is composite and the set changes as the ring
+       * moves; hoisted for the same reason `signalCandidates` is — the frame
+       * loop must not allocate.
+       */
+      const queueNow = new Map();
+
       const signalCandidates = [];
       const signalHeads = [];
       const signalSeat = new Array(SIGNAL_APPROACHES).fill('');
@@ -2252,6 +2268,7 @@ export function createTraffic(options = {}) {
 
         stats.turning = 0;
         stats.stopped = 0;
+        queueNow.clear();
         stats.holdingAtRed = 0;
         stats.recycledThisFrame = 0;
 
@@ -2420,6 +2437,32 @@ export function createTraffic(options = {}) {
                  * statistic measure the green light.
                  */
                 if (toStop < stats.worstStopLineM) stats.worstStopLineM = toStop;
+                /**
+                 * THE QUEUE, PER JUNCTION — session 21, and it is an
+                 * INSTRUMENT rather than a threshold.
+                 *
+                 * The operator's aerial frame showed bumper-to-bumper traffic
+                 * across several junctions and it looked permanent rather than
+                 * like a signal cycle. Session 18's trace showed a queue
+                 * building 0 → 29 and emptying exactly at `GREEN_S + AMBER_S`
+                 * = 18 s, but that trace measured ONE junction in isolation,
+                 * and a network can deadlock in a way no single junction shows.
+                 *
+                 * So this counts held vehicles by the junction they are held
+                 * at, every frame, and `tools/queueprobe.mjs` reads the series
+                 * over several full cycles. The distinction it exists to make:
+                 * a queue that empties every cycle is CONGESTION BY DESIGN and
+                 * the question is the density; a queue that grows without bound
+                 * is a DEADLOCK and the question is the mechanism. Measure
+                 * before theorising.
+                 *
+                 * The key is the junction's own identity — axis, line and node
+                 * — rather than a position, so a vehicle approaching from
+                 * either side of the same node is counted in the same queue,
+                 * which is what "the junction is blocked" means.
+                 */
+                const qk = `${veh.axis}:${veh.line}:${nextJ}`;
+                queueNow.set(qk, (queueNow.get(qk) || 0) + 1);
               }
             }
 
@@ -2904,8 +2947,20 @@ export function createTraffic(options = {}) {
           wheelMotion.setUploadFrozen(b);
         },
         stats() {
+          /**
+           * The queue census, summarised at READ time rather than kept in step
+           * every frame. Two numbers a caller can assert on and the whole map
+           * for one that wants the series (`tools/queueprobe.mjs`).
+           */
+          let worst = 0;
+          let queued = 0;
+          for (const v of queueNow.values()) { if (v > 0) queued++; if (v > worst) worst = v; }
+          stats.worstQueue = worst;
+          stats.queuedJunctions = queued;
           return {
             ...stats,
+            /** Held vehicles by junction, this frame. An instrument; no threshold. */
+            queueByJunction: Object.fromEntries(queueNow),
             body: bodyMotion.stats,
             light: lightMotion.stats,
             wheel: wheelMotion.stats,

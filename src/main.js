@@ -24,6 +24,7 @@ import { createWeather } from './modules/weather.js';
 import { createStreetlife } from './modules/streetlife.js';
 import { createPlayer } from './modules/player.js';
 import { createAircraft } from './modules/aircraft.js';
+import { createMoving } from './modules/moving.js';
 import { createUi } from './modules/ui.js';
 import { createHud } from './modules/hud.js';
 import { createHarness } from './modules/harness.js';
@@ -67,6 +68,13 @@ const DEFAULTS = {
   streetlife: 1,
   /** 0 removes the aircraft entirely. Session 20's bisecting switch. */
   aircraft: 1,
+  /**
+   * 0 removes the viaduct's trains and the construction cranes' slewing
+   * assemblies. Session 21's bisecting switch — an ordinary one: the
+   * `register()` does not happen, so `ctx.get('moving')` is undefined and every
+   * consumer already handles that (CONTRACT §1.2).
+   */
+  moving: 1,
   /**
    * 1 registers the first-person controller and hands it `ctx.camera`.
    * SESSION 17, and it is OFF by default, which is the whole of what keeps the
@@ -314,6 +322,7 @@ if (on('streetlife')) register(createStreetlife());
  * 3.6 ms; every content system since has had one on the day it landed.
  */
 if (on('aircraft')) register(createAircraft());
+if (on('moving')) register(createMoving());
 
 /**
  * The player, last of the content modules and after `camera` in registration

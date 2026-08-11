@@ -859,6 +859,7 @@ attachment, because §8 forbids a gate from rendering through `showMotion`.
 | `quayLamps` | `1` | `0` removes the promenade lamp line from both quays. A SUB-CONTENT switch read inside `city.js`, not a `register()` that does not happen: a bisecting switch omits a *module*, and this is one band of furniture inside one, so there is no module to leave unregistered. Same arrangement as `fieldDrip`. Session 16's arm, and arm B is the frame that made the operator ask why the far bank was dark. |
 | `player` | `0` | `1` registers the first-person controller (§11) and hands it `ctx.camera`. OFF by default, and that is what keeps the harness safe: `runRoute`, `poseRoute` and `setShotAt` drive every gate and both film tools, and a second writer of `ctx.camera` is not a race with a winner but a frame that alternates between two answers at whatever the update order happens to be. An ordinary bisecting switch — the `register()` does not happen — so every gate runs in the state it has run in for sixteen sessions. |
 | `spawn` | `''` | `x,y,z` — where the player stands. Empty means `PLAYER.spawn`. Two components stand on the ground; three are honoured as written, including a `y` in the air. It exists because free movement goes places no route has been and what it turns up is a POSITION: `P` prints a paste-ready URL carrying this, `t` and `seed`, which is the whole of what it takes to get back. A find nobody can return to is a memory. |
+| `moving` | `1` | `0` removes the viaduct's trains and the cranes' slewing assemblies. Session 21's bisecting switch, an ordinary one: the `register()` does not happen. |
 | `fieldDrip` | `-1` | Canyon field layers uploaded per frame per array. `-1` defers to `CITY.fieldLayersPerFrame`; **`0` is the burst** — every layer of a landed bake flagged in the frame it lands; `N > 0` overrides. A SCHEDULE, not content: every value delivers the same bytes to the same slots and flips the same table entries, and what differs is how many `texSubImage3D` calls one frame is asked for. Session 10's `night_rain` A/B is two arms of this parameter (`loftprobe --aparams=fieldDrip=4 --bparams=fieldDrip=0`), which is why it is a number here rather than two copies of `canyon.js` that would have to be kept in step (§9.1). |
 
 **Every content system gets a bisecting switch, and it is registered in
@@ -908,6 +909,16 @@ src/
                          silhouettes` must project the SAME displaced vertices
                          or a gate measures a figure the frame does not draw.
     luminaire.js         the flux of the §5.9 distribution. Pure: an integral.
+    occupancy.js         SESSION 21. THE ONE KEEP-OUT REGISTRY. A list of
+                         axis-aligned claims, each carrying a CATEGORY, a
+                         footprint and a VERTICAL EXTENT, plus the table of
+                         which categories may not overlap which. Every
+                         generator writes to it and reads from it; `citycheck`
+                         runs the same table over the DELIVERED scene. It
+                         exists because §9.1's placement rule had been broken
+                         seven times in seven placement routines, each with its
+                         own private idea of what "already there" meant, and
+                         seven instances is not seven bugs.
   modules/               one file per module, factory named create<Name>
     block.js camera.js canyon.js exposure.js harness.js
     lighting.js lights.js post.js sky.js time.js
@@ -932,6 +943,14 @@ src/
                          triangles, ONE cluster slot — the searchlight; the
                          thirty navigation lamps are emissive geometry at zero
                          slots, by the tail-lamp argument. `?aircraft=0`.
+    moving.js            SESSION 21, items 2 and 4. The two things in this
+                         city that move and are not vehicles: the viaduct's
+                         trains and the construction cranes' slewing jibs.
+                         ONE module because they are one piece of engineering —
+                         rigid boxes on a scripted path, above eye level, both
+                         needing §5.12's previous transform — and two draw
+                         calls instead of four against a ceiling
+                         `highway_speed` sits 9 under. `?moving=0`.
     hud.js               SESSION 20, item 6. The instrument panel, four levels
                          on `H`. Colours against `HUD.budgets`, which
                          `perfcheck` asserts equals `budget.json`'s ceilings —
@@ -1071,6 +1090,14 @@ tools/
                          mean is not. `HEIGHT_DISTRIBUTION.mode` is the arm, in
                          the `?fieldDrip` shape — one parameter with two arms
                          rather than two copies of a module.
+  queueprobe.mjs         NOT A GATE. SESSION 21. The traffic queue at every
+                         junction over several full signal cycles, so the
+                         distinction that decides item 5 can be made: a queue
+                         that empties every cycle is CONGESTION and the
+                         question is the density; one that grows without bound
+                         is a DEADLOCK and the question is the mechanism. A
+                         single frame cannot tell those apart, which is why the
+                         operator's aerial shot could not. Asserts nothing.
   airprobe.mjs           NOT A GATE. SESSION 20. Where the aircraft are, what
                          the module says about itself, and one frame down the
                          searchlight's own beam. It exists because an empty sky
@@ -1645,6 +1672,18 @@ windingControls(on): object     The §7.3 shape controls, added to and removed
 windingControlsActive(): bool
 windingControlCentre(): [x,y,z] Where they stand, so a caller can put eyes
                                 round them without knowing where they were put.
+occupancyCensus(): object       §9.1, session 21. Every keep-out claim
+                                `city.js` put on the ground, recorded AT THE
+                                POINT OF EMISSION: the ground rectangles that
+                                ARE the mesh, each prop's world extent off its
+                                own delivered instance matrices split at head
+                                height, each park and site feature's, each
+                                building's envelope and each landmark's ground
+                                solid. `citycheck` runs `occupancy.js`'s
+                                conflict table over it. It is deliberately NOT
+                                the generator's registry: that says what was
+                                TESTED and this says what ARRIVED, and the two
+                                agreeing is the claim.
 signPlacement(): object         Session 14. The DELIVERED sign quad positions
                                 off `city:signs`' instanceMatrix, beside the
                                 resident occluder boxes. Reading `chunk.signs`
@@ -1734,7 +1773,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 52 so far** — and that numeral is now **generated against, not
+**The 62 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1762,8 +1801,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      52        52
-  every pipe-leading line to EOF        52         —   ← the snippet’s quantity
+  contiguous rows after the header      62        62
+  every pipe-leading line to EOF        62         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1820,6 +1859,16 @@ runs on every invocation.
 | 20 | a log-normal's **pre-floor mean** (36.4 m at median 30) | the uniform's **post-floor delivered mean** (36.55 m) | STATE 19 §9.5 proposed the substitution as "the mean is preserved to 0.4%" and the like-for-like figure is 36.36 against **38.00**, i.e. 4.3% short before any flooring is considered. And the mean was the wrong quantity anyway: a window count is proportional to FACADE AREA, which a setback removes perimeter from as well as height. Shipped at median 30 it measured **106 501 visible instances against a floor of 115 000** — a content floor catching a content reduction, which is exactly what it is for |
 | 20 | a facade row cap of **34**, derived when the generator's tallest possible building was 21 storeys | a cap on a generator whose p99 is now **134 m** | inert for nineteen sessions and binding the moment the height distribution changed: nine buildings of 432 would have had blank walls above about 108 m, on precisely the towers the session added. §9.1's config-the-code-does-not-read with a bound instead of a value — the number was right about a world that had moved on. Now `maxM / era.floor`, so it is a bound again rather than a budget |
 | 20 | **1.05**, the roof parapet's height, written as a literal in `buildRoofscape` | **1.05**, written again forty lines away in the `roof` sign mounting, under a comment saying the second was "read from there rather than guessed, so a change to the upstand cannot leave a sign floating over it" | a comment that claims a link, with no link (§9.1). Nothing read anything; there were two literals. It became load-bearing when a roof sign's WORLD HEIGHT became part of the chunk's own description, so the number is now `citygen.ROOF_PARAPET_M` and all three readers take it from there |
+| 21 | a landmark's **arc length** — `l.z ± arcLength/2` — as the deck's end position in z | where the viaduct's deck actually terminates | STATE 19 and STATE 20 both carried *"deck ending inside buildings at z ≈ −229 and +251"* and neither session opened it. Measured against the curve: the ends are at **(−91.0, −204.2) and (−91.0, +226.2)**, and the nearest building to either is **21.0 m and 23.5 m away**. Row 4's arc-length-as-a-radius, with a straight-line extent instead of a radius, in a DIAGNOSIS rather than in the code — so two sessions carried a repair for a defect that was not there, and the real one (a deck that stops in mid-air) had no entry at all |
+| 21 | **`propHalfAcross`**, the maximum over a prop kind's variants | the clearance one PARTICULAR variant needs | a fourth tree — small, multi-stemmed, a park species — took the kind's across-pad from 0.35 m to 1.64 m, and `fitsKerb` is `7.85 + 2·across ≤ 9.15`. **Every street tree in the city** would have been refused the pavement because one variant does not fit it. A pad that is the worst member of a category bans the whole category for it, which is §7.2's shape with a clearance instead of a floor |
+| 21 | a prop's yaw **relative to the world grid** | its deviation from **the axis it is aligned to** | the river's promenade runs at up to **11.46°** to the grid where the meander is steepest, so a bollard perfectly lined up with its own quay read as 11.46° of deviation against a 3° bound. `river.js` derives the quay wall's segments from the same tangent and nothing complains, because a wall is not in the list `citycheck` measures. Inert until the per-variant pad above let narrow props onto the quay: 2.27° → 11.46° with no change to any yaw expression |
+| 21 | a prop's **footprint from the ground up** | the ground a prop occupies | 60 forbidden overlaps between a street tree and the carriageway beside it, every one of them a canopy at 3.4–5.8 m over a road surface at 0.05 m. A tree overhanging a carriageway is what a street tree IS; the conflict was the instrument's, from collapsing a three-dimensional object into a footprint and then testing it against something with a vertical extent. Split at `HEAD_CLEAR_M` = 2.10 m — the generator's own number for the same distinction |
+| 21 | the bounding box of a **rotated** box, computed as `L/2 + W/2` on both axes | the box's world half-extents | a 0.40 × 7.20 m stop bar reported as 3.80 m deep along the road it lies across, so every marking was tested for "am I on a carriageway" against a box nine times its own area |
+| 21 | the quayside walk's **1 m building margin**, correct for two terraces laid on one another | a setback for **every** building walk | the perimeter walk advances `t += width + rng.range(0.2, 1.4)` inside a run, so a terrace's own buildings stand 0.2–1.4 m apart on purpose. Measured: **303 buildings over the gate's region against 432**, a 30% content loss `floors.visibleInstances` would have caught |
+| 21 | a **10 m pad on a building's CENTRE** against a landmark's box | 10 m of clear ground around a landmark | what it actually guaranteed is `10 − halfDepth`, which over the generator's 15–26 m depths is **−3.0 to +2.5 m** — negative over most of the range, i.e. buildings standing inside landmarks with their centres politely outside. Replaced by a face-to-face setback of `CITY.sidewalkWidth` = 4.2 m, which is a SMALLER number and a STRICTLY STRICTER test at every depth the generator can draw (centre distance 11.7–17.2 m against 10.0) |
+| 21 | session 5's *"the block leaves x ∈ [−10.5, 10.5] clear at every z"*, in a comment | a bound the placement is checked against | it is the entire justification for the viaduct crossing where it does, and it was prose, so nothing could check it and nothing did: a support reached **\|x\| = 12.18 m**, 1.68 m past the band its own argument depends on. §9.1's config-the-code-does-not-read, with a sentence instead of a value |
+| 21 | **eleven samples** of the river bank over a road's width | **every 4 m** of the same bank, in the registry | two samplings of one curve disagree by whatever falls between their stations: three carriageway pieces 0.03–0.09 m² inside the channel they are cut back from. Sub-decimetre, invisible, and closed by making the road read the water's own claims rather than re-sampling — which is a different kind of correct from a tighter tolerance |
+| 21 | `riverTouchesChunk`, true for every chunk the 147.6 m **envelope** reaches | which chunk **owns** a bank | both chunk rows furnished both promenades over the same x range, so every quayside in the city was furnished twice by two chunks that could not see each other's props. Found by `prop × prop`, which nothing had ever compared: a bin inside a planter and a cabinet inside a tree. Row 15's promenade-lamp ownership bug, one system over, three sessions later |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:
@@ -1917,6 +1966,41 @@ routines, the same omission. So it is written as a rule rather than an incident:
 
 It is cheap and it is not optional. The generator already owns the occupancy —
 `occluders` is built in the same function, three lines above the scatter.
+
+**SESSION 21: THE RULE WAS BROKEN SEVEN TIMES AND THE EIGHTH WAS A DOME ACROSS A
+CARRIAGEWAY, so it stopped being a rule and became a structure.** Piers inside
+buildings (5), props inside buildings (4b), 208 signs inside their own building
+(14), glazing and quayside frontages overlapping (15), buildings in the river
+(15), a deck terminating nowhere (19), a landmark dome standing across 2 906 m²
+of road (21). Each repair added one more private test to one more placement
+loop — `insideKeepout` here, `landmarkBlocks` there, `riverBlocks` in a third
+place, `occupied(occluders, …)` in a fourth — and every new generator had to
+remember all four and invent the fifth.
+
+> **There is ONE occupancy. `src/lib/occupancy.js` holds the claims, their
+> vertical extents and the table of which categories may not overlap which.
+> Every generator writes to it and asks it. A placement routine that carries its
+> own predicate is the eighth instance waiting to happen.**
+
+Three things make it a structure rather than a fifth predicate:
+
+- **A claim carries `[y0, y1]`.** Session 5 wrote the distinction down —
+  *"`landmarkOccluders` answers what blocks a ray to the sky; the flood fill was
+  asking what blocks a person"* — and built it as two functions, which is how
+  you get a third question with no answer. A viaduct leg is `landmark` from 0 to
+  21 m and the deck it holds up is `deck` from 14.2 to 21 m; a carriageway
+  conflicts with the first and not the second, which is what an elevated railway
+  over a street IS.
+- **"Occupied" is a RELATION, not a property of a point.** A pavement and a
+  bollard share ground on purpose; a carriageway and a bollard do not. A bridge
+  deck and the water share a footprint on purpose; a building and the water do
+  not. One `occupied()` predicate can only be right about one of those pairs,
+  which is why this project had four of them.
+- **The gate reads the DELIVERED scene, not the registry.** The registry says
+  what the generator tested; `harness.occupancyCensus()` says what arrived, and
+  twice now those have differed — 208 signs decided on a wall and drawn nine
+  metres inside it, road patches decided 10 mm thick and drawn a metre tall.
+  `citycheck` → `occupancy` runs the same conflict table over both.
 
 **A check a comment says exists, and does not.** `traffic.js` carried the
 sentence *"It must equal `tools/budget.json` → motionVectors.kindMinExtentM, and
