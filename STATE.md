@@ -88,10 +88,10 @@ would be CONTRACT §0 rule 5 with a purchase order.
                           guarded no pixel.
 ✓ queueprobe              RAN, and the FINDING IS RED: the stop-line defect
                           reproduces at −10.454 m, dt = 0.1, one cycle. §5.
-✗ item 2(f), the FRAME     NOT DONE. The brief asked for a street-level frame
-                          before and after at the same seed and camera, and it
-                          is the one part of item 2 this file cannot answer.
-                          §1.6.
+✓ item 2(f), the FRAME    before/after at one seed and one camera, DIFFERENCED:
+                          0.2703% of pixels moved, all inside one 385 × 131
+                          box, and that box is the kerbside furniture. §1.6 —
+                          and what it does NOT settle is said there.
 —  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
                           ~21 600 SwiftShader frames. Counts recovered from
                           citycheck's scene walk instead — §3.2.
@@ -240,25 +240,51 @@ comparison at 2 006 and the 8 → 0 step is not. What corroborates it is §2's
 arithmetic, which is machine-independent: the six offenders are named, their
 mechanism is derived, and the geometry that produced them no longer exists.
 
-### 1.6 THE FRAME WAS NOT TAKEN, AND THAT IS THE ONE PART OF ITEM 2 THAT IS OPEN
+### 1.6 THE FRAME — TAKEN, MEASURED, AND THE VERDICT IS NARROWER THAN THE BRIEF ASKED FOR
 
-The brief asked for a street-level frame before and after at the same seed and
-camera, on the grounds that this is a visual change as well as a numerical one —
-*"every bench, planter and cabinet on a north–south street currently stands
-across the pavement with its end to the road"*. **It was not taken, and the
-reason is a queue rather than a principle:** every browser run on this container
-costs 10–40 minutes, `citycheck` was run three times to get the before/after
-pair, `windcheck` was run once, and the stop-line arm took the rest. `lookat.mjs`
-is the tool (`node tools/lookat.mjs`, and it asserts nothing, which is why it is
-the right one) and the pose wants to be down a **north–south** street, because
-that is the band the repair turns.
+`tools/shot-out/kerb2-before-t0_5.png` and `kerb2-after-t0_5.png`. Same seed
+(1337), same camera, same time of day, 315 draw calls each:
 
-**So the claim in this file about the street READING better is not made.** What is
-claimed is the geometry: 1 134 props whose long axis now lies along their kerb
-rather than across it, with the claimed and delivered boxes agreeing. Whether
-that looks right is a separate question and it is unanswered. Do not let §1.1's
-numbers stand in for it — CONTRACT §10 step 4 is explicit that the numbers are
-necessary and not sufficient.
+```
+node tools/lookat.mjs --pos=2.5,1.74,40 --target=-7.0,1.74,120 --t=0.5 --fov=55
+```
+
+The pose is eye height on the crown of the **north–south** carriageway through
+the origin, looking down it — which is the band the repair turns. The kerb line
+at **x = −8.1** carries 15 props with `refDeg 90`, ten of them in a 62 m run at
+z = 56…118: bench, bollard, planter, bollard, bin, bollard, hydrant, cabinet,
+bin, hydrant. (The first pose tried, on the pavement at x = −10.2, put a facade
+against the lens — CONTRACT §9.1's own recorded failure, met again. Both frames
+of that pair are identical and are the pose's fault, not the change's.)
+
+**The pair was DIFFERENCED rather than squinted at**, because "the street reads
+better" is exactly the kind of claim this project's §9 notes say looking cannot
+settle:
+
+```
+1440 × 810, 3 channels
+pixels differing by ≥ 8 code values   3 153 of 1 166 400   = 0.2703%
+mean absolute difference, whole frame  0.0967 code values
+bounding box of the change             x 480..864   y 313..443
+busiest 32-px tiles                    (544,352) 513 px, (512,352) 501,
+                                       (512,320) 359, (480,352) 328
+```
+
+**The change is confined to ONE 385 × 131 box, and that box is the kerbside
+furniture.** Nothing else in the frame moved: no exposure shift, no lighting
+shift, no building, no vehicle, no marking — a mean absolute difference of 0.097
+code values over the whole frame is the numerical statement of that. It is the
+visual counterpart of §1.3's registry diff and it confirms the same thing from
+the pixels: this change moves the props and only the props.
+
+**What it does NOT settle, and this is stated rather than glossed:** at 16–78 m a
+1.74 m bench is a few pixels, so **the frame does not support a claim that the
+street reads better.** The furniture cluster is visibly narrower and closer to
+edge-on where it was broadside, which is the expected direction, and that is the
+whole of what can be read at this distance. **A close pose — 8–10 m off one
+bench, oblique — is what would answer the brief's question, and it is §6 item 6.**
+CONTRACT §10 step 4 says the numbers are necessary and not sufficient; the
+honest position here is that the numbers are in and the sufficiency is not.
 
 ---
 
@@ -525,11 +551,17 @@ that overshoot is integration and the rest is the box."*
 ### 5.1 What ran, and what did not
 
 ```
---cycles=3 --dt=0.1 --static  (1 080 frames)  →  page.evaluate: Execution
-                                                 context was destroyed
-                                                 (session 21's own failure)
---cycles=1 --dt=0.1 --static  (  360 frames)  →  COMPLETED
+--cycles=3 --dt=0.1     --static  (1 080 frames) → page.evaluate: Execution
+                                                   context was destroyed
+                                                   (session 21's own failure)
+--cycles=1 --dt=0.1     --static  (  360 frames) → COMPLETED
+--cycles=1 --dt=1/60    --static  (2 160 frames) → still stepping at 58 min,
+                                                   killed on my own timeout
 ```
+
+The 1/60 arm was **not a crash** — it was progressing and it is simply slower
+than the wall I gave it. That is the machine, and it is the same machine §0 is
+about. Three cycles at 1/60 is 6 480 frames, three times what did not finish.
 
 **The defect reproduces on this machine.** One cycle at dt = 0.1: worst
 clearance **−10.454 m**, 14 junctions queued, worst single queue 5 vehicles,
@@ -657,11 +689,12 @@ vehicle never asked for the box. So:
 5. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
    `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
    software renderer, and both read that file.
-6. **TAKE THE FRAME. §1.6 — the one part of brief item 2 that is open.**
-   `node tools/lookat.mjs`, eye height, down a NORTH–SOUTH street, seed 1337.
-   Before is `2c6de3b`, after is this branch. The numbers say the props turned;
-   nothing in this file says the street looks better, and CONTRACT §10 step 4 is
-   why that matters.
+6. **A CLOSE FRAME ON ONE BENCH. §1.6.** The wide pair is taken and differenced
+   — 0.2703% of pixels, all in the furniture — but at 16–78 m a 1.74 m bench is
+   a few pixels and **the street reading better is not claimed.** The pose that
+   would answer it: 8–10 m off the bench at (−8.12, 56.3), oblique, eye height,
+   seed 1337 — e.g. `--pos=-4.0,1.74,49 --target=-8.1,1.2,56.3`. Before is
+   `2c6de3b`, after is this branch.
 7. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
    the placement and is not read in the yaw, so 90° and −90° are chosen
    arbitrarily and a bench can face away from the road. No measurement behind it
