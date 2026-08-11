@@ -20,6 +20,26 @@
         height: 100vh;
         touch-action: none;
       }
+      /* Only ever visible when the module fetch fails — see the note in <body>. */
+      #bootfail {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 46em;
+        margin: 0;
+        padding: 20px 24px;
+        font: 14px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        color: #d6dae0;
+        background: #14161a;
+        border: 1px solid #2b3038;
+        border-radius: 6px;
+      }
+      #bootfail code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: #9ecbff;
+      }
+
       /* Only ever present with ?hud=1. The gates never render with it on. */
       #hud {
         position: fixed;
@@ -38,6 +58,35 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <script type="module" src="/src/main.js"></script>
+    <!--
+      A BUNDLE THAT DOES NOT ARRIVE MUST SAY SO.
+
+      This project's whole discipline is that a failure which produces a
+      plausible frame is worse than one that crashes, and the worst case of all
+      is the one with no frame and no message. Serving this repository's ROOT
+      over HTTP is exactly that: the browser gets this file, asks the domain
+      root for `/src/main.js` — the UNBUILT entry — receives a 404 page, and
+      renders a black canvas. Measured on the live site in that state: the page
+      returned 200 and the entry returned 404 in 9 115 bytes of HTML.
+
+      `onerror` fires when the module's fetch fails and does nothing at all when
+      it succeeds, so every gate and the dev server are unaffected: the element
+      below stays `hidden` on every path where the app boots.
+    -->
+    <p id="bootfail" hidden>
+      <strong>NOCTIS could not load its bundle.</strong><br />
+      This page asked for <code>/src/main.js</code> and did not get it, which
+      means what is being served is the repository's source
+      <code>index.html</code> rather than a build.<br /><br />
+      The app has to be built — <code>npm run build</code> — and
+      <code>dist/</code> served. On GitHub Pages that means
+      <em>Settings → Pages → Build and deployment → Source: GitHub Actions</em>,
+      not “Deploy from a branch”.
+    </p>
+    <script
+      type="module"
+      src="/src/main.js"
+      onerror="document.getElementById('bootfail').hidden = false"
+    ></script>
   </body>
 </html>
