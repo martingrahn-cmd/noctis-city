@@ -76,15 +76,22 @@ would be CONTRACT §0 rule 5 with a purchase order.
 
 ```
 ✓ parsecheck              80 files — and it was RED on main. See §4.
+✓ citycheck --falsify     56/56 cases, 56 failure sites, coverage 100%
+✓ perfcheck --falsify     74/74 cases, 72 failure sites, coverage 100%
 ✓ citycheck  occupancy    0 generator / 0 delivered over 50 forbidden pairs
-✗ citycheck               2 red of 24: sceneWalk (the machine) and
+✗ citycheck               2 red (session 21 had 3 of 24): sceneWalk (the
+                          machine — canyon bakes at 0.8–3.0 s here) and
                           saturation (UNRUN — needs a rasteriser)
 ✓ windcheck               678 meshes, 0 wound backwards, coverage 678/400,
                           both control directions holding. RAN FOR THE FIRST
                           TIME ON A MACHINE WITHOUT A GPU — §3.1, its refusal
                           guarded no pixel.
-✓ queueprobe              the stop-line defect reproduces: −10.454 m at
-                          dt = 0.1 over one cycle. §5.
+✓ queueprobe              RAN, and the FINDING IS RED: the stop-line defect
+                          reproduces at −10.454 m, dt = 0.1, one cycle. §5.
+✗ item 2(f), the FRAME     NOT DONE. The brief asked for a street-level frame
+                          before and after at the same seed and camera, and it
+                          is the one part of item 2 this file cannot answer.
+                          §1.6.
 —  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
                           ~21 600 SwiftShader frames. Counts recovered from
                           citycheck's scene walk instead — §3.2.
@@ -232,6 +239,26 @@ and the gate's own floor is met, but the 60 → 8 step is a like-for-like
 comparison at 2 006 and the 8 → 0 step is not. What corroborates it is §2's
 arithmetic, which is machine-independent: the six offenders are named, their
 mechanism is derived, and the geometry that produced them no longer exists.
+
+### 1.6 THE FRAME WAS NOT TAKEN, AND THAT IS THE ONE PART OF ITEM 2 THAT IS OPEN
+
+The brief asked for a street-level frame before and after at the same seed and
+camera, on the grounds that this is a visual change as well as a numerical one —
+*"every bench, planter and cabinet on a north–south street currently stands
+across the pavement with its end to the road"*. **It was not taken, and the
+reason is a queue rather than a principle:** every browser run on this container
+costs 10–40 minutes, `citycheck` was run three times to get the before/after
+pair, `windcheck` was run once, and the stop-line arm took the rest. `lookat.mjs`
+is the tool (`node tools/lookat.mjs`, and it asserts nothing, which is why it is
+the right one) and the pose wants to be down a **north–south** street, because
+that is the band the repair turns.
+
+**So the claim in this file about the street READING better is not made.** What is
+claimed is the geometry: 1 134 props whose long axis now lies along their kerb
+rather than across it, with the claimed and delivered boxes agreeing. Whether
+that looks right is a separate question and it is unanswered. Do not let §1.1's
+numbers stand in for it — CONTRACT §10 step 4 is explicit that the numbers are
+necessary and not sufficient.
 
 ---
 
@@ -630,20 +657,25 @@ vehicle never asked for the box. So:
 5. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
    `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
    software renderer, and both read that file.
-6. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
+6. **TAKE THE FRAME. §1.6 — the one part of brief item 2 that is open.**
+   `node tools/lookat.mjs`, eye height, down a NORTH–SOUTH street, seed 1337.
+   Before is `2c6de3b`, after is this branch. The numbers say the props turned;
+   nothing in this file says the street looks better, and CONTRACT §10 step 4 is
+   why that matters.
+7. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
    the placement and is not read in the yaw, so 90° and −90° are chosen
    arbitrarily and a bench can face away from the road. No measurement behind it
-   yet; it is a content decision.
-7. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
+   yet; it is a content decision — and §1.6's frame is what would show it.
+8. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
    prints 0.739 on three runs. Harmless direction, wrong number in the file.
-8. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
-9. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
+9. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
+10. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
    the maximum `ahead` over twelve candidates, so a vehicle can materialise 14 m
    dead ahead in the camera's own lane.
-10. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
-11. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
+11. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
+12. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
    arithmetic: 24× at the standard entrance angle.
-12. **The merged branch `claude/generator-occupancy-registry-6pbuer` still
+13. **The merged branch `claude/generator-occupancy-registry-6pbuer` still
    exists on the remote.** It IS fully merged — `git diff
    origin/main...<branch>` is **0 bytes** and its tip `fa60b64` is an ancestor of
    `origin/main` via the merge `1bcd585` — but `git push --delete` returns
