@@ -3,9 +3,15 @@
 *End of session 22. **The 60 benches were a transposition and the repair took
 `citycheck` → `occupancy` from 60 forbidden overlaps to 8. The 8 that remained
 were trees, the worst of them larger than any bench, and they were a second
-quantity confusion that the benches had been hiding: a canopy's head clearance
-authored in MODEL space and read as the clearance it is DELIVERED with. Both
-halves of the two-sided check are now 0.***
+quantity confusion the benches had been hiding: a canopy's head clearance
+authored in MODEL space and read as the clearance it is DELIVERED with. The pair
+the brief said not to relax — `prop × carriageway` — is now 0 of 60 on the same
+census, with the generator's half still 0.***
+
+*`occupancy` is nevertheless still RED at **2**, and they are a THIRD pair that
+nothing had reported before: two containers standing on a hoarding's feet. It is
+diagnosed to the centimetre and deliberately NOT repaired — two candidate fixes
+were built, measured, and moved it by nothing, so both were reverted. §2.4.*
 
 *And the machine, again: **this session did not run on the operator's MacBook Air
 M5.** It ran in a Linux container on a 4-core Intel Xeon with no GPU, exactly as
@@ -75,13 +81,15 @@ would be CONTRACT §0 rule 5 with a purchase order.
 ### 0.1 What ran here, and what a number in this file is
 
 ```
-✓ parsecheck              80 files — and it was RED on main. See §4.
+✓ parsecheck              81 files (78 + benchprobe + the Pages files) — and it
+                          was RED on main. See §4.
 ✓ citycheck --falsify     56/56 cases, 56 failure sites, coverage 100%
 ✓ perfcheck --falsify     74/74 cases, 72 failure sites, coverage 100%
-✓ citycheck  occupancy    0 generator / 0 delivered over 50 forbidden pairs
-✗ citycheck               2 red (session 21 had 3 of 24): sceneWalk (the
-                          machine — canyon bakes at 0.8–3.0 s here) and
-                          saturation (UNRUN — needs a rasteriser)
+✓ citycheck  occupancy    prop × carriageway 60 → 0, generator's half still 0
+✗ citycheck               3 red (session 21 had 3 of 24): sceneWalk (the
+                          machine — canyon bakes at 0.8–3.0 s here),
+                          saturation (UNRUN — needs a rasteriser), and
+                          occupancy at 2 on a THIRD pair — §2.4
 ✓ windcheck               678 meshes, 0 wound backwards, coverage 678/400,
                           both control directions holding. RAN FOR THE FIRST
                           TIME ON A MACHINE WITHOUT A GPU — §3.1, its refusal
@@ -230,21 +238,33 @@ instrument says.
 ### 1.5 Delivered, both halves, printed
 
 ```
-run          generator claims   delivered claims   forbidden overlaps (gen / delivered)
-before             5 349              2 006                0 / 60
-after the yaw      5 349              2 006                0 /  8
-after §2           5 349              1 636                0 /  0
+run              generator claims   delivered claims   forbidden overlaps (gen / delivered)
+before                 5 349              2 006              0 / 60   all prop × carriageway
+after the yaw          5 349              2 006              0 /  8   all prop × carriageway
+after §2               5 349              1 636              0 /  0   ← SMALLER resident set
+after §2, full ring    5 349              2 006              0 /  2   prop × SITE, a third pair
 ```
 
 `maxDeliveredConflicts` and `maxGeneratorConflicts` are both 0 and neither
-moved. **A caveat on the third row, because it is the one that reads as the
-result:** it streamed fewer chunks before the 30 s wall bound (`sceneWalk` timed
-out with 15 bakes queued rather than 12), so its delivered census is 1 636
-claims rather than 2 006. That is still well above `minDeliveredClaims` = 1 200
-and the gate's own floor is met, but the 60 → 8 step is a like-for-like
-comparison at 2 006 and the 8 → 0 step is not. What corroborates it is §2's
-arithmetic, which is machine-independent: the six offenders are named, their
-mechanism is derived, and the geometry that produced them no longer exists.
+moved.
+
+**READ THE LAST TWO ROWS TOGETHER, BECAUSE THE THIRD ONE ON ITS OWN IS
+MISLEADING AND I NEARLY LEFT IT THERE.** The `0 / 0` run streamed fewer chunks
+before the 30 s wall bound — 1 636 delivered claims rather than 2 006 — so it had
+fewer pairs to conflict. Re-running it to a full ring reports **2**, and they are
+**not benches or trees**: `prop(container) × site(hoarding)`, 0.173 and 0.266 m².
+
+**What IS closed is what the brief named, and it is closed completely:**
+
+```
+prop × carriageway        60  →  0
+  of which benches        52  →  0     §1, the yaw transposition
+  of which trees           8  →  0     §2, the model-space head clearance
+```
+
+Every conflict of the pair the brief said not to relax is gone, on the same
+2 006-claim census the 60 was measured on. **The 2 that remain are a pair nothing
+had reported before**, and they are §2.4.
 
 ### 1.6 THE FRAME — TAKEN, MEASURED, AND THE VERDICT IS NARROWER THAN THE BRIEF ASKED FOR
 
@@ -400,6 +420,83 @@ tree across per variant   0.363 / 0.250 / 0.442 / 1.233  — EXACTLY session 21'
 to the four numbers STATE 21 §5.3 recorded, so the delivered-space test costs no
 kerb eligibility at all. Per-kind totals shift by ±3 as a few placements resolve
 differently against the slightly larger crown pad; the totals do not move.
+
+### 2.4 THE RESIDUAL: TWO CONTAINERS ON A HOARDING'S FOOT — DIAGNOSED, NOT REPAIRED
+
+`citycheck` → `occupancy` is **red at 2** on a full resident ring:
+
+```
+prop(container) × site(hoarding:)   0.173 m²
+prop(container) × site(hoarding:)   0.266 m²
+```
+
+**The arithmetic points at the hoarding's FEET, and the smaller area is the
+confirmation.** `city.js` emits a hoarding as a panel plus two feet:
+
+```js
+put(0, f.height * 0.5, 0, f.length, f.height, 0.06, …)              // the panel, 0.06 deep
+for (const e of [-0.42, 0.42]) put(f.length*e, 0.06, 0.18, 0.34, 0.12, 0.5, …)   // the FEET
+```
+
+A foot is offset **0.18** on the panel's local +z and is **0.5** deep, so the
+delivered solid reaches **0.18 + 0.25 = 0.43 m** on that side. The generator's
+claim is
+
+```js
+claimAt('site', x, z, seg/2, 0.12, { y0: 0, y1: SITE.hoardingHeight })
+```
+
+— **0.12 m across, the panel alone. 3.6× short.** And a foot's own footprint is
+`0.34 × 0.5` = **0.170 m²** against the smaller measured overlap of **0.173 m²**.
+A container is standing on a hoarding's foot.
+
+**TWO CANDIDATE REPAIRS WERE BUILT, MEASURED, AND BOTH ARE REVERTED**, and that
+is the part worth reading:
+
+1. **The interior prop claim's circumscribing SQUARE is unsound**, and the
+   comment beside it says *"Conservative, and the right answer for a rotation
+   nobody has fixed yet."* It is not conservative. A box of half-extents
+   `(gw, gd)` yawed by θ has a world AABB half-extent of `gw·|cos θ| +
+   gd·|sin θ|`, which reaches `hypot(gw, gd)` at `θ = atan(gd/gw)` — so a square
+   of `max(gw, gd)` under-claims by up to **√2 = 1.414×**. Per kind: bollard
+   1.414×, bin up to 1.414×, planter up to 1.414×, container 1.263×, tree up to
+   1.364×. Replacing it with the radius cost **1 prop of 1 596** and changed the
+   two overlaps **not at all** — identical areas to three decimals.
+2. **The hoarding claim was widened to its delivered reach** (0.12 → 0.43,
+   symmetric, with the yaw's own contribution), with the two foot constants moved
+   into `SITE` so the claim and the emission read one number. Cost: **zero
+   features refused.** Effect on the two overlaps: **none. Identical areas
+   again.**
+
+**Two proved-unsound bounds, two measured non-effects. So both were reverted**,
+because CONTRACT §7.1's rule is to confirm a repair RED against the content
+before building it, and neither of these is: I never demonstrated a delivered
+overlap that either bound caused. Shipping a content change on a refuted
+hypothesis is what the brief warns about one item over — *"a repair fitted to an
+artefact of the timestep is worse than the artefact"* — and it generalises.
+
+**What that leaves, for the next session, is a sharper question than the one this
+session started with.** Widening either claim moved nothing, which means the
+generator's registry never saw these two as touching. Two ways that happens and
+they need different repairs:
+
+- **The claims are in different chunk registries.** `generateChunk` builds a
+  registry per chunk, and session 21 found this twice already (§1.1 run 4: a
+  landmark 8 m outside a chunk was invisible to the list clipping its roads; and
+  `riverTouchesChunk` furnishing one promenade from two rows). Containers are
+  generated on `construction` chunks AND on `lot`/`yard`/`parking` ones, so a
+  container on one low-detail chunk beside a construction chunk is the shape to
+  look for. Against it: both islands are inset by `CORRIDOR` = 11.7 m, so the
+  nearest a container and a hoarding in different chunks can be is about 25 m.
+- **The delivered container box is bigger than any model-derived bound.** Then
+  the pair is a third instance of §2's shape with the prop's own geometry, and
+  `benchprobe.mjs` prints the pair for it: the offenders are `prop(container)`
+  and the tool already matches a delivered claim to its generator claim by owner
+  and centre.
+
+**`tools/benchprobe.mjs --limit=8` is one command and it answers this**, because
+it prints the claimed box beside the delivered one and the chunk coordinates fall
+straight out of the centres. That is the first thing to run, and it is §6 item 1.
 
 ---
 
@@ -735,42 +832,51 @@ vehicle never asked for the box. So:
 
 ## 6. WHAT THE NEXT SESSION STARTS FROM
 
-1. **THE MACHINE, AND IT IS NOW THE THIRD SESSION ASKING.** §0. `budget.json` →
+1. **THE TWO CONTAINERS ON A HOARDING'S FOOT. §2.4 — `citycheck` is red on it
+   and it is one command.** `node tools/benchprobe.mjs --limit=8` prints the
+   claimed box beside the delivered one for every `prop × …` conflict, and the
+   chunk coordinates fall out of the centres. The arithmetic is already done: the
+   claim is 0.12 m across, the delivered feet reach 0.43 m, and a foot's
+   footprint is 0.170 m² against a measured 0.173. What is NOT known is why
+   widening either claim changed nothing — the two candidates are a cross-chunk
+   registry gap and a delivered container box no model bound covers. **Two
+   repairs were built and reverted; read §2.4 before rebuilding either.**
+2. **THE MACHINE, AND IT IS NOW THE THIRD SESSION ASKING.** §0. `budget.json` →
    `machine.series.m5` is an empty slot with the three steps that fill it.
    Nothing in this project has a millisecond measured after session 20.
-2. **Decide whether `machine` gets an assertion.** §0. The field is inert, which
+3. **Decide whether `machine` gets an assertion.** §0. The field is inert, which
    is why two sessions had to remember not to fake it. The assertion is not free
    — it would refuse every run on any machine but the M4, including the
    operator's own M5 — so it is a decision rather than an omission.
-3. **`floors.visibleInstances` and `drawCalls` on a real route.** §3.2. Counts,
+4. **`floors.visibleInstances` and `drawCalls` on a real route.** §3.2. Counts,
    so they need no quiet machine, but they need a route perfcheck can finish.
-4. **`faultcheck`, `lookcheck` and `citycheck`'s saturation.** §3. All three
+5. **`faultcheck`, `lookcheck` and `citycheck`'s saturation.** §3. All three
    refuse for the right reason and all three need a GPU. `windcheck` no longer
    does — §3.1 — and its verdict is in this file: **678 meshes, 0 wound
    backwards.**
-5. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
+6. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
    `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
    software renderer, and both read that file.
-6. **A CLOSE FRAME ON ONE BENCH. §1.6.** The wide pair is taken and differenced
+7. **A CLOSE FRAME ON ONE BENCH. §1.6.** The wide pair is taken and differenced
    — 0.2703% of pixels, all in the furniture — but at 16–78 m a 1.74 m bench is
    a few pixels and **the street reading better is not claimed.** The pose that
    would answer it: 8–10 m off the bench at (−8.12, 56.3), oblique, eye height,
    seed 1337 — e.g. `--pos=-4.0,1.74,49 --target=-8.1,1.2,56.3`. Before is
    `2c6de3b`, after is this branch.
-7. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
+8. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
    the placement and is not read in the yaw, so 90° and −90° are chosen
    arbitrarily and a bench can face away from the road. No measurement behind it
    yet; it is a content decision — and §1.6's frame is what would show it.
-8. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
+9. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
    prints 0.739 on three runs. Harmless direction, wrong number in the file.
-9. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
-10. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
+10. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
+11. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
    the maximum `ahead` over twelve candidates, so a vehicle can materialise 14 m
    dead ahead in the camera's own lane.
-11. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
-12. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
+12. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
+13. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
    arithmetic: 24× at the standard entrance angle.
-13. **The merged branch `claude/generator-occupancy-registry-6pbuer` still
+14. **The merged branch `claude/generator-occupancy-registry-6pbuer` still
    exists on the remote.** It IS fully merged — `git diff
    origin/main...<branch>` is **0 bytes** and its tip `fa60b64` is an ancestor of
    `origin/main` via the merge `1bcd585` — but `git push --delete` returns
@@ -794,12 +900,23 @@ washboard on the water, the quay wall inside the walkable mask, **props absent
 from the walkability mask**, the 3.5°–10.4° route camera pitch, the
 frozen/running A/B, and `downtown_dense`'s mean luminance under its floor.
 
-**Resolved this session**: the kerbside yaw transposition, and with it the 60
-delivered-census overlaps STATE 21 handed over; the canopy head clearance
-authored in model space; `parsecheck` red on `main`; `windcheck` producing no
-verdict at all on a machine without a GPU.
+**Resolved this session**: the kerbside yaw transposition, and with it 52 of the
+60 delivered-census overlaps STATE 21 handed over; the canopy head clearance
+authored in model space, and the other 8; `parsecheck` red on `main`;
+`HEAD_CLEAR_M` as two literals under a comment claiming a check that did not
+exist; `windcheck` producing no verdict at all on a machine without a GPU.
+
+**Still red and now diagnosed rather than merely counted**: `occupancy` at 2,
+`prop(container) × site(hoarding)` — §2.4, and §6 item 1.
 
 **New this session, both in CONTRACT §9's table**: a lattice band's fixed axis
 read as the axis the band runs along; a model-space head clearance read as a
-delivered one. Plus one §9.1 instance recorded in `budget.json` itself — the
-`machine` field that nothing reads.
+delivered one. Three more are recorded in the code where they live rather than in
+the table, because none of them has yet been shown to cause a delivered defect:
+the `machine` field in `budget.json` that nothing reads; the interior prop
+claim's circumscribing SQUARE, which under-claims a freely-yawed prop by up to
+√2 under a comment calling it conservative; and the hoarding claimed as its panel
+(0.12 m) against feet that reach 0.43 m. **The last two were repaired, measured,
+found to change nothing, and reverted** — §2.4 has the numbers and the reasoning,
+and it is the part of this file most worth reading before touching the registry
+again.
