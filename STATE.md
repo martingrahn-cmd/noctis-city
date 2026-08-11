@@ -86,6 +86,10 @@ would be CONTRACT §0 rule 5 with a purchase order.
                           both control directions holding. RAN FOR THE FIRST
                           TIME ON A MACHINE WITHOUT A GPU — §3.1, its refusal
                           guarded no pixel.
+✓ windcheck --falsify     11/11, including the declared blind spot
+✗ faultcheck              7 of 7 §2.1 cases ran, ZERO quarantine violations,
+                          0 faults on the control — then refused on the
+                          renderer, which is correct. §3.
 ✓ queueprobe              RAN, and the FINDING IS RED: the stop-line defect
                           reproduces at −10.454 m, dt = 0.1, one cycle. §5.
 ✓ item 2(f), the FRAME    before/after at one seed and one camera, DIFFERENCED:
@@ -95,7 +99,9 @@ would be CONTRACT §0 rule 5 with a purchase order.
 —  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
                           ~21 600 SwiftShader frames. Counts recovered from
                           citycheck's scene walk instead — §3.2.
-—  faultcheck / lookcheck refuse, and BOTH REFUSE CORRECTLY. §3.
+—  lookcheck               DID NOT REACH ITS REFUSAL. Eight captures at
+                          2560 × 1440 on SwiftShader: 1 PNG in 21 minutes, so
+                          about 2.8 hours for the set. Stopped. §3.4.
 ```
 
 **Every number in this file is a count, a coordinate or a piece of arithmetic.**
@@ -411,6 +417,25 @@ before doing so; one is a genuine pixel measurement and stays UNRUN.**
 | `citycheck` | beside the saturation sample, since session 21 | yes — `saturation` and `bright reserve` read the frame |
 | `windcheck` | **line 87, before a single census was gathered** | **no. Nothing in it reads a pixel.** |
 
+**`faultcheck`'s FINDINGS are green here, and the refusal is only its admission
+criterion.** All seven §2.1 cases ran and printed and **no `QUARANTINE
+VIOLATIONS` block appeared**:
+
+```
+  control — no injection   0 faults  0 errors  17 live   255 draws
+  canyon.init throws       2 faults  2 errors  15 live   196 draws
+  post.render throws       1 fault   1 error   16 live  2544 draws  ← the §2.1
+  block.init throws        3 faults  3 errors  14 live    87 draws    fallback,
+  block.update throws      1 fault   1 error   16 live   146 draws    untonemapped
+  city.update throws       1 fault   1 error   16 live   196 draws    and visible
+  city.init throws         1 fault   1 error   16 live   196 draws
+```
+
+**`0 faults` on the control is the line that matters for this session**: nothing
+this session changed quarantines a module, and 17 modules are live. The
+`post.render` row at 2 544 draws is the core falling back to
+`renderer.render(scene, camera)` exactly as §2.1 says it should.
+
 ### 3.1 `windcheck`'s refusal is now a NOTE, and this is the one change to a gate
 
 It threw before anything was gathered, so a machine without a GPU produced no
@@ -472,6 +497,20 @@ thing to everything. The four double-sided rows are the sky background and the
 three rain layers, exactly the four `budget.json` →
 `winding.thresholds.$maxUnmeasured` names.
 
+**`windcheck --falsify` also runs here now, and it is 11/11** — which matters
+beyond this gate, because `gateaudit` runs every gate's `--falsify` as a
+subprocess and this one used to throw before reaching its own self-test:
+
+```
+✓ positive control passes                     ✓ minNormalAgreement is load-bearing
+✓ open positive control passes                ✓ minFrontFacing is load-bearing
+✓ negative control fails on volume            ✓ minEyes is load-bearing
+✓ negative control fails on normals           ✓ open negative fails on normals
+✓ open controls decline volume                ✓ open negative fails on facing
+✓ facing is BLIND to a reversed closed solid — the DECLARED blind spot,
+  asserted so that it cannot change unnoticed (CONTRACT §7.6's rule)
+```
+
 **And this is brief item 3's real answer: session 21's new geometry is correctly
 wound.** The park's pond surface (`river:water`, open, signed volume −1.44e6,
 facing 1.0000), the abutment wing walls, the tilted canopy masses and this
@@ -514,6 +553,29 @@ measured what they spent. `citycheck` reports `saturation` **UNRUN and red** on 
 software rasteriser, which is correct — it is a pixel measurement and there is no
 rasteriser here worth reading. Unchanged from session 21, and it needs the
 operator's machine.
+
+### 3.4 `lookcheck` did not even reach its own refusal, and that is a number too
+
+Session 21 recorded it as *"REFUSED: software renderer"*. This session got a more
+useful datum: **it did not get that far.** Its refusal is at the end, after eight
+captures at 2560 × 1440, and on this rasteriser **one PNG took 21 minutes** — so
+the set is about 2.8 hours before the gate can say anything at all. It was
+stopped rather than waited out.
+
+It did print one thing before the captures, and it is the machine again:
+
+```
+city streamed in over 10 frames — 12/30 field slots ready
+  ** TIMED OUT: frames below were captured mid-stream **
+```
+
+Same cause as `citycheck`'s `sceneWalk`: a canyon bake costs 0.8–3.0 s here
+against 0.1–0.3 s on the operator's machine, so `waitForCity`'s wall bound
+expires with half the field unbaked. **A look gate whose frames were captured
+mid-stream would be measuring the streaming system**, which is exactly what
+`sceneWalk` exists to say — so even a completed run here would not have been a
+verdict about the look. `index.html`'s `#bootfail` therefore remains unchecked
+by `lookcheck` and `gateaudit`, unchanged from STATE 21 §9 item 3.
 
 ---
 
