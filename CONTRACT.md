@@ -1090,6 +1090,20 @@ tools/
                          mean is not. `HEIGHT_DISTRIBUTION.mode` is the arm, in
                          the `?fieldDrip` shape — one parameter with two arms
                          rather than two copies of a module.
+  benchprobe.mjs         NOT A GATE. SESSION 22. The GENERATOR's claim for a
+                         prop printed beside the box that was DELIVERED for it,
+                         as (half-x, half-z) pairs — CONTRACT §9 rule 2, and a
+                         transposition is legible in that form and in no other.
+                         `citycheck` → `occupancy` had been reporting 0 on the
+                         generator's registry and 60 on the delivered census for
+                         a session, which is a COUNT of a disagreement and says
+                         nothing about which of the two rectangles is wrong.
+                         Also `--claims=FILE`, a sorted full-precision dump of
+                         the registry over the gate's own region, so a change
+                         that touches only an emitted matrix can be ASSERTED to
+                         leave the registry byte-identical rather than argued to.
+                         Asserts nothing; `citycheck` owns the verdict, the same
+                         arrangement `clustercheck` has with `perfcheck`.
   queueprobe.mjs         NOT A GATE. SESSION 21. The traffic queue at every
                          junction over several full signal cycles, so the
                          distinction that decides item 5 can be made: a queue
@@ -1773,7 +1787,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 62 so far** — and that numeral is now **generated against, not
+**The 64 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1801,8 +1815,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      62        62
-  every pipe-leading line to EOF        62         —   ← the snippet’s quantity
+  contiguous rows after the header      64        64
+  every pipe-leading line to EOF        64         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1869,6 +1883,8 @@ runs on every invocation.
 | 21 | session 5's *"the block leaves x ∈ [−10.5, 10.5] clear at every z"*, in a comment | a bound the placement is checked against | it is the entire justification for the viaduct crossing where it does, and it was prose, so nothing could check it and nothing did: a support reached **\|x\| = 12.18 m**, 1.68 m past the band its own argument depends on. §9.1's config-the-code-does-not-read, with a sentence instead of a value |
 | 21 | **eleven samples** of the river bank over a road's width | **every 4 m** of the same bank, in the registry | two samplings of one curve disagree by whatever falls between their stations: three carriageway pieces 0.03–0.09 m² inside the channel they are cut back from. Sub-decimetre, invisible, and closed by making the road read the water's own claims rather than re-sampling — which is a different kind of correct from a tighter tolerance |
 | 21 | `riverTouchesChunk`, true for every chunk the 147.6 m **envelope** reaches | which chunk **owns** a bank | both chunk rows furnished both promenades over the same x range, so every quayside in the city was furnished twice by two chunks that could not see each other's props. Found by `prop × prop`, which nothing had ever compared: a bin inside a planter and a cabinet inside a tree. Row 15's promenade-lamp ownership bug, one system over, three sessions later |
+| 22 | a kerb band's **FIXED axis** — `{ axis: 'x', at: b.x0 }`, whose `t0/t1` run over the chunk's **z** range | **the axis the band runs along**, which is the doc comment's own words and the opposite of what the rows say | `kerbRef = band.axis === 'x' ? 0 : 90` — so every kerbside prop on a north–south street was drawn ACROSS its pavement with its end to the road, and every one on an east–west street was drawn across the other way. The two lattice cases are inverted **against each other**, which is why both produce the same defect and no comparison between them could show it. The CLAIM was right all along: `axis === 'x'` claims `claimAt('prop', x, z, halfAcross, halfAlong)` — small on X, long on Z, i.e. exactly yaw 90° — so the generator tested a bench lying along the kerb and `city.js` drew one lying across it. Measured on one delivered bench at (8.097, 76.568): claimed half **(x 0.286, z 0.944)** against delivered **(x 0.935, z 0.252)**, same centre to four decimals, the two boxes each other's transpose to within 0.044 m. **1 134 of 1 596 props over the region**, and it took `citycheck` → `occupancy`'s DELIVERED half from 60 forbidden overlaps to 8 with the generator's half unmoved at 0 |
+| 22 | a canopy mass's clearance over head height **in the model**, authored at scale 1 — broad tree 2.183 m against `HEAD_CLEAR_M` = 2.10, an 83 mm margin | the clearance **as delivered**, at `PROP_SCALE` 0.85–1.25 and the variant's own lean | no delivered tree is at scale 1. The broad tree's lowest foliage hung at **1.856 m** at scale 0.85 and **1.681 m** with its 5° lean — under a person, and 1.4 m under a hauler's roof. `derivePropHalfAcross` therefore called the mass overhead and claimed a trunk's worth of ground while `city.js`'s band split, which reads `lo = e[13] − hy − baseY` off the DELIVERED matrix, called it underfoot and delivered a crown's. Six kerbside trees overlapping their own carriageways, every one at scale 0.863–0.933, the worst by **1.264 m²** — larger than any of the 52 benches in the row above, and invisible until the benches were fixed. The comment over `PROP_MODELS.tree` said *"EVERY CROWN CLEARS `HEAD_CLEAR_M`"* and had no check behind it (§9.1). Repaired on the GEOMETRY — both crowns lifted, 0.50 m and 0.35 m, their internal spread untouched — because moving the test alone would have taken the broad tree's across-pad from 0.363 m to 1.640 m against a 0.650 m kerb and refused every street tree the pavement, which is session 21's own row 21 arriving from the other side |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:
