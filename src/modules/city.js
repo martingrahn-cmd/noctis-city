@@ -64,6 +64,10 @@ import {
   PROP_HALF_WIDTH,
   PROP_MODELS,
   propBoxBudget,
+  buildingTiers,
+  ROOF_PARAPET_M,
+  ROOF_SIGN,
+  HEIGHT_DISTRIBUTION,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -84,6 +88,14 @@ const BYTES_PER_INSTANCE = 96;
  * draw call a chunk to be outside the shadow camera.
  */
 const CAST_RADIUS = 1;
+
+/**
+ * Parapet wall thickness, m. The height is `ROOF_PARAPET_M` and lives in the
+ * pure generator because a roof sign's world position is derived from it
+ * (`citygen.js` → `pushRoofSign`); the THICKNESS is a rendering decision that
+ * nothing outside this file needs, so it stays here.
+ */
+const PARAPET_T = 0.3;
 
 /**
  * Sign chromaticities. Six, and no more — docs/authored-city.md's saturation
@@ -1021,6 +1033,81 @@ export function createCity(options = {}) {
     for (const o of root.children) if (o.name === 'city:signs') signMesh = o;
   }
 
+  /**
+   * The resident roof-sign population, summed off the chunks that are actually
+   * in the scene. Session 20.
+   *
+   * NOT A RUNNING TOTAL. A counter incremented on build would keep counting
+   * chunks that have since been evicted, and the number this feeds — the
+   * bloom-energy comparison against the street lamps — is a claim about ONE
+   * frame. §9's shape with a lifetime total used as a resident one.
+   */
+  function roofSignCensus() {
+    let faces = 0;
+    let area = 0;
+    for (const rec of resident.values()) {
+      faces += rec.roofSignFaces || 0;
+      area += rec.roofSignArea || 0;
+    }
+    return { faces, area };
+  }
+
+  /**
+   * ONE LINE, ONCE, WHEN THE CITY HAS ARRIVED — the derivation
+   * `LIGHT.roofSignNits` asks for, discharged at the point of USE (§9.1: a value
+   * that crosses two module boundaries to reach a shader is printed at the far
+   * end).
+   *
+   * What it prints is the pair the lamp-bowl finding turns on: bloom energy is
+   * radiance × AREA, and 98 bowls of 1.6115 m² at 9000 cd/m² is the number this
+   * project already knows. The roof signs' side of that comparison cannot be
+   * written in a comment because it depends on how many buildings the generator
+   * gave one to, which is a measurement.
+   */
+  let roofSignReported = false;
+  let lastResidentForReport = -1;
+  function reportRoofSigns(ctx) {
+    if (roofSignReported) return;
+    /**
+     * WAIT FOR THE RING TO STOP GROWING, AND THE FIRST VERSION DID NOT.
+     *
+     * It printed as soon as 24 faces were resident, which on a cold start is
+     * about a fifth of the ring — so it reported **47 faces and 1992 m²** and
+     * called the ratio against the street lamps 140%, on a city that was still
+     * arriving. The delivered figure at full residency is an order of magnitude
+     * different. A snapshot taken at an arbitrary moment of streaming, printed
+     * as though it were the delivered total, is §9's shape with a partial
+     * population — and it was caught by reading the HUD's own derivations panel
+     * against `city.stats()` in the same frame, which is the whole reason that
+     * panel exists.
+     *
+     * The condition is that the resident count did not change since the last
+     * call, which is true on the first frame the ring is stable and needs no
+     * knowledge of how many chunks the ring wants.
+     */
+    const resid = resident.size;
+    const stable = resid > 0 && resid === lastResidentForReport;
+    lastResidentForReport = resid;
+    if (!stable) return;
+    const c = roofSignCensus();
+    if (c.faces < 24) return;
+    roofSignReported = true;
+    const bowls = 98 * 1.6115 * LIGHT.streetlampNits;
+    const signsEnergy = c.area * LIGHT.roofSignNits;
+    ctx.log(
+      `city: ${c.faces} roof-sign faces over ${resid} resident chunks, ` +
+      `${c.area.toFixed(0)} m² emitting at ${LIGHT.roofSignNits} cd/m² = ` +
+      `${(signsEnergy / 1000).toFixed(0)} k cd·m²/m², i.e. ` +
+      `${(c.area / resid).toFixed(1)} m² of emitter per chunk. ` +
+      `AGAINST 98 lamp bowls × 1.6115 m² × ${LIGHT.streetlampNits} = ${(bowls / 1000).toFixed(0)} k, ` +
+      `${((signsEnergy / bowls)).toFixed(1)}× — AND THAT RATIO IS AN UPPER BOUND RATHER THAN A ` +
+      'MEASUREMENT, because the two populations are not the same one: the 98 bowls are what the ' +
+      'pool lights within about 150 m of the camera, and these faces are everything resident over ' +
+      'a 1.4 km square, most of it behind something or under a pixel. What a FRAME sees is ' +
+      'measured by tools/levels.mjs on a frame, not here.'
+    );
+  }
+
   // -------------------------------------------------------------------------
 
   function buildChunk(ctx, cx, cz, detail, ring) {
@@ -1075,6 +1162,14 @@ export function createCity(options = {}) {
     const windowTint = [];
     const signQuads = [];
     const signTint = [];
+    /**
+     * Session 20. The delivered roof-sign face count and total emitting AREA
+     * for this chunk, so the bloom-energy comparison `LIGHT.roofSignNits` asks
+     * for is a MEASUREMENT off the geometry rather than that comment's own
+     * estimate (§9 rule 4). Summed over resident chunks by `roofSignCensus()`.
+     */
+    let roofSignFaces = 0;
+    let roofSignArea = 0;
     const props = [];
     const propSkin = [];
     const patches = [];
@@ -1085,16 +1180,43 @@ export function createCity(options = {}) {
       const mat = CITY_MATERIALS[bld.material];
       const era = CITY_ERAS[bld.era];
 
-      bodies.push(setMatrix(bld.x, bld.height / 2, bld.z, bld.width, bld.height, bld.depth, bld.yawDeg));
-      bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+      /**
+       * THE MASSING, AND SINCE SESSION 20 IT IS A STACK RATHER THAN A BOX.
+       *
+       * `buildingTiers()` returns exactly one full-height entry for a building
+       * with no setback, so this loop delivers byte-for-byte what the single
+       * `bodies.push` above it used to — the un-stepped path is unchanged by
+       * ARITHMETIC and not by a branch, which is the same discipline §5.11 uses
+       * for a static world's motion vectors.
+       *
+       * Two or three boxes where there was one, on the ~30% of buildings over
+       * 34 m that get a setback. Instances, not draws: they ride in the chunk's
+       * existing merged box mesh, which is what makes this affordable at 428 of
+       * 440 draw calls on `highway_speed`.
+       */
+      const tiers = buildingTiers(bld);
+      for (const t of tiers) {
+        bodies.push(setMatrix(
+          bld.x, (t.y0 + t.y1) / 2, bld.z,
+          t.width, t.y1 - t.y0, t.depth, bld.yawDeg
+        ));
+        bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+      }
 
       /**
        * The cantilever, on the contemporary era only. The upper two thirds
        * oversail the base — form rather than material, which is the distinction
        * the setting rests on: a 2049 building is not a 2020 building in a
        * different colour, it is one that could not have been framed in 1960.
+       *
+       * SUPPRESSED WHERE THERE IS A SETBACK — session 20 — because a mass
+       * cannot both oversail and step in at the same level, and it would: the
+       * cantilever starts at 0.66 of the height and the first setback lands at
+       * 0.45–0.66 of it. A building gets one form or the other, and the setback
+       * wins because it is the taller building's form and the cantilever is
+       * already restricted to one era.
        */
-      if (bld.cantilever > 0) {
+      if (bld.cantilever > 0 && !bld.setbacks) {
         const dir = bld.facing[0] === 'x' ? [bld.facing[1] === '+' ? 1 : -1, 0] : [0, bld.facing[1] === '+' ? 1 : -1];
         bodies.push(setMatrix(
           bld.x + dir[0] * bld.cantilever * 0.5,
@@ -1131,9 +1253,17 @@ export function createCity(options = {}) {
       const crownDepth = era.cornice + (bld.crown || 0);
       if (crownDepth > 0.02) {
         const oversail = era.cornice > 0.02 ? era.cornice * 1.6 : -bld.crown * 0.55;
+        /**
+         * ON THE TOP TIER — session 20. A cornice belongs to the elevation it
+         * crowns, and after a setback that elevation is narrower than the base.
+         * Left on `bld.width` a 0.9 m prewar cornice would have oversailed the
+         * step by the inset as well, i.e. up to 3.5 m of stone hanging in the
+         * air over the lower roof.
+         */
+        const top = tiers[tiers.length - 1];
         crowns.push(setMatrix(
           bld.x, bld.height + crownDepth / 2, bld.z,
-          bld.width + oversail, crownDepth, bld.depth + oversail, bld.yawDeg
+          top.width + oversail, crownDepth, top.depth + oversail, bld.yawDeg
         ));
         crownSkin.push({ albedo: mat.albedo, roughness: Math.min(1, mat.roughness + 0.05) });
       }
@@ -1158,12 +1288,20 @@ export function createCity(options = {}) {
        * draw budget, which is the tight one at 438 of 440 on `highway_speed`,
        * does not move at all.
        */
-      buildRoofscape(bld, mat, bodies, bodySkin);
+      buildRoofscape(bld, mat, bodies, bodySkin, tiers);
 
       if (detail) {
-        buildFacade(bld, era, windows, windowTint, bodies, bodySkin, mat.albedo, mat.roughness);
+        /**
+         * ONE PASS PER TIER, and `floorBase` accumulates so the display band
+         * stays a fraction of the BUILDING. See `buildFacade`'s own note.
+         */
+        let floorBase = 0;
+        for (const t of tiers) {
+          buildFacade(bld, era, windows, windowTint, bodies, bodySkin,
+            mat.albedo, mat.roughness, t, floorBase, bld.floors);
+          floorBase += Math.max(0, Math.round((t.y1 - t.y0) / era.floor));
+        }
         buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin);
-
       }
     }
 
@@ -1204,18 +1342,37 @@ export function createCity(options = {}) {
      * rather than restated, because a claim is not checkable and this is.
      */
     const yawForNormal = (nx, nz) => (nx ? nx * 90 : nz > 0 ? 0 : 180);
-    const pushSign = (m, s) => {
+    const pushSign = (m, s, nitsGain = 1) => {
       signQuads.push(m);
       /**
        * State rides in the tint, which the emissive injection multiplies into
        * the emission. A dead sign is not a different mesh or a different
        * material — it is the same sign with the power off, which is what a dead
        * sign is.
+       *
+       * AND SO DOES THE RADIANCE — session 20, `nitsGain`.
+       *
+       * A rooftop sign is `LIGHT.roofSignNits` = 1000 cd/m² and a shopfront
+       * fascia is `LIGHT.signPlateNits` = 86. Two materials would be two draw
+       * calls on a budget sitting at 428 of 440, so the ratio rides in the
+       * instance tint instead: `lights.js` injects `totalEmissiveRadiance *=
+       * vColor` (§5.6's per-instance emissive tint) and three multiplies the
+       * same `instanceColor` into `diffuseColor`, so ONE material at 86 nits
+       * carries both populations and the delivered radiance is the product.
+       *
+       * BOTH NUMBERS, AND THE PRODUCT, because a gain is exactly the kind of
+       * quantity §9's table is made of: 86 × 11.63 = 1000.0 cd/m². The DIFFUSE
+       * side of the same multiply is checked rather than assumed — the sign
+       * material's `color` is 0x101216, i.e. about 0.0056 in linear, so an
+       * 11.63× gain puts its reflectance at 0.065. That is a dark grey and not
+       * a reflectance above 1, which is what would make this trick a defect.
        */
       const c = SIGN_CHROMA[s.chroma % SIGN_CHROMA.length];
-      const gain = s.state === 'lit' ? 1 : s.state === 'half' ? 0.28 : 0.015;
+      const gain = (s.state === 'lit' ? 1 : s.state === 'half' ? 0.28 : 0.015) * nitsGain;
       signTint.push({ albedo: [c[0] * gain, c[1] * gain, c[2] * gain], roughness: 0.1 });
     };
+    /** 1000 / 86 = 11.63. Computed, not typed, so neither constant can drift alone. */
+    const ROOF_SIGN_GAIN = LIGHT.roofSignNits / LIGHT.signPlateNits;
     /** Structure — masts, brackets, pylon posts — into the chunk's own box mesh, so no mounting costs a draw call. */
     const pushStruct = (x, y, z, sx, sy, sz, yawDeg) => {
       bodies.push(setMatrix(x, y, z, sx, sy, sz, yawDeg));
@@ -1262,7 +1419,128 @@ export function createCity(options = {}) {
         if (clash || inBlock) mount = 'flush';
       }
 
-      if (mount === 'flush') {
+      if (mount === 'rooftop') {
+        /**
+         * ROOF SIGNS — SESSION 20, ITEM 3, AND THE LARGEST UNBUILT EMISSIVE
+         * SOURCE THIS CITY HAD.
+         *
+         * WHY IT IS THE FIX FOR THE MEAN-LUMINANCE RED AND NOTHING IN THE
+         * LIGHTING MODEL IS. STATE 19 §4 and STATE 18 §3.2 are two
+         * impossibility proofs with the same ending: lifting a night facade one
+         * stop needs the road's own illuminance ON THE WALL, a cutoff optic
+         * delivers a tenth of that by design, and no ambient term brings an
+         * unlit wall within 5× of the sky behind it. Both end at "what moves
+         * that frame is EMISSION". This is emission, at the one height the city
+         * has none — STATE 19 §8 measured the elevated frame at 99.30% shadow
+         * and median code 7 with a roofscape that had just landed, because at
+         * night a cluttered black silhouette and a plain one are both black.
+         *
+         * ZERO DRAW CALLS AND ZERO CLUSTER SLOTS. The faces ride in the merged
+         * `city:signs` mesh at a tint gain (see `pushSign`); the frames, legs
+         * and brackets ride in the chunk's own box mesh through `pushStruct`.
+         * The pool has 28 spare slots and this asks for none of them, by the
+         * same argument the vehicles' tail lamps make: a sign read from 600 m
+         * is worth its own radiance and not the pool it throws.
+         *
+         * THREE MOUNTINGS, and the vertical arrangement is the whole variation:
+         * one sits ON the roof line, one stands clear of it against the sky,
+         * and one hangs over the edge and reads from the pavement below.
+         */
+        const roofMount = s.roofMount || 'parapet';
+        const two = s.doubleSided ? [1, -1] : [1];
+        /** How far in from the elevation the sign's own plane stands. */
+        const inset = roofMount === 'cantilever' ? -0.55 : roofMount === 'frame' ? 1.35 : 0.18;
+        const cx3 = wx - out[0] * inset;
+        const cz3 = wz - out[1] * inset;
+
+        /**
+         * TESTED AGAINST THE CHUNK'S OWN OCCUPANCY, OR IT IS NOT PLACED —
+         * CONTRACT §9.1's rule, and the FIRST RUN OF THIS SESSION'S CONTENT IS
+         * WHY IT IS HERE.
+         *
+         * `citycheck` reported **1 of 908 delivered sign quads inside a
+         * building**, against a ceiling of 0. It is not this sign's own
+         * building: a roof sign's centre is `bld.height + ROOF_PARAPET_M + more`,
+         * which is above its own occluder's `top` by construction on all three
+         * mountings. What it is, is STATE §10's carried gap — *"the four island
+         * frontages overlapping at the corners"*. The generator walks each side
+         * of an island independently and tests a building against the ones
+         * already placed on its own run; at a corner two runs meet and their
+         * footprints can overlap, so a roof sign on the shorter of the two
+         * stands inside the taller one, forty metres up, at the corner.
+         *
+         * REFUSED RATHER THAN MOVED, which is the same decision the pylon above
+         * makes and for the same reason: a moved sign is a sign somewhere
+         * nobody decided. The condition is the gate's own — inside the footprint
+         * in plan AND below that box's top — so the two cannot drift apart.
+         *
+         * IT DOES NOT REPAIR THE CORNER OVERLAP, and that is the honest
+         * statement: the overlapping BUILDINGS are still overlapping and are
+         * still STATE §10's gap. This stops one session's new content from
+         * standing inside the consequence.
+         */
+        let blocked = false;
+        for (const o of chunk.occluders || []) {
+          if (o.landmark != null || o.river != null) continue;
+          if (cx3 > o.x0 && cx3 < o.x1 && cz3 > o.z0 && cz3 < o.z1 && s.y < o.top) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) continue;
+        for (const dir of two) {
+          pushSign(setMatrix(
+            cx3 + out[0] * 0.06 * dir, s.y, cz3 + out[1] * 0.06 * dir,
+            s.width, height, 1,
+            s.yawDeg + yawForNormal(out[0] * dir, out[1] * dir)
+          ), s, ROOF_SIGN_GAIN);
+        }
+
+        /**
+         * THE STRUCTURE, AND IT IS WHAT MAKES THE MOUNTING READ RATHER THAN
+         * DECORATION. A lit rectangle floating over a roof is a decal; the legs
+         * under it are what say how far above the roof it is, and at night they
+         * are silhouetted against their own sign, which is the one place in this
+         * frame where unlit geometry is legible.
+         */
+        const roofTop = s.buildingHeight + ROOF_PARAPET_M;
+        if (roofMount === 'frame') {
+          // Two legs from the roof to the sign's bottom edge, and a brace at
+          // mid-height. The legs are set in from the face's ends by a sixth,
+          // which is where a real lattice tower stands under a hoarding.
+          const legY0 = s.buildingHeight;
+          const legTop = s.y - height / 2;
+          for (const k of [-1, 1]) {
+            pushStruct(
+              cx3 + tan[0] * k * s.width * 0.33, (legY0 + legTop) / 2, cz3 + tan[1] * k * s.width * 0.33,
+              out[0] ? 0.34 : 0.26, Math.max(0.4, legTop - legY0), out[0] ? 0.26 : 0.34, 0
+            );
+          }
+          pushStruct(
+            cx3, legY0 + (legTop - legY0) * 0.55, cz3,
+            out[0] ? 0.2 : s.width * 0.66, 0.16, out[0] ? s.width * 0.66 : 0.2, 0
+          );
+        } else if (roofMount === 'cantilever') {
+          // Two brackets from the parapet out to the sign's inner edge, at the
+          // sign's own top, so the load path reads the way a real one does.
+          for (const k of [-1, 1]) {
+            pushStruct(
+              wx - out[0] * 0.28 + tan[0] * k * s.width * 0.36,
+              s.y + height / 2 - 0.15,
+              wz - out[1] * 0.28 + tan[1] * k * s.width * 0.36,
+              out[0] ? 1.1 : 0.16, 0.16, out[0] ? 0.16 : 1.1, 0
+            );
+          }
+        } else {
+          // A parapet sign is bolted to the upstand: one rail along its foot.
+          pushStruct(
+            cx3, roofTop - 0.1, cz3,
+            out[0] ? 0.24 : s.width, 0.2, out[0] ? s.width : 0.24, 0
+          );
+        }
+        roofSignFaces += two.length;
+        roofSignArea += s.width * height * two.length;
+      } else if (mount === 'flush') {
         /** A fascia stands proud of the masonry it is bolted to; 0.12 m is a channel-letter box. */
         pushSign(setMatrix(
           wx + out[0] * 0.12, s.y, wz + out[1] * 0.12,
@@ -1308,9 +1586,12 @@ export function createCity(options = {}) {
          * `ph` the facade loop uses, read from there rather than guessed, so a
          * change to the upstand cannot leave a sign floating over it.
          */
-        const parapet = 1.05;
+        // `ROOF_PARAPET_M`, not a second literal 1.05 — session 20. The comment
+        // that used to sit here claimed this was "read from" the facade loop's
+        // upstand so that a change to one could not leave the other floating.
+        // It was not read from anything; both were literals. Now both are this.
         const legs = 1.1;
-        const y = s.buildingHeight + parapet + legs + height / 2;
+        const y = s.buildingHeight + ROOF_PARAPET_M + legs + height / 2;
         pushSign(setMatrix(
           wx - out[0] * 0.05, y, wz - out[1] * 0.05,
           s.width, height, 1, s.yawDeg + faceYaw
@@ -1318,7 +1599,7 @@ export function createCity(options = {}) {
         for (const k of [-1, 1]) {
           pushStruct(
             wx + tan[0] * k * s.width * 0.34 - out[0] * 0.2,
-            s.buildingHeight + parapet + legs / 2 + 0.1,
+            s.buildingHeight + ROOF_PARAPET_M + legs / 2 + 0.1,
             wz + tan[1] * k * s.width * 0.34 - out[1] * 0.2,
             0.14, legs + height * 0.5, 0.14, 0
           );
@@ -1707,7 +1988,12 @@ export function createCity(options = {}) {
       if (o.name === `${rngKey}:masses`) massMesh = o;
       if (o.name === `${rngKey}:lamps` || o.name === `${rngKey}:bowls`) nearMeshes.push(o);
     });
-    return { group, bytes, lamps, chunk, ground, massMesh, nearMeshes, signs: signQuads.length ? { matrices: signQuads, skin: signTint } : null };
+    return {
+      group, bytes, lamps, chunk, ground, massMesh, nearMeshes,
+      signs: signQuads.length ? { matrices: signQuads, skin: signTint } : null,
+      roofSignFaces,
+      roofSignArea,
+    };
   }
 
   /**
@@ -1718,17 +2004,59 @@ export function createCity(options = {}) {
    * comes from the hour, so a night city has a scatter of dark windows in it and
    * a day city has none that read at all.
    */
-  function buildFacade(bld, era, out, tint, masses, massSkin, albedo, roughness) {
-    const floors = Math.min(bld.floors, 34);
-    const plinth = era.ground === 'shopfront' ? 5.4 : 4.2;
-    const usable = Math.max(0, bld.height - plinth);
+  /**
+   * ONE TIER OF ONE BUILDING'S ELEVATION — session 20.
+   *
+   * It used to take the whole building, because a building was one box. A
+   * setback makes it two or three, and the failure of NOT threading the tier
+   * through is precise and ugly: the upper windows would be laid out on the
+   * BASE's half-width, i.e. floating one inset clear of the wall they belong to,
+   * over the roof of the tier below. That is CONTRACT §9's shape with two
+   * half-widths and it is exactly what session 14's buried signage was.
+   *
+   * `tier` is `{ y0, y1, width, depth }` out of `citygen.buildingTiers()` — the
+   * one function that turns a setback description into boxes, so the windows,
+   * the masses, the parapets, the roof plant and the signage all ask the same
+   * thing where a wall is. `floorBase` is the ABSOLUTE floor index this tier
+   * starts at and `floorTotal` the building's own floor count; both exist only
+   * so `fracUp` — which drives the display-advertising band — stays a fraction
+   * of the BUILDING rather than of the tier. A display band that restarted at
+   * every setback would put an advertising panel at three separate heights on
+   * one elevation.
+   */
+  function buildFacade(bld, era, out, tint, masses, massSkin, albedo, roughness,
+    tier, floorBase, floorTotal) {
+    /** The base tier stands on the street and has a ground floor; the others do not. */
+    const plinth = tier.y0 > 0 ? tier.y0 : (era.ground === 'shopfront' ? 5.4 : 4.2);
+    const usable = Math.max(0, tier.y1 - plinth);
     if (usable < 2) return;
+    /**
+     * THE ROW CAP, AND IT IS DERIVED FROM THE HEIGHT DISTRIBUTION RATHER THAN
+     * BEING THE LITERAL 34 IT WAS — session 20.
+     *
+     * 34 was written when the generator's tallest possible building was
+     * `rng.range(12, 64)` over the shortest era's 3.05 m storey, i.e. 21
+     * storeys: the cap could not bite and it was a safety bound. The log-normal
+     * puts p99 at 134 m and clamps at 150, so 34 rows would have left **nine
+     * buildings of 432 with blank walls above about 108 m** — on precisely the
+     * towers this session added, which are the ones anybody looks at.
+     *
+     * So it is `maxM / era.floor`, which is the tallest building this generator
+     * can produce expressed in THIS era's storeys. The loop below breaks on the
+     * tier's own top anyway, so the cap is a bound and not a budget — which is
+     * the state it was in before the distribution changed, restored by
+     * derivation instead of by a number nobody re-checked.
+     */
+    const floors = Math.min(
+      Math.floor(usable / era.floor) + 1,
+      Math.ceil(HEIGHT_DISTRIBUTION.maxM / era.floor)
+    );
 
     const faces = [
-      { dir: [0, -1], w: bld.width, off: bld.depth / 2 },
-      { dir: [0, 1], w: bld.width, off: bld.depth / 2 },
-      { dir: [-1, 0], w: bld.depth, off: bld.width / 2 },
-      { dir: [1, 0], w: bld.depth, off: bld.width / 2 },
+      { dir: [0, -1], w: tier.width, off: tier.depth / 2 },
+      { dir: [0, 1], w: tier.width, off: tier.depth / 2 },
+      { dir: [-1, 0], w: tier.depth, off: tier.width / 2 },
+      { dir: [1, 0], w: tier.depth, off: tier.width / 2 },
     ];
 
     for (let f = 0; f < faces.length; f++) {
@@ -1772,11 +2100,11 @@ export function createCity(options = {}) {
 
       for (let fl = 0; fl < floors; fl++) {
         const y = plinth + fl * era.floor + era.floor * 0.5;
-        if (y + winH / 2 > bld.height - 0.4) break;
+        if (y + winH / 2 > tier.y1 - 0.4) break;
 
         if (relief === 'spandrel' && masses) {
           const by = y + winH / 2 + (era.floor - winH) / 2;
-          if (by < bld.height - 0.5) {
+          if (by < tier.y1 - 0.5) {
             masses.push(setMatrix(
               bld.x + (face.dir[0] ? face.dir[0] * (face.off + 0.11) : 0),
               by,
@@ -1804,9 +2132,9 @@ export function createCity(options = {}) {
             const mu = -face.w / 2 + colW * c;
             masses.push(setMatrix(
               bld.x + (face.dir[0] ? face.dir[0] * (face.off + 0.13) : mu),
-              plinth + (bld.height - plinth) / 2,
+              plinth + (tier.y1 - plinth) / 2,
               bld.z + (face.dir[1] ? face.dir[1] * (face.off + 0.13) : mu),
-              face.dir[0] ? 0.26 : 0.34, bld.height - plinth, face.dir[0] ? 0.34 : 0.26,
+              face.dir[0] ? 0.26 : 0.34, tier.y1 - plinth, face.dir[0] ? 0.34 : 0.26,
               bld.yawDeg
             ));
             massSkin.push({ albedo, roughness: Math.min(1, roughness + 0.02) });
@@ -1908,7 +2236,13 @@ export function createCity(options = {}) {
            * around is worse than one with no lights at all.
            */
           const lit = Math.abs(Math.sin((c * 3.7 + fl * 9.1 + bld.z * 0.07) * 12345.678) % 1);
-          const fracUp = floors > 1 ? fl / (floors - 1) : 0;
+          /**
+           * A FRACTION OF THE BUILDING, NOT OF THIS TIER. See the note on the
+           * signature: `floorBase` is where this tier starts in the building's
+           * own floor count, so a stepped tower has ONE display band rather
+           * than one per step.
+           */
+          const fracUp = floorTotal > 1 ? (floorBase + fl) / (floorTotal - 1) : 0;
           const display = bld.displayFacade && front &&
             fracUp >= bld.displayFrom && fracUp <= bld.displayTo;
           const on = display ? 1 : lit > 0.42 ? 1 : lit > 0.3 ? 0.35 : 0.02;
@@ -1995,8 +2329,40 @@ export function createCity(options = {}) {
   ];
   const ROOF_KIND_TOTAL = ROOF_KINDS.reduce((a, k) => a + k.w, 0);
 
-  function buildRoofscape(bld, mat, bodies, bodySkin) {
+  function buildRoofscape(bld, mat, bodies, bodySkin, tiers) {
+    /**
+     * A PARAPET ON EVERY TIER'S ROOF — session 20, and it is what makes a
+     * setback read at all.
+     *
+     * A step with no upstand is a change of width and nothing else: from any
+     * angle where the lower roof is not visible it is indistinguishable from a
+     * building of the narrower width standing behind a shorter one. The upstand
+     * is the horizontal line that says *this is a roof*, and putting one on
+     * every tier costs four boxes a step, in the mesh that is already drawn.
+     *
+     * IT RUNS BEFORE THE `floors > 4` GATE, deliberately: a stepped building is
+     * over 34 m by construction and therefore always over four floors, but the
+     * intermediate roofs belong to the MASSING rather than to the plant, and a
+     * future change to the plant gate must not silently take them away.
+     */
+    const stack = tiers || [{ y0: 0, y1: bld.height, width: bld.width, depth: bld.depth }];
+    for (let i = 0; i < stack.length - 1; i++) {
+      const t = stack[i];
+      for (const [ox, oz, sx, sz] of [
+        [0, -t.depth / 2, t.width, PARAPET_T], [0, t.depth / 2, t.width, PARAPET_T],
+        [-t.width / 2, 0, PARAPET_T, t.depth], [t.width / 2, 0, PARAPET_T, t.depth],
+      ]) {
+        bodies.push(setMatrix(
+          bld.x + ox, t.y1 + ROOF_PARAPET_M / 2, bld.z + oz,
+          sx, ROOF_PARAPET_M, sz, bld.yawDeg
+        ));
+        bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+      }
+    }
+
     if (!(bld.floors > 4)) return;
+    /** The plant and the top parapet stand on the TOP tier, not on the base's plan. */
+    const top = stack[stack.length - 1];
     const seed = Math.abs(Math.sin((bld.x * 0.37 + bld.z * 0.11) * 4711.13) % 1);
     const units = 2 + Math.floor(seed * 4);
     for (let u = 0; u < units; u++) {
@@ -2028,9 +2394,9 @@ export function createCity(options = {}) {
        * the edge of a narrow building. Each axis is inset by its own extent.
        */
       bodies.push(setMatrix(
-        bld.x + (h - 0.5) * Math.max(0, bld.width - w - 1.5),
+        bld.x + (h - 0.5) * Math.max(0, top.width - w - 1.5),
         bld.height + ph / 2,
-        bld.z + ((u / units) - 0.5) * Math.max(0, bld.depth - d - 1.5),
+        bld.z + ((u / units) - 0.5) * Math.max(0, top.depth - d - 1.5),
         w, ph, d, bld.yawDeg + (h - 0.5) * 4
       ));
       bodySkin.push({
@@ -2038,15 +2404,25 @@ export function createCity(options = {}) {
         roughness: kind.rough == null ? mat.roughness : kind.rough,
       });
     }
-    // The parapet, as four thin boxes. A roof with no upstand reads as a
-    // sliced-off box, which is exactly what it is without one.
-    const pt = 0.3;
-    const pph = 1.05;
+    /**
+     * The top parapet, as four thin boxes. A roof with no upstand reads as a
+     * sliced-off box, which is exactly what it is without one.
+     *
+     * ITS HEIGHT IS `ROOF_PARAPET_M` OUT OF THE PURE GENERATOR AND NOT A
+     * LITERAL — session 20. It was 1.05 here and 1.05 again in the `roof` sign
+     * mounting forty lines below, under a comment claiming the second was read
+     * from the first. It was not: they were two literals, and a roof sign's
+     * world height is now part of the chunk's own description (`citygen.js` →
+     * `pushRoofSign`), so the number has to be somewhere all three can see it.
+     */
     for (const [ox, oz, sx, sz] of [
-      [0, -bld.depth / 2, bld.width, pt], [0, bld.depth / 2, bld.width, pt],
-      [-bld.width / 2, 0, pt, bld.depth], [bld.width / 2, 0, pt, bld.depth],
+      [0, -top.depth / 2, top.width, PARAPET_T], [0, top.depth / 2, top.width, PARAPET_T],
+      [-top.width / 2, 0, PARAPET_T, top.depth], [top.width / 2, 0, PARAPET_T, top.depth],
     ]) {
-      bodies.push(setMatrix(bld.x + ox, bld.height + pph / 2, bld.z + oz, sx, pph, sz, bld.yawDeg));
+      bodies.push(setMatrix(
+        bld.x + ox, bld.height + ROOF_PARAPET_M / 2, bld.z + oz,
+        sx, ROOF_PARAPET_M, sz, bld.yawDeg
+      ));
       bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
     }
   }
@@ -3033,6 +3409,12 @@ export function createCity(options = {}) {
           peakMB: +(peakBytes / 1048576).toFixed(2),
           lampsActive: Math.min(lampCandidates.length, lampPool.length),
           lampPool: lampPool.length,
+          /**
+           * Session 20. Resident roof-sign faces and their total emitting area,
+           * so `citycheck` can assert the population and the HUD can show it.
+           * A measurement off the delivered chunks, not off the description.
+           */
+          roofSigns: roofSignCensus(),
         }),
         describe,
         chunkSize: CITY.chunkSize,
@@ -3483,6 +3865,9 @@ export function createCity(options = {}) {
            */
           chunk: made.chunk,
           lamps: made.lamps,
+          /** Session 20 — see `roofSignCensus()`. */
+          roofSignFaces: made.roofSignFaces,
+          roofSignArea: made.roofSignArea,
           lastWanted: frameStamp,
         });
         bytesResident += made.bytes;
@@ -3494,6 +3879,7 @@ export function createCity(options = {}) {
       // After eviction, so a chunk dropped this frame is out of the mesh too.
       if (groundDirty) rebuildGroundMesh();
       if (signsDirty) rebuildSignMesh();
+      reportRoofSigns(ctx);
 
       // --- the canyon field ring ---
       if (canyon && canyon.requestChunk) {

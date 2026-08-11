@@ -263,6 +263,25 @@ export function createCamera(options = {}) {
    * player is registered or not.
    */
   let driven = false;
+  /** name → patch. Probe-only; see `setRouteOverride`. Empty for every gate. */
+  const overrides = new Map();
+  /**
+   * A route as the camera should read it: the authored one with any probe
+   * override applied. ONE function, and every reader goes through it — a second
+   * place that merged the patch would be a second copy of the merge, which is
+   * §9.1's arrangement with an object instead of a number.
+   */
+  function routeOf(name) {
+    const r = ROUTES[name];
+    if (!r) return null;
+    const o = overrides.get(name);
+    if (!o) return r;
+    const merged = { ...r, ...o };
+    if (o.lateral) {
+      merged.waypoints = r.waypoints.map((w) => [w[0], w[1], w[2] + o.lateral]);
+    }
+    return merged;
+  }
   const keys = new Set();
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
   let dragging = false;
@@ -396,7 +415,39 @@ export function createCamera(options = {}) {
         },
 
         routes: Object.keys(ROUTES),
-        route: (name) => ROUTES[name] || null,
+        route: (name) => routeOf(name),
+
+        /**
+         * A ROUTE'S CAMERA PARAMETERS, OVERRIDDEN ONE AT A TIME. Session 20.
+         * NOT A MODE, AND NO GATE MAY CALL IT — see CONTRACT §8's list beside
+         * `setConeBound` and `showMotion`, which this joins.
+         *
+         * WHY IT EXISTS. `perfcheck` reports `player` over its ceilings and
+         * `downtown_dense` under them, and the two routes differ in FIVE things
+         * at once: field of view, eye height, pace, look pitch, and the lateral
+         * offset that puts one on the pavement and the other on the crown of the
+         * road. A difference of two numbers whose inputs differ in five ways is
+         * not an attribution — it is exactly what session 4b could not do when
+         * three systems landed together without switches, and the answer then
+         * was the same as the answer now: one variable at a time, interleaved.
+         *
+         * IT PATCHES RATHER THAN REPLACES, and the patch is applied where the
+         * route is READ rather than written into `ROUTES` — so a probe cannot
+         * leave a route permanently altered, `clearRouteOverrides()` is total,
+         * and `perfcheck` running immediately afterwards in the same page would
+         * see the shipped numbers. `lateral` shifts every waypoint on the axis
+         * PERPENDICULAR to the route's own run, which for all four routes is z:
+         * they run east–west down the main street (CONTRACT §3.1).
+         */
+        setRouteOverride: (name, patch) => {
+          if (!ROUTES[name]) return null;
+          overrides.set(name, { ...(overrides.get(name) || {}), ...patch });
+          return { ...overrides.get(name) };
+        },
+        clearRouteOverrides: () => {
+          overrides.clear();
+        },
+        routeOverrides: () => Object.fromEntries([...overrides.entries()].map(([k, v]) => [k, { ...v }])),
 
         /**
          * Total path length in metres, so the caller can turn a frame count and
@@ -405,7 +456,7 @@ export function createCamera(options = {}) {
          * and 256 chords is well under a tenth of a percent on paths this smooth.
          */
         routeLength: (name) => {
-          const r = ROUTES[name];
+          const r = routeOf(name);
           if (!r) return 0;
           let len = 0;
           let prev = splineAt(r.waypoints, 0);
@@ -423,7 +474,7 @@ export function createCamera(options = {}) {
          * not a reproducible measurement.
          */
         setRouteAt: (name, u) => {
-          const r = ROUTES[name];
+          const r = routeOf(name);
           if (!r) return false;
           const cam = ctx.camera;
           const here = splineAt(r.waypoints, u);

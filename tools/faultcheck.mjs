@@ -114,6 +114,14 @@ const ALL_MODULES = [
   'traffic',
   'weather',
   'streetlife',
+  /**
+   * Session 20. `?aircraft=1` is the default, so this module is live in every
+   * run that does not switch it off — and this list is a two-sided assertion:
+   * `missing` catches a module that quarantined itself and `unexpected` catches
+   * one nobody wrote down. The second half caught this addition within a minute
+   * of the module existing, which is what a list of names is for.
+   */
+  'aircraft',
   'harness',
 ];
 

@@ -28,6 +28,16 @@ import {
   measureSilhouettes, chromaClusters, measureShapeControl, SHAPE_CONTROLS, WIDTH_CONTROLS,
   stepsToBoxes,
 } from './lib/silhouette.mjs';
+/**
+ * THE RENDERER'S OWN COPY OF SIX CEILINGS — session 20, item 6.
+ *
+ * `src/core/constants.js` → `HUD.budgets` holds them because a module may not
+ * import `tools/budget.json` (CONTRACT §2.2), and a second copy of a number is
+ * §9.1's failure. So the gate reads both and asserts they agree. Importing a
+ * `src/` file from a gate is not new — `lookat.mjs` imports `citygen.js` for
+ * the same reason: the alternative is transcribing it.
+ */
+import { HUD } from '../src/core/constants.js';
 
 const args = new Map(
   process.argv.slice(2).map((a) => {
@@ -580,6 +590,40 @@ function assertMotion(route, motion, budget) {
  * pool. `unrolled` is the number that matters: a slot nobody is accountable for
  * is how a pool fills up with no name attached to the failure.
  */
+/**
+ * THE HUD'S COPY OF THE CEILINGS, AGAINST THE CEILINGS — session 20, item 6.
+ *
+ * `budget.json` → `hudBudgets` names which keys the copy is required to carry
+ * and `src/core/constants.js` → `HUD.budgets` is the copy. The HUD colours a
+ * number green, amber or red against these, so a drifted copy would put a green
+ * reading on screen for a value this file calls a breach — a gate and an
+ * instrument disagreeing about the same machine, which is exactly what CONTRACT
+ * §9.1 says a comment claiming a check must name a file to prevent.
+ *
+ * ONE FAILURE SITE AND IT REPORTS EVERY MISMATCH, deliberately: a per-key push
+ * would make one drifted table read as six independent findings, and the
+ * §7.1 coverage denominator would grow by six for one case.
+ */
+function assertHudBudgets(hudTable, budget) {
+  const fails = [];
+  const keys = budget.hudBudgets || [];
+  if (!keys.length || !hudTable) return fails;
+  const bad = [];
+  for (const key of keys) {
+    const mine = hudTable[key];
+    const theirs = budget.ceilings ? budget.ceilings[key] : undefined;
+    if (mine !== theirs) bad.push(`${key}: HUD ${mine} vs budget ${theirs}`);
+  }
+  if (bad.length) {
+    fails.push(
+      `HUD.budgets disagrees with budget.json ceilings on ${bad.length} of ${keys.length} keys — ` +
+      `${bad.join('; ')}. The HUD colours against its copy, so a drift puts a green number on screen ` +
+      `for a value this gate calls a breach.`
+    );
+  }
+  return fails;
+}
+
 function assertLightRoles(route, census, budget) {
   const R = budget.lightRoles;
   const fails = [];
@@ -1081,7 +1125,7 @@ function maxEntropyAtMean(mean255) {
   return H;
 }
 
-function assertRoute({ route, runs, silhouettes, silhouettesPerRun }) {
+function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets = HUD.budgets }) {
   const { floors, hardFails } = BUDGET;
   /**
    * PER-ROUTE CEILINGS, AND ONLY WHERE A ROUTE HAS ITS OWN ENTRY — session 10.
@@ -1296,6 +1340,7 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun }) {
   metrics.swapViolations = motion ? motion.sameFrameViolations : null;
 
   fails.push(...assertLightRoles(route, roles, BUDGET));
+  fails.push(...assertHudBudgets(hudBudgets, BUDGET));
   metrics.lightRoles = roles ? roles.byRole : null;
   metrics.unrolledLights = roles ? roles.unrolled : null;
 
@@ -1449,8 +1494,8 @@ function goodRun() {
     },
     roles: {
       total: 344, unrolled: 0, maxLights: 384,
-      byRole: { block: 52, lamp: 196, traffic: 96, stall: 8 },
-      enabledByRole: { block: 52, lamp: 196, traffic: 96, stall: 8 },
+      byRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1 },
+      enabledByRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1 },
     },
     traffic: {
       vehicles: BUDGET.trafficLights.contentVehicles,
@@ -1477,6 +1522,12 @@ function goodFixture(runs = Math.max(1, BUDGET.capture.runs || 1)) {
   return {
     route: BUDGET.silhouettes.routes[0],
     runs: Array.from({ length: runs }, () => goodRun()),
+    /**
+     * A COPY OF THE COPY, so the fixture agrees by construction and the
+     * falsifying case below is the only way this block goes red — the same
+     * arrangement `traffic.minExtentM` uses two fields down.
+     */
+    hudBudgets: { ...HUD.budgets },
     /**
      * Every number derived from the floor it has to clear, for the same reason
      * the peak counts above are: a fixture with hand-written silhouette numbers
@@ -1576,6 +1627,25 @@ const FALSIFY = [
    */
   ['floor.screenshotEntropy', (g, r) => { r.shot = solidPNG(128); }],
   ['floor.meanLuminance', (g, r) => { r.shot = solidPNG(2); }],
+  /**
+   * SESSION 20. The HUD's copy of the ceilings, drifted by one key. It mutates
+   * the GROUP rather than a run because the table is not a per-route quantity —
+   * it is one file against another, checked once per route because that is
+   * where `assertRoute` runs and running it four times costs nothing.
+   */
+  ['hud.budgetDrift', (g) => {
+    g.hudBudgets = { ...HUD.budgets, drawCalls: HUD.budgets.drawCalls + 1 };
+    return () => { g.hudBudgets = { ...HUD.budgets }; };
+  }],
+  /**
+   * SESSION 20. The searchlight stopped being created — which reads as one more
+   * spare slot, which is the shape of failure `$floors` exists for.
+   */
+  ['floor.role.aircraft', (g, r) => {
+    const was = r.roles.byRole.aircraft;
+    r.roles.byRole.aircraft = 0;
+    return () => { r.roles.byRole.aircraft = was; };
+  }],
   ['hard.consoleErrors', (g, r) => { r.report.errors = ['boom']; }],
   ['hard.contextLost', (g, r) => { r.report.contextLost = 1; }],
   ['particles.missingInstrument', (g, r) => { r.particles = null; }],

@@ -23,7 +23,9 @@ import { createTraffic } from './modules/traffic.js';
 import { createWeather } from './modules/weather.js';
 import { createStreetlife } from './modules/streetlife.js';
 import { createPlayer } from './modules/player.js';
+import { createAircraft } from './modules/aircraft.js';
 import { createUi } from './modules/ui.js';
+import { createHud } from './modules/hud.js';
 import { createHarness } from './modules/harness.js';
 
 const DEFAULTS = {
@@ -31,7 +33,22 @@ const DEFAULTS = {
   t: 0.78,
   perf: 0,
   paused: 0,
-  hud: 0,
+  /**
+   * The on-screen instrument panel — session 20, item 6, and it is now a
+   * MODULE rather than the four-line `setInterval` this key used to drive.
+   *
+   * −1 FOLLOWS `player`, 0 forces it off, 1 forces it on: the same shape `ui`
+   * and `fieldDrip` use, and for the same reason `ui` gives — the panel is a
+   * DOM overlay and every gate reads `page.screenshot()`, so it must not be
+   * present by default or nineteen sessions of look thresholds would have a
+   * frame-time readout in the corner of every frame they were derived against.
+   *
+   * IT WAS `0` AND IT IS `-1`, WHICH IS A DEFAULT CHANGING. What that changes
+   * is only the case where `?player=1` is passed and `?hud` is not, i.e. the
+   * operator walking the city — which is the one case this exists for. No gate
+   * passes `?player=1` (CONTRACT §11), so no gate's `<body>` moves.
+   */
+  hud: -1,
   shot: 'street',
   debug: '',
   /** Comma-separated `module:phase` fault injections. See injectFaults below. */
@@ -48,6 +65,8 @@ const DEFAULTS = {
   rain: 1,
   /** 0 removes pedestrians and street-level stalls. */
   streetlife: 1,
+  /** 0 removes the aircraft entirely. Session 20's bisecting switch. */
+  aircraft: 1,
   /**
    * 1 registers the first-person controller and hands it `ctx.camera`.
    * SESSION 17, and it is OFF by default, which is the whole of what keeps the
@@ -287,6 +306,14 @@ register(createPost());
 if (on('traffic')) register(createTraffic());
 if (on('rain')) register(createWeather());
 if (on('streetlife')) register(createStreetlife());
+/**
+ * Aircraft — session 20, item 5. An ordinary CONTRACT §6 bisecting switch:
+ * `?aircraft=0` omits the `register()`, which is how a cost or a look change
+ * gets attributed to this system rather than argued about. Session 4b shipped
+ * three systems at once without switches and could not say which spent the
+ * 3.6 ms; every content system since has had one on the day it landed.
+ */
+if (on('aircraft')) register(createAircraft());
 
 /**
  * The player, last of the content modules and after `camera` in registration
@@ -331,6 +358,15 @@ if (on('player')) {
 const uiOn = Number(config.ui) < 0 ? on('player') : Number(config.ui) !== 0;
 if (uiOn) register(createUi());
 
+/**
+ * The HUD, session 20. It is handed `loop` for the same reason the harness is:
+ * the rAF callback's boundary exists nowhere else (see `loop.js`'s note on
+ * `timing()`), and a panel that measured `beforeRender` → `afterRender` instead
+ * would be showing the render pass and calling it the frame.
+ */
+const hudOn = Number(config.hud) < 0 ? on('player') : Number(config.hud) !== 0;
+if (hudOn) register(createHud({ loop }));
+
 register(createHarness({ loop }));
 
 resize();
@@ -353,30 +389,6 @@ if (Number(config.perf) === 1) {
       ctx.on('afterRender', () => probe.frameEnd());
     })
     .catch((e) => console.warn('[noctis] perf probe unavailable', e));
-}
-
-if (Number(config.hud) === 1) {
-  const el = document.createElement('div');
-  el.id = 'hud';
-  document.body.appendChild(el);
-  setInterval(() => {
-    const h = window.__NOCTIS_HARNESS__;
-    if (!h) return;
-    const i = h.info();
-    const p = i.player;
-    el.textContent =
-      `${i.clock}  t=${i.timeOfDay.toFixed(3)}\n` +
-      `sun ${i.sunElevationDeg.toFixed(1)}° az ${i.sunAzimuthDeg.toFixed(0)}°  ${Math.round(i.sunLux)} lx\n` +
-      `ambient ${i.ambientLux.toFixed(1)} lx  lamps ${i.photocellOn ? 'on' : 'off'}\n` +
-      `${i.drawCalls} draws  ${i.clusteredLights} local lights  faults ${i.faults}` +
-      // Session 17. Absent unless ?player=1, which is every gate run.
-      (p
-        ? `\n${p.position.join(', ')}  yaw ${p.yawDeg}°  pitch ${p.pitchDeg}°\n` +
-          `on ${p.surface} y ${p.surfaceY}${p.surfaceKnown ? '' : ' STREAMING'}` +
-          `${p.grounded ? '' : `  FALLING ${p.fallVel} m/s`}` +
-          `  ${p.gamepad ? 'pad' : 'no pad'}  ${p.pointerLocked ? 'mouse' : 'click to lock'}`
-        : '');
-  }, 200);
 }
 
 // Handy in the console while iterating; the gates never touch it.

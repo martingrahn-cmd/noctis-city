@@ -47,7 +47,70 @@ export function rngHelpers(next) {
      * an unbounded gaussian eventually puts a building in the road.
      */
     gauss: () => (next() + next() + next() - 1.5) * 2,
+    /**
+     * Log-normal, by the INVERSE CDF and therefore from EXACTLY ONE uniform.
+     * Session 20, for the building height distribution.
+     *
+     * WHY THE INVERSE CDF AND NOT BOX–MULLER OR `gauss()`. Both of those draw
+     * more than one uniform, and a draw count is a position in a stream: every
+     * random number after the one that changed would land somewhere else, so
+     * changing a distribution would silently re-scatter the props, re-roll the
+     * eras and move the signs. CONTRACT §6's determinism rule is about streams
+     * being independent; this is the same argument INSIDE a stream. One
+     * uniform in, one uniform's worth of stream consumed, and the substitution
+     * is confined to the quantity it is about.
+     *
+     * `gauss()` is also the wrong shape here for a second reason: it is a sum
+     * of three uniforms bounded at ±3σ, which is fine for placement jitter (an
+     * unbounded normal eventually puts a building in the road) and is exactly
+     * wrong for a heavy tail, which is the whole point of a log-normal.
+     *
+     * @param median  the 50th percentile, in the value's own units
+     * @param sigma   the standard deviation of ln(value)
+     */
+    logNormal: (median, sigma) => median * Math.exp(sigma * normalQuantile(next())),
   };
+}
+
+/**
+ * Φ⁻¹ — the standard normal quantile. Acklam's rational approximation, whose
+ * stated maximum relative error is 1.15e-9 over the open interval, which is
+ * eight orders below anything this project measures with it.
+ *
+ * IT IS CHECKED AGAINST VALUES KNOWN FROM OUTSIDE IT (CONTRACT §7.7): Φ⁻¹(0.5)
+ * = 0, Φ⁻¹(0.975) = 1.959964, Φ⁻¹(0.99) = 2.326348, and the function is odd,
+ * so Φ⁻¹(p) = −Φ⁻¹(1−p). `tools/parsecheck.mjs` does not run code, so the
+ * check lives in `tools/citycheck.mjs --falsify`, beside the assertion that
+ * reads the distribution it produces.
+ */
+const A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+  1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+const B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+  6.680131188771972e+01, -1.328068155288572e+01];
+const C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+  -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+const D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+  3.754408661907416e+00];
+const P_LOW = 0.02425;
+
+export function normalQuantile(p) {
+  // The open interval. A uniform generator can return exactly 0, and ln(0) is
+  // not a height.
+  const u = Math.min(1 - 1e-12, Math.max(1e-12, p));
+  if (u < P_LOW) {
+    const q = Math.sqrt(-2 * Math.log(u));
+    return (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  if (u > 1 - P_LOW) {
+    const q = Math.sqrt(-2 * Math.log(1 - u));
+    return -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  const q = u - 0.5;
+  const r = q * q;
+  return (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q /
+    (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
 }
 
 /**

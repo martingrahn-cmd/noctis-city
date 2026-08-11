@@ -751,6 +751,24 @@ than on cost.
   *previous* was uploaded last frame as *current* and its GPU copy is already
   correct.
 
+- **It suppresses something for the first time in session 20, and the sentence
+  below about "a bound, not an optimisation" is now historical.** `aircraft.js`
+  flies at 150 to 900 m against a fuselage cutoff of 521 m, so an aeroplane at
+  cruise is past its own threshold and is carried; and every navigation lamp on
+  every airframe is carried on every frame, because a 0.22 m housing's cutoff is
+  85 m and nothing flies that low. That is the threshold working rather than a
+  gap — a 0.22 m box at 400 m is a fifth of a pixel and there is no history for
+  a clamp to reject — and it is the first system where the bound is a decision
+  rather than a bound.
+
+  **It is also where the OTHER pixel floor turned up.** 4 px is the size at
+  which an object can express reprojection error; **3 px**
+  (`particles.maxStreakWidthPx`, derived a session earlier from what an
+  antialiased line needs under the same jitter) is the size at which one can be
+  DRAWN at all. A nav lamp qualifies for the second and not the first, and the
+  quantity conserved when it is grown to that floor is its INTENSITY rather than
+  its radiance — §9's table, session 20, row 1.
+
 - **The size threshold: 4 px, and it comes from the clamp.** An instance whose
   smallest projected extent is under four pixels gets no motion vector at all.
   A motion vector exists to stop the TAA neighbourhood clamp rejecting an
@@ -905,6 +923,28 @@ src/
                          particle layers; the far field is `setHaze` extinction
                          and not a mist system.
     streetlife.js        pedestrians with destinations, and street-level stalls.
+    aircraft.js          SESSION 20, item 5. Six airframes over the city — three
+                         aeroplanes, two transiting helicopters and one
+                         orbiting with a searchlight. THE FIRST CONTENT IN THE
+                         PROJECT THAT MOVES IN THREE DIMENSIONS, so it is the
+                         first thing §5.12's 4 px threshold actually suppresses
+                         rather than bounds. 2 draws, 54 instances, 648
+                         triangles, ONE cluster slot — the searchlight; the
+                         thirty navigation lamps are emissive geometry at zero
+                         slots, by the tail-lamp argument. `?aircraft=0`.
+    hud.js               SESSION 20, item 6. The instrument panel, four levels
+                         on `H`. Colours against `HUD.budgets`, which
+                         `perfcheck` asserts equals `budget.json`'s ceilings —
+                         a module may not import a gate's contract (§2.2), so
+                         the copy is checked rather than trusted. It measures
+                         the rAF CALLBACK through `loop.timing()` and subtracts
+                         its own cost through `loop.reportOverhead()`, because
+                         a meter that measures the meter is what `filmshot`
+                         caught when a PNG readback landed inside the frame
+                         interval. It will NOT print a measured EV: that number
+                         is a 1x1 GPU target and §5.4 forbids the readback, so
+                         the panel prints the exposure LAW and says where the
+                         measurement is.
     player.js            §11, SESSION 17. The first-person controller. ONE
                          state — no interiors, no vehicle to enter, no second
                          mode. Reads the session-3 walkability mask through
@@ -1013,6 +1053,31 @@ tools/
   gaitstrip.mjs          NOT A GATE. One pedestrian, the whole gait cycle, four
                          views, tiled. Both of session 12's defects and this
                          session's feet were judged here.
+  routeprobe.mjs         NOT A GATE. SESSION 20. Two routes, or one route and
+                         one changed camera parameter, INTERLEAVED and PAIRED —
+                         a fresh page per arm, A B A B, and the reported
+                         statistic is the mean of the per-pair differences with
+                         its standard error, so drift common to a pair cancels
+                         instead of being attributed to whichever arm ran
+                         second. `--decompose` applies `player`'s five camera
+                         parameters to `downtown_dense` ONE AT A TIME through
+                         `camera.setRouteOverride`, plus a sixth arm with all
+                         five, whose disagreement with the sum of the five is
+                         the interaction a five-way difference hides.
+  heightprobe.mjs        NOT A GATE. SESSION 20. The building height
+                         distribution, BOTH ARMS, through the pure generator
+                         and no browser: Σ floors and facade area, which are
+                         what a window count is proportional to and which a
+                         mean is not. `HEIGHT_DISTRIBUTION.mode` is the arm, in
+                         the `?fieldDrip` shape — one parameter with two arms
+                         rather than two copies of a module.
+  airprobe.mjs           NOT A GATE. SESSION 20. Where the aircraft are, what
+                         the module says about itself, and one frame down the
+                         searchlight's own beam. It exists because an empty sky
+                         has three candidate causes — quarantined, seeded
+                         elsewhere, or sub-pixel — and a picture distinguishes
+                         none of them while three printed lines distinguish all
+                         three.
   lookat.mjs             NOT A GATE. Stand anywhere, look at anything, write a
                          PNG. §10 step 4 says the numbers are necessary and not
                          sufficient, and until session 5 the only way to look at
@@ -1602,9 +1667,13 @@ gates read them freely; `windingControls` CHANGES the scene and only
 `windingControlsActive()` exists and is asserted false around every census of
 the city. No gate may render through
 `setShotAt`, `setConeBound`, `showMotion`, `setClipGamma`, `setTaaFeedback`,
-`setJitterScale`, `setJitterComp`, `setKarisScale`, the motion probe or
-`setInstanceUploadFrozen`, for the reason §7 gives about `lookat.mjs`: a gate
-whose subject the operator creates measures the operator. Gates may *read*
+`setJitterScale`, `setJitterComp`, `setKarisScale`, the motion probe,
+`setInstanceUploadFrozen` or — since session 20 — `camera.setRouteOverride`,
+for the reason §7 gives about `lookat.mjs`: a gate whose subject the operator
+creates measures the operator. `setRouteOverride` is the newest and is the
+sharpest case of it: a route whose field of view the caller chooses is not the
+route `budget.json` holds a ceiling over, and a gate that ran one would be
+comparing a number against a threshold derived for a different camera. Gates may *read*
 `sceneCensus`, `particleLayers`, `pedestrianCensus`, `clusterStats`,
 `silhouettes` and `instanceColourPalette`, which describe the world rather than
 change it, and may drive `poseRoute`, which moves the camera along a path the
@@ -1665,7 +1734,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 47 so far** — and that numeral is now **generated against, not
+**The 52 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1693,8 +1762,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      47        47
-  every pipe-leading line to EOF        47         —   ← the snippet’s quantity
+  contiguous rows after the header      52        52
+  every pipe-leading line to EOF        52         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1746,6 +1815,11 @@ runs on every invocation.
 | 19 | the distance from a vehicle's **ORIGIN** to its stop line | the distance from its **FRONT** to that line | four of the five body types stopped with their nose past the near kerb of the crossing carriageway — wedge 1.20 m, van 1.50 m, **hauler 3.30 m, i.e. 80% into the kerbside crossing lane** — and the fleet-weighted mean was 1.07 m. The same file already subtracts both half-lengths in car-following and half its own length for the camera-as-obstacle; the signal stop subtracted nothing. **The signal masts were the independent witness**: `signalApproaches` puts each head at the stop line under a comment saying that is "where the vehicles are already stopping", and a stopped hauler's nose was 4.8 m past its own signal head |
 | 19 | a **mounting height** — 8.08 m to a lamp's optic, 3.05 m to a signal lens, 2.6–7.5 m to a pylon sign, `STALL_WORKLIGHT_HEIGHT_M` under an awning — every one of which is measured from the ground the thing is planted in | a **world y coordinate** | every lamp column, signal mast, sign pylon, market stall and pedestrian in the city stood at y = 0 while its own pavement was somewhere else. It was 0.030 m and invisible; declaring the ground datum put the pavement at 0.160 m and would have made the same error **eight times larger**, which is why the datum and the nine placement sites had to ship in one change rather than two. A datum is what a query is measured FROM and is not a substitute for one |
 | 19 | a **registration** count of clustered lights — `roleCensus` reporting 96 traffic + 12 stall + 52 block + 196 lamp = **356 of 384** | the number of slots **assignable in a frame** | `lights.assign()` culls on `depth − radius > CLUSTER.far` = 320 m *before* it claims a slot, and the condenser is **560 m** from the closest point on any route this project renders. **No clustered light placed at the condenser can ever be assigned**, whatever the pool has spare — so item 12's sixteen 55 000 cd floodlights had to become an emissive band at ρE/π. STATE 18 §7.3's "margin 40" was separately one session and one role out of date: the stall role takes 12 and the margin is **28** |
+| 20 | a distant emitter's **radiance** (830 cd/m² over a 0.22 m housing) | what that emitter **delivers to a frame**, which is its INTENSITY `L·A` = 40 cd | a nav lamp at 1000 m subtends 2.2e-4 rad, i.e. **0.34 px** at the gate's own 6.4765e-4 rad/px — and a sub-pixel emitter is not dim, it is ABSENT: the rasteriser misses every sample, or catches one and the TAA clamp discards it as an outlier. The first sky frame of the session showed exactly nothing. The repair is not "bigger": the box is grown to a 3 px floor and its radiance divided by the same area ratio, so `I` is identical at every distance and the enlargement is a resampling rather than a brightening |
+| 20 | a searchlight's **slant range to the ground** (150 m altitude at 25° depression = 355 m) | a distance the light's own **falloff window** still passes | `radius` was set to 260 m and three's `getDistanceAttenuation(d, R, 2)` carries a Frostbite window `(1 − d/R)²`, so the beam delivered `(1 − 249/260)²` = **0.0018** of its intensity and the pool was 0.04 lx. Row 6b is the same window with a headlamp — "culled at 18.31 m and three times dimmer at 15 m" — and the fix is the same shape: size the window first (R = 850 m), then derive the intensity through it |
+| 20 | a log-normal's **pre-floor mean** (36.4 m at median 30) | the uniform's **post-floor delivered mean** (36.55 m) | STATE 19 §9.5 proposed the substitution as "the mean is preserved to 0.4%" and the like-for-like figure is 36.36 against **38.00**, i.e. 4.3% short before any flooring is considered. And the mean was the wrong quantity anyway: a window count is proportional to FACADE AREA, which a setback removes perimeter from as well as height. Shipped at median 30 it measured **106 501 visible instances against a floor of 115 000** — a content floor catching a content reduction, which is exactly what it is for |
+| 20 | a facade row cap of **34**, derived when the generator's tallest possible building was 21 storeys | a cap on a generator whose p99 is now **134 m** | inert for nineteen sessions and binding the moment the height distribution changed: nine buildings of 432 would have had blank walls above about 108 m, on precisely the towers the session added. §9.1's config-the-code-does-not-read with a bound instead of a value — the number was right about a world that had moved on. Now `maxM / era.floor`, so it is a bound again rather than a budget |
+| 20 | **1.05**, the roof parapet's height, written as a literal in `buildRoofscape` | **1.05**, written again forty lines away in the `roof` sign mounting, under a comment saying the second was "read from there rather than guessed, so a change to the upstand cannot leave a sign floating over it" | a comment that claims a link, with no link (§9.1). Nothing read anything; there were two literals. It became load-bearing when a roof sign's WORLD HEIGHT became part of the chunk's own description, so the number is now `citygen.ROOF_PARAPET_M` and all three readers take it from there |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:

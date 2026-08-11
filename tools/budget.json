@@ -286,16 +286,19 @@
     "$requireEveryLightHasARole": "Every light in the pool declares one. A null role is a slot nobody is accountable for, and the pool filling up is exactly the failure that arrives with no name attached to it. Turned on this session; `unrolled` must be 0.",
     "requireEveryLightHasARole": true,
     "maxUnrolled": 0,
+    "$aircraft": "SESSION 20, ITEM 5. ONE SLOT, AND IT IS A CEILING AND A FLOOR ON THE SAME NUMBER because the population is exactly one: the searchlight under the orbiting helicopter. Everything else in the air is emissive geometry at zero slots, by the same argument `trafficLights.$content` makes about tail lamps — the pool a 40 cd position light throws from 400 m is nothing, and what makes an aircraft read at night is the emitter itself. THE FLOOR IS THE HALF THAT EARNS ITS PLACE: a ceiling of 1 is satisfied by a searchlight that stopped being created, which reads as excellent pool margin, and that is precisely the failure `$minOccupancyMargin` and the `traffic` floor were both written for. What it spends: `roleCensus` reported traffic 96 + stall 12 + block 52 + lamp 196 = 356 of 384 before this session, so 357 of 384 after, and 27 spare.",
     "ceilings": {
       "block": 60,
       "lamp": 200,
       "traffic": 96,
-      "stall": 40
+      "stall": 40,
+      "aircraft": 1
     },
     "$floors": "A role that stopped being created reads as excellent margin. Floors are what makes the margin mean something, and they are set from the delivered counts.",
     "floors": {
       "traffic": 96,
-      "stall": 1
+      "stall": 1,
+      "aircraft": 1
     }
   },
   "winding": {
@@ -372,6 +375,15 @@
     "$requireCoverage": "Fraction of declared assertion ids that must have an exercised falsifying case. 1.0. Anything less is the rule with an exception in it.",
     "requireCoverage": 1
   },
+  "$hudBudgets": "SESSION 20, ITEM 6. `src/core/constants.js` -> `HUD.budgets` is a COPY of the six ceilings named below, and it exists because a module may not import this file: CONTRACT §2.2 permits `three`, `../core/**` and `../lib/**` and nothing else, and the gates' contract is not a runtime dependency of the renderer. A second copy of a number is §9.1's failure exactly, so `perfcheck` reads both and fails when they disagree, printing both — which is the remedy `traffic.js`'s `stats().minExtentM` got, and a comment that claims a check is required to name the file the check is in. The alternative was fetching this file over HTTP at boot, which works under `vite dev` and not under `vite build`: a HUD whose colours depend on how the operator started the server.",
+  "hudBudgets": [
+    "cpuFrameMsP95",
+    "wallFrameMsP95",
+    "drawCalls",
+    "triangles",
+    "textureMemoryMB",
+    "chunkMemoryMB"
+  ],
   "ceilings": {
     "$gpuFrame": "INERT ON THIS MACHINE and left in place rather than deleted. ANGLE-Metal exposes EXT_disjoint_timer_query_webgl2 but never retires a result: the probe reports issued 0, drained 0, starved 2127 — the eight-query pool is consumed during warmup and never returns. If a driver update ever makes them work these assert again; until then wallFrameMsP95 is the gate that can catch a GPU regression.",
     "gpuFrameMsP95": 15,

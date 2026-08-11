@@ -277,6 +277,158 @@ export const LIGHT = {
   photocellOnLux: 1150,
   /** lux, above which it opens again. Hysteresis, or it chatters at dusk. */
   photocellOffLux: 2400,
+
+  /**
+   * cd/m². THE FACE OF A ROOFTOP SIGN — session 20, item 3, and it is the
+   * largest emissive source this project has ever added.
+   *
+   * WHY IT IS NOT `signPlateNits` = 86. That number is the area average of a
+   * SHOPFRONT FASCIA: a dark plate with channel letters on it, 0.75 × 38 +
+   * 0.25 × 230, and its two terms come from `block.js`. A rooftop sign is not
+   * that object. It is a back-lit cabinet or an open frame of tubes designed to
+   * be read from ANOTHER BLOCK — `citygen.js` puts it 300 to 800 m from the
+   * eye that has to read it — and there is no dark plate between the letters to
+   * average down, because the whole face is the emitter.
+   *
+   * THE NUMBER COMES FROM THE SIGNAGE STANDARD RATHER THAN FROM THIS PROJECT,
+   * for the same reason `aviationRedNits` takes 2000 cd from ICAO: the quantity
+   * is regulated and there is no point inventing one. ILP GN01 / CIE 150 set a
+   * maximum average luminance for an externally-read illuminated sign of area
+   * over 10 m²: **E3 (suburban) 600 cd/m², E4 (urban centre) 1000**. Every
+   * rooftop sign this project builds is over 10 m² by construction — the
+   * smallest is `ROOF_SIGN.minWidthM` 6.0 × 0.34 aspect = 12.2 m².
+   *
+   * IT SHIPPED AT E3's 600 AND IT IS E4's 1000, AND THE CORRECTION IS THE
+   * DISTRICT RATHER THAN THE MEASUREMENT. 600 was the conservative end of the
+   * band on the grounds that a conservative number is easier to defend; the
+   * district these signs stand in is `downtown_dense` at 93% chunk occupancy
+   * with a street lighting design of `streetAverageLux` = 16 lx, which is an
+   * urban centre by every criterion the standard uses. E4 is the row this city
+   * is on, and picking the row below it because it was smaller is choosing a
+   * number for the wrong reason. Both are here so the next session disagrees
+   * with the district rather than with the taste.
+   *
+   * THREE CROSS-CHECKS, ALL AGAINST NUMBERS ALREADY IN THIS FILE (§9 rule 4):
+   *
+   *     against a lit office window  1000 / 220  windowNits        =  4.55×
+   *     against a shopfront fascia   1000 /  86  signPlateNits     = 11.63×
+   *     against the lamp bowl        1000 / 9000 streetlampNits    =  0.111×
+   *
+   * A rooftop sign brighter than a window and fifteen times dimmer than a lamp
+   * bowl is the right ordering, and it is the ordering the ELEVATED frame needs:
+   * every bowl in the city is below the camera and behind a parapet, the windows
+   * are the only thing in that frame today (measured — STATE 19 §8: 99.30%
+   * shadow, median code 7), and this sits between them.
+   *
+   * BLOOM ENERGY, WHICH IS THE TERM THE LAMP-BOWL FINDING TURNS ON (§9 row 18b:
+   * bloom energy is radiance × AREA, not radiance):
+   *
+   *     98 lamp bowls × 1.6115 m² × 9000  =  1 422 000 cd·m²/m²
+   *     the delivered roof-sign set        =  N × A × 1000, printed once by
+   *                                           `city.js` → `reportRoofSigns`
+   *                                           when the residency ring is stable
+   *
+   * AND THAT COMPARISON IS AN UPPER BOUND RATHER THAN A MEASUREMENT, which the
+   * printed line says in its own words: the 98 bowls are what the pool lights
+   * within about 150 m of the camera and the roof-sign figure is everything
+   * resident over a 1.4 km square, most of it behind something or under a pixel.
+   * Delivered at seed 1337: 513 faces, 19 490 m², 19 490 k — 13.7× — over 121
+   * chunks, i.e. 161 m² of emitter per chunk. What a FRAME actually receives is
+   * `tools/levels.mjs` on a frame, and it measured the elevated night frame's
+   * crushed fraction going 5.86% → 0.00%.
+   *
+   * AND IT IS FAR ABOVE THE BRIGHT-PASS ONSET, DELIBERATELY. At the night
+   * exposure (e ≈ 0.0141) 1000 × 0.0141 = 14.1 exposed linear against an onset
+   * of 0.414 — 34× over, so a roof sign blooms. `condenserFloodNits` is 11.7×
+   * BELOW the onset and says in its own comment that a floodlit wall which
+   * blooms is a wall somebody made into a lamp. The difference is not
+   * inconsistency: that constant stands for a LIT SURFACE and this one stands
+   * for a SOURCE, and a large lit sign that does not bloom at night is a sign
+   * nobody photographed.
+   */
+  roofSignNits: 1000,
+
+  /**
+   * cd/m². AIRCRAFT NAVIGATION AND ANTI-COLLISION LIGHTS — session 20, item 5.
+   *
+   * ICAO Annex 6 / FAR 23.1389 set navigation-light intensities in candela by
+   * sector; the emitter this project draws is a box, so the radiance is that
+   * intensity over the box's own projected area — the same conversion
+   * `aviationRedNits` does, and the same one `signPlateNits` and the lamp bowl
+   * are a list of getting wrong:
+   *
+   *     position (red port, green starboard, white tail)
+   *       I = 40 cd            FAR 23.1389 forward sector minimum
+   *       A = 0.22² = 0.0484 m²  `aircraft.js` → NAV_M
+   *       L = I / A = **826 cd/m²**, rounded to 830
+   *
+   *     anti-collision beacon and strobe
+   *       I = 400 cd           FAR 23.1401 minimum effective intensity
+   *       A = 0.0484 m²
+   *       L = **8264 cd/m²**, rounded to 8300
+   *
+   * ZERO CLUSTER SLOTS for all five, by the tail-lamp argument (§9's traffic
+   * note): the pool a 40 cd lamp throws at 400 m altitude is nothing at all, and
+   * what makes an aircraft read is the emitter itself.
+   *
+   * THE SEARCHLIGHT IS THE ONE THAT IS A LIGHT, and it is a light because its
+   * whole point is what it does to a facade rather than what it looks like.
+   *
+   * A Nightsun-class airborne searchlight is 30–50 million candela on axis at
+   * about a 4° beam. That is not what this can spend: the cone would resolve
+   * across one froxel of a 16 × 9 grid, and a 4° cone at 150 m is a 10.5 m pool
+   * that a moving helicopter crosses a facade with in under a second. So the
+   * DELIVERED number is derived from the illuminance it is asked to put on the
+   * ground, which is the quantity that survives the design — `condenserFloodNits`
+   * made exactly the same move for exactly the same reason.
+   *
+   * AND THE DERIVATION HAS TO INCLUDE THE FALLOFF WINDOW, WHICH THE FIRST
+   * VERSION DID NOT. This project's punctual attenuation is three's own
+   * `getDistanceAttenuation(d, R, 2)` — inverse square TIMES the Frostbite
+   * window `(1 − d/R)²` — and that window is not a rounding error near the
+   * cutoff. CONTRACT §9's table, row 6b, is this exact mistake with a headlamp:
+   * "a 30 m headlight beam culled at 18.31 m and three times dimmer at 15 m".
+   *
+   * The first version of this constant set R = 260 m for a beam whose ground
+   * point is 155–249 m down the axis, so the window delivered `(1 − 249/260)²`
+   * = **0.0018** and the pool was 0.04 lx. The frame showed nothing at all, and
+   * the arithmetic that was missing is one line.
+   *
+   *     THE WINDOW IS SIZED FIRST.  R = 850 m
+   *       at the shallow end, d = 249 m:  (1 − 249/850)² = 0.5001
+   *       at the steep end,   d = 155 m:  (1 − 155/850)² = 0.6607
+   *     — i.e. the beam works in the half of the window where it is still
+   *     roughly a half rather than in the tail where it is a thousandth.
+   *
+   *     THEN THE INTENSITY, against the steep end:
+   *       E = I · window / d²  =  I · 0.6607 / 155²  =  I · 2.750e-5
+   *       I = 3 300 000 cd   →   **E = 90.8 lx** at 155 m
+   *                          →   **E = 26.6 lx** at 249 m
+   *
+   *     AGAINST WHAT IS ALREADY IN THIS FILE:
+   *       `streetAverageLux` = 16 lx      5.7× at the steep end, 1.7× shallow
+   *       a real Nightsun at 30 Mcd       this is 11% of it, and its own pool
+   *                                       is near 1300 lx — so this is the
+   *                                       conservative end of the real thing.
+   *
+   * The cone is opened to 7.5° half-angle rather than ICAO's 2°, giving a
+   * 2·d·tan 7.5° pool of 65.6 m at the shallow end and 40.8 m at the steep one,
+   * against a 15 m carriageway and a 23.4 m corridor — a street and a bit of the
+   * buildings either side, which is what a searchlight looks like. Both numbers
+   * are here because the second is a departure from the first.
+   *
+   * WHAT THE LARGE RADIUS COSTS, SAID PLAINLY: the bound sphere circumscribing
+   * a 7.5° sector of range R has radius R/(2·cos 7.5°) = 0.504·R = 428 m, so
+   * this one light claims froxels over a large part of the screen. That is
+   * ONE slot and AT MOST +1 on any froxel's occupancy, against a
+   * `minOccupancyMargin` of 40 and delivered margins of 55–85; the index-list
+   * cost is bounded by the grid at 3 456 writes against `CLUSTER.maxIndices` =
+   * 131 072. A large bound is cheap when there is one of it.
+   */
+  aircraftNavNits: 830,
+  aircraftBeaconNits: 8300,
+  searchlightCandela: 3300000,
+  searchlightRadiusM: 850,
 };
 
 /** The block. Session 1 only: one street, one cross street, one intersection. */
@@ -1708,4 +1860,181 @@ export const PLAYER = {
    * standing on the pavement rather than in the road. `?spawn=x,y,z` overrides.
    */
   spawn: [70, 9.7],
+};
+
+/**
+ * THE HUD'S OWN NUMBERS — session 20, item 6.
+ *
+ * WHY THE CEILINGS ARE COPIED HERE AT ALL, AND WHAT STOPS THE COPY DRIFTING.
+ *
+ * The HUD's whole point is that a number means something without the reader
+ * remembering the threshold: green under the ceiling, amber within ten percent,
+ * red over, and the ceiling printed beside the value — `11.8 / 12.5 ms` says
+ * more than `11.8`. So it needs the ceilings, and the ceilings live in
+ * `tools/budget.json`, which a module may not import: CONTRACT §2.2 permits
+ * `three`, `../core/**` and `../lib/**` and nothing else, and for a good reason
+ * — the gates' contract is not a runtime dependency of the renderer.
+ *
+ * A SECOND COPY OF A NUMBER IS EXACTLY §9.1's FAILURE, so it is not left as a
+ * copy: `perfcheck` reads this table and `budget.json → ceilings` and fails
+ * when they disagree, printing both. That is the same remedy `traffic.js`'s
+ * `stats().minExtentM` got — a comment that claims a check names the file the
+ * check is in, and this one does.
+ *
+ * The alternative was fetching `budget.json` over HTTP at boot, which works in
+ * `vite dev` and not in `vite build`, and would make the HUD's colours depend
+ * on whether the operator was running the dev server. A checked copy is worse
+ * than one number and better than a number that is sometimes absent.
+ */
+export const HUD = {
+  budgets: {
+    cpuFrameMsP95: 12,
+    wallFrameMsP95: 12.5,
+    drawCalls: 440,
+    triangles: 2000000,
+    textureMemoryMB: 192,
+    chunkMemoryMB: 96,
+  },
+  /**
+   * Amber from 90% of the ceiling. A tenth is what "within ten percent" means
+   * and it is also roughly this machine's own run-to-run spread on the tightest
+   * quantity the HUD shows: CONTRACT §0.2 measures wall p95 at a 0.45 ms median
+   * spread against a 12.5 ms ceiling, i.e. 3.6% — so amber starts at about
+   * 2.8 spreads out and a green reading is green by more than the instrument's
+   * own noise. A 95% band would put amber inside the noise floor and the colour
+   * would flicker on an unchanged machine, which is §0 rule 6 with a colour
+   * instead of a verdict.
+   */
+  amberFraction: 0.90,
+  /** Seconds of history in the graph. The brief's own number. */
+  graphSeconds: 1.0,
+  /** Levels, in cycle order. `off` is a level so `H` always has somewhere to go. */
+  levels: ['off', 'minimal', 'render', 'world', 'derivations'],
+};
+
+/**
+ * AIRCRAFT — session 20, item 5. The first content in this project that moves
+ * freely in three dimensions rather than along a spline or a lane lattice.
+ *
+ * WHY IT IS CHEAP, WHICH IS THE WHOLE ARGUMENT FOR BUILDING IT. Six instances,
+ * high up, small in frame, no collision, no walkability, no shadow, no LOD, and
+ * two draw calls. It carries its own night legibility through navigation lights
+ * — emissive geometry at zero cluster slots — which is the same argument that
+ * gave the vehicles' tail lamps theirs.
+ *
+ * AND IT FINISHES A THOUGHT SESSION 19 STARTED. The red beacons on the
+ * condenser and the mast exist for air traffic; `LIGHT.aviationRedNits` derives
+ * them from ICAO Annex 14 and says so. Built without anything in the air they
+ * are a decoration. Built with it they are one idea.
+ *
+ * EVERY NUMBER BELOW IS A REAL AIRCRAFT'S, so the next session can disagree
+ * with the aircraft rather than with the taste.
+ */
+export const AIRCRAFT = {
+  /**
+   * THE POPULATION, AND WHY IT IS SIX.
+   *
+   * It is a density argument rather than a taste. A large city's control zone
+   * carries on the order of 40–60 movements an hour at night across its whole
+   * terminal area; what matters here is how many are inside the 1 662 m the map
+   * spans and under the 900 m this draws to. Taking 50 movements/h over a
+   * 20 km-radius zone at 150–250 kt, the expected count inside a 1.7 km disc is
+   * well under one — so a strict density model puts ZERO aeroplanes in frame
+   * and this is a deliberate exaggeration, recorded as one, the same shape as
+   * `PLAYER.walkSpeedMps` = 3.50 being 1.71× the Froude bound. The licence is
+   * the same: nothing is derived from this number.
+   *
+   * Helicopters are the honest half. A police or news helicopter orbiting a
+   * city centre at 150–300 m is one aircraft over one city for an hour at a
+   * time, which is exactly what `orbiters: 1` says.
+   */
+  planes: 3,
+  cruisers: 2,
+  orbiters: 1,
+
+  /**
+   * ALTITUDE BANDS, m AGL. A city's own minimum safe altitude is 300 m over a
+   * congested area (ICAO Annex 2 / FAR 91.119: 1000 ft above the highest
+   * obstacle within 600 m), which is what separates the two bands: an aeroplane
+   * transiting is above it and a helicopter on task is below it under a police
+   * or HEMS exemption. The tallest thing in this world is the condenser at
+   * 260 m, so `planeLow` clears it by 160 m.
+   */
+  planeLow: 420,
+  planeHigh: 900,
+  cruiserLow: 180,
+  cruiserHigh: 320,
+  orbitAltitude: 150,
+
+  /**
+   * SPEEDS, m/s. 150 kt = 77.2 m/s is a light twin's cruise and the bottom of a
+   * jet's approach speed; 60 kt = 30.9 m/s is a helicopter transiting; 25 kt =
+   * 12.9 m/s is one orbiting a scene, which is the speed that keeps a 240 m
+   * orbit at a bank angle a passenger would sit through (v²/(g·r) = 12.9²/(9.81
+   * × 240) = 0.0707, i.e. 4.0° of bank).
+   */
+  planeSpeedMps: 77.2,
+  cruiserSpeedMps: 30.9,
+  orbitSpeedMps: 12.9,
+  orbitRadiusM: 240,
+
+  /**
+   * THE FLASH RATES, AND THEY ARE THE REGULATION'S.
+   *
+   * FAR 23.1401 / ICAO Annex 6: an anti-collision light system flashes at
+   * **40 to 100 cycles per minute**. The red rotating beacon sits at the bottom
+   * of that band and the white strobes at the top, which is what makes the two
+   * distinguishable in the same frame — a beacon you can count and a strobe you
+   * cannot. 45/min = 1.333 s and 90/min = 0.667 s.
+   *
+   * A RAISED COSINE RATHER THAN A SQUARE WAVE, exactly as the landmark beacons
+   * are, and for the reason `city.js` records: a sub-pixel emitter that steps on
+   * in one frame steps into the TAA history in one frame. The strobe's duty is
+   * short because a real strobe's is — 0.12 of the period is about 80 ms, which
+   * is a capacitor discharge plus the eye's own persistence.
+   */
+  beaconPeriodS: 1.333,
+  beaconDuty: 0.28,
+  strobePeriodS: 0.667,
+  strobeDuty: 0.12,
+
+  /**
+   * The searchlight's sweep. A helicopter on task does not hold its light still:
+   * it walks it along a street or round a block. This is a slow sinusoid in the
+   * light's depression angle and a slower one in its bearing relative to the
+   * airframe, so the pool crosses facades rather than sitting on one.
+   *
+   * 17 s and 29 s are chosen COPRIME so the two never re-phase into a repeating
+   * figure — 17 and 29 are both prime, so the combined period is 493 s, which is
+   * 8 minutes 13 seconds and is longer than anyone watches one helicopter.
+   */
+  searchSweepS: 17,
+  searchBearingS: 29,
+  /**
+   * DEPRESSION BELOW THE HORIZON, radians, AND THE SHALLOW END IS SET BY THE
+   * LIGHT'S OWN FALLOFF RATHER THAN BY TASTE.
+   *
+   * The first version swept 25°–75° and the first frame of it showed NO POOL AT
+   * ALL. The arithmetic that was never done: at `orbitAltitude` = 150 m a 25°
+   * depression puts the ground 150/sin 25° = **355 m** down the beam, and
+   * `aircraft.js` gives the light a falloff radius of 260 m — chosen from the
+   * distance at which its own illuminance falls to floodlighting level. So the
+   * beam's far end was 95 m outside the light's own support and the shallow half
+   * of every sweep landed on nothing. CONTRACT §9's shape with two DISTANCES:
+   * a slant range and a falloff radius, both in metres, both plausible.
+   *
+   *     shallow end:  asin(150 / 260) = 35.2°, so the beam reaches the ground
+   *                   exactly at the falloff radius. 37° for margin → 249 m
+   *                   slant, and 1 350 000 / 249² = **21.8 lx** on the ground,
+   *                   which is still 1.36x `LIGHT.streetAverageLux`.
+   *     steep end:    75° → 155 m slant, 56.2 lx, near enough the 60 lx at
+   *                   150 m that `searchlightCandela` was derived from.
+   *
+   * The pool's own size falls out of the same pair: 2·d·tan 7.5° is 65.6 m at
+   * the shallow end and 40.8 m at the steep one, against a 15 m carriageway and
+   * a 23.4 m corridor — so the beam covers a street and a bit of the buildings
+   * either side, which is what a searchlight looks like.
+   */
+  searchMinDepressionRad: 0.6458,
+  searchMaxDepressionRad: 1.3090,
 };

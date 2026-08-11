@@ -391,6 +391,459 @@ export const CITY_ERAS = {
 export const ERA_NAMES = Object.keys(CITY_ERAS);
 
 /**
+ * HOW TALL A BUILDING IS — session 20, item 4, and the change is entirely in
+ * the SHAPE of the distribution.
+ *
+ * WHAT IT WAS: `rng.range(12, 64)`, uniform. Nineteen sessions of skyline, and
+ * a uniform distribution is the one thing a real skyline is not. Measured over
+ * a 10 x 10 chunk region by `tools/heightprobe.mjs`: mean 36.13 m, **sd/mean
+ * 0.425**, hard-capped at 66 m, and the consequence is the even comb the
+ * elevated frame shows — no building is ever much taller than its neighbours,
+ * because none is allowed to be.
+ *
+ * THIS FILE ALREADY MAKES THE ARGUMENT ABOUT DENSITY AND NEVER MADE IT ABOUT
+ * HEIGHT. `fill` is `0.12 + 0.88 · density^2.2` under a comment saying "real
+ * urban density is heavy-tailed rather than normal: a downtown block has ten
+ * times what a block a kilometre out has, not one and a half times". Height is
+ * the same quantity one axis over and had a uniform roll.
+ *
+ * DELIVERED, BOTH ARMS THROUGH THE SAME GENERATOR (`heightprobe`, seed 1337,
+ * 432 buildings):
+ *
+ *     uniform 12–64        mean 36.13   median 34.8   p99  65   max  66   sd/mean 0.425
+ *     lognormal 34, σ 0.62 mean 38.43   median 31.1   p99 134   max 154   sd/mean 0.664
+ *
+ * **sd/mean 0.664 against 0.425 — a 1.56× wider spread**, which is the whole
+ * change; and a p99 at 134 m against 65, which is the part you can see. σ = 0.62
+ * gives `sqrt(exp(σ²) − 1)` = 0.6785 in the limit, and the delivered 0.664 is
+ * that with the clamps on. Real city height distributions are measured at
+ * σ ≈ 0.5–0.9 (Batty & Longley on building-height power laws); 0.62 is inside
+ * that band and at the modest end of it.
+ *
+ * THE MEDIAN IS 34 AND IT IS CHOSEN AGAINST Σ FLOORS, NOT AGAINST THE MEAN —
+ * AND STATE 19 §9.5's ARITHMETIC IS WRONG IN EXACTLY THAT WAY. That entry
+ * proposed "median 30 m, σ = 0.62 gives mean **36.4 against the delivered
+ * 36.55**, i.e. the mean is preserved to 0.4%". Those are two different
+ * quantities: 36.4 is the log-normal's mean BEFORE `floors = max(3, round(h /
+ * era.floor))` and 36.55 is what the uniform delivered AFTER it. CONTRACT §9's
+ * table with two means.
+ *
+ * SHIPPED AT MEDIAN 30 IT MEASURED AS A CONTENT REDUCTION AND A GATE SAID SO.
+ * `perfcheck` went red on `floors.visibleInstances` — **106 501 against a floor
+ * of 115 000** — which is a content floor doing precisely its job. §0 rule 5:
+ * the answer is to put the content back, never to move the floor. What had to
+ * be preserved was never the mean height; it is the FACADE AREA, because that
+ * is what a window count is proportional to, and a setback removes upper-tier
+ * perimeter as well as height:
+ *
+ *     median   Σfloors    facade area    delivered windows + building boxes
+ *      30       −5.4%        −6.2%        105 796   (−10.5% — RED)
+ *      32       +0.9%        −0.4%
+ *      34       +6.6%        +4.9%        121 781   (+3.0% — clear)
+ *
+ * The delivered column is `citycheck`'s own scene walk, i.e. instances that
+ * reached the GPU, and it is the one that decides. Σfloors and facade area are
+ * the cheap proxies `heightprobe` computes without a browser so the next
+ * session can sweep this in ten seconds rather than in twenty minutes.
+ *
+ * THE CLAMP IS 150 m AND IT IS NOT A TASTE. `LIGHTING.shadowExtent` is 170 m,
+ * so a building taller than that would stand outside the sun's own depth pass
+ * and cast no shadow at noon — a 200 m tower with no shadow is a worse artefact
+ * than no tower. 150 leaves 20 m of margin, and the delivered maximum is 154 m
+ * because `floors · (era.floor + jitter)` is applied AFTER the clamp: the clamp
+ * bounds the ROLL and the era's own storey height carries it a little past.
+ * Nine of 432 buildings clear 34 storeys.
+ *
+ * FLOOR 9 m, because `floors = max(3, ...)` already imposes three storeys and a
+ * log-normal's lower tail otherwise spends draws below it that all land on the
+ * same answer. 9 is 3 × the 3.05 m of the shortest era.
+ */
+export const HEIGHT_DISTRIBUTION = {
+  /**
+   * `logNormal` is what ships. `uniform` is the SESSION-19 BAND, kept as an ARM
+   * rather than as a memory: this session's height change is the one that moved
+   * `floors.visibleInstances` and the honest way to say by how much is to run
+   * the two distributions through the same generator, not to compare a number
+   * against a number written down last week. `tools/heightprobe.mjs` is the
+   * only caller, and it says in its own header that it asserts nothing.
+   *
+   * The same shape `?fieldDrip` has: one parameter with two arms, rather than
+   * two copies of a module that have to be kept in step (§9.1).
+   */
+  mode: 'logNormal',
+  medianM: 34,
+  sigmaLn: 0.62,
+  minM: 9,
+  maxM: 150,
+  /** The arm. Session 19's uniform band, in the units it was written in. */
+  uniformLoM: 12,
+  uniformHiM: 64,
+};
+
+export function buildingHeightRoll(rng) {
+  if (HEIGHT_DISTRIBUTION.mode === 'uniform') {
+    return rng.range(HEIGHT_DISTRIBUTION.uniformLoM, HEIGHT_DISTRIBUTION.uniformHiM);
+  }
+  const h = rng.logNormal(HEIGHT_DISTRIBUTION.medianM, HEIGHT_DISTRIBUTION.sigmaLn);
+  return Math.min(HEIGHT_DISTRIBUTION.maxM, Math.max(HEIGHT_DISTRIBUTION.minM, h));
+}
+
+/**
+ * SETBACKS — session 20, item 4's other half.
+ *
+ * A tower that is one width from pavement to parapet reads as a SHAPE. One that
+ * steps in as it rises reads as ARCHITECTURE, and it is the same argument §7.4
+ * makes about the vehicles' height profile: a rectangular prism reads the same
+ * at every station, and no amount of colour or detail changes that.
+ *
+ * THE DESCRIPTION IS PURE AND LIVES HERE, AND `buildingTiers()` BELOW IS THE
+ * ONE PLACE THAT TURNS IT INTO BOXES. `city.js` emits the masses from it, the
+ * signage asks it where a wall is, and the roofscape asks it where the top roof
+ * is. Three readers, one function — because three transcriptions of "how wide
+ * is this building at 40 m" is exactly the arrangement §9.1 warns about, and
+ * the failure mode is a sign floating in the air beside a wall that stepped
+ * away from it.
+ *
+ * WHO GETS ONE. Nothing under `minHeightM`: a step in a 20 m building is a
+ * cornice, and this file already has cornices. The probability rises with
+ * height because that is what zoning envelopes do — a tall building is tall
+ * BECAUSE it stepped back, under every setback ordinance since New York 1916.
+ *
+ * THE OCCLUDER IS NOT CHANGED AND THAT IS DELIBERATE, WITH THE COST STATED.
+ * `occluders` keeps the full footprint to the full height, so the canyon bake
+ * (§5.7) marches against the building's ENVELOPE rather than against its
+ * delivered massing, and the field is therefore CONSERVATIVE by the volume the
+ * setbacks remove. That volume is above `0.45 · height` by construction and the
+ * bake's street-level sky visibility is dominated by the first thirty metres,
+ * so the error is small and it is in the direction that under-reports sky
+ * rather than over-reports it. Changing the occluder would mean the worker's
+ * nine-chunk neighbourhood and the main thread had to agree about a stepped
+ * solid, which is a second description of the same shape.
+ */
+export const SETBACK = {
+  minHeightM: 34,
+  /** Probability at `minHeightM` and at 100 m; linear between, clamped. */
+  pAtMin: 0.22,
+  pAtTall: 0.78,
+  tallM: 100,
+  /** A second step only above this. */
+  secondTierM: 72,
+  /**
+   * Inset per side, as a fraction of the plan dimension it eats into.
+   *
+   * SOFTENED FROM 0.10–0.19 IN THE SAME SESSION IT WAS WRITTEN, and the reason
+   * is a gate rather than a taste: a setback removes upper-tier PERIMETER as
+   * well as height, so it removes facade — and facade is windows, and windows
+   * are what `floors.visibleInstances` counts. At 0.10–0.19 the step was worth
+   * about a fifth of the tier above it on both axes. 0.09–0.16 still reads as a
+   * step at the distance a skyline is seen from (the narrowest, on a 11 m
+   * frontage, is 2 × 0.09 × 11 = 1.98 m, which is 4 px at 500 m) and costs
+   * about a third less area.
+   */
+  insetMin: 0.09,
+  insetMax: 0.16,
+  /** Never take a plan dimension below this, whatever the fractions say. */
+  minPlanM: 7.5,
+};
+
+/**
+ * The building's massing as a stack of boxes, bottom first. ALWAYS at least one
+ * entry, and for a building with no setback that entry is exactly the box
+ * `city.js` drew before this existed — so the no-setback path is unchanged by
+ * arithmetic rather than by a branch.
+ *
+ * Each tier: `{ y0, y1, width, depth }` in metres, world-axis-aligned before
+ * the building's own yaw (which `setMatrix` applies, as it does for every other
+ * box in the city).
+ */
+export function buildingTiers(bld) {
+  const s = bld.setbacks;
+  if (!s || !s.length) return [{ y0: 0, y1: bld.height, width: bld.width, depth: bld.depth }];
+  const out = [];
+  let y = 0;
+  let w = bld.width;
+  let d = bld.depth;
+  for (const step of s) {
+    out.push({ y0: y, y1: step.at, width: w, depth: d });
+    y = step.at;
+    w = Math.max(SETBACK.minPlanM, w - 2 * step.inset * w);
+    d = Math.max(SETBACK.minPlanM, d - 2 * step.inset * d);
+  }
+  out.push({ y0: y, y1: bld.height, width: w, depth: d });
+  return out;
+}
+
+/** The topmost tier — where a roof sign stands and where the plant goes. */
+export function topTier(bld) {
+  const t = buildingTiers(bld);
+  return t[t.length - 1];
+}
+
+/**
+ * Roll a building's setbacks. One `rng` stream, drawn in a fixed ORDER and a
+ * fixed COUNT for every building, so the stream position after this call does
+ * not depend on the answer — the same discipline `rng.logNormal` observes for
+ * the same reason.
+ */
+function rollSetbacks(rng, height) {
+  const p = height < SETBACK.minHeightM
+    ? 0
+    : Math.min(SETBACK.pAtTall, SETBACK.pAtMin +
+      ((SETBACK.pAtTall - SETBACK.pAtMin) * (height - SETBACK.minHeightM)) /
+      (SETBACK.tallM - SETBACK.minHeightM));
+  // Four draws, always, whatever the answer is.
+  const roll = rng.next();
+  const at1 = rng.range(0.50, 0.70);
+  const at2 = rng.range(0.72, 0.86);
+  const inset = rng.range(SETBACK.insetMin, SETBACK.insetMax);
+  if (roll >= p) return null;
+  const steps = [{ at: height * at1, inset }];
+  if (height > SETBACK.secondTierM) steps.push({ at: height * at2, inset: inset * 0.86 });
+  return steps;
+}
+
+/**
+ * ROOF SIGNS — session 20, item 3, and the reason it is here rather than in
+ * `city.js` is that it is a DESCRIPTION: the worker bakes this city from the
+ * pure generator (§8.1) and everything a chunk contains has to be derivable
+ * from `(rootSeed, cx, cz)` alone.
+ *
+ * WHY THEY ARE A SEPARATE VOCABULARY FROM THE `roof` MOUNTING THAT ALREADY
+ * EXISTS. Session 14's `mount: 'roof'` is a SHOPFRONT sign that happens to be
+ * bolted above a parapet: it is rolled from the same 0.9–6.2 m width band as a
+ * fascia and it stands on its own elevation. What this session is asked for is
+ * the other object — the thing you can read from a kilometre away, which is
+ * sized off the BUILDING rather than off the shop, is lit far harder
+ * (`LIGHT.roofSignNits` 600 against `signPlateNits` 86), and is the only
+ * emitter in this city that sits ABOVE THE WINDOW BAND. That band is the whole
+ * finding: STATE 19 §8 measured the elevated night frame at 99.30% shadow and
+ * median code 7, and §4's and STATE 18 §3.2's impossibility proofs both end at
+ * the same sentence — what moves that frame is emitted radiance at scale.
+ *
+ * ITS OWN RNG STREAM. `chunkRng(rootSeed, cx, cz, 'roofsign')`, not the `sign`
+ * stream, because CONTRACT §6's determinism rule is that adding a system must
+ * not shift an existing one's sequence, and drawing from `signRng` would move
+ * every shopfront sign in the city.
+ */
+export const ROOF_SIGN = {
+  /** Nothing shorter. Below this the sign is taller than the building's top third. */
+  minBuildingM: 22,
+  minFloors: 5,
+  /**
+   * WHETHER A TALL BUILDING GETS ONE, AND THE TWO NUMBERS ARE THIS FILE'S OWN.
+   *
+   * `0.32 + density · 0.40` is EXACTLY the roll the shopfront signage uses
+   * twenty lines from here — "does this building carry signage at all" — and
+   * reusing it is the claim rather than a coincidence: a building tall enough
+   * to carry a roof sign is a building that carries signage, and inventing a
+   * second density for the same question would be two numbers for one decision.
+   *
+   * Delivered, over the eligibility gate above (`height ≥ 22 m` and `≥ 5
+   * floors`, which is about two thirds of the population), that is one roof
+   * sign per 3.5 to 5 buildings — and roughly 72% of those are double-sided, so
+   * from any one viewpoint about a fifth of the tall buildings in frame show a
+   * lit sign. The count is printed at boot by `city.js` → `reportRoofSigns`
+   * rather than estimated here.
+   */
+  pBase: 0.32,
+  pDensity: 0.40,
+  /** Face width as a fraction of the top tier's own frontage. */
+  widthFracMin: 0.46,
+  widthFracMax: 0.86,
+  minWidthM: 6.0,
+  maxWidthM: 26.0,
+  /** Face height / face width. A rooftop sign is a band, not a plate. */
+  aspectMin: 0.16,
+  aspectMax: 0.34,
+  /**
+   * THE THREE MOUNTINGS, AND EACH IS CHOSEN BY WHAT IT DOES TO A SILHOUETTE
+   * rather than by what it is — the same rule session 19 used for the five roof
+   * plant kinds.
+   *
+   *   parapet     0.32  sits directly on the upstand. Reads as part of the
+   *                     building; the cheapest and the commonest.
+   *   frame       0.44  raised on an open lattice with daylight under it. This
+   *                     is the one that puts a lit rectangle against the SKY
+   *                     rather than against a roof, which is what makes a
+   *                     skyline, and it is why it has the largest weight.
+   *   cantilever  0.24  projects out over the parapet on brackets, so its
+   *                     bottom edge is below the roof line and it reads from
+   *                     the street directly beneath as well as from across the
+   *                     city.
+   */
+  wParapet: 0.32,
+  wFrame: 0.44,
+  wCantilever: 0.24,
+  /** How far a framed sign's bottom edge stands above the roof, in metres. */
+  frameLiftMin: 2.4,
+  frameLiftMax: 7.0,
+  /**
+   * CHROMA WEIGHTS OVER `city.js`'s SIX-ENTRY `SIGN_CHROMA`, IN ITS ORDER:
+   * neonRed, neonCyan, sodium, fluorescentCold, tungsten, neonGreen.
+   *
+   * Weighted 0.64 toward the two low-saturation entries, and it is a budget
+   * rather than a preference. `docs/authored-city.md`'s saturation reserve is a
+   * CEILING on the share of pixels above 0.6 saturation and 0.5 value, measured
+   * at 9.19% of a 12% ceiling in the last attested run — so an emitter added at
+   * this scale in six equally-weighted colours is the one change that could
+   * spend it. It is also what a real skyline looks like: corporate rooftop
+   * signage is overwhelmingly white or warm white with one brand colour, and a
+   * skyline of six neons in equal measure is the accident
+   * `SIGN_CHROMA`'s own comment warns about one level down.
+   */
+  chromaWeights: [0.11, 0.08, 0.09, 0.34, 0.30, 0.08],
+  /**
+   * WHICH ONES ARE LIT ON BOTH FACES, AND IT IS DECIDED BY WHAT IS BEHIND THEM.
+   *
+   *   frame       sky behind it, so both faces are read and both are lit.
+   *   parapet     a set of letters standing ON the upstand, with the roof
+   *               behind rather than a wall — read from the far side across the
+   *               roof, so both faces again. This is the commonest arrangement
+   *               on a real parapet: the letters are freestanding and the
+   *               upstand is only the thing they are bolted to.
+   *   cantilever  hangs OVER an edge with the building's own elevation directly
+   *               behind it. One face, and the back is a dark hoarding.
+   *
+   * 0.32 + 0.44 = 0.76 of roof signs are therefore two-faced, which is what
+   * makes a skyline read from more than one direction — a city of single-sided
+   * signs is a city with a front.
+   */
+  doubleSided: { parapet: true, frame: true, cantilever: false },
+};
+
+/**
+ * THE PARAPET'S HEIGHT, AND IT IS HERE BECAUSE THREE THINGS NEED IT.
+ *
+ * `city.js` built its roof upstand at a literal 1.05 in `buildRoofscape` and
+ * its `roof`-mounted signs at a second literal 1.05 forty lines away, under a
+ * comment saying the second was "the same `ph` the facade loop uses, read from
+ * there rather than guessed, so a change to the upstand cannot leave a sign
+ * floating over it" — a claim about a link, with no link (§9.1). Session 20
+ * makes it one number, and it is in the pure generator rather than in `city.js`
+ * because a roof sign's WORLD HEIGHT is now part of the chunk's description and
+ * the description has to be able to compute it.
+ */
+export const ROOF_PARAPET_M = 1.05;
+
+/**
+ * Roll one building's roof sign, if it gets one, and push it into the chunk's
+ * sign list. Always draws the SAME NUMBER OF UNIFORMS whatever it decides, so
+ * the stream position after the call does not depend on the answer.
+ */
+function pushRoofSign(bld, rng, density, signs) {
+  const tier = topTier(bld);
+  const roofY = bld.height;
+
+  /**
+   * ALL THE UNIFORMS FIRST, FOR BOTH POSSIBLE SIGNS, WHATEVER IS DECIDED.
+   * Sixteen draws every time this is called, so the stream's position after the
+   * call does not depend on the answer — the same discipline `rng.logNormal`
+   * observes one function up and for the same reason.
+   */
+  const roll = rng.next();
+  const second = rng.next();
+  const p = [0, 1].map(() => ({
+    wf: rng.range(ROOF_SIGN.widthFracMin, ROOF_SIGN.widthFracMax),
+    asp: rng.range(ROOF_SIGN.aspectMin, ROOF_SIGN.aspectMax),
+    mr: rng.next(),
+    fr: rng.next(),
+    ar: rng.range(-0.25, 0.25),
+    sr: rng.next(),
+    chroma: weightedIndex(rng.next, ROOF_SIGN.chromaWeights),
+    face: rng.next(),
+  }));
+
+  if (bld.height < ROOF_SIGN.minBuildingM || bld.floors < ROOF_SIGN.minFloors) return;
+  if (roll >= ROOF_SIGN.pBase + ROOF_SIGN.pDensity * density) return;
+
+  /**
+   * ONE OR TWO, AND THE SECOND HALF OF THE ANCHOR THAT WAS DROPPED.
+   *
+   * `pBase`/`pDensity` are lifted from the shopfront roll twenty lines from
+   * here — `signRng.next() < 0.32 + density · 0.4 ? signRng.int(1, 2) : 0` —
+   * and the first version of this function took the PROBABILITY and threw away
+   * the `int(1, 2)`. That is half an anchor: the rule this file already states
+   * is that a building which carries signage carries ONE OR TWO pieces of it,
+   * and a corner building with a sign on each of its two street elevations is
+   * the commonest thing in any skyline photograph there is.
+   *
+   * 0.45 rather than the 0.5 an `int(1, 2)` gives, because the second sign is
+   * on a DIFFERENT elevation and needs the building to have two worth facing;
+   * `faces` below weights the front at 0.55 and the second draw is forced off
+   * it, so the pair is a front sign and a flank sign rather than two fronts.
+   */
+  const count = second < 0.45 ? 2 : 1;
+
+  const faces = bld.facing[0] === 'x'
+    ? [bld.facing, bld.facing === 'x+' ? 'x-' : 'x+', 'z+', 'z-']
+    : [bld.facing, bld.facing === 'z+' ? 'z-' : 'z+', 'x+', 'x-'];
+
+  const deadP = { kept: 0.06, worn: 0.22, neglected: 0.52 }[bld.condition];
+
+  for (let k = 0; k < count; k++) {
+    const q = p[k];
+    /**
+     * WHICH ELEVATION. Weighted to the building's own front, because a rooftop
+     * sign is bought to be read from the street the shop is on — but not
+     * exclusively, because a skyline in which every sign faces the same way is
+     * a skyline seen from one direction. The SECOND sign is forced off the
+     * front so the pair reads from two directions rather than twice from one.
+     */
+    const facing = k === 0
+      ? faces[weightedIndex(() => q.face, [0.55, 0.17, 0.14, 0.14])]
+      : faces[1 + Math.min(2, Math.floor(q.face * 3))];
+
+    /** The tier's extent ALONG this elevation. See `halfTanOf` in `city.js`. */
+    const frontage = facing[0] === 'x' ? tier.depth : tier.width;
+    const width = Math.min(ROOF_SIGN.maxWidthM, Math.max(ROOF_SIGN.minWidthM, frontage * q.wf));
+    const faceH = width * q.asp;
+
+    const roofMount = q.mr < ROOF_SIGN.wParapet ? 'parapet'
+      : q.mr < ROOF_SIGN.wParapet + ROOF_SIGN.wFrame ? 'frame' : 'cantilever';
+    const lift = roofMount === 'frame'
+      ? ROOF_SIGN.frameLiftMin + q.fr * (ROOF_SIGN.frameLiftMax - ROOF_SIGN.frameLiftMin)
+      : 0;
+
+    /**
+     * A CANTILEVERED SIGN HANGS OVER THE EDGE, so its centre sits lower than
+     * the others': its bottom edge drops past the roof line by a third of its
+     * own height, which is what makes it visible from the pavement directly
+     * underneath as well as from across the city.
+     */
+    const centreY = roofMount === 'cantilever'
+      ? roofY + ROOF_PARAPET_M + faceH / 2 - faceH / 3
+      : roofY + ROOF_PARAPET_M + lift + faceH / 2;
+
+    signs.push({
+      x: bld.x, y: centreY, z: bld.z,
+      facing,
+      scale: 'roof',
+      mount: 'rooftop',
+      roofMount,
+      width,
+      aspect: q.asp,
+      lift,
+      doubleSided: ROOF_SIGN.doubleSided[roofMount],
+      /** The roof this stands on and the TOP TIER's own plan, not the base's. */
+      buildingHeight: roofY,
+      buildingWidth: tier.width,
+      buildingDepth: tier.depth,
+      along: q.ar,
+      /**
+       * 15% NON-WORKING IS A FLOOR THE WHOLE POPULATION HAS TO MEET (session 12,
+       * `docs/authored-city.md` §2), so a roof sign uses the SAME
+       * condition-driven probabilities a shopfront does rather than a flat 15%.
+       * A neglected building with a dead sign on its roof is the picture; a
+       * random 15% is noise.
+       */
+      state: q.sr < deadP ? 'dead' : q.sr < deadP + 0.1 ? 'half' : 'lit',
+      chroma: q.chroma,
+      yawDeg: bld.yawDeg,
+    });
+  }
+}
+
+/**
  * Facade materials, as linear reflectances. Measurements, not colours — see
  * block.js, which authors the same four for the same reason. `display` is not a
  * material: it is the minority case where a facade has been given over to
@@ -419,7 +872,8 @@ export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park'];
 // landmarks — docs/authored-city.md §6
 //
 // Hand-placed, and every one of them is something the generator cannot produce:
-// the generator makes rectangular masses on lot lines between 12 and 64 m tall,
+// the generator makes rectangular masses on lot lines between 9 and 150 m tall
+// (`HEIGHT_DISTRIBUTION`, log-normal since session 20),
 // and none of these is that. `outsideGeneratorRange` is not a label, it is
 // checked — citycheck asserts it and `generatorCanProduce()` below is what the
 // assertion is made of.
@@ -1305,14 +1759,24 @@ export function viaductArc(l) {
 /**
  * Could the building generator have produced this shape?
  *
- * The generator makes axis-aligned rectangular masses, 12–64 m tall, 14–34 m
- * wide, with a cornice and windows. Anything that is not a box, or is outside
- * that height band, is outside its range. citycheck asserts every landmark is —
- * because a landmark the generator can make is not a landmark, it is a building.
+ * The generator makes axis-aligned rectangular masses — since session 20,
+ * STEPPED ones — 9 to 150 m tall, 11 to 27 m wide, with a cornice and windows.
+ * Anything that is not a box, or is outside that height band, is outside its
+ * range. citycheck asserts every landmark is (`M.generatorProducible`), because
+ * a landmark the generator can make is not a landmark, it is a building.
+ *
+ * THE BAND IS READ FROM `HEIGHT_DISTRIBUTION` RATHER THAN RETYPED FROM IT.
+ * Session 20 replaced the uniform 12–64 with a log-normal clamped to 9–150, and
+ * a hand-written 12–64 here would have gone on claiming a range the generator
+ * left three functions ago — CONTRACT §9.1's config-the-code-does-not-read, with
+ * the roles reversed. The band got 2.4× wider and every landmark is still
+ * outside it, because every landmark is outside it by KIND: not one of the
+ * eight is a box, so `generatorProducible` is empty for a reason no height
+ * change can touch. That is worth knowing before somebody adds a ninth.
  */
 export function generatorCanProduce(landmark) {
   if (landmark.kind !== 'box') return false;
-  return landmark.height >= 12 && landmark.height <= 64;
+  return landmark.height >= HEIGHT_DISTRIBUTION.minM && landmark.height <= HEIGHT_DISTRIBUTION.maxM;
 }
 
 export function landmarkFootprint(l) {
@@ -1996,6 +2460,16 @@ export function generateChunk(rootSeed, cx, cz) {
   const signRng = chunkRng(rootSeed, cx, cz, 'sign');
   const yawRng = chunkRng(rootSeed, cx, cz, 'yaw');
   const propRng = chunkRng(rootSeed, cx, cz, 'prop');
+  /**
+   * Session 20's two new systems, each on its OWN stream. CONTRACT §6: streams
+   * are independent so that adding a system cannot shift an existing one's
+   * sequence. Drawn from `rng` or `signRng` these would have re-scattered every
+   * building and every shopfront sign in the city, and the diff would have read
+   * as "the setbacks moved the props", which is a whole session of confusion
+   * for two lines saved.
+   */
+  const setbackRng = chunkRng(rootSeed, cx, cz, 'setback');
+  const roofSignRng = chunkRng(rootSeed, cx, cz, 'roofsign');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -2162,7 +2636,7 @@ export function generateChunk(rootSeed, cx, cz) {
 
           const eraName = ERA_NAMES[weightedIndex(eraRng.next, ERA_NAMES.map((n) => CITY_ERAS[n].weight))];
           const era = CITY_ERAS[eraName];
-          const floors = Math.max(3, Math.round(rng.range(12, 64) / era.floor));
+          const floors = Math.max(3, Math.round(buildingHeightRoll(rng) / era.floor));
           const height = floors * (era.floor + eraRng.gauss() * 0.05);
 
           /**
@@ -2269,14 +2743,31 @@ export function generateChunk(rootSeed, cx, cz) {
              */
             cantilever: eraName === 'contemporary' ? rng.range(1.1, 2.4) : 0,
             crown: eraName === 'contemporary' ? rng.range(0.15, 0.45) : 0,
+            /**
+             * Session 20. `null` for anything under `SETBACK.minHeightM`, and
+             * `buildingTiers()` returns the single full-height box for those —
+             * so the un-stepped path is the old geometry by arithmetic rather
+             * than by a branch. Its own stream, `setbackRng`, for CONTRACT §6's
+             * reason: drawn from `rng` it would move every building after it.
+             */
+            setbacks: rollSetbacks(setbackRng, height),
           };
           buildings.push(bld);
 
+          /**
+           * THE ENVELOPE, NOT THE MASSING. See `SETBACK`'s note: the occluder
+           * keeps the full footprint to the full height even where the building
+           * steps in, so the canyon bake is conservative by the volume the
+           * setbacks remove and the worker never has to agree with the main
+           * thread about a stepped solid.
+           */
           occluders.push({
             x0: cxb - bld.width / 2, x1: cxb + bld.width / 2,
             z0: czb - bld.depth / 2, z1: czb + bld.depth / 2,
             top: height,
           });
+
+          pushRoofSign(bld, roofSignRng, density, signs);
 
           /**
            * Signage. §2 asks for at least 15% of it non-working; condition is
@@ -2357,8 +2848,37 @@ export function generateChunk(rootSeed, cx, cz) {
             const width = big
               ? signRng.range(9, 17)
               : 0.9 + 5.3 * u * u;
+            /**
+             * A BUILDING-SCALE SIGN STAYS ON THE BASE TIER — session 20.
+             *
+             * `big` puts a 9–17 m sign at 0.55–0.82 of the building's height,
+             * and a setback steps the wall in at 0.45–0.66 of it. Left alone,
+             * the sign's own elevation would be somewhere the wall no longer
+             * is: `city.js` offsets it by `buildingWidth/2`, which after a
+             * setback is the BASE's half-width, so the sign would hang in the
+             * air one inset clear of the tier it is supposed to be bolted to.
+             * That is CONTRACT §9's shape with two half-widths, and it is
+             * exactly the failure session 14 found when a building's CENTRE was
+             * used as its ELEVATION.
+             *
+             * Clamped rather than re-based, because a big sign on the base of a
+             * stepped tower is where a real one is — the base is the widest,
+             * lowest, most-seen elevation the building has. The margin is the
+             * sign's own half-height plus a metre, so its top edge clears the
+             * step it sits under.
+             */
+            const bigTop = bld.setbacks
+              ? Math.max(8, bld.setbacks[0].at - (width * 0.35) / 2 - 1.0)
+              : height;
             signs.push({
-              x: cxb, y: big ? height * signRng.range(0.55, 0.82) : signRng.range(3.4, 7.2),
+              x: cxb,
+              // ONE DRAW EITHER WAY. The clamp is applied to the draw, not
+              // added beside it: `big ? A(draw) : B(draw)` consumes exactly one
+              // uniform on both paths, which is what keeps this session's
+              // change to the sign stream at zero.
+              y: big
+                ? Math.min(height * signRng.range(0.55, 0.82), bigTop)
+                : signRng.range(3.4, 7.2),
               z: czb,
               facing: bld.facing,
               scale: big ? 'building' : 'shop',
@@ -2496,7 +3016,7 @@ export function generateChunk(rootSeed, cx, cz) {
          * a 60 m slab on a 12 m-deep riverside lot is a tower on a plinth, and
          * the reason an embankment reads as an embankment is the long low
          * terrace under the skyline behind it. 8–34 m against the generator's
-         * own 12–64.
+         * own log-normal at median 30 m.
          */
         const floors = Math.max(3, Math.round(rng.range(8, 34) / era.floor));
         const height = floors * (era.floor + eraRng.gauss() * 0.05);
@@ -2515,6 +3035,15 @@ export function generateChunk(rootSeed, cx, cz) {
           displayTo: 0.72,
           cantilever: eraName === 'contemporary' ? rng.range(1.1, 2.4) : 0,
           crown: eraName === 'contemporary' ? rng.range(0.15, 0.45) : 0,
+          /**
+           * Session 20, and on the terrace it will almost always be null: the
+           * band above is 8–34 m against `SETBACK.minHeightM` = 34, so only the
+           * very top of the roll qualifies. That is the right answer rather
+           * than an omission — a setback on a 20 m riverside terrace is a
+           * cornice, and the terrace's whole job is to be the long low thing
+           * under the skyline behind it.
+           */
+          setbacks: rollSetbacks(setbackRng, height),
           /** So a reader of the placement data can see which walk placed it. */
           quayside: true,
         };
@@ -2524,6 +3053,14 @@ export function generateChunk(rootSeed, cx, cz) {
           z0: czb - depth / 2, z1: czb + depth / 2,
           top: height,
         });
+        /**
+         * AND THE TERRACE GETS ROOF SIGNS TOO, on the same test. A lit sign
+         * over the water is the most-seen sign in any river city — it is read
+         * from the far bank, from both bridges and from the promenade — and
+         * `ROOF_SIGN.minBuildingM` = 22 against this walk's 8–34 m band means
+         * only the taller third of the terrace qualifies, which is the picture.
+         */
+        pushRoofSign(bld, roofSignRng, density, signs);
         const signCount = signRng.next() < 0.32 + density * 0.4 ? signRng.int(1, 2) : 0;
         for (let s = 0; s < signCount; s++) {
           const deadP = { kept: 0.06, worn: 0.22, neglected: 0.52 }[bld.condition];

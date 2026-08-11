@@ -32,7 +32,33 @@ export function createContext({ renderer, scene, camera, config }) {
 
   const rootSeed = hashString(String(config.seed));
 
+  /**
+   * THE BOOT DERIVATIONS, KEPT — session 20.
+   *
+   * `ctx.log` is where §9 rule 4's obligation is discharged: the river's
+   * Cox–Munk figures, the headlamp's lux against the ambient, the gait's 4.5 mm
+   * foot creep, the canyon field's 51% sky openness, the §5.12 motion cutoffs,
+   * this session's roof-sign bloom energy. Every one of them is a number
+   * derived from another number and printed beside it — and every one of them
+   * went to a console nobody had open.
+   *
+   * So the lines are also retained, bounded, and the HUD's fourth level is a
+   * scrolling panel of them. It is the cheapest thing in this session: the
+   * derivations already existed and the only thing missing was somewhere to
+   * read them.
+   *
+   * BOUNDED AT 200 AND IT DROPS THE TAIL RATHER THAN THE HEAD. What this is for
+   * is the boot derivations, which are the FIRST lines; a ring buffer that kept
+   * the most recent 200 would throw away exactly the ones worth keeping the
+   * moment anything logged per frame.
+   */
+  const logLines = [];
+  const LOG_CAP = 200;
+
   function log(...msg) {
+    if (logLines.length < LOG_CAP) {
+      logLines.push(msg.map((m) => (typeof m === 'string' ? m : String(m))).join(' '));
+    }
     console.log('[noctis]', ...msg);
   }
 
@@ -317,6 +343,10 @@ export function createContext({ renderer, scene, camera, config }) {
 
     get faults() {
       return faults.slice();
+    },
+    /** Everything `log()` has printed, in order, capped. See `log`. */
+    get logLines() {
+      return logLines.slice();
     },
     /** Names of every module that is currently live, in update order. */
     get live() {
