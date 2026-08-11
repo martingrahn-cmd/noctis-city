@@ -79,8 +79,12 @@ would be CONTRACT §0 rule 5 with a purchase order.
 ✓ citycheck  occupancy    0 generator / 0 delivered over 50 forbidden pairs
 ✗ citycheck               2 red of 24: sceneWalk (the machine) and
                           saturation (UNRUN — needs a rasteriser)
-✓ windcheck               RAN FOR THE FIRST TIME ON A MACHINE WITHOUT A GPU.
-                          §3.1 — its refusal guarded no pixel.
+✓ windcheck               678 meshes, 0 wound backwards, coverage 678/400,
+                          both control directions holding. RAN FOR THE FIRST
+                          TIME ON A MACHINE WITHOUT A GPU — §3.1, its refusal
+                          guarded no pixel.
+✓ queueprobe              the stop-line defect reproduces: −10.454 m at
+                          dt = 0.1 over one cycle. §5.
 —  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
                           ~21 600 SwiftShader frames. Counts recovered from
                           citycheck's scene walk instead — §3.2.
@@ -379,18 +383,49 @@ stricter than imperfect ones — it is nothing."*
 **IT CANNOT MAKE A RED GATE GREEN, and the guard is already built rather than
 added for the occasion.** The one way a slow rasteriser degrades this census is
 by not finishing the streaming, so fewer meshes are resident — and `minMeshes`
-(400 against 627 delivered) and `requiredMeshes` fail on exactly that. **The
-failure mode of a software run is a false RED, not a false green**, which is the
-direction a gate is allowed to be wrong in. The renderer string is still printed
-beside the table so no log is anonymous about the machine it came off, and
-`budget.json` → `winding.$pixelFree` records **what would invalidate the
-argument**: any threshold here that comes to read `page.screenshot()`, a
+(400) and `requiredMeshes` fail on exactly that. **The failure mode of a software
+run is a false RED, not a false green**, which is the direction a gate is allowed
+to be wrong in. The renderer string is still printed beside the table so no log
+is anonymous about the machine it came off, and `budget.json` →
+`winding.$pixelFree` records **what would invalidate the argument**: any
+threshold here that comes to read `page.screenshot()`, a
 `readRenderTargetPixels`, or a harness call that renders in order to answer. Add
 one and the refusal comes back, beside it.
 
 This is the change in the session that most deserves a sceptical reading, and it
 is the one CONTRACT §7.3.1 requires be argued with its negative direction
-guarded. The negative direction is the paragraph above.
+guarded. The negative direction is the paragraph above — and it is not only an
+argument, because the run happened:
+
+```
+6 eyes over 3 routes: 354 / 481 / 397 / 491 / 439 / 485 meshes
+
+678 meshes: 674 ok, 0 WOUND BACKWARDS, 0 unmeasured, 4 double-sided (not culled)
+coverage:   678 names, 678 meshes (floor 400), 674 of 674 cull-eligible decided
+            (volume 587, normals 669, facing 502); 0 unmeasured (ceiling 0)
+
+controls — CONTRACT §7.3, four shapes through the same census
+  winding:control:good        closed   +8.00e+0   1.0000   0.5000   ok   ← must pass
+  winding:control:reversed    closed   −8.00e+0   0.0000   0.6667   bad  ← must fail
+  winding:control:quad-up     open      0.00e+0   1.0000   1.0000   ok   ← must pass
+  winding:control:quad-down   open      0.00e+0   0.0000   0.0000   bad  ← must fail
+
+windcheck ✓
+```
+
+**Both control directions hold on a software rasteriser**, which is §7.3's own
+requirement and is the demonstration that the census is not answering the same
+thing to everything. The four double-sided rows are the sky background and the
+three rain layers, exactly the four `budget.json` →
+`winding.thresholds.$maxUnmeasured` names.
+
+**And this is brief item 3's real answer: session 21's new geometry is correctly
+wound.** The park's pond surface (`river:water`, open, signed volume −1.44e6,
+facing 1.0000), the abutment wing walls, the tilted canopy masses and this
+session's lifted crowns are all in a census of 678 meshes with **zero** wound
+backwards. That is the gate the brief expected to have something to say, and what
+it says is that nothing is inside out. 678 against the 627 the budget's
+derivation recorded is session 21's own additions turning up.
 
 ### 3.2 The counts the brief asked for
 
@@ -460,15 +495,23 @@ a 1/60 run. The brief asked for a re-measurement at 1/60 before any repair, on
 the reasoning that *"a 0.1 s step moves a free-running vehicle 1.2 m, so part of
 that overshoot is integration and the rest is the box."*
 
-### 5.1 The run did not happen here either, and this is what it did
+### 5.1 What ran, and what did not
 
 ```
 --cycles=3 --dt=0.1 --static  (1 080 frames)  →  page.evaluate: Execution
                                                  context was destroyed
+                                                 (session 21's own failure)
+--cycles=1 --dt=0.1 --static  (  360 frames)  →  COMPLETED
 ```
 
-The same failure session 21 reported. This container will not finish the run,
-and 1/60 is six times more of it. **So item 4(a) was not closed by measurement.**
+**The defect reproduces on this machine.** One cycle at dt = 0.1: worst
+clearance **−10.454 m**, 14 junctions queued, worst single queue 5 vehicles,
+every one reaching zero, none trending upward, 15.4 of 160 held at a red on
+average. Session 21's −10.62 m over three cycles and −10.454 m over one are the
+same finding with a shorter window on a cumulative statistic.
+
+**The 1/60 arm did not finish** — it is six times the frame count of a run that
+already dies at three cycles. So item 4(a) was not closed by measurement.
 
 ### 5.2 IT DID NOT NEED TO BE. The overshoot bound is closed form
 
@@ -582,7 +625,8 @@ vehicle never asked for the box. So:
    so they need no quiet machine, but they need a route perfcheck can finish.
 4. **`faultcheck`, `lookcheck` and `citycheck`'s saturation.** §3. All three
    refuse for the right reason and all three need a GPU. `windcheck` no longer
-   does — §3.1 — and its verdict is in this file.
+   does — §3.1 — and its verdict is in this file: **678 meshes, 0 wound
+   backwards.**
 5. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
    `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
    software renderer, and both read that file.
