@@ -252,6 +252,19 @@ has to be argued for on where it lands, not on how much there is.**
 `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). It needs
 WebGL2; there is no fallback and it says so rather than degrading.
 
+> **Pages must be set to the *GitHub Actions* source, not to a branch**, and the
+> failure if it is not is worth writing down because it looks like nothing at
+> all. Serving `main` at its root serves the repository's own `index.html`,
+> whose script tag is `<script type="module" src="/src/main.js">` — the
+> UNBUILT entry. The browser asks the domain root for `/src/main.js`, GitHub
+> answers with its 404 page, and what you get is a black canvas and no error
+> anybody can act on. Measured on the live site in exactly that state: the page
+> returned 200 and the entry returned **404 in 9 115 bytes of HTML**.
+>
+> The workflow exists so that what is served is `dist/`, where the same tag
+> reads `/noctis-city/assets/index-*.js`. Settings → Pages → Build and
+> deployment → Source: **GitHub Actions**.
+
 **Locally:**
 
 ```bash
