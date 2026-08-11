@@ -1,0 +1,87 @@
+# Build NOCTIS and publish it to GitHub Pages.
+#
+# WHY THE ACTIONS SOURCE AND NOT "DEPLOY FROM A BRANCH". This repository is a
+# Vite app: what a browser needs is `dist/`, and what is in git is `src/`.
+# Serving a branch would mean committing a build, which is a second description
+# of the source that drifts the moment somebody edits one and not the other.
+# It would also collide with `docs/`, which holds this project's prose and is
+# the other thing the branch source can be pointed at.
+#
+# THE BASE PATH IS TAKEN FROM `configure-pages`, NOT WRITTEN DOWN. A project
+# page is served from `/<repo>/`, a user page from `/`, and a custom domain from
+# `/` again — three answers, and the action already knows which one applies.
+# Hard-coding `/noctis-city/` here would be right until the repository is
+# renamed or a domain is attached, and then silently wrong in the one way that
+# produces a black canvas and no error (see `vite.config.js`).
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  # So the site can be republished without a commit — e.g. the first run, right
+  # after Pages is switched on.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a queued run supersedes a waiting one but never
+# cancels one that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` and not `npm install`: the lockfile is in the repository and a
+      # build that resolves its own dependency versions is a build nobody can
+      # reproduce.
+      - run: npm ci
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on if it is off, so the first push after this file lands
+          # does not need a visit to Settings. It needs `pages: write` above.
+          enablement: true
+
+      # `base_path` comes back as `/noctis-city` with no trailing slash and Vite
+      # wants one at both ends. Normalised here rather than in the config,
+      # because the config's job is to read an environment variable and not to
+      # know what shape this action returns.
+      - name: Build
+        env:
+          NOCTIS_BASE: ${{ steps.pages.outputs.base_path }}
+        run: |
+          case "$NOCTIS_BASE" in
+            */) : ;;
+            *)  NOCTIS_BASE="${NOCTIS_BASE}/" ;;
+          esac
+          echo "building with base $NOCTIS_BASE"
+          NOCTIS_BASE="$NOCTIS_BASE" npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

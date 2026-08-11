@@ -247,6 +247,13 @@ has to be argued for on where it lands, not on how much there is.**
 
 ## Looking at it
 
+**In a browser, with nothing installed:**
+<https://martingrahn-cmd.github.io/noctis-city/> — the same build, published from
+`main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). It needs
+WebGL2; there is no fallback and it says so rather than degrading.
+
+**Locally:**
+
 ```bash
 npm install
 npx playwright install chromium
@@ -255,6 +262,12 @@ npm run dev
 
 Then <http://localhost:5173/>. Useful query parameters: `?seed=`, `?t=` for time
 of day (0.0 midnight, 0.5 noon), `?paused=1`, `?hud=1`.
+
+**A note on the frame times above and the hosted page.** Every millisecond in
+this file was measured on the machine named under *The numbers*, headless, at a
+fixed 2560×1440 internal resolution. The hosted page renders at whatever your
+display is and on whatever GPU you have, so what it shows you is the city and
+not the measurement.
 
 ## Walking in it
 
