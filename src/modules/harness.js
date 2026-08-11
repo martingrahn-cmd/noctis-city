@@ -283,6 +283,30 @@ export function createHarness(options = {}) {
          * occluder boxes. The gate does the test; this supplies no verdict
          * (CONTRACT §8).
          */
+        /**
+         * THE DELIVERED KEEP-OUT CLAIMS — session 21.
+         *
+         * `city.placedClaims()` records what the module EMITTED, at the point
+         * of emission: the ground rectangles that are the mesh, each prop's
+         * world extent off its own delivered instance matrices, each park and
+         * site feature's, each building's envelope and each landmark's ground
+         * solid. `citycheck` runs `occupancy.findConflicts` over it.
+         *
+         * IT IS DELIBERATELY NOT THE GENERATOR'S REGISTRY. That structure says
+         * what the generator TESTED; this says what arrived. The two agreeing
+         * is the claim, and CONTRACT §9.1 exists because twice they have not:
+         * 208 signs decided on a wall and drawn nine metres inside it, and
+         * road patches decided 10 mm thick and drawn a metre tall.
+         */
+        occupancyCensus() {
+          const city = ctx.get('city');
+          if (!city || !city.placedClaims) throw new Error('city.placedClaims() is missing');
+          const claims = city.placedClaims();
+          const counts = {};
+          for (const c of claims) counts[c.kind] = (counts[c.kind] || 0) + 1;
+          return { claims, counts, total: claims.length };
+        },
+
         signPlacement() {
           const city = ctx.get('city');
           if (!city) throw new Error('city module is quarantined — there is nothing to check');

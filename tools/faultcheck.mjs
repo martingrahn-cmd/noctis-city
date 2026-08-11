@@ -122,6 +122,9 @@ const ALL_MODULES = [
    * of the module existing, which is what a list of names is for.
    */
   'aircraft',
+  /** Session 21. `?moving=1` is the default, so this module is live in every
+   *  run the gates make. Two-sided: it must be present AND must not be absent. */
+  'moving',
   'harness',
 ];
 

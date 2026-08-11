@@ -267,6 +267,78 @@ export const LIGHT = {
   streetAverageLux: 16,
 
   /**
+   * cd, PEAK. A PARK LAMP — session 21, and it is `streetlampCandela` derived
+   * for a different height and a different job rather than a second guess.
+   *
+   * The batwing's own relation (see `streetlampCandela` above) is
+   * `E = peak · cos³(peakAngle) / h²`, exact inside the peak angle. A park
+   * lamp's mounting height is `PARK.lampHeight` = **4.20 m** against the
+   * street's 8.08, and BS 5489-1 puts a footpath class at about half a traffic
+   * route's level — so the target is `streetAverageLux / 2` = **8 lx**:
+   *
+   *     I = E · h² / cos³(57°) = 8 × 17.64 / 0.1614 = 874 cd  →  870
+   *
+   * Both numbers, and the ratio (§9 rule 4): **870 / 6800 = 0.128× the street
+   * lamp's peak, delivering 0.50× its illuminance**, because the pool is four
+   * times closer to the ground. That factor is the whole reason a park at night
+   * looks like a park and not like a car park: the same light level from half
+   * the height is a smaller, softer pool with a lit column in the middle of it.
+   */
+  parkLampCandela: 870,
+
+  /**
+   * cd, PEAK. A CONSTRUCTION FLOOD MAST — session 21, and it is the one light
+   * type in this city that points DOWN INTO something.
+   *
+   * A site's task lighting is 50 lx (CDM / HSG38 general construction area, and
+   * 3.1× `streetAverageLux` because people are working). The mast is
+   * `SITE.floodHeightM` = 9.0 m and aims at the middle of the excavation, 18 to
+   * 34 m away, so the slant range is `hypot(9, 26)` ≈ **27.5 m** at the middle
+   * of that band:
+   *
+   *     I = E · d² = 50 × 27.5² = 37 800 cd  →  45 000 at the near end of the
+   *     band (d = 20.1 m gives 20 000; d = 35.2 m gives 62 000)
+   *
+   * 45 000 cd is a 2 kW metal-halide site floodlight, which is what is on a
+   * mast on a real site. **6.6× a street lamp's peak from a mast 0.53× the
+   * height**, which is why it reads as a different KIND of light rather than as
+   * a brighter one: hard, directional, downward, and with the excavation's own
+   * spoil casting the long shadows a street lamp never makes.
+   *
+   * IT DOES NOT FOLLOW THE PHOTOCELL. A street lamp is switched by dusk; a site
+   * flood is switched by whether anybody is working, and a site that is lit at
+   * noon is what a real one looks like when the sky is not doing the job. It
+   * costs the same slot either way — see `city.js` → `updateLampPool`.
+   */
+  siteFloodCandela: 60000,
+
+  /**
+   * m. THE FLOOD'S FALLOFF WINDOW, SIZED BEFORE THE INTENSITY WAS DERIVED
+   * THROUGH IT — and the first version of `siteFloodCandela` was not, which is
+   * CONTRACT §9 rows 6b and 20 for the THIRD time in three sessions.
+   *
+   * A pool slot is created with `radius: 30` and three's
+   * `getDistanceAttenuation(d, R, 2)` carries a Frostbite window `(1 − d/R)²`.
+   * A mast aiming 27.5 m from a 30 m window passes `(1 − 0.917)²` = **0.0069**
+   * of its intensity: 45 000 cd arriving as **0.41 lx**, an unlit hole under a
+   * crane. Measured by looking at the first site frame, which is the one thing
+   * that finds this class of defect once the arithmetic has already been done
+   * wrong.
+   *
+   * SIZE THE WINDOW FIRST. The farthest the beam has to reach is
+   * `hypot(floodHeightM, 34)` = **35.2 m**, and a window that still passes half
+   * its intensity there needs `(1 − d/R)² ≥ 0.5` → `R ≥ d/0.293` = **120 m**.
+   * 130 m, so the far end passes 0.53 and the near end (20.1 m) passes 0.71.
+   *
+   * THEN DERIVE THE INTENSITY THROUGH IT. At the middle of the band, d = 27.5 m
+   * and the window is `(1 − 27.5/130)²` = **0.622**, so
+   * `I = E·d²/window = 50 × 756 / 0.622` = **60 800 cd** → 60 000, which is a
+   * 3 kW metal-halide site floodlight. 45 000 was derived as though the window
+   * were 1.
+   */
+  siteFloodRadiusM: 130,
+
+  /**
    * lux, below which the photocell closes and the street lights up.
    *
    * Calibrated, not picked: this is the horizontal illuminance this atmosphere
