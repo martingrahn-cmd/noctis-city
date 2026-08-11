@@ -100,10 +100,13 @@ would be CONTRACT §0 rule 5 with a purchase order.
                           renderer, which is correct. §3.
 ✓ queueprobe              RAN, and the FINDING IS RED: the stop-line defect
                           reproduces at −10.454 m, dt = 0.1, one cycle. §5.
-✓ item 2(f), the FRAME    before/after at one seed and one camera, DIFFERENCED:
-                          0.2703% of pixels moved, all inside one 385 × 131
-                          box, and that box is the kerbside furniture. §1.6 —
-                          and what it does NOT settle is said there.
+✓ item 2(f), the FRAME    a CLOSE before/after pair off a local dev server, one
+                          seed, one camera, 301 draws each. 3.97% of pixels
+                          moved, in two clusters: the bench (48.8% of its own
+                          pixels) and the tree crown (40.8%). The green SIGN
+                          plate moved by max 3 code values against a whole-frame
+                          floor of 2 — it did not move, and the generator says
+                          the same: 527 sign records byte-identical. §1.6.
 —  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
                           ~21 600 SwiftShader frames. Counts recovered from
                           citycheck's scene walk instead — §3.2.
@@ -266,51 +269,82 @@ Every conflict of the pair the brief said not to relax is gone, on the same
 2 006-claim census the 60 was measured on. **The 2 that remain are a pair nothing
 had reported before**, and they are §2.4.
 
-### 1.6 THE FRAME — TAKEN, MEASURED, AND THE VERDICT IS NARROWER THAN THE BRIEF ASKED FOR
+### 1.6 THE FRAME — A CLOSE PAIR, DIFFERENCED, AND THE SIGN DID NOT MOVE
 
-`tools/shot-out/kerb2-before-t0_5.png` and `kerb2-after-t0_5.png`. Same seed
-(1337), same camera, same time of day, 315 draw calls each:
-
-```
-node tools/lookat.mjs --pos=2.5,1.74,40 --target=-7.0,1.74,120 --t=0.5 --fov=55
-```
-
-The pose is eye height on the crown of the **north–south** carriageway through
-the origin, looking down it — which is the band the repair turns. The kerb line
-at **x = −8.1** carries 15 props with `refDeg 90`, ten of them in a 62 m run at
-z = 56…118: bench, bollard, planter, bollard, bin, bollard, hydrant, cabinet,
-bin, hydrant. (The first pose tried, on the pavement at x = −10.2, put a facade
-against the lens — CONTRACT §9.1's own recorded failure, met again. Both frames
-of that pair are identical and are the pose's fault, not the change's.)
-
-**The pair was DIFFERENCED rather than squinted at**, because "the street reads
-better" is exactly the kind of claim this project's §9 notes say looking cannot
-settle:
+`tools/shot-out/bench-before-t0_5.png` and `bench-after-t0_5.png`, against a
+LOCAL DEV SERVER (`npm run dev`, port 5173) rather than a gate's own throwaway
+vite. Same seed (1337), same camera, same time of day, **301 draw calls each**:
 
 ```
-1440 × 810, 3 channels
-pixels differing by ≥ 8 code values   3 153 of 1 166 400   = 0.2703%
-mean absolute difference, whole frame  0.0967 code values
-bounding box of the change             x 480..864   y 313..443
-busiest 32-px tiles                    (544,352) 513 px, (512,352) 501,
-                                       (512,320) 359, (480,352) 328
+node tools/lookat.mjs --url=http://127.0.0.1:5173/ \
+  --pos=10.0,1.70,70.1 --target=8.3,1.20,90.6 --t=0.5 --fov=55
 ```
 
-**The change is confined to ONE 385 × 131 box, and that box is the kerbside
-furniture.** Nothing else in the frame moved: no exposure shift, no lighting
-shift, no building, no vehicle, no marking — a mean absolute difference of 0.097
-code values over the whole frame is the numerical statement of that. It is the
-visual counterpart of §1.3's registry diff and it confirms the same thing from
-the pixels: this change moves the props and only the props.
+Eye height on the **east pavement of the north–south street**, with the bench at
+**(8.10, 76.6)** 6.5 m ahead — the same bench whose claimed/delivered box pair is
+printed in §1.1. The pose was not guessed: 56 north–south kerbside benches were
+enumerated from the pure generator and each candidate stand-off was ray-tested
+against the chunk occluders (buildings only, `landmark`/`river` filtered out the
+way `residentOccluders` does) until one had an unobstructed 20 m view. **A first
+wide pose earlier in the session put a facade against the lens** — CONTRACT
+§9.1's own recorded failure, met again — which is why the ray test exists now.
 
-**What it does NOT settle, and this is stated rather than glossed:** at 16–78 m a
-1.74 m bench is a few pixels, so **the frame does not support a claim that the
-street reads better.** The furniture cluster is visibly narrower and closer to
-edge-on where it was broadside, which is the expected direction, and that is the
-whole of what can be read at this distance. **A close pose — 8–10 m off one
-bench, oblique — is what would answer the brief's question, and it is §6 item 6.**
-CONTRACT §10 step 4 says the numbers are necessary and not sufficient; the
-honest position here is that the numbers are in and the sufficiency is not.
+**AT THIS DISTANCE IT IS UNMISTAKABLE, AND IT IS THE DEFECT RATHER THAN A HINT.**
+Before, the bench lies **across** the pavement with its end to the road and its
+far end reaching over the kerb into the carriageway — which is the 0.048–0.235 m²
+overlap made visible. After, it lies **along** the kerb, back to the road, wholly
+on the pavement and clear of the white edge line.
+
+**PER REGION, measured rather than described:**
+
+```
+region                        px     max Δ   mean Δ   pixels ≥ 8
+the green SIGN plate        3 726       3     1.497    0  (0.00%)
+everything left of x = 600 486 000       2     0.872    0  (0.00%)
+the arch + the skyline     208 010       2     0.987    0  (0.00%)
+the TREE canopy             44 121     198    35.311   18 018 (40.84%)
+the BENCH                   51 761     193    52.186   25 232 (48.75%)
+whole frame                          3.9693% of pixels differ by ≥ 8
+                                     bounding box x 617..1324, y 113..613
+```
+
+**THE SIGN IS THE ANSWER TO THE QUESTION THAT WAS ASKED, AND IT IS 3 CODE
+VALUES.** Its plate changes by at most 3 against a whole-frame floor of 2 — the
+building, the pavement, the shadow and the skyline all read max Δ 2 with **zero**
+pixels over the 8-code-value threshold, which is this rasteriser's own
+reconvergence noise and not a change. So the sign stands identically in both
+frames.
+
+**And that is confirmed a second way, off the generator rather than off the
+pixels** (CONTRACT §9 rule 2 — the same quantity two ways). Over the gate's own
+region at seed 1337, `2c6de3b` against the merge:
+
+```
+signs        527 vs 527   BYTE-IDENTICAL
+buildings    367 vs 367   BYTE-IDENTICAL
+features     804 vs 804   BYTE-IDENTICAL
+lamps          0 vs   0   identical
+ground       663 vs 663   identical
+```
+
+Only `props` moved. **A sign could not have moved, and it did not.**
+
+**ONE THING I GOT WRONG AND THE CLOSE PAIR CORRECTED.** An earlier wide pose
+(`kerb2-*`, 2.5,1.74,40 → −7.0,1.74,120, 315 draws) differenced at 0.2703% inside
+one 385 × 131 box, and I read that box VISUALLY as a cluster of green sign plates.
+It was not: signs are byte-identical, so what was changing there was tree canopy
+and props. The frame was right and my reading of it was wrong, which is CONTRACT
+§9's *"why looking does not find it"* with the sign flipped — looking found a
+change and mis-attributed it. **The number found it; the eye named it wrongly.**
+
+**The two changed clusters are the bench and the tree**, at 48.8% and 40.8% of
+their own pixels, and the tree is §2's crown lift showing up: its canopy sits
+higher in the after frame and now occludes the streetlamp head that was visible
+above it before. Both are the repairs, and nothing else in the frame moved.
+
+**What is still not claimed:** that the street as a whole *reads* better. What is
+now claimed, and shown, is that a bench on a north–south pavement lies along its
+kerb instead of across it. §6 no longer carries the close-frame item.
 
 ---
 
@@ -857,33 +891,30 @@ vehicle never asked for the box. So:
 6. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
    `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
    software renderer, and both read that file.
-7. **A CLOSE FRAME ON ONE BENCH. §1.6.** The wide pair is taken and differenced
-   — 0.2703% of pixels, all in the furniture — but at 16–78 m a 1.74 m bench is
-   a few pixels and **the street reading better is not claimed.** The pose that
-   would answer it: 8–10 m off the bench at (−8.12, 56.3), oblique, eye height,
-   seed 1337 — e.g. `--pos=-4.0,1.74,49 --target=-8.1,1.2,56.3`. Before is
-   `2c6de3b`, after is this branch.
-8. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
+7. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
    the placement and is not read in the yaw, so 90° and −90° are chosen
    arbitrarily and a bench can face away from the road. No measurement behind it
-   yet; it is a content decision — and §1.6's frame is what would show it.
-9. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
+   yet; it is a content decision. **§1.6's close frame now shows it**: the back
+   panel is on the ROAD side and the seat faces the pavement, consistently, and
+   nothing chose that.
+8. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
    prints 0.739 on three runs. Harmless direction, wrong number in the file.
-10. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
-11. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
+9. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
+10. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
    the maximum `ahead` over twelve candidates, so a vehicle can materialise 14 m
    dead ahead in the camera's own lane.
-12. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
-13. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
+11. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
+12. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
    arithmetic: 24× at the standard entrance angle.
-14. **The merged branch `claude/generator-occupancy-registry-6pbuer` still
-   exists on the remote.** It IS fully merged — `git diff
-   origin/main...<branch>` is **0 bytes** and its tip `fa60b64` is an ancestor of
-   `origin/main` via the merge `1bcd585` — but `git push --delete` returns
-   **HTTP 403** through this environment's proxy and the GitHub MCP surface has
-   no delete-branch tool. It needs one click in the web UI. (My first check used
-   a stale local `main` at `ca0169f` and looked non-empty; against `origin/main`
-   it is empty.)
+13. **TWO merged branches still exist on the remote and need one click each.**
+   `claude/generator-occupancy-registry-6pbuer` (tip `fa60b64`) and
+   `claude/noctis-22-machine-residual-t3u3px` (tip `2156bed`). **Both are
+   verified ancestors of `origin/main`** — `git merge-base --is-ancestor` says so
+   for each, so deleting them loses nothing. `git push --delete` returns **HTTP
+   403** through this environment's proxy on every attempt while an ordinary
+   `git push origin main` succeeds, so it is a ref-deletion policy rather than a
+   transient failure, and the GitHub MCP surface has no delete-branch tool. The
+   local copies are gone.
 
 ---
 
