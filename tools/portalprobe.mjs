@@ -64,8 +64,11 @@ const SECTION = [
   ['ballast trough', slabTop, slabTop + 0.44, 'the raised bed the sleepers sit in'],
   ['rails', slabTop + 0.44, slabTop + 0.62, 'steel, 1.435 m gauge'],
   ['parapet', slabTop, slabTop + 1.2, 'on the deck, at +/-(halfDeck − 0.25)'],
-  ['parapet RETURNS', slabTop, slabTop + 1.2, 'session 21, 6.0 m outward — SEE BELOW'],
+  ['parapet RETURNS', slabTop, slabTop + 1.2, 'session 21, 6.0 m outward — REMOVED in s23'],
   ['catenary mast', slabTop, slabTop + 6.2, 'every third bay; station 0 has one, station 44 does not'],
+  ['PORTAL jambs', soffitY, slabTop + 3.1 + 3.1, 's23. 0.80 m wide each, at +/-5.15 across'],
+  ['PORTAL lintel', slabTop + 0.62 + 4.2, slabTop + 3.1 + 3.1, 's23. over a 9.50 m opening'],
+  ['PORTAL recess', soffitY, slabTop + 0.62 + 4.2 - 0.3, 's23. dark, set back 0.30 m from the face'],
 ];
 
 console.log('portalprobe — the viaduct\'s ends, before anything is built there');
@@ -83,12 +86,15 @@ console.log('');
 console.log(`  THE ABUTMENT TOPS OUT AT ${soffitY.toFixed(2)} m, WHICH IS EXACTLY THE SOFFIT.`);
 console.log(`  The deck's own section occupies ${soffitY.toFixed(2)} to ${(slabTop + 0.62).toFixed(2)} m ` +
   `and its parapet to ${(slabTop + 1.2).toFixed(2)} m.`);
-console.log(`  Between those two figures the only geometry is the two parapet RETURNS, ` +
-  `0.40 m thick, at +/-${(halfDeck - 0.25).toFixed(2)} m across,`);
-console.log(`  whose underside is ${slabTop.toFixed(2)} m and which therefore FLOAT ` +
-  `${(slabTop - soffitY).toFixed(2)} m above the abutment they stand over.`);
-console.log(`  So ${(2 * (halfDeck - 0.45)).toFixed(2)} m of deck width — slab, box girder, ballast and rail —` +
-  ` is cut off in mid air.`);
+console.log(`  BEFORE SESSION 23 the only geometry between those two figures was the two parapet`);
+console.log(`  RETURNS, 0.40 m thick at +/-${(halfDeck - 0.25).toFixed(2)} m across, whose underside is ` +
+  `${slabTop.toFixed(2)} m — so they FLOATED`);
+console.log(`  ${(slabTop - soffitY).toFixed(2)} m above the abutment they stood over, and ` +
+  `${(2 * (halfDeck - 0.45)).toFixed(2)} m of deck width — slab, box girder,`);
+console.log(`  ballast and rail — was cut off in mid air. THAT is what "a line that has been cut"`);
+console.log(`  was, and it is a HEIGHT rather than a missing object: the abutment was a bearing.`);
+console.log(`  The portal head now spans ${soffitY.toFixed(2)} to ${(slabTop + 3.1 + 3.1).toFixed(2)} m ` +
+  `over a ${(halfDeck * 2).toFixed(2)} m opening, and the returns are gone.`);
 console.log('');
 
 /* --------------------------------------------------------------- the ends */
@@ -139,9 +145,27 @@ const viaductClaims = claims.filter((q) => String(q.owner).startsWith('viaduct')
 const byOwner = {};
 for (const q of viaductClaims) byOwner[`${q.kind}:${q.owner}`] = (byOwner[`${q.kind}:${q.owner}`] || 0) + 1;
 console.log(`  the viaduct's own claims: ${JSON.stringify(byOwner)}`);
-console.log(`  -> legs and deck segments only. THE ABUTMENT AND ITS WING WALLS ARE CLAIMED BY NOBODY:`);
-console.log(`     an ${soffitY.toFixed(1)} m solid, 6.0 x 11.1 m, at each end, standing on ground the ` +
-  `registry has never been told about.`);
+{
+  /**
+   * BEFORE SESSION 23 THIS READ "legs and deck segments only", and the sentence
+   * under it was the finding: `landmarkOccluders` returns a viaduct's legs and
+   * its deck, so session 21's abutment and wing walls — an 18.2 m solid,
+   * 6.0 x 11.1 m, at each end — stood on ground the registry had never been
+   * told about. It is checked here rather than asserted to have been fixed,
+   * because a probe that describes a repair it cannot see is the thing
+   * CONTRACT §9.1 calls a comment claiming a check.
+   */
+  const ends = viaductClaims.filter((q) => String(q.owner).endsWith(':end'));
+  if (ends.length === 2) {
+    console.log(`  -> the END TREATMENT IS CLAIMED, both ends, as \`landmark\` to ` +
+      `y ${ends[0].y1.toFixed(2)} m. Session 23.`);
+  } else {
+    console.log(`  -> ${ends.length} of 2 end claims present. THE ABUTMENT AND ITS WING WALLS ` +
+      `STAND ON GROUND NOTHING TESTED:`);
+    console.log(`     an ${soffitY.toFixed(1)} m solid, 6.0 x 11.1 m, at each end. A portal head ` +
+      `only makes that taller.`);
+  }
+}
 console.log('');
 
 /* ------------------------------------------------------- the world AABB of a rotated box */

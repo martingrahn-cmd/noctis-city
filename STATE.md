@@ -429,7 +429,10 @@ derived           rise 2.30 m, face 2.802 m, rake 55.18 deg from horizontal
 **Cost, in counts:** `BOXES_PER_CAR` 5 → 6, allocated body rows 40 → 48, **4
 drawn** (a cab at each end of each unit; the 4 middle cars park theirs at zero
 scale), **+48 triangles**, **+0 draw calls** (one `InstancedMesh`, still one),
-**+0 cluster slots**.
+**+0 cluster slots**. The census label `movingBoxes` goes **88 → 96** — it is
+the whole mesh, cranes included — and `movingLights` is **unchanged at 108**.
+`citycheck`'s scene walk asserts the label sums to `instanceMatrix.count` and
+both come from the same `bodyCount`, so they still agree.
 
 **Against the saturation reserve: it costs nothing there.** The brief asked
 because the train's lit windows are already in the reserve at zero cluster slots.
@@ -587,7 +590,7 @@ reads a pixel refuses or is unmeasurably slow.
 | `parsecheck` | **green**, 81 files |
 | `citycheck --falsify` | **green**, 56/56, coverage 100% |
 | `citycheck` (full) | needs a browser; `sceneWalk` and `saturation` were red on this machine in session 22 for machine reasons and nothing here changes that |
-| `windcheck` | runs without a GPU since session 22 (§3.1 there). Started; see the note below |
+| `windcheck` | **started and DID NOT FINISH.** Three of its six eyes ran (354 / 481 / 397 meshes) and it then died on `page.evaluate: Execution context was destroyed` — the SwiftShader renderer crash session 21 hit twice. It was running alongside a `lookat` capture on four cores; both died together, which is the attribution. Not re-run for want of wall-clock. See §6 item 1 |
 | `faultcheck` | findings green in session 22, refuses on the renderer at the END, after every case has printed |
 | `lookcheck` | **cannot be reached**: eight captures at 2560×1440 on SwiftShader, one PNG in ~21 minutes |
 | `perfcheck` | 4 routes × 3 runs is ~21 600 SwiftShader frames. Not attempted |
@@ -608,21 +611,49 @@ END B   --pos=-121.83,1.74,256.17  --target=-93.14,16.86,228.30
 ```
 
 Both are 40 m outward of their deck end at eye height, clear of every building.
-**Whether a PNG came back inside this session's wall is recorded in §6 item 1** —
-on a software rasteriser a single frame is tens of minutes, and an unlooked-at
-change is reported as unlooked-at rather than as done.
+
+**END B's frame came back and the portal reads.**
+`tools/shot-out/portal-endB-t0_5.png`, 1024 × 576 on SwiftShader, 347 draws,
+121 chunks, **30/30 field slots ready in 4 waits** — a fully streamed city
+rather than the mid-stream capture `lookcheck` gets at 2560 × 1440 here:
+
+```
+node tools/lookat.mjs --pos=-121.83,1.74,256.17 --target=-93.14,16.86,228.30 \
+  --fov=58 --t=0.5 --w=1024 --h=576
+```
+
+What it shows, and it is the thing that was asked for: **a mass with a dark
+recess near its top, and the line has gone into it.** The recess reads as depth
+rather than as a hole punched through to the sky — the jamb and lintel edges
+catch the sun and the opening sits behind them in shadow, which is what the
+0.30 m reveal is for. The head sits under the arch landmark 37.75 m beyond it and
+does not compete with it. **This is no longer a line that has been cut.**
+
+**Two honest observations from the same frame, neither of them this session's
+item.** The abutment below the opening is 18.2 m of undifferentiated wall and it
+reads as a lot of blank concrete — that mass is session 21's and this session
+did not touch it. And the frame is taken from OUTSIDE the end, so it shows the
+portal and not the deck running into it; a three-quarter pose would show both
+and was not run for want of wall-clock.
 
 ---
 
 ## 6. WHAT THE NEXT SESSION STARTS FROM
 
-1. **LOOK AT THE PORTAL AND THE NOSE. Both are built, both are verified as
-   geometry, and neither has been JUDGED.** §2, §3.4, §5. The two ray-tested
-   poses are above and `node tools/lookat.mjs --preset=viaduct-street` catches a
-   train at the crown at boot (train 1 starts at s = 0). Two questions to answer
-   from the frames: does the dark recess read as depth or as a hole, and does the
-   raked nose alone settle the train's silhouette — because **if it does, the
-   shoulder chamfer is cost without benefit and should be written off.**
+1. **`windcheck` DID NOT FINISH AND IT IS THE GATE THIS SESSION'S GEOMETRY MOST
+   OWES.** §5. Four portal boxes an end and a raked nose row a car are new
+   geometry, and the census is the thing that says nothing is inside out. It
+   reached three of six eyes before the renderer's execution context was
+   destroyed — with a `lookat` capture running beside it on four cores, which is
+   the likely cause. **Run it alone.** Nothing about it needs a GPU (STATE 22
+   §3.1); it needs the machine to itself.
+2. **JUDGE THE TRAIN'S SILHOUETTE.** §3.4. The nose is built and verified as
+   geometry to 1.83e-15 m, and the brief's actual instruction — look at it, then
+   decide whether the other two changes are worth their boxes — is the part this
+   session could not complete. `node tools/lookat.mjs --pos=70,1.74,0.9
+   --target=0,23,11 --fov=52` catches a train near the crown (train 1 starts at
+   s = 0 at boot). **If the nose alone settles it, the shoulder chamfer is cost
+   without benefit and should be written off rather than deferred a third time.**
 2. **THE 790 LAMPS ARE IN NO REGISTRY BAND AT ALL.** §4.1. Not their column, not
    their head. A column 1.3 m outside the kerb is something a prop, a tree or a
    sign could be placed straight through and nothing would report it. Ask of

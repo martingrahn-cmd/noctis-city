@@ -317,10 +317,22 @@ export function createHud(options = {}) {
 
     const lines = [frameLine];
     if (lock) {
+      /**
+       * WHAT THE LOCK ESTABLISHES, not a fixed sentence about it. "the ceiling
+       * is unreadable here" is true at 60 Hz and FALSE at 120, where a held
+       * 8.33 ms lock proves the work is under 12.5 — and a panel that said the
+       * same thing at both would be making the mistake this whole change is
+       * about one level up. The band is read off `bandCensored`, which is the
+       * function that coloured the cell, so the words and the colour cannot
+       * disagree.
+       */
+      const b = bandCensored(p50, lock.periodMs, W);
+      const says = b === 'g' ? `work <= ${lock.periodMs.toFixed(2)} <= ${W} ms, ceiling MET`
+        : b === 'r' ? `frames are being dropped, so work > ${lock.periodMs.toFixed(2)} ms`
+          : `work <= ${lock.periodMs.toFixed(2)} ms; ${W} is inside that band, no verdict`;
       lines.push(
         `${k('       ')} <span class="a">vsync-locked ${lock.periodMs.toFixed(2)} ms ` +
-        `(${lock.hz.toFixed(1)} Hz)</span> ${k(`- work <= ${lock.periodMs.toFixed(1)} ms, ` +
-        `ceiling unreadable here`)}`
+        `(${lock.hz.toFixed(1)} Hz)</span> ${k(`- ${says}`)}`
       );
     }
     lines.push(

@@ -277,7 +277,19 @@ console.log(`  nose rows DRAWN       ${drawnNoses} of ${allocNoses} — a cab at
 console.log(`  triangles             +${drawnNoses * 12} (12 per box), on the SAME geometry and the SAME material`);
 console.log(`  draw calls            +0 — moving:bodies is one InstancedMesh and stays one`);
 console.log(`  cluster slots         +0 — the nose is body geometry, not an emitter`);
-console.log(`  census label          movingBoxes ${bodyRows} + movingLights ` +
-  `${TRAIN.trains * TRAIN.cars * (TRAIN.windowsPerSide * 2 + 1) + 4 * 1}`);
+/**
+ * THE CENSUS LABEL IS THE WHOLE MESH AND NOT THE TRAIN'S SHARE, which is worth
+ * printing correctly because `citycheck`'s scene walk asserts the label sums to
+ * `instanceMatrix.count` (CONTRACT §9.1). `moving:bodies` carries the cranes
+ * too: `trains*cars*BOXES_PER_CAR + MAX_CRANES*BOXES_PER_CRANE`.
+ */
+const MAX_CRANES = Number(src.match(/^const MAX_CRANES = (\d+);/m)[1]);
+const BOXES_PER_CRANE = Number(src.match(/^const BOXES_PER_CRANE = (\d+);/m)[1]);
+const LIGHTS_PER_CRANE = Number(src.match(/^const LIGHTS_PER_CRANE = (\d+);/m)[1]);
+const movingBoxes = bodyRows + MAX_CRANES * BOXES_PER_CRANE;
+const movingLights = TRAIN.trains * TRAIN.cars * (TRAIN.windowsPerSide * 2 + 1)
+  + MAX_CRANES * LIGHTS_PER_CRANE;
+console.log(`  census label          movingBoxes ${movingBoxes} (was ` +
+  `${bodyRows - allocNoses + MAX_CRANES * BOXES_PER_CRANE}) + movingLights ${movingLights} (unchanged)`);
 console.log('');
 console.log('trainprobe: nothing asserted.');

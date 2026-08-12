@@ -950,7 +950,15 @@ src/
                          rigid boxes on a scripted path, above eye level, both
                          needing §5.12's previous transform — and two draw
                          calls instead of four against a ceiling
-                         `highway_speed` sits 9 under. `?moving=0`.
+                         `highway_speed` sits 9 under. `?moving=0`. SESSION 23:
+                         the train gains a RAKED NOSE at each end of each unit —
+                         one box a car allocated, four drawn, +48 triangles and
+                         no new draw call — and its turn-round clamp now uses
+                         the train's EXTENT rather than its body length, because
+                         the two stopped being the same number the moment the
+                         nose existed. The roof cap the same brief asked for was
+                         already the second box of every car and is measured
+                         rather than added twice (`tools/trainprobe.mjs`).
     hud.js               SESSION 20, item 6. The instrument panel, four levels
                          on `H`. Colours against `HUD.budgets`, which
                          `perfcheck` asserts equals `budget.json`'s ceilings —
@@ -963,7 +971,17 @@ src/
                          interval. It will NOT print a measured EV: that number
                          is a 1x1 GPU target and §5.4 forbids the readback, so
                          the panel prints the exposure LAW and says where the
-                         measurement is.
+                         measurement is. SESSION 23: it also refuses to
+                         COLOUR a number against a ceiling that number
+                         cannot express. `wallFrameMsP95` is defined on
+                         the interval with vsync DISABLED; in a browser
+                         the interval is `max(work, T)`, so the cell was
+                         red for every possible state of the world. It
+                         reads the CENSORED observation instead —
+                         neutral at 60 Hz, GREEN at 120 where a held
+                         lock PROVES the work, RED on a dropped frame at
+                         every rate. No ceiling moved and no gate
+                         changed; `HUD.budgets` is byte-identical.
     player.js            §11, SESSION 17. The first-person controller. ONE
                          state — no interiors, no vehicle to enter, no second
                          mode. Reads the session-3 walkability mask through
