@@ -57,6 +57,7 @@ import {
   onBridgeDeck,
   viaductArc,
   viaductPiers,
+  viaductEnds,
   generatorCanProduce,
   CORRIDOR,
   BLOCK_KEEPOUT,
@@ -3316,29 +3317,81 @@ export function createCity(options = {}) {
          * of the structure that is a WALL rather than a frame — which is what
          * makes it read as an end rather than as a break.
          */
-        for (const endStation of [arc.stations[0], arc.stations[arc.stations.length - 1]]) {
-          const c = Math.cos((endStation.yawDeg * Math.PI) / -180);
-          const sn = Math.sin((endStation.yawDeg * Math.PI) / -180);
-          /** Outward along the deck, away from the crown. */
-          const sgn = endStation.s < 0 ? -1 : 1;
-          const ax = endStation.x + c * sgn * 3.0;
-          const az = endStation.z + sn * sgn * 3.0;
-          push(ax, soffitY / 2, az, 6.0, soffitY, l.deck + 1.6, endStation.yawDeg,
-            [albedo[0] * 0.9, albedo[1] * 0.9, albedo[2] * 0.89], 0.84);
+        /**
+         * SESSION 23 FINISHED IT, AND THE DEFECT WAS SHARPER THAN "UNBUILT".
+         *
+         * The abutment above tops out at `soffitY` = 18.20 m, which is exactly
+         * the soffit — it is the BEARING the deck sits on, and nothing rose
+         * past the deck to close it. Everything from 18.20 to 22.20 m (box
+         * girder, slab, ballast, rail, parapet) simply ended, and the only
+         * geometry in that band was two 0.40 m parapet returns FLOATING 2.80 m
+         * above the abutment. 8.60 m of the deck's 9.50 m width was a
+         * cross-section in mid air, which is what the operator was looking at.
+         *
+         * `citygen.viaductEnds` decides the whole treatment now and this draws
+         * what it decided — the arrangement `viaductPiers` already has, and the
+         * reason is `viaductArc`'s: three consumers had three curves once. Every
+         * dimension is derived there; the two that matter here are that the head
+         * tops out at the CATENARY MASTS' own 27.20 m, so the portal adds no new
+         * silhouette height, and that the opening is the deck's OWN width, so
+         * everything on the deck passes through it by construction.
+         *
+         * The parapet returns are gone: the portal does their job, and kept they
+         * would float inside the opening.
+         */
+        for (const e of viaductEnds(arc, l)) {
+          const c = Math.cos((e.yawDeg * Math.PI) / -180);
+          const sn = Math.sin((e.yawDeg * Math.PI) / -180);
+          /** Transverse offset from the deck centreline, in world XZ. */
+          const at = (t) => [e.x - sn * t, e.z + c * t];
+          const abutAlbedo = [albedo[0] * 0.9, albedo[1] * 0.9, albedo[2] * 0.89];
+
+          push(e.x, e.abutTop / 2, e.z, e.abutDepth, e.abutTop, e.abutHalfAcross * 2, e.yawDeg,
+            abutAlbedo, 0.84);
           // The wing walls, splayed by the deck's own half-width either side.
           for (const side of [-1, 1]) {
-            const wx = ax - sn * side * (halfDeck + 1.6);
-            const wz = az + c * side * (halfDeck + 1.6);
-            push(wx, soffitY * 0.36, wz, 5.2, soffitY * 0.72, 1.0, endStation.yawDeg,
+            const [wx, wz] = at(side * e.wingHalfAcross);
+            push(wx, e.wingTop / 2, wz, e.wingDepth, e.wingTop, e.wingHalfT * 2, e.yawDeg,
               [albedo[0] * 0.86, albedo[1] * 0.86, albedo[2] * 0.85], 0.86);
           }
-          // The parapet returns onto the abutment, so the deck edge does not
-          // simply stop in the air.
+
+          /**
+           * THE PORTAL HEAD: two jambs and a lintel, standing on the abutment.
+           * A jamb runs the full height so the frame reads as one opening cut
+           * through a mass rather than as a lintel resting on two posts.
+           */
           for (const side of [-1, 1]) {
-            const px = ax - sn * side * (halfDeck - 0.25);
-            const pz = az + c * side * (halfDeck - 0.25);
-            push(px, slabTop + 0.6, pz, 6.0, 1.2, 0.4, endStation.yawDeg, parapetAlbedo, 0.7);
+            const [jx, jz] = at(side * e.jambCentreAcross);
+            push(jx, (e.abutTop + e.headTop) / 2, jz, e.abutDepth, e.headTop - e.abutTop,
+              e.jambHalfAcross * 2, e.yawDeg, abutAlbedo, 0.84);
           }
+          push(e.x, (e.openTop + e.headTop) / 2, e.z, e.abutDepth, e.headTop - e.openTop,
+            e.openHalfAcross * 2, e.yawDeg, abutAlbedo, 0.84);
+
+          /**
+           * THE RECESS, AND IT IS THE ONE BOX THAT DOES THE WORK.
+           *
+           * A frame with nothing in it is a hole to the sky and reads as a gap
+           * in a wall. What makes a line appear to CONTINUE is a dark plane set
+           * back inside the frame, so the eye reads depth it cannot resolve. Set
+           * back by `reveal` = 0.30 m from the inner face, and inset by the same
+           * across and at the head, so the jamb and lintel edges catch light and
+           * the hole sits behind them.
+           *
+           * The albedo is 0.10 of the concrete's rather than a black constant:
+           * CONTRACT §5 is physical throughout, a real tunnel mouth is a dim
+           * surface and not a void, and a true black would be the one thing in
+           * this city with no bounce at all. At the night exposure the veil
+           * (§5.5) lifts it off zero exactly as it lifts every other unlit wall.
+           */
+          const [rx, rz] = at(0);
+          push(
+            rx + c * e.sgn * (e.reveal / 2), (e.abutTop + e.openTop - e.reveal) / 2,
+            rz + sn * e.sgn * (e.reveal / 2),
+            e.abutDepth - e.reveal, e.openTop - e.reveal - e.abutTop,
+            (e.openHalfAcross - e.reveal) * 2, e.yawDeg,
+            [albedo[0] * 0.10, albedo[1] * 0.10, albedo[2] * 0.10], 0.95
+          );
         }
         break;
       }

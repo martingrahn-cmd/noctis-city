@@ -1982,6 +1982,85 @@ export const HUD = {
   graphSeconds: 1.0,
   /** Levels, in cycle order. `off` is a level so `H` always has somewhere to go. */
   levels: ['off', 'minimal', 'render', 'world', 'derivations'],
+
+  /**
+   * THE VSYNC LOCK — session 23, item 1. WHY A CEILING NEEDS A DETECTOR AT ALL.
+   *
+   * `wallFrameMsP95` is 12.5 and `budget.json` says what it is a ceiling ON, in
+   * its own words: *"End-to-end animation-frame interval WITH VSYNC AND THE
+   * FRAME-RATE LIMITER DISABLED, so it is bounded below by whichever of the CPU
+   * and the GPU is slower."* `page.mjs` and `perfcheck` both launch with
+   * `--disable-gpu-vsync --disable-frame-rate-limit` for exactly that reason.
+   *
+   * A BROWSER ON THE OPERATOR'S DESK HAS NEITHER FLAG. There the delivered
+   * interval is `max(work, T)` for a refresh period `T`, and the ceiling is on
+   * `work`. Those are two different quantities with the same units and plausible
+   * magnitudes, which is CONTRACT §9's entire subject — and the tell is written
+   * in the budget file already: `$wallFrameMsP95_rebaseline` records that this
+   * ceiling USED TO BE 16.67 and that *"16.67 was the vsync line"*. The red
+   * number the operator read, 16.7, is the ceiling's own discarded value.
+   *
+   * Under a lock the reading is CENSORED rather than wrong. An interval of
+   * `m·T` establishes `work` in `((m-1)·T, m·T]` and nothing finer, so a verdict
+   * against a ceiling `W` is available exactly when that whole band lies on one
+   * side of `W`:
+   *
+   *     m = 1, T = 16.67   work in (0, 16.67]   W = 12.5 is INSIDE   no verdict
+   *     m = 2, T = 16.67   work in (16.67, 33]  W is BELOW           breach
+   *     m = 1, T =  8.33   work in (0, 8.33]    W is ABOVE           clear
+   *
+   * So this is not a suppression: at 120 Hz the same rule turns the cell GREEN,
+   * because a held 8.33 ms lock PROVES the work is under 12.5 ms. At 60 Hz it
+   * turns the cell neutral, because nothing is proved either way. And a dropped
+   * frame stays RED at every refresh rate, which is the one thing a locked
+   * context can still resolve and the thing a person actually sees.
+   *
+   * NO GATE READS ANY OF THIS. `perfcheck` runs unlocked and asserts the same
+   * 12.5 it always has; `HUD.budgets` above is byte-identical and still checked
+   * against `budget.json` key for key. This changes what a panel says about a
+   * measurement it cannot make, and nothing about the measurement.
+   */
+  vsync: {
+    /**
+     * Frames before a lock may be claimed. 60 is one second at 60 Hz, and it is
+     * the granularity that makes `lockedFraction` a statistic: with 60 samples
+     * the fraction moves in steps of 1/60 = 1.67%, so the 0.90 threshold below
+     * sits 6 whole frames clear of 1.0 and a single hitch cannot flip the claim.
+     */
+    minSamples: 60,
+    /**
+     * How close to an integer multiple of the candidate period counts as ON the
+     * grid: `|interval - m·T| <= tolFrac·T`. 0.06 is 1.00 ms at T = 16.67 —
+     * an order of magnitude above the rAF timestamp's own coarsening (Chrome
+     * clamps `performance.now()` to 100 us cross-origin-isolated, 5 us
+     * otherwise) and a sixth of the 8.33 ms half-gap to the next multiple, so
+     * the bands cannot touch. THE DISCRIMINATION IS ARITHMETIC: bands of width
+     * `2·tolFrac·T` repeating every `T` cover 12% of the line, so a distribution
+     * that is NOT quantised puts about 12% of its samples on the grid by luck,
+     * against the 0.90 required below — a separation of 7.5x.
+     */
+    tolFrac: 0.06,
+    /**
+     * The share of intervals that must lie on the grid. 0.90 over the loop's
+     * 240-frame buffer is 24 frames of slack: a machine dropping more than one
+     * frame in ten is not holding its refresh, and the lock claim should lapse
+     * rather than explain away a stutter.
+     */
+    lockedFraction: 0.90,
+    /**
+     * The callback must not FILL the period, or the period is explained by the
+     * work and there is no lock to attribute it to. `p95(callback) <= 0.75·T`.
+     *
+     * It is a NECESSARY condition and not a sufficient one, and the reason is
+     * worth the line: `callback` ends when the rAF body returns, so it does not
+     * contain the GPU work that retires afterwards or the compositor's own. The
+     * measured duty therefore UNDERSTATES the true one, and 0.75 leaves the
+     * unmeasured remainder a quarter of the period to live in. What carries the
+     * claim is the quantisation above; this only removes the case where the
+     * work alone already accounts for the period.
+     */
+    maxDutyFraction: 0.75,
+  },
 };
 
 /**

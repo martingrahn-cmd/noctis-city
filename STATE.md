@@ -1,926 +1,682 @@
 # NOCTIS — STATE
 
-*End of session 22. **The 60 benches were a transposition and the repair took
-`citycheck` → `occupancy` from 60 forbidden overlaps to 8. The 8 that remained
-were trees, the worst of them larger than any bench, and they were a second
-quantity confusion the benches had been hiding: a canopy's head clearance
-authored in MODEL space and read as the clearance it is DELIVERED with. The pair
-the brief said not to relax — `prop × carriageway` — is now 0 of 60 on the same
-census, with the generator's half still 0.***
+*End of session 23. **The machine has no GPU. Checked first, printed, recorded — §0.**
+The M4 series in `budget.json` remains the binding contract.*
 
-*`occupancy` is nevertheless still RED at **2**, and they are a THIRD pair that
-nothing had reported before: two containers standing on a hoarding's feet. It is
-diagnosed to the centimetre and deliberately NOT repaired — two candidate fixes
-were built, measured, and moved it by nothing, so both were reverted. §2.4.*
+*Three of the four items turned out to be about a premise rather than about the
+thing the premise named, and in each case the measurement is the finding:*
 
-*And the machine, again: **this session did not run on the operator's MacBook Air
-M5.** It ran in a Linux container on a 4-core Intel Xeon with no GPU, exactly as
-session 21 did. Nothing in `budget.json` is an M5's number and the M4 series
-stands untouched. §0.*
+- ***The HUD's red 16.7 ms ceiling is the ceiling's own discarded value.***
+  `budget.json` records that `wallFrameMsP95` used to be 16.67 and that
+  *"16.67 was the vsync line"*. The panel now reads a vsync-locked interval as
+  the CENSORED observation it is, which at 60 Hz gives no verdict, at 120 Hz
+  gives **green**, and on a dropped frame stays **red**. No ceiling moved. §1.
+- ***The viaduct's ends are not unbuilt.*** Session 21 put an abutment at each
+  one and it tops out at **18.20 m, exactly the soffit** — so 8.60 m of the
+  deck's 9.50 m width is cut off between 18.20 and 22.20, framed by two parapet
+  returns floating 2.80 m above the abutment. And that whole mass **was claimed
+  by nobody**. A portal head is built on it and the end treatment is now in the
+  registry. §2.
+- ***The lamppost in item 4's premise does not exist.*** `PROP_MODELS.lamppost`
+  is offered only to the `parking` scatter and **zero** are placed over the
+  gate's region. The **790** lamps that do light this city come from `city.js`'s
+  own loop at 8.08 m and **are in no registry band at all**. Crowns intersecting
+  a luminaire: **0**, nearest miss 0.24 m. §4.
+
+*And one thing I got wrong and an instrument caught: a comment claiming the
+default Euler order would rake the train in world axes. `trainprobe` refuted it
+in the same change. §3.3.*
 
 Read `CONTRACT.md` before this file, and before any source file.
 
 ---
 
-## 0. THE HONESTY LINE — THE BRIEF'S PREMISE WAS FALSE AND IT IS THE FIRST THING TO SAY
+## 0. THE MACHINE — CHECKED, NOT ASSUMED. THERE IS NO GPU.
 
-The session brief opened: *"You are now running on the operator's MacBook Air
-M5."* It was not. Measured, first command of the session:
+The brief said not to take its word for it. First commands of the session:
 
 ```
 $ uname -a
 Linux vm 6.18.5-fc-v20 #1 SMP PREEMPT_DYNAMIC @0 x86_64 x86_64 x86_64 GNU/Linux
-$ sw_vers                → (no sw_vers — not macOS)
-$ grep 'model name' /proc/cpuinfo
-                         → Intel(R) Xeon(R) Processor @ 2.80GHz
-$ nproc                  → 4
-$ free -m                → 16 075 MB
-$ ls /dev/dri            → No such file or directory
-GPU (through Chromium)   → ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device
-                            (Subzero)), SwiftShader driver)
+$ grep 'model name' /proc/cpuinfo   → Intel(R) Xeon(R) Processor @ 2.80GHz
+$ nproc                             → 4
+$ free -h                           → 15 GiB
+$ lspci | grep -iE 'vga|3d|display' → lspci unavailable / no match
+$ ls /dev/dri                       → No such file or directory
+$ ls /sys/class/drm                 → No such file or directory
+$ nvidia-smi -L                     → not present
 ```
 
-**So brief item 1 could not be done and was not faked. `tools/quiet-gates.sh
---measure-floor 10` measures the machine it runs on; running it here would have
-derived a quiet bar for a virtual machine and filed it under `budget.json` →
-`machine` as though it were an M5's, which is CONTRACT §9's failure mode with a
-whole computer.** That is the same refusal session 21 made, for the same reason,
-and it is the second session running in which the brief and the hardware
-disagree.
+**No GPU. Nothing that needs one was attempted, and nothing that needs one is
+reported.** This is the same container shape as sessions 21 and 22: a 4-core
+Xeon with no display hardware, where a browser falls back to SwiftShader.
+`budget.json` → `machine` is untouched and the M4 series stands.
 
-**What was done instead, because a second refusal by discipline is worth less
-than a refusal with a mechanism behind it:**
+**One environment change was needed and it is a launcher detail, not a gate
+change.** `playwright` 1.62 pins browser revision 1234; this container ships
+1194 at `/opt/pw-browsers/chromium`, so `chromium.launch({ channel })` refused
+before any gate reached an assertion. `tools/lib/page.mjs` now honours
+`NOCTIS_CHROMIUM` as an explicit `executablePath`; unset, nothing changes.
+CONTRACT §0.2 is the argument — *"a gate that can never pass produces zero
+measurements, and zero measurements is not stricter than imperfect ones — it is
+nothing."* It cannot make a red gate green: it selects a binary and touches no
+threshold, route, viewport or flag, and every gate already prints the renderer
+string beside its numbers.
 
-- **`budget.json` → `machine` now carries the two-series shape the brief asked
-  for**, with the M4 populated and authoritative and the M5 present as an
-  explicitly `UNMEASURED` key holding no numbers, plus the three steps that fill
-  it. An empty slot is a measurable state; a plausible number is not.
-- **It also records the thing that made two sessions have to *remember*:
-  NOTHING IN THE PROJECT READS `budget.json` → `machine`.** Grepped: no gate, no
-  probe, no module. It is prose in a data file — CONTRACT §9.1's first variant
-  (a value written in config that the code does not read) with a computer
-  instead of a pier spacing. `filmshot.mjs` prints the real machine from
-  `os.cpus()` and compares it to nothing.
-- **`tools/quiet-gates.sh` now stamps the machine into every log it writes**
-  (`machine_stamp`, one line, portable): kernel, arch, cores, CPU brand. Both
-  `quiet-gates-*.log` and `idle-floor-*.log`. It does **not** refuse — refusing
-  needs a declared identity to compare against, which is the assertion above
-  recorded as the next session's decision. Before this, `idle-floor-*.log`
-  carried no hint of its provenance, so a `min 0.24` off a virtual machine and
-  the attested `min 1.32` off the operator's laptop were indistinguishable a
-  session later — and 0.24 is the more attractive of the two, because it is
-  lower.
-
-**No ceiling was widened and the question was not entertained.** The brief said
-*"if you find yourself about to widen a ceiling because the new machine has
-headroom, stop and write down why instead"*, and the reason is now in the file:
-the stated goal is 60 fps on an M4 or better, so a newer machine's headroom is
-not a content allowance. Raising a ceiling because a faster computer arrived
-would be CONTRACT §0 rule 5 with a purchase order.
-
-### 0.1 What ran here, and what a number in this file is
+### 0.1 What ran
 
 ```
-✓ parsecheck              81 files (78 + benchprobe + the Pages files) — and it
-                          was RED on main. See §4.
-✓ citycheck --falsify     56/56 cases, 56 failure sites, coverage 100%
-✓ perfcheck --falsify     74/74 cases, 72 failure sites, coverage 100%
-✓ citycheck  occupancy    prop × carriageway 60 → 0, generator's half still 0
-✗ citycheck               3 red (session 21 had 3 of 24): sceneWalk (the
-                          machine — canyon bakes at 0.8–3.0 s here),
-                          saturation (UNRUN — needs a rasteriser), and
-                          occupancy at 2 on a THIRD pair — §2.4
-✓ windcheck               678 meshes, 0 wound backwards, coverage 678/400,
-                          both control directions holding. RAN FOR THE FIRST
-                          TIME ON A MACHINE WITHOUT A GPU — §3.1, its refusal
-                          guarded no pixel.
-✓ windcheck --falsify     11/11, including the declared blind spot
-✗ faultcheck              7 of 7 §2.1 cases ran, ZERO quarantine violations,
-                          0 faults on the control — then refused on the
-                          renderer, which is correct. §3.
-✓ queueprobe              RAN, and the FINDING IS RED: the stop-line defect
-                          reproduces at −10.454 m, dt = 0.1, one cycle. §5.
-✓ item 2(f), the FRAME    a CLOSE before/after pair off a local dev server, one
-                          seed, one camera, 301 draws each. 3.97% of pixels
-                          moved, in two clusters: the bench (48.8% of its own
-                          pixels) and the tree crown (40.8%). The green SIGN
-                          plate moved by max 3 code values against a whole-frame
-                          floor of 2 — it did not move, and the generator says
-                          the same: 527 sign records byte-identical. §1.6.
-—  perfcheck              NOT RUN IN FULL. 4 routes × 3 runs at 2560×1440 is
-                          ~21 600 SwiftShader frames. Counts recovered from
-                          citycheck's scene walk instead — §3.2.
-—  lookcheck               DID NOT REACH ITS REFUSAL. Eight captures at
-                          2560 × 1440 on SwiftShader: 1 PNG in 21 minutes, so
-                          about 2.8 hours for the set. Stopped. §3.4.
+✓ parsecheck            81 files, syntactically complete and contract-clean
+✓ citycheck --falsify   56/56 cases rejected, 56 failure sites, coverage 100%
+✓ vsyncprobe            NEW. 7 constructed cases, all as constructed, one of
+                        them a declared limit. §1.4
+✓ trainprobe            NEW. The nose against its design points: worst error
+                        1.83e-15 m over four yaws and both faces. Two negative
+                        arms, one of which REFUTED the comment it was written
+                        to confirm. §3.3
+✓ portalprobe           NEW. Both ends measured before anything was built. §2.1
+✓ lampprobe             NEW. 0 crown/luminaire intersections over 790 lamps and
+                        815 canopy masses. §4
+✓ generator half        registry 5 349 → 5 364 claims, 0 forbidden overlaps
+                        before and after; the delivered cost is one building. §2.5
+GATE-RUNS-NEEDING-A-BROWSER — see §5 for each one's state.
 ```
 
 **Every number in this file is a count, a coordinate or a piece of arithmetic.**
-CONTRACT §9 rule 6's corollary — *counts do not drift* — is what makes the
-session measurable at all. There is not one millisecond in it and there is not
-one luminance.
+CONTRACT §9 rule 6's corollary — *counts do not drift* — is what makes a session
+on this machine measurable at all. There is not one millisecond in it.
 
 ---
 
-## 1. THE 60 BENCHES — A TRANSPOSITION, VERIFIED RATHER THAN ACCEPTED
+## 1. THE HUD'S CEILING UNDER A VSYNC LOCK — THE DECISION, AND WHY IT IS NOT ONE OF THE THREE
 
-`src/lib/citygen.js` → `kerbBands`, the `kerbRef` assignment in the kerbside
-branch of the prop scatter. `tools/benchprobe.mjs` — NEW, NOT A GATE.
+`src/core/constants.js` → `HUD.vsync` (new), `src/modules/hud.js`,
+`tools/vsyncprobe.mjs` (new, NOT A GATE).
 
-### 1.1 The box pair, which is the whole finding
+### 1.1 The ceiling is on a quantity the browser cannot deliver, and the budget file says so in its own words
 
-STATE 21 handed over a disagreement rather than a repair: the generator's
-registry reported **0** forbidden overlaps among 5 349 claims and the delivered
-census reported **60**, every one a kerbside bench overlapping its own
-carriageway. A count of a disagreement says nothing about which of the two
-rectangles is wrong, so the first thing built this session was the instrument
-that prints both (CONTRACT §9 rule 2, and it is four lines):
+The operator read `frame p50 16.7 / 12.5 ms` in red. `budget.json` defines what
+that ceiling is a ceiling **on**:
 
-```
-  bench  overlap 0.048 m² with carriageway (ground:road)
-    claimed    centre ( 8.097,  76.568)   half (x  0.286, z  0.944)
-    delivered  centre ( 8.097,  76.568)   half (x  0.935, z  0.252)
-    Δcentre    0.0000 m    Δhalf      (x  0.650, z -0.691)
-    transposed (x -0.008, z -0.034)   ← claimed half SWAPPED against delivered
-    record     yawDeg -0.325  refDeg 0.000  kerb true  variant 0  scale 1.074
-```
+> `$wallFrameMsP95`: *"End-to-end animation-frame interval **with vsync and the
+> frame-rate limiter disabled**, so it is bounded below by whichever of the CPU
+> and the GPU is slower."*
 
-**The centres agree to four decimals and the half-extents are each other's
-transpose to within 0.008–0.044 m.** That residual is not slop: the claim is
-built at `CITY.maxYawDeg`, the worst case over the jitter, and this bench was
-drawn at −0.325°, so the claim is larger by exactly the margin it is supposed to
-carry. Three more offenders read the same way (0.088, 0.235, 0.204 m²).
+`tools/lib/page.mjs` and `perfcheck` both launch with `--disable-gpu-vsync
+--disable-frame-rate-limit` for exactly that reason. A browser on the operator's
+desk has neither flag, so the delivered interval is `max(work, T)` for a refresh
+period `T` and the ceiling is on `work`. **Two quantities, same units, plausible
+magnitudes — CONTRACT §9's entire subject.**
 
-### 1.2 `axis` names the FIXED axis, and the doc comment said the opposite
+**And the tell was already in the file.** `$wallFrameMsP95_rebaseline` records
+that this ceiling was **16.67** until session 4, and that *"16.67 was the vsync
+line"*. The red number on screen is the ceiling's own discarded value.
 
-```js
-{ axis: 'x', at: b.x0, side: +1, t0: b.z0 + CORRIDOR + 3, t1: b.z1 - 3 },
-```
+### 1.2 The decision: read the censored observation, do not suppress it
 
-`at` is an **x** coordinate and `t0/t1` run over the chunk's **z** range, so a
-band with `axis: 'x'` is a kerb line running along **Z**, and a prop lined up
-with it wants yaw **90°**. The comment above `kerbBands` said *"the axis the band
-runs along"*, which is where the error came from. What shipped was
-
-```js
-kerbRef = band.axis === 'x' ? 0 : 90;      // both cases inverted
-```
-
-**and the two lattice cases are inverted against each other**, which is why both
-produced the same defect and why no comparison between the two bands could have
-shown it.
-
-**THE CLAIM WAS RIGHT ALL ALONG.** For `axis === 'x'` the placement claims
-`claimAt('prop', x, z, halfAcross, halfAlong)` — the small half-extent on X and
-the long one on Z, i.e. exactly yaw 90°. The promenade band is also right: its
-`kerbRef` is the bank tangent (≈0° where the bank runs along x) and its claim is
-long on X. So the generator tested a bench lying **along** the kerb and `city.js`
-drew one lying **across** it. Repaired as the emitted yaw and nothing else:
-
-```js
-kerbRef = band.axis === 'x' ? 90 : 0;
-```
-
-**90 and −90 are the same axis and the same box, and nothing in this project
-distinguishes them today** — the occupancy claim reads |cos|/|sin|, the alignment
-check reads `yawDeg − refDeg` mod 90, and `band.side`, the field that would
-decide which way a bench's BACK faces, is not read in the yaw at all. That is a
-real gap; it is written down in the code rather than closed on a guess, because
-a bench turned to face the road is a content decision with no measurement behind
-it yet.
-
-### 1.3 The determinism claim is ASSERTED, not stated
-
-`kerbRef` draws nothing from `propRng` and `yaw()` is called identically on both
-branches, so no position, variant, scale, soil or lean can move and only the
-emitted matrices should change. That was verified rather than believed — the
-registry dumped over the gate's own region on both sides of the change and
-diffed:
+The brief offered three options — suppress the frame ceiling, keep it with the
+lock stated beside it, or record a separate display ceiling. **What shipped is
+none of the three, and the reason is that under a lock the reading is not
+uninformative, it is CENSORED.** An interval of `m·T` establishes
 
 ```
-registry claims                                     5 349  vs  5 349
-claims differing IN EMISSION ORDER                            0
-sorted full-precision dump, md5                     fe6ccf27…  identical
-prop records                                        1 596  vs  1 596
-records differing in x, z, kerb, kind, scale,
-  variant, soil, lean, leanAzDeg                              0
-records with a changed yawDeg                             1 134
-records with a changed refDeg                             1 134   ← the same 1 134
-refDeg transitions                          0 → 90: 577   90 → 0: 550
-records with a changed (yawDeg − refDeg)                      0
+work in ((m-1)·T,  m·T]
 ```
 
-Byte-identical, not merely set-equal. **The 577/550 split is the confirmation
-that both lattice cases were wrong**: they moved in opposite directions in
-matched pairs. `max |Δ(yawDeg − refDeg)| = 5.8e-15°`, which is a fraction of an
-ulp of 90 in double precision (2.0e-14) and comes from evaluating `90 + y − 90`
-instead of `0 + y − 0` — so **do not write "bit for bit" about that quantity**;
-write it about the registry, where it is true. CONTRACT §5.11 makes the same
-distinction about a change that recompiles a shader.
-
-### 1.4 The alignment check's reading is unchanged, confirmed rather than assumed
-
-It reads `yawDeg − refDeg` and both move together, so it should not move. It
-does not, on the generator's own population and on the gate:
+and nothing finer. So a verdict against a ceiling `W` is available exactly when
+that whole band lies on one side of `W`:
 
 ```
-                          before    after
-prop deviation, max      2.200366° 2.200366°
-prop off-axis fraction   0.731830  0.731830
-citycheck alignment      73.9% of 2490 off-axis, largest deviation 2.27° (max 3°)
-                         — IDENTICAL across all three gate runs
+  m = 1, T = 16.67 (60 Hz)    work in (0, 16.67]    W = 12.5 is INSIDE   no verdict
+  m = 2, T = 16.67            work in (16.67, 33]   W is BELOW           BREACH, red
+  m = 1, T =  8.33 (120 Hz)   work in (0, 8.33]     W is ABOVE           CLEAR, green
 ```
 
-**One correction to STATE 21 that matters, because it is a claim about an
-unchanged quantity.** STATE 21 §5.4 and the session brief both record the
-off-axis fraction as **0.665**. The gate prints **0.739**, before and after, on
-three independent runs. 2.27° reproduces exactly; 0.665 does not. The floor is
-0.60, so the direction is harmless, but the number in STATE 21 is not what the
-instrument says.
+**That is why it is not a suppression.** At 120 Hz the same rule turns the cell
+**green**, because a held 8.33 ms lock *proves* the work is under 12.5 ms. The
+crossover is **80.0 Hz**: at or above it a held lock is a pass. At 60 Hz the cell
+goes neutral — not green, not red — with the lock and its measured period printed
+beside it, and the **CPU p95** promoted to the line that carries information.
+A dropped frame stays red at every refresh rate, which is the one thing a locked
+context can still resolve and the thing a person actually sees.
 
-### 1.5 Delivered, both halves, printed
+**NO CEILING MOVED AND NO GATE CHANGED.** `budget.json` is untouched.
+`HUD.budgets` is byte-identical and `perfcheck`'s `assertHudBudgets` still checks
+it key for key against `budget.json → ceilings`. `perfcheck` runs unlocked and
+asserts the same 12.5 it always has. What changed is what a panel says about a
+measurement it cannot make.
 
-```
-run              generator claims   delivered claims   forbidden overlaps (gen / delivered)
-before                 5 349              2 006              0 / 60   all prop × carriageway
-after the yaw          5 349              2 006              0 /  8   all prop × carriageway
-after §2               5 349              1 636              0 /  0   ← SMALLER resident set
-after §2, full ring    5 349              2 006              0 /  2   prop × SITE, a third pair
-```
+### 1.3 The detector, and the estimator bug it started with
 
-`maxDeliveredConflicts` and `maxGeneratorConflicts` are both 0 and neither
-moved.
+`detectVsyncLock(intervals, callbacks)` — exported and pure, so it is testable
+outside a browser. Three conditions, all in `HUD.vsync` with their arithmetic:
 
-**READ THE LAST TWO ROWS TOGETHER, BECAUSE THE THIRD ONE ON ITS OWN IS
-MISLEADING AND I NEARLY LEFT IT THERE.** The `0 / 0` run streamed fewer chunks
-before the 30 s wall bound — 1 636 delivered claims rather than 2 006 — so it had
-fewer pairs to conflict. Re-running it to a full ring reports **2**, and they are
-**not benches or trees**: `prop(container) × site(hoarding)`, 0.173 and 0.266 m².
+- **`minSamples` 60** — one second at 60 Hz. The on-grid fraction then moves in
+  steps of 1/60, so the 0.90 threshold sits 6 whole frames clear of 1.0.
+- **quantisation, `tolFrac` 0.06 and `lockedFraction` 0.90** — at least 90% of
+  intervals within `0.06·T` of an integer multiple of `T`. This is what carries
+  the claim: a lock drops a frame to exactly 2T, never to 1.3T. **The
+  discrimination is arithmetic**: bands of width `2·tolFrac·T` repeating every
+  `T` cover 12% of the line, so an unquantised distribution lands on the grid
+  about 12% of the time by luck. Derived 12.00%, **measured 11.65%** over 20 000
+  uniform draws (CONTRACT §9 rule 2). Separation against 0.90: **7.5×**.
+- **`maxDutyFraction` 0.75** — `p95(callback) <= 0.75·T`. A NECESSARY condition
+  and not a sufficient one, and it says so: `callback` ends when the rAF body
+  returns, so it does not see GPU or compositor time and the measured duty
+  understates the true one.
 
-**What IS closed is what the brief named, and it is closed completely:**
-
-```
-prop × carriageway        60  →  0
-  of which benches        52  →  0     §1, the yaw transposition
-  of which trees           8  →  0     §2, the model-space head clearance
-```
-
-Every conflict of the pair the brief said not to relax is gone, on the same
-2 006-claim census the 60 was measured on. **The 2 that remain are a pair nothing
-had reported before**, and they are §2.4.
-
-### 1.6 THE FRAME — A CLOSE PAIR, DIFFERENCED, AND THE SIGN DID NOT MOVE
-
-`tools/shot-out/bench-before-t0_5.png` and `bench-after-t0_5.png`, against a
-LOCAL DEV SERVER (`npm run dev`, port 5173) rather than a gate's own throwaway
-vite. Same seed (1337), same camera, same time of day, **301 draw calls each**:
+**THE PERIOD ESTIMATOR WAS WRONG IN THE FIRST VERSION AND THE PROBE CAUGHT IT.**
+`T` was `p05` of the intervals — a LOW QUANTILE of the held cluster, biased down
+by about the compositor's jitter. It reported a 60 Hz display as **60.5 Hz**
+(16.534 against 16.667). The seed is still the right way in (the minimum would
+let one early timestamp become `T`), but a seed is not an estimate, so `T` is now
+the **median of the frames the seed collects at m = 1**. Recovered:
 
 ```
-node tools/lookat.mjs --url=http://127.0.0.1:5173/ \
-  --pos=10.0,1.70,70.1 --target=8.3,1.20,90.6 --t=0.5 --fov=55
+built 16.667 ms (60.0 Hz)  recovered 16.657 (60.0 Hz)  error -0.010 ms (-0.06%)
+built  8.333 ms (120.0 Hz) recovered  8.321 (120.2 Hz) error -0.012 ms (-0.15%)
 ```
 
-Eye height on the **east pavement of the north–south street**, with the bench at
-**(8.10, 76.6)** 6.5 m ahead — the same bench whose claimed/delivered box pair is
-printed in §1.1. The pose was not guessed: 56 north–south kerbside benches were
-enumerated from the pure generator and each candidate stand-off was ray-tested
-against the chunk occluders (buildings only, `landmark`/`river` filtered out the
-way `residentOccluders` does) until one had an unobstructed 20 m view. **A first
-wide pose earlier in the session put a facade against the lens** — CONTRACT
-§9.1's own recorded failure, met again — which is why the ray test exists now.
+It mattered twice: the displayed rate is the reader's whole check on the declared
+limit below, and the bias ran toward SHORTER periods — the direction that makes
+`bandCensored` claim more.
 
-**AT THIS DISTANCE IT IS UNMISTAKABLE, AND IT IS THE DEFECT RATHER THAN A HINT.**
-Before, the bench lies **across** the pavement with its end to the road and its
-far end reaching over the kerb into the carriageway — which is the 0.048–0.235 m²
-overlap made visible. After, it lies **along** the kerb, back to the road, wholly
-on the pavement and clear of the white edge line.
+### 1.4 The declared limit, and both control directions
 
-**PER REGION, measured rather than described:**
+**This cannot distinguish a display lock from a machine steadily GPU-bound at
+the same period**, because `callback` stops when the rAF body returns and the GPU
+retires after it. What it can do is **print the period it measured**, so a reader
+seeing `vsync-locked 20.00 ms (50.0 Hz)` on a 60 Hz display knows within one
+second that it is not a lock. CONTRACT §7.7: an instrument written to detect a
+failure mode is where that mode hides, so the limit is stated rather than
+engineered around.
 
-```
-region                        px     max Δ   mean Δ   pixels ≥ 8
-the green SIGN plate        3 726       3     1.497    0  (0.00%)
-everything left of x = 600 486 000       2     0.872    0  (0.00%)
-the arch + the skyline     208 010       2     0.987    0  (0.00%)
-the TREE canopy             44 121     198    35.311   18 018 (40.84%)
-the BENCH                   51 761     193    52.186   25 232 (48.75%)
-whole frame                          3.9693% of pixels differ by ≥ 8
-                                     bounding box x 617..1324, y 113..613
-```
-
-**THE SIGN IS THE ANSWER TO THE QUESTION THAT WAS ASKED, AND IT IS 3 CODE
-VALUES.** Its plate changes by at most 3 against a whole-frame floor of 2 — the
-building, the pavement, the shadow and the skyline all read max Δ 2 with **zero**
-pixels over the 8-code-value threshold, which is this rasteriser's own
-reconvergence noise and not a change. So the sign stands identically in both
-frames.
-
-**And that is confirmed a second way, off the generator rather than off the
-pixels** (CONTRACT §9 rule 2 — the same quantity two ways). Over the gate's own
-region at seed 1337, `2c6de3b` against the merge:
+`tools/vsyncprobe.mjs` runs the detector over sequences whose answer is known by
+construction (CONTRACT §7.3, both directions):
 
 ```
-signs        527 vs 527   BYTE-IDENTICAL
-buildings    367 vs 367   BYTE-IDENTICAL
-features     804 vs 804   BYTE-IDENTICAL
-lamps          0 vs   0   identical
-ground       663 vs 663   identical
+v 60 Hz held                       lock YES  60.0 Hz  onGrid 100%  duty 26.8%   p50 neutral
+v 60 Hz, 1 frame in 10 dropped     lock YES                                     p95 RED
+v 120 Hz held                      lock YES  120.2 Hz                           p50 GREEN
+v unlocked, inside the ceiling     lock no                                      p50 GREEN
+v unlocked, BREACHING              lock no   (not quantised AND duty too high)  p50 RED
+v too few samples                  lock no   (30 < 60)
+! steady GPU-bound 20 ms, vsync off  lock YES 50.5 Hz — THE DECLARED LIMIT, run
 ```
 
-Only `props` moved. **A sign could not have moved, and it did not.**
+The fifth row is the one that matters: **a genuinely slow machine must not be
+excused as locked**, and both conditions refuse it.
 
-**ONE THING I GOT WRONG AND THE CLOSE PAIR CORRECTED.** An earlier wide pose
-(`kerb2-*`, 2.5,1.74,40 → −7.0,1.74,120, 315 draws) differenced at 0.2703% inside
-one 385 × 131 box, and I read that box VISUALLY as a cluster of green sign plates.
-It was not: signs are byte-identical, so what was changing there was tree canopy
-and props. The frame was right and my reading of it was wrong, which is CONTRACT
-§9's *"why looking does not find it"* with the sign flipped — looking found a
-change and mis-attributed it. **The number found it; the eye named it wrongly.**
-
-**The two changed clusters are the bench and the tree**, at 48.8% and 40.8% of
-their own pixels, and the tree is §2's crown lift showing up: its canopy sits
-higher in the after frame and now occludes the streetlamp head that was visible
-above it before. Both are the repairs, and nothing else in the frame moved.
-
-**What is still not claimed:** that the street as a whole *reads* better. What is
-now claimed, and shown, is that a bench on a north–south pavement lies along its
-kerb instead of across it. §6 no longer carries the close-frame item.
+**The graph moved too, and for the same reason one level down.** Its reference
+line is the ceiling when unlocked and the refresh period when locked — under a
+lock every bar clears 12.5 ms and a graph whose every column is red shows a
+person nothing, while a bar at 2T where its neighbours are at T is exactly the
+stutter the graph was built for. **Amber is suppressed under a lock**: a held
+frame is `T`, `HUD.amberFraction` is 0.90, and `16.7 >= 0.9 · 16.7` is true, so
+every correctly delivered frame would have painted amber.
 
 ---
 
-## 2. THE 8 THAT REMAINED WERE TREES, AND THE BENCHES HAD BEEN HIDING THEM
+## 2. THE VIADUCT'S ENDS — MEASURED FIRST, AND THE BRIEF'S PREMISE WAS OFF
 
-`src/lib/citygen.js` → `PROP_MODELS.tree` variants 0 and 1,
-`derivePropHalfAcross`, and the new `PROP_SCALE`.
+`src/lib/citygen.js` → `viaductEnds` (new), `src/modules/city.js`'s viaduct case,
+`tools/portalprobe.mjs` (new, NOT A GATE).
 
-The brief predicted *"After: 0 of every kind"*, measured with a kind-level AABB.
-The delivered per-box banded census says **8**, all `prop(tree) × carriageway`,
-and **the worst of them is 1.264 m² — larger than any of the 52 benches.** It
-was invisible until the benches were repaired, because it is the same conflict
-pair and the benches dominated the count.
+### 2.1 (a) Where the ends land, and what is on that ground
 
-### 2.1 The mechanism, and it is CONTRACT §9's table again
-
-Two places decide whether a prop's box is overhead or underfoot, and they were
-asking the same question in two different spaces:
+Both ends are **pier stations**: `0.00 m` of unsupported deck at either end.
 
 ```
-generator   derivePropHalfAcross:  b.y − (h/2·cos θ + w/2·sin θ) ≥ HEAD_CLEAR_M
-                                   → MODEL space, unscaled, no lean
-delivered   city.js band split:    lo = e[13] − hy − baseY < HEAD_CLEAR_M
-                                   → off the DELIVERED instance matrix: scaled,
-                                     leaned, yawed
+END A   deck end (-90.988, -204.207)   abutment centre (-93.140, -206.297)
+END B   deck end (-90.988, +226.207)   abutment centre (-93.140, +228.297)
 ```
 
-`HEAD_CLEAR_M` is 2.10 m. No delivered tree is at scale 1 — the scatter draws
-`PROP_SCALE` = 0.85..1.25 — and each variant leans by up to `leanRange`:
+**THE ENDS ARE NOT UNBUILT.** Session 21 put an abutment, two wing walls and two
+parapet returns at each one. The defect is sharper than "no portal", and it is a
+height:
 
 ```
-variant     lowest foliage underside    at scale 1   at 0.85   at 0.85 + lean
-broad  (0)  bxt(-0.42, 3.40, …, 9°)        2.183      1.856        1.681
-colum. (1)  bxt(-0.10, 3.34, …, 5°)        2.227      1.893        1.831
-small  (3)  bxt( 0.02, 3.05, …, 10°)       2.558      2.174        2.084
+  abutment wall     0.00 -> 18.20   6.0 m along x 11.1 m across
+  wing wall x2      0.00 -> 13.10   5.2 x 1.0, at +/-6.35 across
+  deck box girder  18.20 -> 20.10   cut off in mid air
+  deck slab        20.10 -> 21.00   cut off in mid air
+  ballast + rail   21.00 -> 21.62   cut off in mid air
+  parapet RETURNS  21.00 -> 22.20   0.40 m thick, at +/-4.50 across
 ```
 
-**The broad tree's crown was authored to clear head height by 83 mm and hung at
-1.68 m as delivered** — under a person, and 1.4 m under a hauler's roof. So the
-generator claimed a trunk's worth of ground and `city.js` delivered a crown's.
-Every one of the six offenders confirms it: scale **0.863, 0.870, 0.895, 0.904,
-0.930, 0.933**, variants 0 and 1 only, low-band tops at 3.86–4.19 m — a whole
-foliage mass in the ground band. Not one at scale > 0.933.
+**The abutment tops out at 18.20 m, which is exactly `viaductSoffitY`.** It is a
+BEARING — the thing the deck sits on — and nothing rose past the deck to close
+it. Between 18.20 and 22.20 the only geometry is the two parapet returns, whose
+underside is 21.00, so they **float 2.80 m above the abutment they stand over**.
+**8.60 m of the deck's 9.50 m width ends in nothing.** That is the cross-section
+the operator was looking at.
 
-**And the comment over `PROP_MODELS.tree` said it could not happen:** *"EVERY
-CROWN CLEARS `HEAD_CLEAR_M`, and that is a placement constraint rather than an
-aesthetic one."* A claim about the models with no check behind it (CONTRACT
-§9.1). It is now true, and it names where it is checked.
+**AND THE WHOLE MASS WAS CLAIMED BY NOBODY.** `landmarkOccluders` returns a
+viaduct's **legs** and its **deck segments**; the abutment and wing walls are in
+neither. An 18.2 m solid, 6.0 × 11.1 m, has stood at each end since session 21 on
+ground the registry has never been told about — CONTRACT §9.1's *"anything placed
+procedurally is tested against the existing occupancy, or it is not placed"*,
+with a landmark's own geometry instead of a prop's.
 
-### 2.2 The repair is on the GEOMETRY, and moving the test alone was the trap
+**Visibility, and it is two-sided.** All four gate routes run down the main
+east–west street at `|z| <= 3.0` and look along x; the ends are **202 m and
+224 m** off that axis, about 90° off the view direction and outside every route's
+55–60° field. The elevated eye `[430, 200, 470]` has a **clear** line at 874 m
+and 603 m. So: **no gate camera in this project sees either end** — no look
+assertion can move when this changes, and equally **no gate can confirm it**.
+The evidence has to be a `lookat.mjs` frame from a pose chosen for the subject.
 
-Making `derivePropHalfAcross` delivered-accurate **without** touching the models
-would count those masses as ground and take the across-pad from **0.363 m to
-1.640 m** (broad) and **0.250 m to 1.004 m** (columnar), against the
-**0.650 m** `fitsKerb` admits. That refuses every broad and columnar street tree
-the pavement — which is session 21's own §5.3 arriving from the other side, and
-that session's warning is why it was checked instead of shipped.
-
-So both crowns are **lifted** — broad by 0.50 m, columnar by 0.35 m — with the
-trunk extended to meet them and **the crown's internal spread untouched**: every
-mass moved by the same amount, so the broad tree's 4.62 / 5.01 / 5.45 stagger
-becomes 5.12 / 5.51 / 5.95, the same 0.83 m over a tree 0.50 m taller. A street
-tree is lifted clear of the footway for exactly this reason. Variant 3 needs
-nothing: its low crown is deliberate, it is a park species refused the kerb
-already, and its across-pad is set by masses below the one that disagreed — the
-disagreement is inert and was checked to be.
-
-**Then the test was corrected too**, so a future model cannot reintroduce this
-silently. It now evaluates the clearance in the space the geometry is delivered
-in, at the worst scale and the worst lean:
+### 2.2 Could a portal go there? `conflict()`, swept, before anything was built
 
 ```
-underside, model     u  = b.y − (h/2·cos θ + w/2·sin θ)
-worst lean, worst azimuth   u·cos φ − R·sin φ     R = the box's own horizontal
-                                                    reach from the model axis
-worst scale                 × PROP_SCALE.min
+END A   depth 4/6/8 m free; 10 m and beyond REFUSED by building:bld:-1,-2
+        width 11.1/12.7/14.0 free; 16.0 and beyond REFUSED by the same
+END B   free at every depth to 20 m and every width to 18 m
 ```
 
-`R` is the circumscribing horizontal radius rather than the exact lowest
-corner's, so the bound is **conservative** — it can call a box underfoot that is
-marginally overhead, never the reverse. That is the safe direction, and it is
-`occupancy.js`'s own argument about why a missing height defaults to a surface:
-an over-claim shows up as a spurious conflict a reader can see, an under-claim
-shows up as nothing at all.
+END A's binding constraint is a **46.4 m building 10.44 m away**. END B's nearest
+forbidden claim is a planter at 13.01 m. The delivered claim is 6.0 m along ×
+13.7 m across, so END A clears by 2 m of depth and 0.3 m of width. **No end
+landed somewhere a portal cannot go and the arc did not have to move**, which is
+what session 5 paid for once.
 
-`PROP_SCALE` is a named constant now because two places read it — the scatter
-draws it and the derivation needs its minimum. It was a literal `0.85, 1.25` in
-the scatter and nothing else knew.
+### 2.3 (b) What was built, and every dimension comes from something already decided
 
-### 2.3 What it cost, measured against `main` rather than argued
+A **portal head on the abutment already there** — two jambs, a lintel, and a dark
+recess:
 
 ```
-                          main   session 22
-registry claims           5349      5349
-props                     1596      1596
-kerbside props            1171      1171
-buildings                  367       367
-park / site features       804       804
-refused, by category    identical (landmark 55, building 47, water 16,
-                        block 14, pavement 6, carriageway 5, deck 4)
-
-kerbside trees             133  →    134
-tree across per variant   0.363 / 0.250 / 0.442 / 1.233  — EXACTLY session 21's
+opening half-width  l.deck / 2 = 4.75 m   THE DECK'S OWN HALF-WIDTH, so everything
+                                          on the deck passes by construction. The
+                                          widest thing on it is the parapet at
+                                          4.70, clearing the jamb by 0.05 m.
+opening top         l.height + VIADUCT_RAIL_RISE_M + VIADUCT_LOADING_GAUGE_M
+                    = 21.00 + 0.62 + 4.20 = 25.82 m
+head top            27.20 m = l.height + 3.1 + 6.2/2, THE TOP OF THE CATENARY
+                    MASTS ALREADY ON THIS DECK — so the portal adds exactly ZERO
+                    new height to the viaduct's silhouette
+lintel depth        27.20 - 25.82 = 1.38 m, whatever that leaves over the gauge
+footprint           the abutment's own, unchanged. The head claims no ground the
+                    mass under it was not already standing on.
 ```
 
-**Nothing lost, and one more street tree.** The per-variant pads are identical
-to the four numbers STATE 21 §5.3 recorded, so the delivered-space test costs no
-kerb eligibility at all. Per-kind totals shift by ±3 as a few placements resolve
-differently against the slightly larger crown pad; the totals do not move.
+`VIADUCT_LOADING_GAUGE_M` = 4.2 is new and is a **budget**, so §9 rule 5's
+obligation is discharged: the tallest thing on this deck is the train at **3.58 m
+above rail**, and 4.20 leaves **0.62 m** — exactly one `VIADUCT_RAIL_RISE_M`,
+i.e. the deck could be re-ballasted a second time and the same train would still
+pass the same portal. `moving.js` prints its car against it at boot.
 
-### 2.4 THE RESIDUAL: TWO CONTAINERS ON A HOARDING'S FOOT — DIAGNOSED, NOT REPAIRED
+**The recess is the box that does the work.** A frame with nothing in it is a
+hole to the sky. What makes a line appear to *continue* is a dark plane set back
+inside the frame: 0.30 m of reveal, inset the same across and at the head, at
+**0.10× the concrete's albedo** rather than a black constant — CONTRACT §5 is
+physical throughout, a real tunnel mouth is a dim surface and not a void, and the
+§5.5 veil lifts it off zero exactly as it lifts every other unlit wall.
 
-`citycheck` → `occupancy` is **red at 2** on a full resident ring:
+**The parapet returns are removed rather than kept.** Their own comment says they
+exist *"so the deck edge does not simply stop in the air"* and the portal is what
+actually achieves that; kept, they would float inside the opening. Burying them
+inside the jambs was the other option and it is the failure CONTRACT §9.1 records
+under *"geometry authored and then drawn inside something else"* — five vehicle
+skirts, invisible, counted by every gate.
+
+**And `VIADUCT_RAIL_RISE_M` closes a §9.1 instance found in passing**: `moving.js`
+carried `railRiseM: 0.62` under the comment *"`city.js`'s ballast + rail"* — a
+comment claiming a link with no link. One number now, three readers.
+
+### 2.4 The claim: `conflict()` before `claim()`, refused rather than moved
+
+Claimed as `landmark`, owner `viaduct:end`, the world AABB of the whole end
+treatment (half 3.0 along × 6.85 across), `y 0 -> 27.20`, following the park
+railings' pattern exactly — `if (reg.conflict(box)) continue;` then `reg.claim`.
+
+**It is claimed BEFORE the roads and the buildings, and that ordering is the
+point.** `landmark` conflicts with `building`, `carriageway`, `pavement`, `prop`
+and five more, so laying it down first makes every one of those refuse *itself*
+against the portal. Claimed afterwards it could only ever report a collision
+somebody else had already committed.
+
+**Moving it is not available and that is stated rather than implied**: an end
+treatment's whole job is to be where the deck stops, so the honest failure is to
+build nothing there and leave the cut end visible — which a reader can see —
+rather than to slide a 27 m mass quietly into a building. **Both ends were
+claimed; neither was refused.**
+
+### 2.5 (c) The cost, measured against `main`
 
 ```
-prop(container) × site(hoarding:)   0.173 m²
-prop(container) × site(hoarding:)   0.266 m²
+                          main    session 23
+registry claims           5 349      5 364     (+15: +16 end claims, -1 building's)
+forbidden overlaps            0          0
+buildings                   367        366     -1   (-0.27%)
+sum of floors              4 024      4 012    -12   (-0.30%)
+facade area (m2)       1 117 089  1 114 030  -3 059  (-0.27%)
+signs                       527        525     -2   (the refused building's)
+props / features / ground  identical
 ```
 
-**The arithmetic points at the hoarding's FEET, and the smaller area is the
-confirmation.** `city.js` emits a hoarding as a panel plus two feet:
+**One building is refused**: (−105.3, −219.6), 22.0 × 11.0 m, **46.38 m tall, 12
+floors, 3 060 m² of facade.** It was standing **1.73 m** from session 21's
+18.2 m abutment, against the `CITY.sidewalkWidth` = 4.2 m face-to-face setback
+`landmark × building` carries.
 
-```js
-put(0, f.height * 0.5, 0, f.length, f.height, 0.06, …)              // the panel, 0.06 deep
-for (const e of [-0.42, 0.42]) put(f.length*e, 0.06, 0.18, 0.34, 0.12, 0.5, …)   // the FEET
+**THE ATTRIBUTION MATTERS AND IT WAS RUN RATHER THAN ARGUED.** Two arms, claim
+top at 18.20 (session 21's mass alone, no head) and at 27.20 (delivered):
+
+```
+  claim top 18.20  ->  366 buildings
+  claim top 27.20  ->  366 buildings
 ```
 
-A foot is offset **0.18** on the panel's local +z and is **0.5** deep, so the
-delivered solid reaches **0.18 + 0.25 = 0.43 m** on that side. The generator's
-claim is
+**The building is refused by the FOOTPRINT, not by the head.** The content cost
+is the price of claiming a mass that has stood unclaimed since session 21; the
+portal itself costs nothing in placement.
 
-```js
-claimAt('site', x, z, seg/2, 0.12, { y0: 0, y1: SITE.hoardingHeight })
-```
+**Geometry cost: net +4 boxes over both ends** (−2 parapet returns, +4 portal
+boxes, per end). No new mesh, no new material, no new draw call.
 
-— **0.12 m across, the panel alone. 3.6× short.** And a foot's own footprint is
-`0.34 × 0.5` = **0.170 m²** against the smaller measured overlap of **0.173 m²**.
-A container is standing on a hoarding's foot.
-
-**TWO CANDIDATE REPAIRS WERE BUILT, MEASURED, AND BOTH ARE REVERTED**, and that
-is the part worth reading:
-
-1. **The interior prop claim's circumscribing SQUARE is unsound**, and the
-   comment beside it says *"Conservative, and the right answer for a rotation
-   nobody has fixed yet."* It is not conservative. A box of half-extents
-   `(gw, gd)` yawed by θ has a world AABB half-extent of `gw·|cos θ| +
-   gd·|sin θ|`, which reaches `hypot(gw, gd)` at `θ = atan(gd/gw)` — so a square
-   of `max(gw, gd)` under-claims by up to **√2 = 1.414×**. Per kind: bollard
-   1.414×, bin up to 1.414×, planter up to 1.414×, container 1.263×, tree up to
-   1.364×. Replacing it with the radius cost **1 prop of 1 596** and changed the
-   two overlaps **not at all** — identical areas to three decimals.
-2. **The hoarding claim was widened to its delivered reach** (0.12 → 0.43,
-   symmetric, with the yaw's own contribution), with the two foot constants moved
-   into `SITE` so the claim and the emission read one number. Cost: **zero
-   features refused.** Effect on the two overlaps: **none. Identical areas
-   again.**
-
-**Two proved-unsound bounds, two measured non-effects. So both were reverted**,
-because CONTRACT §7.1's rule is to confirm a repair RED against the content
-before building it, and neither of these is: I never demonstrated a delivered
-overlap that either bound caused. Shipping a content change on a refuted
-hypothesis is what the brief warns about one item over — *"a repair fitted to an
-artefact of the timestep is worse than the artefact"* — and it generalises.
-
-**What that leaves, for the next session, is a sharper question than the one this
-session started with.** Widening either claim moved nothing, which means the
-generator's registry never saw these two as touching. Two ways that happens and
-they need different repairs:
-
-- **The claims are in different chunk registries.** `generateChunk` builds a
-  registry per chunk, and session 21 found this twice already (§1.1 run 4: a
-  landmark 8 m outside a chunk was invisible to the list clipping its roads; and
-  `riverTouchesChunk` furnishing one promenade from two rows). Containers are
-  generated on `construction` chunks AND on `lot`/`yard`/`parking` ones, so a
-  container on one low-detail chunk beside a construction chunk is the shape to
-  look for. Against it: both islands are inset by `CORRIDOR` = 11.7 m, so the
-  nearest a container and a hoarding in different chunks can be is about 25 m.
-- **The delivered container box is bigger than any model-derived bound.** Then
-  the pair is a third instance of §2's shape with the prop's own geometry, and
-  `benchprobe.mjs` prints the pair for it: the offenders are `prop(container)`
-  and the tool already matches a delivered claim to its generator claim by owner
-  and centre.
-
-**`tools/benchprobe.mjs --limit=8` is one command and it answers this**, because
-it prints the claimed box beside the delivered one and the chunk coordinates fall
-straight out of the centres. That is the first thing to run, and it is §6 item 1.
+**What the floor says.** `floors.visibleInstances` is 115 000 and it is
+**unmeasured on this machine** (it needs a route `perfcheck` can finish — STATE
+22 §3.2, unchanged). The reduction is 0.27% of facade area, which is what a
+window count is proportional to (CONTRACT §9, session 20's row). The refused
+building is at z = −219.6, **220 m off every route's axis**, so its contribution
+to any route's *visible* set is likely zero — but that is an argument and not a
+measurement, and it is flagged as such. **This is the one content reduction in
+the session and it is a placement refusal, not a budget trim.**
 
 ---
 
-## 3. THE FOUR REFUSING GATES — WHICH REFUSALS ARE REAL
+## 3. THE TRAIN'S SILHOUETTE — ONE OF THE THREE WAS ALREADY BUILT
 
-The brief asked for every one of these as a number, red or green, on a real GPU.
-There is no GPU here, so the honest report is: **one of the four refusals was
-guarding nothing and that gate now runs; two refuse correctly and report in full
-before doing so; one is a genuine pixel measurement and stays UNRUN.**
+`src/modules/moving.js`, `tools/trainprobe.mjs` (new, NOT A GATE).
 
-| gate | where the refusal sits | is it guarding a pixel? |
-|---|---|---|
-| `faultcheck` | at the END, after every case has run and printed | yes — *"the frame still renders: real pixels, more than one value in them"* |
-| `lookcheck` | at the END, after all eight captures and the structure notes | yes — it is the look gate; the frames ARE the measurement |
-| `citycheck` | beside the saturation sample, since session 21 | yes — `saturation` and `bright reserve` read the frame |
-| `windcheck` | **line 87, before a single census was gathered** | **no. Nothing in it reads a pixel.** |
+### 3.1 The roof cap the brief asked for has been there since session 21
 
-**`faultcheck`'s FINDINGS are green here, and the refusal is only its admission
-criterion.** All seven §2.1 cases ran and printed and **no `QUARANTINE
-VIOLATIONS` block appeared**:
+Measured rather than described. `trainprobe` prints the section:
 
 ```
-  control — no injection   0 faults  0 errors  17 live   255 draws
-  canyon.init throws       2 faults  2 errors  15 live   196 draws
-  post.render throws       1 fault   1 error   16 live  2544 draws  ← the §2.1
-  block.init throws        3 faults  3 errors  14 live    87 draws    fallback,
-  block.update throws      1 fault   1 error   16 live   146 draws    untonemapped
-  city.update throws       1 fault   1 error   16 live   196 draws    and visible
-  city.init throws         1 fault   1 error   16 live   196 draws
+  body       y 0.00 -> 3.40   half-width 1.450   18.00 m long
+  roof cap   y 3.40 -> 3.58   half-width 1.305   17.28 long   <- ALREADY THERE
+  skirt      y 0.00 -> 0.56   half-width 1.247   17.64 long
+  bogies x2  y -0.43 -> 0.07  half-width 1.015
+  windows    y 1.63 -> 2.58   half-width 1.479   6 a side, emissive
+  NOSE (new) y 1.10 -> 3.40   half-width 1.363   raked face 2.802 m at 55.18 deg
 ```
 
-**`0 faults` on the control is the line that matters for this session**: nothing
-this session changed quarantines a module, and 17 modules are live. The
-`post.render` row at 2 544 draws is the core falling back to
-`renderer.render(scene, camera)` exactly as §2.1 says it should.
+The roof cap is the **second box of every car**: `carLengthM * 0.96` long, 0.18 m
+deep, `carWidthM * 0.9` wide — **inset 0.145 m each side and 0.36 m short at each
+end**. The hard upper edge is already broken and a second cap would be a box per
+car for nothing. **Not added.**
 
-### 3.1 `windcheck`'s refusal is now a NOTE, and this is the one change to a gate
-
-It threw before anything was gathered, so a machine without a GPU produced no
-verdict on the winding of any mesh in the city. That is exactly the shape
-`citycheck` had a session ago, and STATE 21 §7.1 corrected it by moving the
-refusal to the assertion it invalidates. **This gate has no such assertion:**
+### 3.2 The nose, and every number is bounded by something
 
 ```
-volume    signed volume from the triangle order
-normals   authored normal against the geometric one, weighted by AREA
-facing    front-facing AREA toward an eye point, in world space, through
-          matrixWorld and three's own frontFaceCW rule
+overhang  1.6 m   the DEVIATION FROM A SQUARE CORNER, so it is what has to clear
+                  the pixel floor. Against the 3 px floor session 20 derived for
+                  a navigation lamp, at 6.4765e-4 rad/px, 1.6 m subtends 3 px at
+                  823 m — past anything in this city and past the car's own
+                  §5.12 cutoff. The rake reads wherever the train does.
+tip rise  1.1 m   the window band's underside is carHeightM*0.62 - 0.475 =
+                  1.633 m, so the tip is 0.53 m BELOW the glazing — which puts
+                  the driver's screen ON the rake instead of above it. Clear of
+                  the skirt at 0.56.
+thickness 1.0 m   back along the face's own normal, putting the wedge's top-rear
+                  corner 0.82 m INSIDE the body's end face. A thin slab reads as
+                  a fin from three-quarter view.
+derived           rise 2.30 m, face 2.802 m, rake 55.18 deg from horizontal
 ```
 
-All three run in `harness.windingCensus()` on the CPU over geometry attributes
-and delivered instance matrices. `budget.json` →
-`winding.thresholds.$minNormalAgreement` already said so of itself: *"the whole
-computation is deterministic Float32 arithmetic in JS with no driver in it."*
-CONTRACT §0.2 is explicit about the cost of a refusal that cannot pass — *"a gate
-that can never pass produces zero measurements, and zero measurements is not
-stricter than imperfect ones — it is nothing."*
+**Cost, in counts:** `BOXES_PER_CAR` 5 → 6, allocated body rows 40 → 48, **4
+drawn** (a cab at each end of each unit; the 4 middle cars park theirs at zero
+scale), **+48 triangles**, **+0 draw calls** (one `InstancedMesh`, still one),
+**+0 cluster slots**.
 
-**IT CANNOT MAKE A RED GATE GREEN, and the guard is already built rather than
-added for the occasion.** The one way a slow rasteriser degrades this census is
-by not finishing the streaming, so fewer meshes are resident — and `minMeshes`
-(400) and `requiredMeshes` fail on exactly that. **The failure mode of a software
-run is a false RED, not a false green**, which is the direction a gate is allowed
-to be wrong in. The renderer string is still printed beside the table so no log
-is anonymous about the machine it came off, and `budget.json` →
-`winding.$pixelFree` records **what would invalidate the argument**: any
-threshold here that comes to read `page.screenshot()`, a
-`readRenderTargetPixels`, or a harness call that renders in order to answer. Add
-one and the refusal comes back, beside it.
+**Against the saturation reserve: it costs nothing there.** The brief asked
+because the train's lit windows are already in the reserve at zero cluster slots.
+The nose is **body geometry on the existing body material** — not an emitter —
+so `movingLights` is unchanged at 108 and the emissive area of the train does not
+move at all. The reserve itself is still unmeasured here (§5).
 
-This is the change in the session that most deserves a sceptical reading, and it
-is the one CONTRACT §7.3.1 requires be argued with its negative direction
-guarded. The negative direction is the paragraph above — and it is not only an
-argument, because the run happened:
+**AND THE NOSE FORCED A CORRECTION THE PORTAL MADE LOAD-BEARING.** `tr.len` is
+used for one thing: the turn-round clamp, *"stop when the train reaches the end
+of the deck"*. Before the nose existed, the body's end face **was** the train's
+extent. It is not any more:
 
 ```
-6 eyes over 3 routes: 354 / 481 / 397 / 491 / 439 / 485 meshes
-
-678 meshes: 674 ok, 0 WOUND BACKWARDS, 0 unmeasured, 4 double-sided (not culled)
-coverage:   678 names, 678 meshes (floor 400), 674 of 674 cull-eligible decided
-            (volume 587, normals 669, facing 502); 0 unmeasured (ceiling 0)
-
-controls — CONTRACT §7.3, four shapes through the same census
-  winding:control:good        closed   +8.00e+0   1.0000   0.5000   ok   ← must pass
-  winding:control:reversed    closed   −8.00e+0   0.0000   0.6667   bad  ← must fail
-  winding:control:quad-up     open      0.00e+0   1.0000   1.0000   ok   ← must pass
-  winding:control:quad-down   open      0.00e+0   0.0000   0.0000   bad  ← must fail
-
-windcheck ✓
+  body only (before)     len 74.70 m   lead car body face s 240.00   NOSE TIP 241.60
+  with both noses (now)  len 77.90 m   lead car body face s 238.40   NOSE TIP 240.00
 ```
 
-**Both control directions hold on a software rasteriser**, which is §7.3's own
-requirement and is the demonstration that the census is not answering the same
-thing to everything. The four double-sided rows are the sky background and the
-three rain layers, exactly the four `budget.json` →
-`winding.thresholds.$maxUnmeasured` names.
+The deck's last station is s = 240.00 and the portal's recess begins 0.30 m
+beyond it. **With the old length the nose would have stood 1.30 m inside the
+recess.** With the new one the train noses up to the portal and stops.
 
-**`windcheck --falsify` also runs here now, and it is 11/11** — which matters
-beyond this gate, because `gateaudit` runs every gate's `--falsify` as a
-subprocess and this one used to throw before reaching its own self-test:
+### 3.3 THE COMMENT I GOT WRONG, AND THE INSTRUMENT THAT CAUGHT IT
 
-```
-✓ positive control passes                     ✓ minNormalAgreement is load-bearing
-✓ open positive control passes                ✓ minFrontFacing is load-bearing
-✓ negative control fails on volume            ✓ minEyes is load-bearing
-✓ negative control fails on normals           ✓ open negative fails on normals
-✓ open controls decline volume                ✓ open negative fails on facing
-✓ facing is BLIND to a reversed closed solid — the DECLARED blind spot,
-  asserted so that it cannot change unnoticed (CONTRACT §7.6's rule)
-```
+The rake is composed with Euler order `'YXZ'`. The comment I wrote for it claimed
+the default `'XYZ'` *"would apply the tilt in WORLD axes and rake the train
+differently at every point on a curve"* — CONTRACT §9's row 2, one axis over.
 
-**And this is brief item 3's real answer: session 21's new geometry is correctly
-wound.** The park's pond surface (`river:water`, open, signed volume −1.44e6,
-facing 1.0000), the abutment wing walls, the tilted canopy masses and this
-session's lifted crowns are all in a census of 678 meshes with **zero** wound
-backwards. That is the gate the brief expected to have something to say, and what
-it says is that nothing is inside out. 678 against the 627 the budget's
-derivation recorded is session 21's own additions turning up.
+**`trainprobe` was written to demonstrate that and refuted it.** The error under
+`'XYZ'` is **0.0000 m at every yaw**, identical to `'YXZ'`. The reason is one
+line of algebra the comment asserted past: with the X component zero, `'XYZ'`
+composes `Rx(0)·Ry·Rz` and `'YXZ'` composes `Ry·Rx(0)·Rz`, and both are
+`Ry(yaw)·Rz(rake)`. **An Euler order can only matter when at least two components
+are non-zero.**
 
-### 3.2 The counts the brief asked for
+CONTRACT §7.7's second consequence is that an expectation which moves to match
+the instrument must say which of the two was wrong. **Here it was the comment**,
+and it now says so. `'YXZ'` is kept for what it will mean rather than for what it
+means today: the moment anything sets the X slot — a gradient, a cant through a
+curve — it stops being equivalent.
 
-`floors.visibleInstances` and `drawCalls` are asserted by `perfcheck`, which
-needs 4 routes × 3 runs at 2560×1440 — about 21 600 SwiftShader frames, and
-session 21 lost the renderer's execution context twice trying 4 320. **They are
-counts, so they do not drift (CONTRACT §9 rule 6's corollary), and what could be
-recovered here came off `citycheck`'s scene walk of the delivered city:**
+**The probe now carries both arms, and the second one is the real wrong version:**
 
 ```
-270 instanced meshes (270 labelled, 0 not), 100 plain
-0 meshes whose label does not sum to instanceMatrix.count, 0 drawing fewer
-  than they allocated
-movingBoxes 88, movingLights 108      ← session 21's two new draws, delivering
-buildingBoxes 29 074   propBoxes 5 365   windows 19 076   crowns 135
-vehicleBoxes 1 920   vehicleWheels 640   vehicleLightLines 480
-aircraftBoxes 24   aircraftNavLights 30
-stall_emissive 705   block_windows_off 798
+delivered  'YXZ' with the rake in the Z slot    worst error 1.83e-15 m  <- exact
+arm 1      'XYZ', the default                   worst error 0.0000 m    <- INDISTINGUISHABLE
+arm 2      the tilt in the X slot (a ROLL)      worst error 2.8534 m    <- REJECTED
 ```
 
-**`moving:bodies` and `moving:lights` are present and populated**, which is the
-half of brief item 3's third bullet that a count can answer. What a count cannot
-answer is the ceiling: `drawCalls` 440 and `visibleInstances` 115 000 are
-route-wide figures from a moving camera and this census is of one resident ring
-with the stream incomplete. **Unmeasured here, and it is the first thing
-`perfcheck` should print on the operator's machine.**
+The delivered nose lands on its two design points — the tip at
+`(carLength/2 + overhang, tipRise)` and the roof corner at `(carLength/2,
+carHeight)` — to **1.83e-15 m** over four yaws and both faces.
 
-### 3.3 The saturation reserve, still unmeasured
+### 3.4 The other two changes are NOT built, and the reason differs for each
 
-STATE 20 recorded **1.53 points of margin**; the train's lit windows and the
-crane's obstruction light are new emitters at zero cluster slots and nothing has
-measured what they spent. `citycheck` reports `saturation` **UNRUN and red** on a
-software rasteriser, which is correct — it is a pixel measurement and there is no
-rasteriser here worth reading. Unchanged from session 21, and it needs the
-operator's machine.
-
-### 3.4 `lookcheck` did not even reach its own refusal, and that is a number too
-
-Session 21 recorded it as *"REFUSED: software renderer"*. This session got a more
-useful datum: **it did not get that far.** Its refusal is at the end, after eight
-captures at 2560 × 1440, and on this rasteriser **one PNG took 21 minutes** — so
-the set is about 2.8 hours before the gate can say anything at all. It was
-stopped rather than waited out.
-
-It did print one thing before the captures, and it is the machine again:
-
-```
-city streamed in over 10 frames — 12/30 field slots ready
-  ** TIMED OUT: frames below were captured mid-stream **
-```
-
-Same cause as `citycheck`'s `sceneWalk`: a canyon bake costs 0.8–3.0 s here
-against 0.1–0.3 s on the operator's machine, so `waitForCity`'s wall bound
-expires with half the field unbaked. **A look gate whose frames were captured
-mid-stream would be measuring the streaming system**, which is exactly what
-`sceneWalk` exists to say — so even a completed run here would not have been a
-verdict about the look. `index.html`'s `#bootfail` therefore remains unchecked
-by `lookcheck` and `gateaudit`, unchanged from STATE 21 §9 item 3.
+- **Roof cap: already exists** (§3.1). Building it would have been a box per car
+  for a property the car already has.
+- **Shoulder chamfer: HELD, and honestly held.** The brief's instruction was to
+  do the nose first and *look at it* before the other two. **I could not look at
+  it properly on this machine** — see §5 — so the honest state is that the nose
+  is built and verified geometrically and the judgement the brief asked for has
+  not been made. It is next session's first call, and it is a one-line decision
+  once somebody has a frame: **if the nose alone settles it, the chamfer is cost
+  without benefit and should be written off rather than deferred again.**
 
 ---
 
-## 4. `parsecheck` WAS RED ON `main`, AND NOT FOR ANY SESSION'S CONTENT
+## 4. THE LAMP HEAD IN THE CANOPY BAND — MEASURED, NOT REPAIRED
 
-STATE 21 §9 item 3 flagged that `index.html` gained an element after the gates
-ran. The same thing happened to a second file and this one broke a gate:
-`vite.config.js` arrived with the GitHub Pages commits (`d17db6b`, after session
-21's gates) carrying an ellipsis character in a comment table —
+`tools/lampprobe.mjs` (new, NOT A GATE). Nothing was declared and nothing moved.
+
+### 4.1 The population the item is about is empty
 
 ```
- *   NOCTIS_BASE=…    whatever is given   a user page, a custom domain, a subpath
+prop 'lamppost' placed over the gate's region           0
+kerbside + promenade heads emitted by city.js         790   (716 + 74)
 ```
 
-— and `parsecheck` rejects `…` as a probable elision. **That is the FIRST gate
-in `npm run gates`, so the whole chain was red on `main` before any content was
-touched.** Fixed in the prose (`NOCTIS_BASE set`), not in the rule.
+`PROP_MODELS.lamppost` — the 0.17 m post with the arm at 4.14 m reaching 0.61 m,
+which is exactly what the brief describes — is offered only to the `parking`
+scatter, and **zero are placed** over the region at seed 1337. Declaring *its*
+head in the canopy band would be a change to an object that does not exist, which
+is CONTRACT §7.1's gate-that-cannot-fail wearing a claim.
 
-Worth naming as a pattern rather than an incident: **both instances are files
-edited after the gates ran, by work that was not content work.** Publishing,
-tooling and CI changes do not feel like they need a gate run, and twice now they
-have needed one.
+**The lamps that actually light this city are a different object.** They are
+emitted by `city.js`'s own street-lighting loop on a lattice, at **8.08 m** of
+mounting height with a **2.1 m** arm and a 0.42 m bowl, plus the promenade line
+on the same geometry. **Neither their column nor their head is a registry claim
+of any kind** — the prop scatter never sees them, so there is no claim to be
+missing a band from. **That is a larger gap than the one the brief describes.**
+
+### 4.2 (a) The count is 0, and it is not 0 by a comfortable margin
+
+```
+intersecting (bowl, crown) pairs                      0
+delivered canopy masses                             815   over 224 trees
+their tops:   min 2.78   median 5.60   p95 8.25   MAX 9.47 m
+a bowl's underside                                 7.66 m
+canopy masses tall enough to reach a luminaire     64 of 815
+NEAREST MISS                    0.24 m vertical at 2.57 m horizontal
+```
+
+**The two populations overlap in height.** 64 of 815 canopy masses reach above a
+bowl's underside. What separates them is **horizontal**: a lamp stands 8.8 m from
+the road centreline with its arm reaching 2.1 m back toward the kerb, and no tree
+is planted close enough for its crown to arrive there.
+
+The nearest miss of 0.24 m is **1.5×** the 0.16 m ground-datum uncertainty (the
+probe takes a common datum; where a lamp and a tree stand on different surfaces
+the gap is at most one `BLOCK.kerbHeight`). **So the zero survives the caveat,
+but only just. It is a bound rather than a margin.**
+
+### 4.3 (b) It does not plausibly cost light, and that is a hypothesis excluded
+
+CONTRACT §5.9: a street lamp declares an angular distribution and follows 1/cos³
+below its peak angle — it throws light **down and outward** onto the road. So
+foliage costs a pool only if it sits between the optic and the ground under it.
+**Zero crowns intersect a luminaire, so nothing is between any optic and any
+pavement.** The operator's standing complaint — pavements and parks dead outside
+the lamp pools — is real and is carried in §6, and **it is not this**. No
+lighting model was changed to find out.
+
+**Session 22's own frame pair, re-read against these numbers.** STATE 22 §1.6
+says the lifted crown *"now occludes the streetlamp head that was visible above
+it before"*. That is a **line of sight passing a crown** from a pavement-height
+camera 6.5 m away — not a crown resting on an optic. Two different claims, and
+the first one is true.
+
+### 4.4 (c) The repair is not owed by the brief's own test, and two better items came out of it
+
+The brief said: *if the count is non-trivial, write the repair up with its cost.*
+**The count is 0**, so it is not owed. The arithmetic is recorded anyway because
+a zero with 0.24 m under it is worth watching:
+
+```
+trees a declaration would refuse today      0 of 224 (0.00%)
+lamp heads currently intruded on            0 of 790
+```
+
+And a note on the mechanism the brief proposed: declaring a lamp head as `canopy`
+would be **inert**, because `canopy × canopy` is permitted on purpose (two crowns
+overlapping is a clump). It would have to be declared as something the table
+forbids a canopy from meeting, and *that* is the change with a cost.
+
+**The two findings worth more than the item was** are §6 items 2 and 3.
 
 ---
 
-## 5. THE STOP LINE — THE TIMESTEP IS EXCLUDED BY ARITHMETIC, NOT BY A RUN
+## 5. WHAT COULD NOT BE RUN HERE, AND WHY EACH ONE REFUSES
 
-`budget.json` → `trafficLights.minStopLineM` = 0, asserted against
-`traffic.stats().worstStopLineM`. STATE 21 measured **−10.62 m** at dt = 0.1 s,
-the top of CONTRACT §4.2's clamp, because the previous container could not finish
-a 1/60 run. The brief asked for a re-measurement at 1/60 before any repair, on
-the reasoning that *"a 0.1 s step moves a free-running vehicle 1.2 m, so part of
-that overshoot is integration and the rest is the box."*
+Unchanged in kind from sessions 21 and 22: there is no GPU, so every gate that
+reads a pixel refuses or is unmeasurably slow.
 
-### 5.1 What ran, and what did not
+| gate | state this session |
+|---|---|
+| `parsecheck` | **green**, 81 files |
+| `citycheck --falsify` | **green**, 56/56, coverage 100% |
+| `citycheck` (full) | needs a browser; `sceneWalk` and `saturation` were red on this machine in session 22 for machine reasons and nothing here changes that |
+| `windcheck` | runs without a GPU since session 22 (§3.1 there). Started; see the note below |
+| `faultcheck` | findings green in session 22, refuses on the renderer at the END, after every case has printed |
+| `lookcheck` | **cannot be reached**: eight captures at 2560×1440 on SwiftShader, one PNG in ~21 minutes |
+| `perfcheck` | 4 routes × 3 runs is ~21 600 SwiftShader frames. Not attempted |
 
-```
---cycles=3 --dt=0.1     --static  (1 080 frames) → page.evaluate: Execution
-                                                   context was destroyed
-                                                   (session 21's own failure)
---cycles=1 --dt=0.1     --static  (  360 frames) → COMPLETED
---cycles=1 --dt=1/60    --static  (2 160 frames) → still stepping at 58 min,
-                                                   killed on my own timeout
-```
+**`npm run gates` did not run green end to end, and it could not have on this
+machine.** That is the same honest state sessions 21 and 22 recorded, and it is
+recorded again rather than worked around. Nothing was weakened to change it: the
+one environment change (§0) selects a browser binary and moves no threshold.
 
-The 1/60 arm was **not a crash** — it was progressing and it is simply slower
-than the wall I gave it. That is the machine, and it is the same machine §0 is
-about. Three cycles at 1/60 is 6 480 frames, three times what did not finish.
-
-**The defect reproduces on this machine.** One cycle at dt = 0.1: worst
-clearance **−10.454 m**, 14 junctions queued, worst single queue 5 vehicles,
-every one reaching zero, none trending upward, 15.4 of 160 held at a red on
-average. Session 21's −10.62 m over three cycles and −10.454 m over one are the
-same finding with a shorter window on a cumulative statistic.
-
-**The 1/60 arm did not finish** — it is six times the frame count of a run that
-already dies at three cycles. So item 4(a) was not closed by measurement.
-
-### 5.2 IT DID NOT NEED TO BE. The overshoot bound is closed form
-
-`traffic.js` clamps the speed to the signal's stopping profile **every step**, as
-a hard `min` rather than a rate limit:
-
-```js
-limit = Math.min(limit, Math.sqrt(Math.max(0, 2 * BRAKE_A * Math.max(0, toStop))));
-…
-veh.v = Math.max(0, Math.min(limit, veh.v + a * dt));
-```
-
-So after any step, `v ≤ √(2·a·toStop)`. A vehicle whose clearance is `s > 0`
-before a step advances by at most `dt·√(2as)`, leaving `s − dt·√(2as)`.
-Minimising over `s`: `s* = a·dt²/2`, and the value there is **exactly
-`−a·dt²/2`**. That is the worst the timestep can do, for every `s`, not for one:
+**The frames.** The brief asked for the ray-tested pose from session 22 rather
+than a guessed camera, and `tools/portalprobe.mjs` does that: candidate poses are
+ray-tested against the region's building claims until one has a clear line to
+both the portal's base and its head top. The poses it found:
 
 ```
-BRAKE_A = 2.0 m/s²
-
-  dt = 0.1      worst overshoot   0.010000 m
-  dt = 1/30                       0.001111 m
-  dt = 1/60                       0.000278 m
+END A   --pos=-125.32,1.74,-230.58 --target=-93.14,16.86,-206.30
+END B   --pos=-121.83,1.74,256.17  --target=-93.14,16.86,228.30
 ```
 
-**At dt = 0.1 the braking constraint cannot overshoot its own stop line by more
-than one centimetre. The measured breach is −10.62 m, which is 1 062× that: the
-timestep can account for 0.094% of it.** The brief's 1.2 m is the displacement of
-a *free-running* vehicle, and a vehicle under this constraint is by construction
-not free-running — its speed is re-derived from its remaining clearance on every
-step.
-
-**A bound beats the run that was asked for**, because it holds at every dt and
-for every vehicle rather than at one dt for one run. Item 4(c)'s escape hatch —
-*"if the residual after the integration correction is small, say so and leave
-it"* — does not apply. The residual is 10.61 m of 10.62.
-
-### 5.3 And the repair the brief proposed is probably aimed at the wrong mechanism
-
-This is a diagnosis, not a measurement, and it is flagged as such — but it
-follows from the control flow and it changes what 4(b) should be.
-
-`worstStopLineM` is recorded **only inside `if (veh.cleared !== nextJ)`** — a
-vehicle without permission. And the braking constraint above is applied in the
-same branch, so a vehicle without permission has its speed clamped to `√0 = 0`
-the instant its clearance goes negative. **It cannot drive past its own line.**
-There are exactly three writes to `veh.cleared` in the file:
-
-```
-2412  veh.cleared = nextJ   granted: green, or amber and cannot stop
-2414  veh.cleared = null    revoked — but ONLY while toStop > brakeDist, i.e.
-                            still short of the line. Permission is STICKY once
-                            the vehicle is inside the box.
-2013  veh.cleared = null    ON RECYCLE. "A recycled vehicle inherits a `cleared`
-                            from wherever it used to be" — session 18's own fix.
-```
-
-So a counted vehicle at −10.62 m never braked into that position; it **appeared**
-there. The geometric range says such positions exist for every body type:
-
-```
-toStop = (nextJ − along)·dir − STOP_LINE − len/2,   STOP_LINE = 7.5 + 1.5 = 9.0
-
-  type      len   at the junction boundary
-  wedge    5.40        −11.70 m
-  pod      3.70        −10.85 m
-  van      6.00        −12.00 m
-  hauler   9.60        −13.80 m
-  moto     2.20        −10.10 m      ← the only type that cannot reach −10.62
-```
-
-`toStop` is negative over the whole last 10.1–13.8 m of an approach, and jumps to
-about +114 the moment the centre crosses the boundary and `nextJ` advances a
-chunk. **−10.62 m is a real position inside that band, not an artefact** — and
-`seed()` re-seeds relative to the camera, which is STATE 21 §9 item 14's carried
-finding (*"a vehicle can materialise 14 m dead ahead in the camera's own lane"*)
-pointing at the same 14 m.
-
-**A reservation on the EXIT of the junction box would not fix that.** A re-seeded
-vehicle never asked for the box. So:
-
-- **NO REPAIR WAS IMPLEMENTED**, which is the brief's own instruction (*"do not
-  implement it before (a) says how much of the −10.62 m is real"*) and is also
-  the honest call for a traffic change that cannot be run on this machine. A
-  repair that cannot be measured is worse than a measured defect, for the same
-  reason a repair fitted to a timestep artefact is.
-- **The measurement that decides it is one line**, and it is the next session's
-  cheapest win: record `veh.recycled` (or frames-since-seed) alongside the
-  vehicle that set `worstStopLineM`. If every offender is freshly seeded, the
-  repair is in `seed()` — refuse a seat inside the negative-clearance band, or
-  grant permission to a vehicle seeded inside a box it is already in — and item
-  14 and this assertion are one defect. If offenders are NOT freshly seeded,
-  there is a fourth path to `cleared !== nextJ` that this reading did not find,
-  and the exit reservation is back on the table.
-- **`minStopLineM` stays at 0 and stays red.** A signed clearance whose sign is
-  the verdict has one defensible floor. It is not moved, and the honest state is
-  *red with the mechanism narrowed*, not green.
+Both are 40 m outward of their deck end at eye height, clear of every building.
+**Whether a PNG came back inside this session's wall is recorded in §6 item 1** —
+on a software rasteriser a single frame is tens of minutes, and an unlooked-at
+change is reported as unlooked-at rather than as done.
 
 ---
 
 ## 6. WHAT THE NEXT SESSION STARTS FROM
 
-1. **THE TWO CONTAINERS ON A HOARDING'S FOOT. §2.4 — `citycheck` is red on it
-   and it is one command.** `node tools/benchprobe.mjs --limit=8` prints the
-   claimed box beside the delivered one for every `prop × …` conflict, and the
-   chunk coordinates fall out of the centres. The arithmetic is already done: the
-   claim is 0.12 m across, the delivered feet reach 0.43 m, and a foot's
-   footprint is 0.170 m² against a measured 0.173. What is NOT known is why
-   widening either claim changed nothing — the two candidates are a cross-chunk
-   registry gap and a delivered container box no model bound covers. **Two
-   repairs were built and reverted; read §2.4 before rebuilding either.**
-2. **THE MACHINE, AND IT IS NOW THE THIRD SESSION ASKING.** §0. `budget.json` →
+1. **LOOK AT THE PORTAL AND THE NOSE. Both are built, both are verified as
+   geometry, and neither has been JUDGED.** §2, §3.4, §5. The two ray-tested
+   poses are above and `node tools/lookat.mjs --preset=viaduct-street` catches a
+   train at the crown at boot (train 1 starts at s = 0). Two questions to answer
+   from the frames: does the dark recess read as depth or as a hole, and does the
+   raked nose alone settle the train's silhouette — because **if it does, the
+   shoulder chamfer is cost without benefit and should be written off.**
+2. **THE 790 LAMPS ARE IN NO REGISTRY BAND AT ALL.** §4.1. Not their column, not
+   their head. A column 1.3 m outside the kerb is something a prop, a tree or a
+   sign could be placed straight through and nothing would report it. Ask of
+   `prop × lamp column` the question this session asked of
+   `canopy × lamp head` — `tools/lampprobe.mjs` already builds the lattice.
+3. **`PROP_MODELS.lamppost` is placed zero times over the gate's region.** §4.1.
+   Either it should reach the street scatter or it is dead content; both are
+   decisions, and today it is neither.
+4. **THE TWO CONTAINERS ON A HOARDING'S FOOT — `citycheck` is still red at 2.**
+   Carried from STATE 22 §2.4 unchanged. `node tools/benchprobe.mjs --limit=8` is
+   one command. **Two repairs were built, measured, found to change nothing, and
+   reverted — read STATE 22 §2.4 before rebuilding either.**
+5. **`floors.visibleInstances` and `drawCalls` on a real route.** Counts, so they
+   need no quiet machine, but they need a route `perfcheck` can finish. This
+   session removed one building of 367 (§2.5) and that number is the one it
+   would show up in.
+6. **The saturation reserve, still unmeasured.** STATE 20 recorded 1.53 points of
+   margin. The train's lit windows and the crane's obstruction light have never
+   been measured against it; this session's nose adds no emissive at all (§3.2),
+   so the question is unchanged rather than worse.
+7. **`faultcheck`, `lookcheck` and `citycheck`'s saturation all need a GPU.** §5.
+8. **The machine, and it is now the fourth session asking.** `budget.json` →
    `machine.series.m5` is an empty slot with the three steps that fill it.
    Nothing in this project has a millisecond measured after session 20.
-3. **Decide whether `machine` gets an assertion.** §0. The field is inert, which
-   is why two sessions had to remember not to fake it. The assertion is not free
-   — it would refuse every run on any machine but the M4, including the
-   operator's own M5 — so it is a decision rather than an omission.
-4. **`floors.visibleInstances` and `drawCalls` on a real route.** §3.2. Counts,
-   so they need no quiet machine, but they need a route perfcheck can finish.
-5. **`faultcheck`, `lookcheck` and `citycheck`'s saturation.** §3. All three
-   refuse for the right reason and all three need a GPU. `windcheck` no longer
-   does — §3.1 — and its verdict is in this file: **678 meshes, 0 wound
-   backwards.**
-6. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
-   `gateaudit`.** Carried unchanged from STATE 21 §9 item 3: both refuse a
-   software renderer, and both read that file.
-7. **A bench's BACK faces nowhere in particular.** §1.2. `band.side` is known at
-   the placement and is not read in the yaw, so 90° and −90° are chosen
-   arbitrarily and a bench can face away from the road. No measurement behind it
-   yet; it is a content decision. **§1.6's close frame now shows it**: the back
-   panel is on the ROAD side and the seat faces the pavement, consistently, and
-   nothing chose that.
-8. **STATE 21's off-axis fraction of 0.665 does not reproduce.** §1.4. The gate
-   prints 0.739 on three runs. Harmless direction, wrong number in the file.
-9. **Item 8, vehicle light signatures — NOT STARTED.** Carried from session 20.
-10. **Item 14, vehicle pop-in — NOT STARTED, diagnosis carried.** `seed()` takes
-   the maximum `ahead` over twelve candidates, so a vehicle can materialise 14 m
-   dead ahead in the camera's own lane.
-11. **`player`'s ceiling, at the quiet bar.** STATE 20 §5.3, unchanged.
-12. **The retroreflective BRDF for the markings.** STATE 21 §5.2 has the
-   arithmetic: 24× at the standard entrance angle.
-13. **TWO merged branches still exist on the remote and need one click each.**
-   `claude/generator-occupancy-registry-6pbuer` (tip `fa60b64`) and
-   `claude/noctis-22-machine-residual-t3u3px` (tip `2156bed`). **Both are
-   verified ancestors of `origin/main`** — `git merge-base --is-ancestor` says so
-   for each, so deleting them loses nothing. `git push --delete` returns **HTTP
-   403** through this environment's proxy on every attempt while an ordinary
-   `git push origin main` succeeds, so it is a ref-deletion policy rather than a
-   transient failure, and the GitHub MCP surface has no delete-branch tool. The
-   local copies are gone.
+9. **Decide whether `machine` gets an assertion.** Carried from STATE 22 §6.3.
+   The field is inert, which is why three sessions have had to remember not to
+   fake it.
+10. **The stop line stays at −10.45 m and stays red.** STATE 22 §5, untouched by
+    instruction. The measurement that decides it is one line: record
+    `veh.recycled` alongside the vehicle that sets `worstStopLineM`.
+11. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
+    `gateaudit`.** Carried from STATE 21 §9 item 3.
+12. **A bench's BACK faces nowhere in particular.** STATE 22 §1.2. `band.side` is
+    known at the placement and is not read in the yaw.
+13. **STATE 21's off-axis fraction of 0.665 does not reproduce** (the gate prints
+    0.739). STATE 22 §1.4.
+14. **Items 8 and 14 from session 20 — vehicle light signatures and vehicle
+    pop-in — NOT STARTED.** Diagnosis carried.
+15. **`player`'s ceiling at the quiet bar** (STATE 20 §5.3) and **the
+    retroreflective BRDF for the markings** (STATE 21 §5.2, 24× at the standard
+    entrance angle).
+16. **TWO MERGED BRANCHES STILL EXIST ON THE REMOTE.** Checked this session with
+    `git ls-remote`: `claude/generator-occupancy-registry-6pbuer` and
+    `claude/noctis-22-machine-residual-t3u3px` are both still there. Both are
+    verified ancestors of `origin/main`, so deleting them loses nothing.
+    `git push --delete` returns **HTTP 403** through this environment's proxy and
+    the GitHub MCP surface has no delete-branch tool. **Not retried this
+    session** — it needs a click, not a session.
 
 ---
 
 ## 7. KNOWN GAPS CARRIED FORWARD
 
-**Unchanged from s8–s21**: `stats().cutoffM` hard-codes 0.8, the headroom probe
+**Unchanged from s8–s22**: `stats().cutoffM` hard-codes 0.8, the headroom probe
 inert, GPU timer queries advertised and never retiring, `saturation-peak.png`
 overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the sky,
 rain streaks near-invisible wide at night, `rain_spray` 0 static, right turns
@@ -931,23 +687,25 @@ washboard on the water, the quay wall inside the walkable mask, **props absent
 from the walkability mask**, the 3.5°–10.4° route camera pitch, the
 frozen/running A/B, and `downtown_dense`'s mean luminance under its floor.
 
-**Resolved this session**: the kerbside yaw transposition, and with it 52 of the
-60 delivered-census overlaps STATE 21 handed over; the canopy head clearance
-authored in model space, and the other 8; `parsecheck` red on `main`;
-`HEAD_CLEAR_M` as two literals under a comment claiming a check that did not
-exist; `windcheck` producing no verdict at all on a machine without a GPU.
+**Resolved this session**: a HUD ceiling that could not go green in the context
+it was displayed in; the viaduct's deck section ending in mid air above an
+abutment that stopped at the soffit; that abutment and its wing walls standing on
+unclaimed ground; `moving.js`'s `railRiseM` as a second literal under a comment
+claiming a link; the train's turn-round clamp using the body's extent as the
+train's; a launcher that could not find the browser this container has.
 
-**Still red and now diagnosed rather than merely counted**: `occupancy` at 2,
-`prop(container) × site(hoarding)` — §2.4, and §6 item 1.
+**Still red and unchanged**: `occupancy` at 2, `prop(container) × site(hoarding)`
+— STATE 22 §2.4. `minStopLineM` at 0. `floors.visibleInstances` unmeasured.
 
-**New this session, both in CONTRACT §9's table**: a lattice band's fixed axis
-read as the axis the band runs along; a model-space head clearance read as a
-delivered one. Three more are recorded in the code where they live rather than in
-the table, because none of them has yet been shown to cause a delivered defect:
-the `machine` field in `budget.json` that nothing reads; the interior prop
-claim's circumscribing SQUARE, which under-claims a freely-yawed prop by up to
-√2 under a comment calling it conservative; and the hoarding claimed as its panel
-(0.12 m) against feet that reach 0.43 m. **The last two were repaired, measured,
-found to change nothing, and reverted** — §2.4 has the numbers and the reasoning,
-and it is the part of this file most worth reading before touching the registry
-again.
+**New in CONTRACT §9's table**: the vsync-locked frame INTERVAL read as the
+UNLOCKED interval the ceiling was derived for; a viaduct's ABUTMENT — the mass
+under the deck — standing in for its END TREATMENT, so the section above the
+soffit was never closed; the train's BODY LENGTH used as the train's EXTENT in
+the turn-round clamp.
+
+**One thing recorded in the code rather than in the table, because it caused no
+delivered defect**: a comment claiming the default Euler order would rake the
+train in world axes. It would not — at x = 0 both orders are the same matrix. The
+comment was corrected and `trainprobe` carries the refutation (§3.3). It belongs
+here rather than in §9's table because nothing was ever wrong in the frame; what
+was wrong was a claim about what would have been.

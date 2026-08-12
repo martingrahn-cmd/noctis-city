@@ -1104,6 +1104,43 @@ tools/
                          leave the registry byte-identical rather than argued to.
                          Asserts nothing; `citycheck` owns the verdict, the same
                          arrangement `clustercheck` has with `perfcheck`.
+  vsyncprobe.mjs         NOT A GATE. SESSION 23. The HUD's vsync-lock detector
+                         over frame-interval sequences whose answer is known BY
+                         CONSTRUCTION, in both directions (§7.3) — a held 60 Hz
+                         lock, a lock dropping one frame in ten, a held 120 Hz
+                         lock, an unlocked machine inside the ceiling, an
+                         unlocked machine BREACHING it, and a steady GPU-bound
+                         machine that the detector CANNOT tell from a lock and
+                         says so. No browser: the detector is pure and every
+                         input is synthesised. It asserts nothing and must not —
+                         `hud.js` displays, it does not gate, so a gate case
+                         here would be inventing an assertion to have something
+                         to falsify.
+  portalprobe.mjs        NOT A GATE. SESSION 23. Where the viaduct's two ends
+                         land, what the registry says is on that ground, who can
+                         see them, and a `conflict()` sweep of candidate portal
+                         footprints — all printed BEFORE anything is built
+                         there, because session 5 re-aimed a whole arc for want
+                         of exactly this. It is also where the answer *"no gate
+                         camera in this project sees either end"* is a number
+                         rather than an impression: all four routes run down the
+                         main street at |z| <= 3.0 and the ends are 202 m and
+                         224 m off that axis.
+  trainprobe.mjs         NOT A GATE. SESSION 23. The train's section as numbers
+                         — which is how *"the roof cap the brief asked for has
+                         been there since session 21"* became a column rather
+                         than a sentence — and the raked nose's corners against
+                         the two points the design specifies, through the
+                         module's OWN `Matrix4.compose`, swept over four yaws
+                         (§7.3.1). Its negative arms REFUTED the comment they
+                         were written to confirm, which is §7.7 working.
+  lampprobe.mjs          NOT A GATE. SESSION 23. Tree crowns against lamp heads,
+                         and the reason the answer is a count and not a repair:
+                         the `lamppost` PROP the question was asked about is
+                         placed ZERO times over the gate's region, and the 790
+                         lamps that do light this city are emitted by `city.js`
+                         directly and are in NO registry band at all — not their
+                         column, not their head. Measures and stops there.
   queueprobe.mjs         NOT A GATE. SESSION 21. The traffic queue at every
                          junction over several full signal cycles, so the
                          distinction that decides item 5 can be made: a queue
@@ -1787,7 +1824,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 64 so far** — and that numeral is now **generated against, not
+**The 67 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1815,8 +1852,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      64        64
-  every pipe-leading line to EOF        64         —   ← the snippet’s quantity
+  contiguous rows after the header      67        67
+  every pipe-leading line to EOF        67         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1885,6 +1922,9 @@ runs on every invocation.
 | 21 | `riverTouchesChunk`, true for every chunk the 147.6 m **envelope** reaches | which chunk **owns** a bank | both chunk rows furnished both promenades over the same x range, so every quayside in the city was furnished twice by two chunks that could not see each other's props. Found by `prop × prop`, which nothing had ever compared: a bin inside a planter and a cabinet inside a tree. Row 15's promenade-lamp ownership bug, one system over, three sessions later |
 | 22 | a kerb band's **FIXED axis** — `{ axis: 'x', at: b.x0 }`, whose `t0/t1` run over the chunk's **z** range | **the axis the band runs along**, which is the doc comment's own words and the opposite of what the rows say | `kerbRef = band.axis === 'x' ? 0 : 90` — so every kerbside prop on a north–south street was drawn ACROSS its pavement with its end to the road, and every one on an east–west street was drawn across the other way. The two lattice cases are inverted **against each other**, which is why both produce the same defect and no comparison between them could show it. The CLAIM was right all along: `axis === 'x'` claims `claimAt('prop', x, z, halfAcross, halfAlong)` — small on X, long on Z, i.e. exactly yaw 90° — so the generator tested a bench lying along the kerb and `city.js` drew one lying across it. Measured on one delivered bench at (8.097, 76.568): claimed half **(x 0.286, z 0.944)** against delivered **(x 0.935, z 0.252)**, same centre to four decimals, the two boxes each other's transpose to within 0.044 m. **1 134 of 1 596 props over the region**, and it took `citycheck` → `occupancy`'s DELIVERED half from 60 forbidden overlaps to 8 with the generator's half unmoved at 0 |
 | 22 | a canopy mass's clearance over head height **in the model**, authored at scale 1 — broad tree 2.183 m against `HEAD_CLEAR_M` = 2.10, an 83 mm margin | the clearance **as delivered**, at `PROP_SCALE` 0.85–1.25 and the variant's own lean | no delivered tree is at scale 1. The broad tree's lowest foliage hung at **1.856 m** at scale 0.85 and **1.681 m** with its 5° lean — under a person, and 1.4 m under a hauler's roof. `derivePropHalfAcross` therefore called the mass overhead and claimed a trunk's worth of ground while `city.js`'s band split, which reads `lo = e[13] − hy − baseY` off the DELIVERED matrix, called it underfoot and delivered a crown's. Six kerbside trees overlapping their own carriageways, every one at scale 0.863–0.933, the worst by **1.264 m²** — larger than any of the 52 benches in the row above, and invisible until the benches were fixed. The comment over `PROP_MODELS.tree` said *"EVERY CROWN CLEARS `HEAD_CLEAR_M`"* and had no check behind it (§9.1). Repaired on the GEOMETRY — both crowns lifted, 0.50 m and 0.35 m, their internal spread untouched — because moving the test alone would have taken the broad tree's across-pad from 0.363 m to 1.640 m against a 0.650 m kerb and refused every street tree the pavement, which is session 21's own row 21 arriving from the other side |
+| 23 | the frame INTERVAL delivered **under a vsync lock**, `max(work, T)` | the interval **with vsync and the frame-rate limiter disabled**, which is what `budget.json` → `$wallFrameMsP95` says the 12.5 ms ceiling is a ceiling ON, and what `page.mjs` and `perfcheck` both launch with | the operator ran the live build in a browser and read `frame p50 16.7 / 12.5 ms` in red. 16.7 is 60 Hz: under a lock the interval cannot go below `T` however fast the city renders, so that cell was red for EVERY possible state of the world and carried no information about any of them. **The tell was already in the budget file** — `$wallFrameMsP95_rebaseline` records that this ceiling was 16.67 until session 4 and that *"16.67 was the vsync line"*, so the red number on screen is the ceiling's own discarded value. The reading is CENSORED rather than wrong: `m·T` establishes `work` in `((m−1)·T, m·T]`, so a verdict is available exactly when that band lies on one side of the ceiling — no verdict at 60 Hz, **green** at 120 Hz where the lock PROVES the work, **red** on a dropped frame at every rate. No ceiling moved and no gate changed; `perfcheck` still runs unlocked against the same 12.5 |
+| 23 | a viaduct's **ABUTMENT** — the mass the deck bears ON, topping out at `viaductSoffitY` = 18.20 m | its **END TREATMENT**, the thing that closes the line | session 21 built the abutment, the wing walls and two parapet returns and the ends still read as *"a line that has been cut"*. The abutment stops at the soffit by construction, so the deck's own section from 18.20 to 22.20 — box girder, slab, ballast, rail — was never closed: **8.60 m of the deck's 9.50 m width ended in mid air**, framed by two 0.40 m parapet returns whose underside is 21.00 and which therefore FLOAT 2.80 m above the abutment they stand over. A bearing and a portal are different objects and one had been built where the other was wanted. **And the whole mass was claimed by nobody** — `landmarkOccluders` returns a viaduct's legs and its deck segments, so an 18.2 m solid 6.0 × 11.1 m stood at each end on ground the registry had never been told about, which is §9.1's placement rule with a landmark's own geometry. Claiming it refused one building of 367, standing 1.73 m away against a 4.2 m setback |
+| 23 | the train's **BODY LENGTH**, `cars·carLength + (cars−1)·gap` | the train's **EXTENT**, in the turn-round clamp `halfArc − len/2` | the two were the same number for as long as the leading car's end face was the furthest-forward thing on the train, and a raked nose 1.6 m long separated them. Arithmetic both ways: 74.70 m clamps the centre at 202.65, putting the nose tip at **s = 241.60**, which is **1.30 m inside the portal recess built in the same session**; 77.90 m puts it at 240.00, the deck's last station exactly. The defect would have been a train standing inside a wall, arriving from a change to a different object — and it is the shape §9.1 records for `pierEvery`, with a length that stopped meaning what it meant |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:

@@ -51,10 +51,31 @@ export async function startServer(port) {
   return { child, url };
 }
 
+/**
+ * `NOCTIS_CHROMIUM`: an explicit browser binary, for a machine that already has
+ * one at a revision this `playwright` does not expect.
+ *
+ * WHY THIS IS A LAUNCHER DETAIL AND NOT A GATE CHANGE. `playwright` pins a
+ * browser revision and refuses to start when the installed one differs — here,
+ * 1194 present against 1234 expected — and the refusal happens before a single
+ * assertion is reached, so every gate that opens a page reports a missing
+ * executable rather than a verdict about the city. CONTRACT §0.2 is explicit
+ * about what that costs: *"a gate that can never pass produces zero
+ * measurements, and zero measurements is not stricter than imperfect ones — it
+ * is nothing."*
+ *
+ * IT CANNOT MAKE A RED GATE GREEN. The variable chooses which binary runs; it
+ * changes no threshold, no route, no viewport and no argument below. A wrong
+ * binary shows up as a wrong renderer string, which every gate already prints
+ * beside its numbers, and `readRendererString` is how a log says what it was
+ * measured on. Unset — which is every machine that has run this project so far
+ * — nothing changes at all.
+ */
 export function launchBrowser() {
+  const exe = process.env.NOCTIS_CHROMIUM || '';
   return chromium.launch({
     // chrome-headless-shell has no GPU and quietly falls back to SwiftShader.
-    channel: 'chromium',
+    ...(exe ? { executablePath: exe } : { channel: 'chromium' }),
     headless: true,
     args: [
       '--use-angle=metal',

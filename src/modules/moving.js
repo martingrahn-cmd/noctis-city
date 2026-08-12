@@ -63,7 +63,10 @@ import { RENDER } from '../core/constants.js';
  * expression.
  */
 const INTERNAL_LINES = Math.round(Math.sqrt(RENDER.pixels / (16 / 9)));
-import { LANDMARKS, viaductArc, viaductSoffitY, SITE } from '../lib/citygen.js';
+import {
+  LANDMARKS, viaductArc, viaductSoffitY, SITE,
+  VIADUCT_RAIL_RISE_M, VIADUCT_LOADING_GAUGE_M,
+} from '../lib/citygen.js';
 
 /**
  * The train, as numbers.
@@ -86,8 +89,6 @@ const TRAIN = {
   carHeightM: 3.4,
   gapM: 0.9,
   speedMps: 12.0,
-  /** Metres of rail level above the deck slab — `city.js`'s ballast + rail. */
-  railRiseM: 0.62,
   /**
    * Lit windows a side, per car. A metro car has about nine bays a side; six
    * is the count at which the emissive band still reads as separate windows at
@@ -98,10 +99,64 @@ const TRAIN = {
   windowsPerSide: 6,
   windowWidthM: 1.4,
   windowHeightM: 0.95,
+
+  /**
+   * THE RAKED NOSE — SESSION 23, item 3. The operator: *"it would not have hurt
+   * if the train had somewhat softer forms"*; it read as a run of rectangular
+   * boxes.
+   *
+   * OF THE THREE CHANGES THE BRIEF ASKED FOR, ONE WAS ALREADY BUILT AND IS
+   * MEASURED RATHER THAN ADDED AGAIN. The roof cap — *"narrower than the body,
+   * inset a little on each side"* — is the second box of every car and has been
+   * since session 21: `carLengthM * 0.96` long, 0.18 m deep, `carWidthM * 0.9`
+   * wide, i.e. **inset 0.145 m each side and 0.36 m short at each end**. So the
+   * hard upper edge is already broken and adding a second cap would be a box per
+   * car for nothing. `tools/trainprobe.mjs` prints the section so the claim is
+   * checkable rather than asserted.
+   *
+   * WHAT IS ACTUALLY MISSING IS THE NOSE, and it is the one of the three that
+   * reads at distance, because at distance what reads is the silhouette against
+   * the sky. Every number below is bounded by something rather than chosen:
+   *
+   *   overhang 1.6 m   How far the tip projects past the body's end face. It is
+   *                    the DEVIATION FROM A SQUARE CORNER, so it is what has to
+   *                    clear the pixel floor: against the 3 px floor session 20
+   *                    derived for a navigation lamp, at the gate's own
+   *                    6.4765e-4 rad/px, 1.6 m subtends 3 px at **823 m** — past
+   *                    anything in this city and past the car's own §5.12
+   *                    cutoff. The rake reads wherever the train does.
+   *   tip rise 1.1 m   Above rail level. The window band is centred at
+   *                    `carHeightM * 0.62` = 2.108 m with half-height 0.475, so
+   *                    its underside is 1.633 m: the tip sits **0.53 m below the
+   *                    glazing**, which is what puts the driver's screen ON the
+   *                    rake instead of above it. It is also clear of the skirt,
+   *                    whose top is 0.56 m.
+   *   thickness 1.0 m  Back along the raked face's own normal. It puts the
+   *                    wedge's top-rear corner 0.82 m INSIDE the body's end
+   *                    face, so the nose is anchored in the car rather than
+   *                    butted against it — a thin slab would read as a fin from
+   *                    three-quarter view and as a nose only from the side.
+   *
+   * Derived from those three: rise `carHeightM - tipRise` = 2.30 m, face length
+   * `hypot(1.6, 2.30)` = 2.801 m, rake **55.17 deg from horizontal / 34.83 from
+   * vertical**.
+   */
+  noseOverhangM: 1.6,
+  noseTipRiseM: 1.1,
+  noseThickM: 1.0,
 };
 
-/** Boxes per train car: body, roof, skirt, two bogies. */
-const BOXES_PER_CAR = 5;
+/**
+ * Boxes per train car: body, roof cap, skirt, two bogies, and the nose.
+ *
+ * THE NOSE ROW IS ALLOCATED ON EVERY CAR AND DRAWN ON TWO. A unit has a cab at
+ * each end and nowhere else, so cars 0 and `cars-1` carry one and the middle
+ * cars park theirs at zero scale — the same thing this module already does with
+ * every row no crane used this frame. A per-car row count that varied by
+ * position would make `bodyCount` depend on the car index, and the census label
+ * `citycheck` asserts against is a single number.
+ */
+const BOXES_PER_CAR = 6;
 /** Emissive rows per car: `windowsPerSide` a side, plus one headlamp. */
 const LIGHTS_PER_CAR = TRAIN.windowsPerSide * 2 + 1;
 
@@ -186,9 +241,33 @@ export function createMoving() {
    * previous transform equal to its current one, which is what a teleport and a
    * sub-threshold row both need (CONTRACT §5.12).
    */
-  function setRow(arr, motion, row, x, y, z, yaw, sx, sy, sz, carry) {
+  function setRow(arr, motion, row, x, y, z, yaw, sx, sy, sz, carry, rake = 0) {
     pos.set(x, y, z);
-    eul.set(0, yaw, 0);
+    /**
+     * `rake` TILTS THE BOX ABOUT ITS OWN TRANSVERSE AXIS. A `BoxGeometry(1,1,1)`
+     * scaled by `(length, height, width)` has its length on local X and its
+     * width on local Z, so **Z is the axis that lifts the nose** — the whole of
+     * the correctness is choosing that slot rather than the Euler order.
+     *
+     * THE ORDER IS WRITTEN OUT ANYWAY, AND THE FIRST VERSION OF THIS COMMENT WAS
+     * WRONG ABOUT WHY. It claimed the default `'XYZ'` would put the rake in
+     * world axes and rake the train differently at every point on the curve.
+     * `tools/trainprobe.mjs` was written to demonstrate that and REFUTED IT:
+     * the error under `'XYZ'` is 0.0000 m at every yaw, identical to `'YXZ'`.
+     * The reason is one line of algebra that the comment asserted past — with
+     * the X component zero, `'XYZ'` composes `Rx(0)·Ry·Rz` and `'YXZ'` composes
+     * `Ry·Rx(0)·Rz`, and both are `Ry(yaw)·Rz(rake)`. An Euler order can only
+     * matter when at least two components are non-zero.
+     *
+     * So `'YXZ'` is kept for what it will mean rather than for what it means
+     * today: the moment anything sets the X slot — a gradient on the deck, a
+     * cant through a curve — `Ry·Rx·Rz` is the order that keeps the rake in the
+     * car's frame and the default stops being equivalent. The probe carries the
+     * arm that would catch it, and it carries the refutation too, because
+     * CONTRACT §7.7 says an expectation that moves to match the instrument must
+     * say which of the two was wrong. Here it was the comment.
+     */
+    eul.set(0, yaw, rake, 'YXZ');
     quat.setFromEuler(eul);
     scl.set(sx, sy, sz);
     m4.compose(pos, quat, scl);
@@ -211,7 +290,7 @@ export function createMoving() {
        * CONTRACT §9's shape with two datums, and session 19 spent a whole item
        * on exactly that.
        */
-      deckY = viaduct.height + TRAIN.railRiseM;
+      deckY = viaduct.height + VIADUCT_RAIL_RISE_M;
 
       group = new THREE.Group();
       group.name = 'moving';
@@ -272,7 +351,30 @@ export function createMoving() {
       bodyMotion = createInstanceMotion(bodyCount, 'moving:bodies');
       lightMotion = createInstanceMotion(lightCount, 'moving:lights');
 
-      const trainLen = TRAIN.cars * TRAIN.carLengthM + (TRAIN.cars - 1) * TRAIN.gapM;
+      /**
+       * THE TRAIN'S LENGTH NOW INCLUDES ITS NOSES, AND THAT IS NOT BOOKKEEPING.
+       *
+       * `tr.len` is used for exactly one thing: the turn-round clamp,
+       * `halfArc - len/2`, i.e. *"stop when the train reaches the end of the
+       * deck"*. Before the nose existed, the body's end face WAS the train's
+       * extent and the two were the same number. They are not any more, and
+       * leaving this as the body length would be a quantity computed correctly
+       * and then used as a different one (CONTRACT §9): the extent of the BODY
+       * standing in for the extent of the TRAIN.
+       *
+       * It is load-bearing rather than pedantic, because the portal built this
+       * session is 1.6 m from where the body used to stop. Arithmetic, both
+       * ways: body length 74.70 m clamps the centre at 202.65, putting the
+       * leading car's centre at 231.00 and its BODY face at s = 240.00 — the
+       * deck's last station exactly — and its nose tip at **241.60, which is
+       * 1.30 m inside the portal's recess**. With the noses counted, 77.90 m
+       * clamps the centre at 201.05, the leading car's centre at 229.40, and the
+       * NOSE TIP at s = 240.00. The train noses up to the portal and stops,
+       * which is what it should have been doing all along and what the reader
+       * now sees it do.
+       */
+      const trainLen = TRAIN.cars * TRAIN.carLengthM + (TRAIN.cars - 1) * TRAIN.gapM
+        + 2 * TRAIN.noseOverhangM;
       for (let t = 0; t < TRAIN.trains; t++) {
         trains.push({
           /**
@@ -303,6 +405,26 @@ export function createMoving() {
         `${deckY.toFixed(2)} m; up to ${MAX_CRANES} cranes slewing at ` +
         `${(360 / SITE.slewPeriodS).toFixed(2)} deg/s. §5.12 cutoffs: car ${stats.carCutoffM} m, ` +
         `jib ${stats.jibCutoffM} m, hook ${stats.hookCutoffM} m`
+      );
+      /**
+       * THE CAR AGAINST THE PORTAL'S STRUCTURE GAUGE — CONTRACT §9 rule 4, both
+       * numbers, at the point of USE rather than the point of derivation.
+       *
+       * `citygen.VIADUCT_LOADING_GAUGE_M` is what `viaductEnds` sizes the portal
+       * opening from, and this is the vehicle it was sized for. They are in two
+       * files and neither imports the other's intent, so a car grown past the
+       * gauge would intersect a portal in silence — the arrangement `pierEvery:
+       * 34` sat in beside `i % 3 === 0`. Printed, it says so at boot.
+       */
+      const carTopAboveRail = TRAIN.carHeightM + 0.09 + 0.18 / 2;
+      ctx.log(
+        `moving: car reaches ${carTopAboveRail.toFixed(2)} m above rail (body ${TRAIN.carHeightM} ` +
+        `+ roof cap) against the viaduct's ${VIADUCT_LOADING_GAUGE_M} m structure gauge — ` +
+        `${(VIADUCT_LOADING_GAUGE_M - carTopAboveRail).toFixed(2)} m clear` +
+        `${carTopAboveRail > VIADUCT_LOADING_GAUGE_M ? '  ** OVER GAUGE **' : ''}. ` +
+        `Nose: ${TRAIN.noseOverhangM} m overhang, tip ${TRAIN.noseTipRiseM} m, rake ` +
+        `${((Math.atan2(TRAIN.carHeightM - TRAIN.noseTipRiseM, TRAIN.noseOverhangM) * 180) / Math.PI).toFixed(2)} deg ` +
+        `from horizontal; train extent ${trainLen.toFixed(2)} m including both noses`
       );
 
       group.add(bodyMesh);
@@ -373,6 +495,51 @@ export function createMoving() {
             const bx = x + Math.cos(yaw) * b * TRAIN.carLengthM * 0.32;
             const bz = z - Math.sin(yaw) * b * TRAIN.carLengthM * 0.32;
             setRow(bodyArr, bodyMotion, bodyRow++, bx, deckY - 0.18, bz, yaw, 3.0, 0.5, TRAIN.carWidthM * 0.7, carry);
+          }
+
+          /**
+           * THE NOSE. One raked slab at the outer end of each END car; the
+           * middle cars park the row at zero scale.
+           *
+           * `face` is which end of the unit this car is, in the car's own local
+           * +X: car 0 looks backward along the body axis and the last car looks
+           * forward. It is NOT `tr.dir` — a unit has a cab at each end whichever
+           * way it is running, and keying this off the direction of travel would
+           * move the nose from one end to the other every time a train turned
+           * round, which is the one thing a cab does not do.
+           */
+          const face = c === 0 ? -1 : c === TRAIN.cars - 1 ? +1 : 0;
+          if (face === 0) {
+            setRow(bodyArr, bodyMotion, bodyRow++, 0, -1000, 0, 0, 0, 0, 0, true);
+          } else {
+            const rise = TRAIN.carHeightM - TRAIN.noseTipRiseM;
+            const faceLen = Math.hypot(TRAIN.noseOverhangM, rise);
+            /**
+             * The rake, measured from horizontal and signed by which end it is
+             * on. `Rz` takes local +X to `(cos, sin)`, so the roof-to-tip
+             * direction `(+overhang, -rise)` on the forward end is an angle of
+             * `-atan2(rise, overhang)`, and the rear end is its mirror.
+             */
+            const rakeSign = -face;
+            const rake = rakeSign * Math.atan2(rise, TRAIN.noseOverhangM);
+            /**
+             * The slab's centre: the midpoint of the raked face, pushed back
+             * along that face's own inward normal by half the thickness, so the
+             * FACE lands where it was designed to and the mass sits behind it.
+             * Computed in the car's local (along, up) frame and then rotated
+             * into world XZ by the car's yaw — one basis change, at the end.
+             */
+            const midAlong = face * (TRAIN.carLengthM / 2 + TRAIN.noseOverhangM / 2);
+            const midUp = TRAIN.noseTipRiseM + rise / 2;
+            /** Outward unit normal of the raked face, in (along, up). */
+            const nAlong = (face * rise) / faceLen;
+            const nUp = TRAIN.noseOverhangM / faceLen;
+            const along = midAlong - nAlong * (TRAIN.noseThickM / 2);
+            const up = midUp - nUp * (TRAIN.noseThickM / 2);
+            const nx2 = x + Math.cos(yaw) * along;
+            const nz2 = z - Math.sin(yaw) * along;
+            setRow(bodyArr, bodyMotion, bodyRow++, nx2, deckY + up, nz2, yaw,
+              faceLen, TRAIN.noseThickM, TRAIN.carWidthM * 0.94, carry, rake);
           }
           for (let i = 0; i < BOXES_PER_CAR; i++) {
             const r = bodyRow - BOXES_PER_CAR + i;

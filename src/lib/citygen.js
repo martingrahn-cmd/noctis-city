@@ -2382,6 +2382,161 @@ export function viaductSoffitY(l) {
   return l.height - VIADUCT_SLAB_THICK_M - VIADUCT_BOX_DEPTH_M;
 }
 
+/**
+ * Metres of ballast and rail above the deck slab.
+ *
+ * `city.js` lays the trough at `slabTop + 0.22` half-depth 0.22 and the rail at
+ * `slabTop + 0.53` half-depth 0.09, so rail level is `0.53 + 0.09` = 0.62 above
+ * the slab. `moving.js` carried the same 0.62 as its own literal under the
+ * comment *"`city.js`'s ballast + rail"* — a comment claiming a link with no
+ * link, which is CONTRACT §9.1's variant and is what `ROOF_PARAPET_M` was two
+ * sessions ago. It is one number here now and three things read it.
+ */
+export const VIADUCT_RAIL_RISE_M = 0.62;
+
+/**
+ * THE STRUCTURE GAUGE: metres above RAIL LEVEL that must stay clear of
+ * structure, so that anything running on this deck passes anything built over
+ * it. Session 23.
+ *
+ * §9 rule 5 forbids a number without a derivation, and this one is a BUDGET
+ * rather than a measurement, so here is what the world has to be like for it to
+ * be right. The tallest thing on this deck is `moving.js`'s train: a 3.40 m car
+ * with a 0.18 m roof cap whose upper face sits 0.09 m proud, i.e. **3.58 m
+ * above rail level**. 4.20 leaves **0.62 m** over it — which is exactly one
+ * `VIADUCT_RAIL_RISE_M`, i.e. this deck could be re-ballasted from bare slab to
+ * its present rail level a second time and the same train would still pass
+ * under the same portal. A gauge that only just clears today's vehicle is a
+ * gauge that has to be rebuilt when the vehicle changes.
+ *
+ * `moving.js` prints its own car against this at init (§9 rule 4: when a number
+ * is derived from another, print both) so a train grown past it says so in the
+ * boot log rather than intersecting a portal in silence.
+ */
+export const VIADUCT_LOADING_GAUGE_M = 4.2;
+
+/**
+ * THE END TREATMENT — WHERE THE LINE STOPS, AND WHAT IT STOPS AGAINST.
+ * SESSION 23, item 2. One pure function, so `city.js` DRAWS what this DECIDES
+ * and `generateChunk` CLAIMS the same boxes — the arrangement `viaductPiers`
+ * already has, for the reason session 5's three-copies-of-one-curve gave.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT WAS THERE, MEASURED BEFORE ANYTHING WAS ADDED (`tools/portalprobe.mjs`).
+ *
+ * Session 21 put an abutment at each end and the operator still reads the ends
+ * as *"a line that has been cut rather than a line that goes somewhere"*. The
+ * brief called them unbuilt; they are not, and the real defect is sharper than
+ * that. **The abutment tops out at `viaductSoffitY` = 18.20 m, which is exactly
+ * the soffit** — it is a BEARING, the thing the deck sits on, and nothing rises
+ * past the deck to close it. The section above it:
+ *
+ *     18.20 -> 20.10   box girder        cut off in mid air
+ *     20.10 -> 21.00   slab              cut off in mid air
+ *     21.00 -> 21.62   ballast and rail  cut off in mid air
+ *     21.00 -> 22.20   parapet RETURNS   0.40 m thick, at +/-4.50 m across,
+ *                                        FLOATING 2.80 m over the abutment
+ *
+ * So 8.60 m of the deck's 9.50 m width ends in nothing, framed by two thin
+ * walls with a 2.80 m air gap under them. That is the cross-section the
+ * operator is looking at.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT IS ADDED: A PORTAL HEAD ON THE ABUTMENT ALREADY THERE, AND EVERY
+ * DIMENSION COMES FROM SOMETHING THAT WAS ALREADY DECIDED.
+ *
+ *   opening half-width  `l.deck / 2` = 4.75 — THE DECK'S OWN HALF-WIDTH, so
+ *       everything on the deck passes through by construction. The widest thing
+ *       on it is the parapet, outer face `l.deck/2 - 0.25 + 0.2` = 4.70, which
+ *       clears the jamb by **0.05 m**. That is a structure gauge and it is how
+ *       a real portal is set out.
+ *   opening top         `l.height + VIADUCT_RAIL_RISE_M + VIADUCT_LOADING_GAUGE_M`
+ *       = 21.00 + 0.62 + 4.20 = **25.82 m**.
+ *   head top            **27.20 m**, which is `l.height + 3.1 + 6.2/2` — THE TOP
+ *       OF THE CATENARY MASTS ALREADY STANDING ON THIS DECK. So the portal adds
+ *       exactly zero new height to the viaduct's silhouette, and the lintel is
+ *       whatever that leaves over the gauge: 27.20 - 25.82 = **1.38 m**.
+ *   footprint           the abutment's own, unchanged: 6.0 m along the deck,
+ *       11.1 m across. The head CLAIMS NO GROUND THE MASS UNDER IT WAS NOT
+ *       ALREADY STANDING ON.
+ *
+ * THE PARAPET RETURNS ARE REMOVED RATHER THAN KEPT. Their own comment says they
+ * exist *"so the deck edge does not simply stop in the air"* and a portal is the
+ * thing that actually achieves that; kept, they would float inside the opening
+ * and break the recess. Burying them inside the jambs instead was the other
+ * option and it is the failure CONTRACT §9.1 records under *"geometry authored
+ * and then drawn inside something else"* — five vehicle skirts, invisible,
+ * counted by every gate. Net: **-2 boxes and +4 boxes per end.**
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * AND THE CLAIM, WHICH IS THE HALF THAT DID NOT EXIST AT ALL.
+ *
+ * `landmarkOccluders` returns the viaduct's LEGS and its DECK segments. The
+ * abutment and the wing walls are in neither, so an 18.2 m solid 6.0 x 11.1 m
+ * has stood at each end since session 21 **on ground the registry has never
+ * been told about** — CONTRACT §9.1's placement rule, with the landmark's own
+ * geometry instead of a prop's. `generateChunk` now claims this box before the
+ * roads and the buildings are laid, so both are refused against it rather than
+ * drawn through it.
+ */
+export function viaductEnds(arc, l) {
+  const soffitY = viaductSoffitY(l);
+  const halfDeck = l.deck / 2;
+  /** Session 21's abutment, unchanged. Its inner face is the deck's last station. */
+  const abutDepth = 6.0;
+  const abutHalfAcross = halfDeck + 0.8;
+  /** Session 21's wing walls, unchanged. They reach furthest across, so they set the claim. */
+  const wingHalfAcross = halfDeck + 1.6;
+  const wingHalfT = 0.5;
+
+  const openHalfAcross = halfDeck;
+  const openTop = l.height + VIADUCT_RAIL_RISE_M + VIADUCT_LOADING_GAUGE_M;
+  /** The catenary mast's own top, so the portal adds no new silhouette height. */
+  const headTop = l.height + 3.1 + 6.2 / 2;
+  /** A reveal, so the jamb and lintel edges catch light and the hole sits behind them. */
+  const reveal = 0.30;
+
+  const out = [];
+  for (const station of [arc.stations[0], arc.stations[arc.stations.length - 1]]) {
+    const c = Math.cos((station.yawDeg * Math.PI) / -180);
+    const sn = Math.sin((station.yawDeg * Math.PI) / -180);
+    /** Outward along the deck, away from the crown. */
+    const sgn = station.s < 0 ? -1 : 1;
+    const ox = c * sgn;
+    const oz = sn * sgn;
+    const cx = station.x + ox * (abutDepth / 2);
+    const cz = station.z + oz * (abutDepth / 2);
+    /**
+     * The claim is the WORLD AABB of the whole end treatment — abutment, wings
+     * and head — and it is deliberately the conservative shape. The registry is
+     * axis-aligned, so a rotated box has to be covered by one; over-claiming
+     * shows up as a spurious conflict a reader can see and under-claiming shows
+     * up as nothing at all, which is `occupancy.js`'s own argument for why a
+     * missing height defaults to a surface.
+     */
+    const ha = abutDepth / 2;
+    const hc = wingHalfAcross + wingHalfT;
+    const hx = ha * Math.abs(ox) + hc * Math.abs(oz);
+    const hz = ha * Math.abs(oz) + hc * Math.abs(ox);
+    out.push({
+      station, sgn, yawDeg: station.yawDeg,
+      /** Unit vector along the deck, pointing away from the crown. */
+      outward: [ox, oz],
+      /** Centre of the whole end treatment, on the deck's own centreline. */
+      x: cx, z: cz,
+      abutDepth, abutHalfAcross, abutTop: soffitY,
+      wingHalfAcross, wingHalfT, wingTop: soffitY * 0.72, wingDepth: 5.2,
+      openHalfAcross, openTop, headTop, reveal,
+      /** Jamb: from the opening's edge out to the abutment's, one each side. */
+      jambHalfAcross: (abutHalfAcross - openHalfAcross) / 2,
+      jambCentreAcross: (abutHalfAcross + openHalfAcross) / 2,
+      /** The AABB the registry is given. */
+      claim: { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, top: headTop },
+    });
+  }
+  return out;
+}
+
 /** Which chunk a landmark's centre falls in. */
 export function landmarkChunk(l) {
   return [Math.floor(l.x / CITY.chunkSize), Math.floor(l.z / CITY.chunkSize)];
@@ -3402,6 +3557,44 @@ export function generateChunk(rootSeed, cx, cz) {
     if (l.kind === 'viaduct') {
       for (const g of landmarkGroundBlockers(l)) {
         reg.claim(claimBox('landmark', g.x0, g.z0, g.x1, g.z1, { y0: 0, y1: g.top, owner: `${l.name}:leg` }));
+      }
+      /**
+       * THE END TREATMENT, CLAIMED — SESSION 23, item 2, and it is a claim that
+       * did not exist rather than one that was wrong.
+       *
+       * `landmarkOccluders` returns a viaduct's legs and its deck segments.
+       * Session 21's abutment and wing walls are in neither list, so an 18.2 m
+       * solid 6.0 x 11.1 m has stood at each end on ground nothing tested —
+       * CONTRACT §9.1's *"anything placed procedurally is tested against the
+       * existing occupancy, or it is not placed"* with a landmark's own geometry.
+       *
+       * TESTED BEFORE IT IS CLAIMED, AND REFUSED RATHER THAN MOVED, which is
+       * the park railings' pattern (`if (reg.conflict(box)) continue`). Moving
+       * it is not available: an end treatment's whole job is to be where the
+       * deck stops, and a portal 8 m along the arc from the last station is a
+       * shed in a field. So the honest failure is to build nothing there and
+       * leave the cut end visible, which a reader can see, rather than to
+       * quietly slide a 27 m mass into a building.
+       *
+       * IT IS CLAIMED HERE, BEFORE THE ROADS AND THE BUILDINGS. That ordering
+       * is the point: `landmark` conflicts with `building`, `carriageway`,
+       * `pavement`, `prop` and five more, so laying it down first makes every
+       * one of those refuse ITSELF against the portal. Claimed afterwards it
+       * would only ever report a collision somebody else had already committed.
+       *
+       * Measured at seed 1337 over the gate's own region before it was built
+       * (`tools/portalprobe.mjs`): free at both ends, and the binding
+       * constraint at END A is a 46.4 m building 10.44 m away — free to 8 m of
+       * depth and 14.0 m of width, refused at 10 m and 16.0 m. The delivered
+       * box is 6.0 x 13.7 m, so it clears by 2 m of depth and 0.3 m of width.
+       * END B is free to 20 m and 18 m; its nearest forbidden claim is a
+       * planter at 13.01 m.
+       */
+      for (const e of viaductEnds(viaductArc(l), l)) {
+        const box = claimBox('landmark', e.claim.x0, e.claim.z0, e.claim.x1, e.claim.z1,
+          { y0: 0, y1: e.claim.top, owner: `${l.name}:end` });
+        if (reg.conflict(box)) continue;
+        reg.claim(box);
       }
     }
     /**
