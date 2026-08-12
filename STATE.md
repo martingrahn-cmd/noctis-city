@@ -342,6 +342,28 @@ build nothing there and leave the cut end visible — which a reader can see —
 rather than to slide a 27 m mass quietly into a building. **Both ends were
 claimed; neither was refused.**
 
+**AND THE `conflict()` CALL ITSELF IS INERT TODAY. That is CONTRACT §7.1's own
+subject and it is written down rather than left to be discovered.** At that
+point in `generateChunk` the registry holds only `block`, `water` and the
+landmarks and decks already walked, and the table permits `landmark` against
+**all four**:
+
+```
+landmark x block     PERMITTED
+landmark x water     PERMITTED
+landmark x landmark  PERMITTED
+landmark x deck      PERMITTED
+```
+
+So there is no claim in existence that this test could reject. **The work is
+done by the ORDERING, not by the guard** — laying the portal down before the
+roads and the buildings is what refuses the one building. The guard is kept for
+a future in which one of those four pairs becomes forbidden or an end moves into
+water, and **the measurement that actually decided the placement is
+`tools/portalprobe.mjs`**, which sweeps candidate footprints against the full
+region registry with the buildings in it (§2.2). A `conflict()` that cannot fire
+is not a test, and calling it one would be the thing this project keeps finding.
+
 ### 2.5 (c) The cost, measured against `main`
 
 ```
@@ -489,13 +511,32 @@ carHeight)` — to **1.83e-15 m** over four yaws and both faces.
 
 - **Roof cap: already exists** (§3.1). Building it would have been a box per car
   for a property the car already has.
-- **Shoulder chamfer: HELD, and honestly held.** The brief's instruction was to
-  do the nose first and *look at it* before the other two. **I could not look at
-  it properly on this machine** — see §5 — so the honest state is that the nose
-  is built and verified geometrically and the judgement the brief asked for has
-  not been made. It is next session's first call, and it is a one-line decision
-  once somebody has a frame: **if the nose alone settles it, the chamfer is cost
-  without benefit and should be written off rather than deferred again.**
+- **Shoulder chamfer: HELD, AND THE REASON IS A FAILURE RATHER THAN A JUDGEMENT.**
+  The brief's instruction was to do the nose first and *look at it* before the
+  other two. **The frame did not come back. Twice.**
+
+  ```
+  attempt 1  --pos=70,1.74,0.9 --target=0,23,11 --fov=52   died: execution
+             context destroyed. windcheck was running beside it on four cores
+             and died in the same minute, so contention was the obvious cause
+  attempt 2  the same pose, ALONE                          died the same way,
+             inside lookat.mjs's own waitForCity loop
+  ```
+
+  **The second attempt refutes the first explanation, and that is the useful
+  part.** With the machine to itself it still died, so this is not contention:
+  the `viaduct-street` pose looks into the origin block, which is the densest
+  scene this project has, and the SwiftShader renderer loses its context
+  streaming it. **The END B portal frame at the city's edge came back from the
+  same tool on the same machine minutes earlier** (§5), which is the control —
+  the tool works, the pose is what it cannot survive.
+
+  So: the nose is built, and verified as geometry to 1.83e-15 m against its own
+  design points at four yaws, and **the judgement the brief actually asked for
+  has not been made.** That is reported as not-made rather than assumed. It is
+  next session's second item and it is a one-line decision once somebody has a
+  frame: **if the nose alone settles it, the chamfer is cost without benefit and
+  should be written off rather than deferred a third time.**
 
 ---
 
@@ -643,59 +684,66 @@ and was not run for want of wall-clock.
 1. **`windcheck` DID NOT FINISH AND IT IS THE GATE THIS SESSION'S GEOMETRY MOST
    OWES.** §5. Four portal boxes an end and a raked nose row a car are new
    geometry, and the census is the thing that says nothing is inside out. It
-   reached three of six eyes before the renderer's execution context was
-   destroyed — with a `lookat` capture running beside it on four cores, which is
-   the likely cause. **Run it alone.** Nothing about it needs a GPU (STATE 22
-   §3.1); it needs the machine to itself.
-2. **JUDGE THE TRAIN'S SILHOUETTE.** §3.4. The nose is built and verified as
-   geometry to 1.83e-15 m, and the brief's actual instruction — look at it, then
-   decide whether the other two changes are worth their boxes — is the part this
-   session could not complete. `node tools/lookat.mjs --pos=70,1.74,0.9
+   reached three of six eyes (354 / 481 / 397 meshes) before the renderer's
+   execution context was destroyed. Nothing about it needs a GPU (STATE 22
+   §3.1) — it needs a machine that can stream the origin block without losing
+   the context, which this one demonstrably cannot at every pose (§3.4).
+2. **JUDGE THE TRAIN'S SILHOUETTE — the frame failed twice and the nose has
+   never been seen.** §3.4. `node tools/lookat.mjs --pos=70,1.74,0.9
    --target=0,23,11 --fov=52` catches a train near the crown (train 1 starts at
-   s = 0 at boot). **If the nose alone settles it, the shoulder chamfer is cost
-   without benefit and should be written off rather than deferred a third time.**
-2. **THE 790 LAMPS ARE IN NO REGISTRY BAND AT ALL.** §4.1. Not their column, not
+   s = 0 at boot) and is the pose that died. On a real GPU it is seconds. **If
+   the nose alone settles it, the shoulder chamfer is cost without benefit and
+   should be written off rather than deferred a third time.**
+3. **THE SWIFTSHADER CONTEXT LOSS HAS A SHAPE NOW, AND IT IS WORTH ONE
+   PARAGRAPH.** Three runs died on `Execution context was destroyed` this
+   session and one succeeded. The one that succeeded — the END B portal, at the
+   city's edge — and the two that failed at the origin block are the same tool,
+   the same machine and the same viewport. **It is the scene, not the load and
+   not the tool.** Session 21 hit it twice and called it the machine; this is
+   the first run that separates the two. A capture at the edge of the region is
+   worth trying before concluding a tool is broken here.
+4. **THE 790 LAMPS ARE IN NO REGISTRY BAND AT ALL.** §4.1. Not their column, not
    their head. A column 1.3 m outside the kerb is something a prop, a tree or a
    sign could be placed straight through and nothing would report it. Ask of
    `prop × lamp column` the question this session asked of
    `canopy × lamp head` — `tools/lampprobe.mjs` already builds the lattice.
-3. **`PROP_MODELS.lamppost` is placed zero times over the gate's region.** §4.1.
+5. **`PROP_MODELS.lamppost` is placed zero times over the gate's region.** §4.1.
    Either it should reach the street scatter or it is dead content; both are
    decisions, and today it is neither.
-4. **THE TWO CONTAINERS ON A HOARDING'S FOOT — `citycheck` is still red at 2.**
+6. **THE TWO CONTAINERS ON A HOARDING'S FOOT — `citycheck` is still red at 2.**
    Carried from STATE 22 §2.4 unchanged. `node tools/benchprobe.mjs --limit=8` is
    one command. **Two repairs were built, measured, found to change nothing, and
    reverted — read STATE 22 §2.4 before rebuilding either.**
-5. **`floors.visibleInstances` and `drawCalls` on a real route.** Counts, so they
+7. **`floors.visibleInstances` and `drawCalls` on a real route.** Counts, so they
    need no quiet machine, but they need a route `perfcheck` can finish. This
    session removed one building of 367 (§2.5) and that number is the one it
    would show up in.
-6. **The saturation reserve, still unmeasured.** STATE 20 recorded 1.53 points of
+8. **The saturation reserve, still unmeasured.** STATE 20 recorded 1.53 points of
    margin. The train's lit windows and the crane's obstruction light have never
    been measured against it; this session's nose adds no emissive at all (§3.2),
    so the question is unchanged rather than worse.
-7. **`faultcheck`, `lookcheck` and `citycheck`'s saturation all need a GPU.** §5.
-8. **The machine, and it is now the fourth session asking.** `budget.json` →
+9. **`faultcheck`, `lookcheck` and `citycheck`'s saturation all need a GPU.** §5.
+10. **The machine, and it is now the fourth session asking.** `budget.json` →
    `machine.series.m5` is an empty slot with the three steps that fill it.
    Nothing in this project has a millisecond measured after session 20.
-9. **Decide whether `machine` gets an assertion.** Carried from STATE 22 §6.3.
+11. **Decide whether `machine` gets an assertion.** Carried from STATE 22 §6.3.
    The field is inert, which is why three sessions have had to remember not to
    fake it.
-10. **The stop line stays at −10.45 m and stays red.** STATE 22 §5, untouched by
+12. **The stop line stays at −10.45 m and stays red.** STATE 22 §5, untouched by
     instruction. The measurement that decides it is one line: record
     `veh.recycled` alongside the vehicle that sets `worstStopLineM`.
-11. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
+13. **`index.html`'s `#bootfail` still has not been through `lookcheck` or
     `gateaudit`.** Carried from STATE 21 §9 item 3.
-12. **A bench's BACK faces nowhere in particular.** STATE 22 §1.2. `band.side` is
+14. **A bench's BACK faces nowhere in particular.** STATE 22 §1.2. `band.side` is
     known at the placement and is not read in the yaw.
-13. **STATE 21's off-axis fraction of 0.665 does not reproduce** (the gate prints
+15. **STATE 21's off-axis fraction of 0.665 does not reproduce** (the gate prints
     0.739). STATE 22 §1.4.
-14. **Items 8 and 14 from session 20 — vehicle light signatures and vehicle
+16. **Items 8 and 14 from session 20 — vehicle light signatures and vehicle
     pop-in — NOT STARTED.** Diagnosis carried.
-15. **`player`'s ceiling at the quiet bar** (STATE 20 §5.3) and **the
+17. **`player`'s ceiling at the quiet bar** (STATE 20 §5.3) and **the
     retroreflective BRDF for the markings** (STATE 21 §5.2, 24× at the standard
     entrance angle).
-16. **TWO MERGED BRANCHES STILL EXIST ON THE REMOTE.** Checked this session with
+18. **TWO MERGED BRANCHES STILL EXIST ON THE REMOTE.** Checked this session with
     `git ls-remote`: `claude/generator-occupancy-registry-6pbuer` and
     `claude/noctis-22-machine-residual-t3u3px` are both still there. Both are
     verified ancestors of `origin/main`, so deleting them loses nothing.

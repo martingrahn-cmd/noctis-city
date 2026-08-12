@@ -3577,10 +3577,27 @@ export function generateChunk(rootSeed, cx, cz) {
        * quietly slide a 27 m mass into a building.
        *
        * IT IS CLAIMED HERE, BEFORE THE ROADS AND THE BUILDINGS. That ordering
-       * is the point: `landmark` conflicts with `building`, `carriageway`,
-       * `pavement`, `prop` and five more, so laying it down first makes every
-       * one of those refuse ITSELF against the portal. Claimed afterwards it
-       * would only ever report a collision somebody else had already committed.
+       * is what does the work: `landmark` conflicts with `building`,
+       * `carriageway`, `pavement`, `prop` and five more, so laying it down
+       * first makes every one of those refuse ITSELF against the portal.
+       * Claimed afterwards it could only ever report a collision somebody else
+       * had already committed. Measured: it refuses exactly one building of
+       * 367, standing 1.73 m from session 21's abutment against the 4.2 m
+       * face-to-face setback the pair carries.
+       *
+       * **AND THE `conflict()` CALL ITSELF IS INERT TODAY, WHICH IS SAID HERE
+       * RATHER THAN LEFT FOR A READER TO DISCOVER.** At this point in
+       * `generateChunk` the registry holds only `block`, `water` and the
+       * landmarks and decks already walked, and the table permits `landmark`
+       * against **all four** — so there is no claim in existence that this test
+       * could reject. It is a guard that cannot currently fire, which is
+       * CONTRACT §7.1's own subject, and it is kept for two reasons that are
+       * both about a future rather than about now: the day one of those four
+       * pairs becomes forbidden, and the day an end moves somewhere a `water`
+       * or `block` claim reaches. **The measurement that actually decided this
+       * placement is `tools/portalprobe.mjs`**, which sweeps candidate
+       * footprints against the FULL region registry — buildings included — and
+       * is where END A's refusal at 10 m of depth comes from.
        *
        * Measured at seed 1337 over the gate's own region before it was built
        * (`tools/portalprobe.mjs`): free at both ends, and the binding
