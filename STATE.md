@@ -32,6 +32,12 @@ where every threshold in the project came from and whether any run could make it
   false on every run this project has recorded, and the fallback that runs instead
   — `headroomProbe.requireP95MsBelow` — is **16.67, the 60 Hz vsync line**, applied
   to a CPU time. Neither carries a derivation. **Recorded, not moved.** §2.3.
+- ***And the stop line is not what three sessions have said it is.*** Traffic runs
+  headlessly now, so the measurement STATE 22 and 24 both deferred was finally
+  taken: over 11 538 frames, **not one held vehicle is ever standing inside a
+  junction box.** The proposed repair — a reservation on the junction EXIT —
+  addresses a case that **occurs zero times**. 26% of the figure is the vehicle
+  recycler. **No traffic behaviour was changed.** §3.
 
 Read `CONTRACT.md` before this file, and before any source file.
 
@@ -80,7 +86,7 @@ this session repaired.
 ### 0.2 What ran
 
 ```
-✓ parsecheck                88 files, syntactically complete and contract-clean
+✓ parsecheck                89 files, syntactically complete and contract-clean
 ✓ citycheck --falsify       56/56 cases rejected, 56 failure sites, coverage 100%
 ✓ generator half            5 364 claims over the gate's own region, 0 forbidden
                             overlaps — BYTE-IDENTICAL to session 24's figure
@@ -89,6 +95,8 @@ this session repaired.
 ✓ claimprobe                NEW. The building claim in plan and in height. §1
 ✓ budgetaudit               NEW. Every floor and ceiling, its derivation, its
                             readers. §2
+✓ stoplineprobe             NEW. 160 vehicles, 216 simulated seconds, six signal
+                            cycles, in node with no browser. §3
 GATE-RUNS-NEEDING-A-BROWSER — see §4.
 ```
 
@@ -509,38 +517,119 @@ drifted run, which is CONTRACT §0.1's original incident with the sign reversed 
 
 ---
 
-## 3. THE STOP LINE — NOT STARTED, AND THE REASON IS THE BRIEF'S OWN RULE
+## 3. THE STOP LINE — MEASURED, AND THE REPAIR THREE SESSIONS HAVE CARRIED IS THE WRONG ONE
 
-The brief: *"DO NOT START THIS unless 1 and 2 are finished and written up. If you
-start and cannot finish, revert it and say so — a half-built traffic change is
-worse than an unstarted one."*
+`tools/stoplineprobe.mjs` (new, NOT A GATE), `src/modules/traffic.js` (diagnostics only).
 
-Items 1 and 2 are finished and written up. **Item 3 was not started.** Items 1 and
-2 came to three instruments, two source repairs and an audit of 323 thresholds, and
-what remained was not enough to design an exit reservation, measure it against a
-−10.45 m overshoot, and revert it cleanly if it did not hold. **`minStopLineM` is
-still 0 and `worstStopLineM` is still −10.45 m, untouched. No line of `traffic.js`
-was read or changed this session.**
+### 3.1 What was done, and what was deliberately not
 
-The design handed over is unchanged and is repeated so the next session does not
-reconstruct it:
+The brief: *"DO NOT START THIS unless 1 and 2 are done ... If you start and cannot
+finish, revert it and say so — a half-built traffic change is worse than an
+unstarted one."* Items 1 and 2 were finished, written up, committed and pushed
+first, so item 3 began from a clean revert point.
 
-- **A reservation on the EXIT of the junction box.** A vehicle claims space on the
-  far side for its own length plus a gap *before* it enters, and yields if it
-  cannot. Deadlock is already excluded as the cause (worst queue five vehicles,
-  every junction reaching zero) and so is the timestep (0.010 m of a 10.45 m
-  overshoot).
-- **Two different defects are reported by one assertion, and separating them comes
-  first.** *Crossing the stop line on red* is a violation; *standing in the box on
-  green with the exit blocked* is spillback. They have different causes and
-  different repairs.
-- **The one-line measurement that should precede both**, carried from STATE 22 §5
-  and still not done: record `veh.recycled` alongside the vehicle that sets
-  `worstStopLineM`, because a recycled vehicle is a teleport and its stop-line
-  distance is bookkeeping rather than a violation.
-- **It no longer needs a GPU.** `tools/lib/headlesscity.mjs` boots the real city in
-  node and traffic is CPU work, which is what unblocked this item after three
-  deferrals.
+**No traffic BEHAVIOUR was changed and none is half-built.** The only edits to
+`traffic.js` are additive diagnostics — two `stats` fields and one frame stamp —
+which write no existing variable and move no vehicle. The probe is deterministic:
+two runs of `--cycles=4` are byte-identical.
+
+What was built is **the measurement STATE 22 §5 and STATE 24 §3 both asked for
+first and both deferred**, and it turns out to decide the item.
+
+### 3.2 Traffic runs headlessly now, which is what unblocked this
+
+`traffic.js` needs only `lights` and `time`, both already stubbed by
+`headlesscity.mjs`, and its integration is arithmetic. `queueprobe.mjs` answers a
+neighbouring question through a browser and cannot run here; `stoplineprobe.mjs`
+runs **160 vehicles over 216 simulated seconds — six full signal cycles — in
+node, with no GPU**. The camera is driven along a line at 6.0 m/s because
+`traffic.js` seeds and recycles relative to the eye, and a **stationary** camera
+would measure a world in which nothing is ever recycled — which is one of the two
+mechanisms under test.
+
+### 3.3 THE FIRST INSTRUMENT WAS WRONG, AND IT IS THE SAME MISTAKE AS THE DEFECT
+
+`worstStopLineM` only ever **decreases**, so a witness written whenever a new
+record is set is written a handful of times and **all of them in the first
+seconds**, when every vehicle has just been seeded. The first version of this
+probe collected exactly those three:
+
+```
+  t     0s   toStop -10.454 m   pod      since-recycle 1
+  t 12.52s   toStop -10.722 m   wedge    since-recycle 2
+  t  16.3s   toStop -12.517 m   hauler   since-recycle 2
+```
+
+and would have concluded *"every witness is a freshly re-seated vehicle,
+therefore the whole number is a teleport artefact"* — **a property of the
+simulation's first seconds reported as a property of the traffic.** CONTRACT §9's
+shape with a sampling window. Replaced by a **per-frame** worst, which gives
+11 538 samples instead of 3.
+
+*(The first line is worth keeping: **−10.454 m at t = 0** is, to three decimals,
+the −10.45 m this project has carried as red since session 21.)*
+
+### 3.4 THE MEASUREMENT — 11 538 FRAMES, NOT 3
+
+```
+160 vehicles, 1 093 recycles, 216 simulated seconds, 11 538 frames with someone held at a red
+worstStopLineM = -12.517 m   against the floor of 0
+
+per-frame worst held vehicle:
+  toStop         min -12.517   p05 -11.625   median -8.085   p95 -0.000   max +0.460 m
+  past junction  min -13.800                 median -2.820                max -0.375 m
+
+  frames whose worst held vehicle is past its line at all:   11 469 of 11 538
+    re-seated within the last 2 s — a teleport, not a red run:  2 926
+    settled (not recently re-seated):                           8 543
+    ORIGIN INSIDE THE JUNCTION BOX — i.e. spillback:                 0
+```
+
+> ### **NOT ONE VEHICLE, IN 11 538 FRAMES, IS EVER STANDING INSIDE A JUNCTION BOX.**
+> The furthest-forward held vehicle in the entire run has its origin **0.375 m
+> SHORT of the junction centre**. The proposed repair — *a reservation on the
+> EXIT, so a vehicle claims the far side before entering and yields if it cannot*
+> — addresses vehicles occupying the box. **There are none.** Building it would
+> have repaired a defect that is not there.
+
+**And the arithmetic closes on what IS happening.** `CITY.stopLineFromJunctionM`
+is `7.5 + 1.5` = **9.0 m** back from the junction centre. A settled vehicle whose
+origin is the median 2.82 m short of the centre therefore stands **6.18 m past its
+own painted line**, plus its front overhang — a van's 2.9 m gives **−9.08 m**
+against the measured settled median of **−9.180 m**. The queue is not spilling
+into the box; it is **packing forward to the mouth of it**, and the vehicle at the
+head of the queue is stopping about nine metres past the line it is supposed to
+stop at.
+
+**So the two defects the brief asked to separate are separated, and a third
+appears:**
+
+| | count | what it is |
+|---|---|---|
+| **spillback** — standing in the box on green with the exit blocked | **0 of 8 543** | does not occur |
+| **a teleport** — a re-seated instance with `cleared = null`, eligible for the statistic from its first frame | **2 926 of 11 469** | 26% of the number is bookkeeping about the recycler |
+| **the queue packing to the junction mouth** | **8 543** | the actual population, and neither of the two the repair was designed around |
+
+### 3.5 What the next session should do with this, and what it must not
+
+- **Do not build the exit reservation.** It is costed at zero occurrences. Three
+  sessions have carried it; this is the first to measure it, and CONTRACT §9
+  row 21a is the precedent — *two sessions carried a repair for a viaduct-deck
+  defect that was not there, because the diagnosis was written from source rather
+  than measured.*
+- **The remaining question is why a HELD vehicle is past its line at all.** The
+  braking constraint is `limit = √(2·BRAKE_A·max(0, toStop))`, which is zero at
+  the line, so a vehicle that is held should stop there. It does not, on 8 543
+  frames. That is the real item and it is now cheap to chase — the probe runs in
+  node in under a minute and reports the offending vehicle's speed, type, phase
+  and permission state.
+- **`minStopLineM` = 0 is NOT MOVED and the gate stays red.** The floor is right
+  — a signed clearance whose sign is the verdict — and what was wrong is the
+  diagnosis, not the number.
+- **26% of the figure is the recycler**, so whatever the repair turns out to be,
+  the statistic should exclude a vehicle re-seated within the last two seconds, or
+  it will keep reporting a teleport as a violation. That exclusion is a change to
+  a measurement and was not made here.
 
 ---
 
@@ -551,7 +640,7 @@ pixel refuses. **Nothing that needs one was attempted, on instruction.**
 
 | gate | state this session |
 |---|---|
-| `parsecheck` | **green**, 88 files (86 + `claimprobe` + `budgetaudit`) |
+| `parsecheck` | **green**, 89 files (86 + `claimprobe`, `budgetaudit`, `stoplineprobe`) |
 | `citycheck --falsify` | **green**, 56/56, coverage 100% |
 | `citycheck` (generator half) | **green**, run directly: **5 364 claims over the gate's region, 0 forbidden overlaps** — byte-identical to session 24 |
 | `citycheck` (delivered half) | **run headlessly, RED AT 1** — `sign(pylon) × sign(pylon)` 0.366 m², session 24's true defect, deliberately left standing |
@@ -597,7 +686,10 @@ file.**
 
 ### 5.2 The session's list — these can be done here, without a GPU
 
-1. **THE STOP LINE.** §3. Reachable headlessly now; the design is written out.
+1. **THE STOP LINE — AND THE CARRIED DESIGN IS NOW COSTED AT ZERO OCCURRENCES.**
+   §3. Do not build the exit reservation. The open question is why a HELD vehicle
+   is past its line at all when its own braking constraint is zero there, and
+   `tools/stoplineprobe.mjs` chases it in under a minute with no GPU.
 2. **THE PLANAR BUILDING CLAIM IS COSTED AND WAITING ON (5.1.4).** If the operator
    accepts the 78, the expression is already spelt three times in `citygen.js`
    (`paint()`, the kerbside prop claim, the sign pylon). **The deeper answer is that
@@ -674,10 +766,14 @@ its floor.
 both halves of the two-sided check; `deck × building` being decided by a box that
 could not reach a roof; the absence of any measurement of what the building claim
 over- and under-claims; the absence of any enumeration of where each threshold in
-this project came from.
+this project came from; and the three-session-old belief that the stop-line red is
+spillback into a junction box, which is now measured at **zero occurrences in
+11 538 frames**.
 
-**Still red and unchanged**: `minStopLineM` at 0, `worstStopLineM` at −10.45 m.
-`floors.visibleInstances` unmeasured.
+**Still red and unchanged**: `minStopLineM` at 0 — **not moved, and it is the
+right floor**; what was wrong is the diagnosis. `worstStopLineM` measures −12.517 m
+over six cycles on this machine against the −10.45 m carried since session 21, and
+§3 says what it is made of. `floors.visibleInstances` unmeasured.
 
 **Still red, and red on something true**: `occupancy`'s delivered half at **1** —
 two sign pylons 0.32 m apart, one's panel through the other's post. Session 24's
@@ -704,6 +800,12 @@ is a gate — session 24 left four rows on the same terms and they are still owe
   about YAW — inside this session's own instrument, in its first hour: a 26 m
   building turned 2.4° has an AABB 0.55 m wider than itself, so the probe would have
   reported its own inflation as the building escaping its claim;
+- a **run-cumulative minimum's** witness — written only when a new record is set,
+  and therefore only in the first seconds of a run while every vehicle is still
+  being seeded — read as **a sample of the population**: the first version of
+  `stoplineprobe` collected three witnesses, all of them 1–2 frames after a
+  re-seat, and would have reported the simulation's own startup as a property of
+  the traffic. 11 538 per-frame samples say the opposite;
 - a box's **nearest building CENTRE** used as **the building that emitted it** —
   also inside the instrument: a parapet bar is written half a building from its own
   centre, so a tall building's parapet was attributed to a short neighbour and

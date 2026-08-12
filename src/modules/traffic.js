@@ -2068,6 +2068,34 @@ export function createTraffic(options = {}) {
          * means no vehicle has been held at a red yet, which is not a pass.
          */
         worstStopLineM: Infinity,
+        /**
+         * WHICH VEHICLE SET `worstStopLineM`, AND WHAT WAS TRUE OF IT — session
+         * 25, and it is a WITNESS rather than a threshold.
+         *
+         * STATE 22 §5 and STATE 24 §3 both asked for this and both deferred it,
+         * and it is the measurement that has to precede any repair: the figure
+         * has been red at about −10.5 m since session 21 and NOBODY HAS EVER
+         * ASKED WHICH VEHICLE PRODUCES IT. Two worlds give the same number and
+         * they want opposite repairs:
+         *
+         *   SPILLBACK      a vehicle entered a junction box on green, its exit
+         *                  was blocked, and it stopped inside. Real, and the
+         *                  repair is a reservation on the EXIT.
+         *   A TELEPORT     `recycled` is set when an instance is re-seated
+         *                  somewhere else entirely, and a re-seated vehicle has
+         *                  `cleared = null` — no permission — so it is eligible
+         *                  for this statistic from its first frame. Its distance
+         *                  to "its own" stop line is then bookkeeping about where
+         *                  the recycler dropped it, not a vehicle that ran a red.
+         *
+         * Building the exit reservation without separating those is CONTRACT §9
+         * row 21a exactly: two sessions carried a repair for a viaduct deck
+         * defect that was not there, because nobody measured before designing.
+         *
+         * Costs one object write on a strictly rarer path than the comparison it
+         * sits beside — only when a new worst is found.
+         */
+        worstStopLineWitness: null,
         signalHeads: 0,
       };
 
@@ -2271,6 +2299,19 @@ export function createTraffic(options = {}) {
         queueNow.clear();
         stats.holdingAtRed = 0;
         stats.recycledThisFrame = 0;
+        /**
+         * THE PER-FRAME WORST, BESIDE THE RUN-CUMULATIVE ONE — session 25.
+         *
+         * `worstStopLineM` only ever decreases, so its witness is only written
+         * on the few frames a new record is set — and those cluster at the START
+         * of a run, when every vehicle has just been seeded. A probe reading
+         * only the record-setters therefore measures the FIRST SECONDS of the
+         * simulation and reports it as a property of the traffic, which is
+         * CONTRACT §9's shape with a sampling window. This field is reset every
+         * frame, so a caller can build the distribution over the whole run.
+         */
+        stats.frameWorstStopLineM = Infinity;
+        stats.frameWorstStopLineWitness = null;
 
         for (const bucket of tracks.values()) {
           for (let i = 0; i < bucket.length; i++) {
@@ -2436,7 +2477,41 @@ export function createTraffic(options = {}) {
                  * `toStop` goes negative legitimately; including it would make the
                  * statistic measure the green light.
                  */
-                if (toStop < stats.worstStopLineM) stats.worstStopLineM = toStop;
+                if (toStop < stats.frameWorstStopLineM) {
+                  stats.frameWorstStopLineM = toStop;
+                  stats.frameWorstStopLineWitness = {
+                    toStopM: toStop,
+                    recycled: !!veh.recycled,
+                    framesSinceRecycle: veh.recycledAtFrame === undefined ? null : frameId - veh.recycledAtFrame,
+                    type: type.name,
+                    speedMps: veh.v,
+                    phase,
+                    pastJunctionM: (along - nextJ) * veh.dir,
+                  };
+                }
+                if (toStop < stats.worstStopLineM) {
+                  stats.worstStopLineM = toStop;
+                  /**
+                   * The witness. `sinceRecycle` is what separates the two worlds
+                   * above: a vehicle re-seated within the last few frames is a
+                   * teleport whose stop-line distance describes the recycler.
+                   */
+                  stats.worstStopLineWitness = {
+                    toStopM: toStop,
+                    recycled: !!veh.recycled,
+                    framesSinceRecycle: veh.recycledAtFrame === undefined ? null : frameId - veh.recycledAtFrame,
+                    type: type.name,
+                    lenM: type.len,
+                    speedMps: veh.v,
+                    axis: veh.axis,
+                    phase,
+                    cleared: veh.cleared,
+                    nextJ,
+                    alongM: along,
+                    /** Distance from the vehicle's ORIGIN past the junction centre; > 0 is inside the box. */
+                    pastJunctionM: (along - nextJ) * veh.dir,
+                  };
+                }
                 /**
                  * THE QUEUE, PER JUNCTION — session 21, and it is an
                  * INSTRUMENT rather than a threshold.
@@ -2766,6 +2841,15 @@ export function createTraffic(options = {}) {
           veh.d2 = dx * dx + dz * dz;
           veh.nose = type.len * 0.45;
 
+          /**
+           * Session 25: stamp the frame the re-seat happened on before the flag
+           * is cleared, so `worstStopLineWitness` can say how long ago a vehicle
+           * was teleported. `recycled` itself lives exactly one frame, and a
+           * re-seated vehicle takes several to come to a stand — so the flag
+           * alone cannot tell a teleport from a red-light overshoot and the
+           * frame number can.
+           */
+          if (veh.recycled) veh.recycledAtFrame = frameId;
           veh.recycled = false;
         }
 
