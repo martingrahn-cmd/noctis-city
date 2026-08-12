@@ -215,6 +215,15 @@ export function bootCity({ seed = 1337, eye = CITYCHECK_EYE, maxFrames = 400 } =
  * rest fell back to a made-up unit box; through `fround` it is every city.js
  * matrix and nothing else. The `=== 0` guard is negative zero, which `toFixed`
  * renders as `-0.0000`.
+ *
+ * `opts.keepElements` — SESSION 25. Each box also carries the matrix it came
+ * from and its own geometry half-extents, so a caller can recover the ROTATED
+ * footprint rather than the world AABB of it. The AABB is the right extent for
+ * a coverage question and the wrong one for a yaw question: a 26 m box turned
+ * 2.4° has an AABB up to 0.55 m wider than the box, and a probe measuring how
+ * far a building escapes its claim would be measuring that inflation. Off by
+ * default because it holds 16 doubles per box — 15.9 MB over the 124 007 this
+ * ring emits — and only `claimprobe` needs them.
  */
 export function captureBuild(opts = {}) {
   const CLONE = THREE.Matrix4.prototype.clone;
@@ -297,9 +306,10 @@ export function captureBuild(opts = {}) {
       rec.boxes.push({
         x0: wx - hx, x1: wx + hx, y0: wy - hy, y1: wy + hy, z0: wz - hz, z1: wz + hz,
         mesh: g.mesh, site: rec.key,
+        ...(opts.keepElements ? { e, gmin: g.min, gmax: g.max } : null),
       });
     }
-    rec.elements = null;
+    if (!opts.keepElements) rec.elements = null;
   }
 
   return { world, bySite, claims: world.cityApi.placedClaims(), total, unmatched, cityRoot };

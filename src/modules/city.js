@@ -67,6 +67,7 @@ import {
   propBoxBudget,
   buildingTiers,
   ROOF_PARAPET_M,
+  ROOF_PLANT_MAX_M,
   ROOF_SIGN,
   HEIGHT_DISTRIBUTION,
   HEAD_CLEAR_M,
@@ -1144,9 +1145,22 @@ export function createCity(options = {}) {
 
     const rngKey = `${cx},${cz}`;
 
+    /**
+     * THE HIGHEST POINT EACH BUILDING ACTUALLY DREW — session 25.
+     *
+     * The delivered claim below used `bld.height`, the top of the wall, while
+     * the crown, the parapet and the roof plant all stand above it. Accumulated
+     * HERE, where the boxes are emitted, rather than re-derived in the claim
+     * loop: a second expression for the same elevation is CONTRACT §9.1's
+     * config-the-code-does-not-read with a height in it, and this file has
+     * already paid for that once with `ROOF_PARAPET_M`.
+     */
+    const deliveredTopByBld = new Map();
+
     for (const bld of chunk.buildings) {
       const mat = CITY_MATERIALS[bld.material];
       const era = CITY_ERAS[bld.era];
+      let deliveredTop = bld.height;
 
       /**
        * THE MASSING, AND SINCE SESSION 20 IT IS A STACK RATHER THAN A BOX.
@@ -1234,6 +1248,7 @@ export function createCity(options = {}) {
           top.width + oversail, crownDepth, top.depth + oversail, bld.yawDeg
         ));
         crownSkin.push({ albedo: mat.albedo, roughness: Math.min(1, mat.roughness + 0.05) });
+        deliveredTop = Math.max(deliveredTop, bld.height + crownDepth);
       }
 
       /**
@@ -1256,7 +1271,8 @@ export function createCity(options = {}) {
        * draw budget, which is the tight one at 438 of 440 on `highway_speed`,
        * does not move at all.
        */
-      buildRoofscape(bld, mat, bodies, bodySkin, tiers);
+      deliveredTop = Math.max(deliveredTop, buildRoofscape(bld, mat, bodies, bodySkin, tiers));
+      deliveredTopByBld.set(bld, deliveredTop);
 
       if (detail) {
         /**
@@ -2345,11 +2361,28 @@ export function createCity(options = {}) {
       });
     }
     for (const bld of chunk.buildings) {
+      /**
+       * `y1` IS WHAT THIS CHUNK DREW ON THE ROOF — session 25 — and it was
+       * `bld.height`, which is where the wall stops. `deck × building` is the
+       * one pair `occupancy.js` decides on the vertical extent, so the claim
+       * that answers "does the viaduct pass through this building" stopped at
+       * the eaves and the plant above it was outside every test.
+       *
+       * THE FALLBACK IS `bld.height` AND IT IS REACHED ONLY BY A BUILDING THIS
+       * CHUNK DID NOT DRAW A ROOFSCAPE FOR — which is none of them today, since
+       * `buildRoofscape` runs on every ring (session 19). Left explicit rather
+       * than asserted because a claim that is too SHORT shows up as a missing
+       * conflict, which is the direction `claimBox`'s own comment says to fail
+       * in.
+       *
+       * The generator's own claim uses `citygen.buildingTopM`, a BOUND on this
+       * same quantity — see there for why the two differ on purpose.
+       */
       placed.push({
         kind: 'building', owner: `bld`,
         x0: bld.x - bld.width / 2, x1: bld.x + bld.width / 2,
         z0: bld.z - bld.depth / 2, z1: bld.z + bld.depth / 2,
-        y0: 0, y1: bld.height,
+        y0: 0, y1: deliveredTopByBld.get(bld) || bld.height,
       });
     }
     for (const name of chunk.landmarks) {
@@ -2728,7 +2761,24 @@ export function createCity(options = {}) {
   ];
   const ROOF_KIND_TOTAL = ROOF_KINDS.reduce((a, k) => a + k.w, 0);
 
+  /**
+   * RETURNS THE HIGHEST POINT IT DREW — session 25.
+   *
+   * The delivered building claim's `y1` used to be `bld.height`, the top of the
+   * wall, so everything this function emits stood outside its own building's
+   * claim: measured over the resident ring, 1 436 plant boxes on 357 of 419
+   * buildings, the median 16.50 m above and the worst 18.72 m. `deck × building`
+   * is the one pair `occupancy.js` decides on the vertical extent, so a viaduct
+   * at 18.2–21.9 m could have passed through a roof and nothing would have said
+   * so.
+   *
+   * THE RETURN IS WHAT WAS DRAWN, NOT WHAT COULD BE. `citygen.buildingTopM` is
+   * the generator's BOUND on the same quantity and is deliberately looser — the
+   * registry records what was tested and the census records what arrived
+   * (CONTRACT §9.1). The two are printed against each other at init.
+   */
   function buildRoofscape(bld, mat, bodies, bodySkin, tiers) {
+    let topY = -Infinity;
     /**
      * A PARAPET ON EVERY TIER'S ROOF — session 20, and it is what makes a
      * setback read at all.
@@ -2756,10 +2806,11 @@ export function createCity(options = {}) {
           sx, ROOF_PARAPET_M, sz, bld.yawDeg
         ));
         bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+        topY = Math.max(topY, t.y1 + ROOF_PARAPET_M);
       }
     }
 
-    if (!(bld.floors > 4)) return;
+    if (!(bld.floors > 4)) return topY;
     /** The plant and the top parapet stand on the TOP tier, not on the base's plan. */
     const top = stack[stack.length - 1];
     const seed = Math.abs(Math.sin((bld.x * 0.37 + bld.z * 0.11) * 4711.13) % 1);
@@ -2798,6 +2849,7 @@ export function createCity(options = {}) {
         bld.z + ((u / units) - 0.5) * Math.max(0, top.depth - d - 1.5),
         w, ph, d, bld.yawDeg + (h - 0.5) * 4
       ));
+      topY = Math.max(topY, bld.height + ph);
       bodySkin.push({
         albedo: kind.albedo || mat.albedo,
         roughness: kind.rough == null ? mat.roughness : kind.rough,
@@ -2823,7 +2875,9 @@ export function createCity(options = {}) {
         sx, ROOF_PARAPET_M, sz, bld.yawDeg
       ));
       bodySkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+      topY = Math.max(topY, bld.height + ROOF_PARAPET_M);
     }
+    return topY;
   }
 
   function buildGroundFloor(bld, era, mat, windows, windowTint, masses, massSkin) {
@@ -3844,6 +3898,35 @@ export function createCity(options = {}) {
        * tension: variation is bought in instances and this is the line that
        * says how many.
        */
+      /**
+       * THE ROOF ENVELOPE, DERIVED BOTH WAYS AND PRINTED SIDE BY SIDE — session
+       * 25, CONTRACT §9 rule 2.
+       *
+       * `citygen.ROOF_PLANT_MAX_M` is what the GENERATOR claims a building
+       * reaches; the number beside it is that same envelope recomputed from
+       * THIS file's own `ROOF_KINDS` table, which is what actually gets drawn.
+       * They are one number in two files, which is the arrangement
+       * `ROOF_PARAPET_M` was in until session 20 — and the failure mode is
+       * silent in exactly the wrong direction: add a kind with a taller aspect
+       * and the generator's claim quietly stops containing its own roof, so
+       * `deck × building` goes back to being decided by a box that is too
+       * short. A warning rather than a throw, because a claim that is too short
+       * under-reports a conflict and a quarantined `city` module renders no
+       * city at all (CONTRACT §2.1).
+       */
+      {
+        const drawn = (1.8 + 3.4) * Math.max(...ROOF_KINDS.map((k) => k.tall));
+        ctx.log(
+          `city: roof envelope — citygen.ROOF_PLANT_MAX_M ${ROOF_PLANT_MAX_M.toFixed(2)} m claimed, ` +
+          `ROOF_KINDS' own worst (1.8+3.4)·${Math.max(...ROOF_KINDS.map((k) => k.tall)).toFixed(2)} = ${drawn.toFixed(2)} m drawn` +
+          `${Math.abs(drawn - ROOF_PLANT_MAX_M) < 1e-9 ? ' — agree' : ' — DISAGREE'}`
+        );
+        if (drawn > ROOF_PLANT_MAX_M + 1e-9) {
+          ctx.warnOnce('roofEnvelope',
+            `city: ROOF_KINDS can draw ${drawn.toFixed(2)} m of plant against citygen.ROOF_PLANT_MAX_M ` +
+            `${ROOF_PLANT_MAX_M.toFixed(2)} — the generator's building claim no longer contains its own roof`);
+        }
+      }
       {
         const pb = propBoxBudget();
         const kinds = Object.keys(PROP_MODELS).length;

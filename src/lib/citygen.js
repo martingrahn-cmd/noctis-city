@@ -727,6 +727,75 @@ export const ROOF_SIGN = {
 export const ROOF_PARAPET_M = 1.05;
 
 /**
+ * THE TALLEST THING THAT CAN STAND ON A ROOF — SESSION 25, AND IT IS HERE FOR
+ * THE SAME REASON `ROOF_PARAPET_M` IS.
+ *
+ * A building's claim is `y0: 0, y1: height`, and `height` is the top of the
+ * WALL. Everything on the roof stands above it, so `deck × building` — the one
+ * pair `occupancy.js` decides on the vertical extent rather than on the
+ * footprint — has been asking whether a viaduct passes through a building using
+ * a box that stops at the eaves. Measured over the 11 × 11 ring
+ * (`tools/claimprobe.mjs`): 1 436 plant boxes on 357 of 419 buildings, the
+ * median roof standing **16.50 m** above its own claimed top and the worst
+ * **18.72 m**.
+ *
+ * THE ARITHMETIC, which is city.js's `buildRoofscape` read as a bound rather
+ * than as a roll. A plant unit is `ph = (1.8 + h·3.4) · kind.tall` with
+ * `h ∈ [0, 1)`, so the size term maxes at 1.8 + 3.4 = 5.2 m; the tallest
+ * `kind.tall` is the aerial's 3.60. 5.2 × 3.60 = **18.72 m**.
+ *
+ * A BOUND AND NOT THE DELIVERED VALUE, DELIBERATELY. The generator cannot know
+ * what a roof rolled — the hash lives in `city.js` — and it must not draw a
+ * uniform to find out, because the claim is made BEFORE the era's crown is
+ * rolled and consuming a value early would move every stream after it
+ * (CONTRACT §6). So the generator claims the envelope and `city.js` claims what
+ * it actually drew. The generator is therefore conservative and the delivered
+ * census is exact, which is the right way round: the registry says what was
+ * TESTED and the census says what ARRIVED (CONTRACT §9.1). `claimprobe`
+ * measures that the bound contains the delivered top on 419 of 419.
+ *
+ * ITS COST IS ZERO AND THAT IS WHY IT SHIPPED. Measured on both halves of the
+ * two-sided check — the delivered census and the generator's own registry, the
+ * second of which is the only one holding `water`, `path` and `block` — raising
+ * `y1` to this bound produces **0 new forbidden pairs and refuses 0 placements**.
+ * The planar half of the same defect costs 78 buildings and is written up in
+ * STATE 25 §1 rather than built.
+ *
+ * `city.js` recomputes 18.72 from its own `ROOF_KINDS` table at module load and
+ * says so beside this number, so a kind added with a taller aspect is a printed
+ * disagreement rather than a claim that quietly stopped containing its roof.
+ */
+export const ROOF_PLANT_MAX_M = (1.8 + 3.4) * 3.60;
+
+/**
+ * THE HIGHEST POINT OF A BUILDING, from the generator's own fields.
+ *
+ * One expression, called by both building walks and by `city.js`'s consistency
+ * print, because a roof height computed in two places is `pierEvery: 34` beside
+ * `i % 3 === 0` with an elevation instead of a spacing (CONTRACT §9.1).
+ *
+ * THE CROWN IS BOUNDED RATHER THAN READ, and the bound is not a shrug: the
+ * claim is laid before `crown` is rolled, and `crown` is `rng.range(0.15, 0.45)`
+ * on the contemporary era and 0 on every other. So the crown reaches at most
+ * `era.cornice + 0.45` on contemporary (whose `cornice` is 0.0, giving 0.45) and
+ * `era.cornice` elsewhere, whose largest is prewar's 0.9. BOTH ARE UNDER
+ * `ROOF_PARAPET_M` = 1.05, so on any building that gets a roofscape the crown
+ * cannot be the binding term — and on one that does not, it is the only term.
+ * Measured: the 62 buildings with no plant stand at most 0.900 m over their
+ * claim, which is exactly prewar's cornice.
+ */
+export function buildingTopM(era, eraName, height, floors) {
+  const crownMax = era.cornice + (eraName === 'contemporary' ? 0.45 : 0);
+  /** `buildRoofscape` returns before the top parapet and the plant unless this holds. */
+  const roofscape = floors > 4;
+  return height + Math.max(
+    crownMax,
+    roofscape ? ROOF_PARAPET_M : 0,
+    roofscape ? ROOF_PLANT_MAX_M : 0
+  );
+}
+
+/**
  * Roll one building's roof sign, if it gets one, and push it into the chunk's
  * sign list. Always draws the SAME NUMBER OF UNIFORMS whatever it decides, so
  * the stream position after the call does not depend on the answer.
@@ -3901,9 +3970,15 @@ export function generateChunk(rootSeed, cx, cz) {
            */
           const bw = side.axis === 'x' ? width : depth;
           const bd = side.axis === 'x' ? depth : width;
+          /**
+           * `y1` IS THE TOP OF THE BUILDING AND NOT THE TOP OF THE WALL —
+           * session 25. It was `height`, which is where the masonry stops and
+           * not where the building does: parapet, cornice and plant all stand
+           * above it, the worst by 18.72 m. See `buildingTopM`.
+           */
           const site = claimBox('building',
             cxb - bw / 2, czb - bd / 2, cxb + bw / 2, czb + bd / 2,
-            { y0: 0, y1: height, owner: `bld:${cx},${cz}` });
+            { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `bld:${cx},${cz}` });
           if (refuse(reg.conflict(site, 0, BUILDING_SETBACKS))) {
             t += width + rng.range(0, 3);
             continue;
@@ -4221,9 +4296,10 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         const floors = Math.max(3, Math.round(rng.range(8, 34) / era.floor));
         const height = floors * (era.floor + eraRng.gauss() * 0.05);
+        /** Session 25, and the same reason as the perimeter walk's — `buildingTopM`. */
         const site = claimBox('building',
           cxb - width / 2, czb - depth / 2, cxb + width / 2, czb + depth / 2,
-          { y0: 0, y1: height, owner: `quay:${cx},${cz}` });
+          { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `quay:${cx},${cz}` });
         if (refuse(reg.conflict(site, 0, QUAY_SETBACKS))) {
           t += width + rng.range(2, 12);
           continue;
