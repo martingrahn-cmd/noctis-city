@@ -66,7 +66,7 @@ string beside its numbers.
 ### 0.1 What ran
 
 ```
-✓ parsecheck            81 files, syntactically complete and contract-clean
+✓ parsecheck            83 files, syntactically complete and contract-clean
 ✓ citycheck --falsify   56/56 cases rejected, 56 failure sites, coverage 100%
 ✓ vsyncprobe            NEW. 7 constructed cases, all as constructed, one of
                         them a declared limit. §1.4
@@ -587,12 +587,12 @@ reads a pixel refuses or is unmeasurably slow.
 
 | gate | state this session |
 |---|---|
-| `parsecheck` | **green**, 81 files |
+| `parsecheck` | **green**, 83 files (78 + the four new probes, +1) |
 | `citycheck --falsify` | **green**, 56/56, coverage 100% |
-| `citycheck` (full) | needs a browser; `sceneWalk` and `saturation` were red on this machine in session 22 for machine reasons and nothing here changes that |
+| `citycheck` (full) | needs a browser and was not attempted; `sceneWalk` and `saturation` were red on this machine in session 22 for machine reasons and nothing here changes that. **Its generator half was run directly instead** — the registry over the gate's own region, 5 364 claims, **0 forbidden overlaps** before and after this session's change (§2.5) |
 | `windcheck` | **started and DID NOT FINISH.** Three of its six eyes ran (354 / 481 / 397 meshes) and it then died on `page.evaluate: Execution context was destroyed` — the SwiftShader renderer crash session 21 hit twice. It was running alongside a `lookat` capture on four cores; both died together, which is the attribution. Not re-run for want of wall-clock. See §6 item 1 |
 | `faultcheck` | findings green in session 22, refuses on the renderer at the END, after every case has printed |
-| `lookcheck` | **cannot be reached**: eight captures at 2560×1440 on SwiftShader, one PNG in ~21 minutes |
+| `lookcheck` | **cannot be reached**: eight captures at 2560×1440 on SwiftShader, one PNG in ~21 minutes (STATE 22 §3.4). Its subject is unaffected either way — no look route sees a viaduct end (§2.1) |
 | `perfcheck` | 4 routes × 3 runs is ~21 600 SwiftShader frames. Not attempted |
 
 **`npm run gates` did not run green end to end, and it could not have on this
