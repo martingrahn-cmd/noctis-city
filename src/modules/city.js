@@ -1596,7 +1596,55 @@ export function createCity(options = {}) {
             s.yawDeg + yawForNormal(out[0] * dir, out[1] * dir)
           ), s);
         }
-        pushStruct(px, baseY + (py - height / 2) / 2, pz, 0.26, py - height / 2, 0.26, 0);
+        const POST_M = 0.26;
+        pushStruct(px, baseY + (py - height / 2) / 2, pz, POST_M, py - height / 2, POST_M, 0);
+        /**
+         * AND IT IS CLAIMED — SESSION 24, AND IT IS THE FIRST `sign` CLAIM THIS
+         * PROJECT HAS EVER MADE.
+         *
+         * `occupancy.js` has carried the category since session 21 and says in
+         * its own comment what it is for: *"a FREESTANDING sign pylon. A flush
+         * or projecting sign is part of its building and claims nothing."* Both
+         * halves of that sentence were true of the code except the first —
+         * `sign` appears in eight rows of the conflict table and NOTHING, in
+         * either the generator or the delivered census, has ever written one.
+         * A whole category with no claims in it is CONTRACT §9.1's
+         * config-the-code-does-not-read with a conflict rule instead of a
+         * value, and `tools/emitcensus.mjs` prints the empty categories for
+         * exactly this reason.
+         *
+         * A pylon is a post on a pavement carrying a panel over it, and the
+         * conflict table already says what that must not share ground with: a
+         * building, a landmark, a carriageway, the block, water, a prop, a
+         * site, a feature and another sign.
+         *
+         * THE EXTENT IS THE PYLON'S OWN, ROTATED, AND NOT THE MATRICES'.
+         * `pushSign` passes `sz = 1` into `setMatrix` against a `PlaneGeometry`,
+         * which has NO depth — so a claim read off that matrix would be a metre
+         * deep where nothing is. What is actually solid here is the post,
+         * `POST_M` square, with the two faces at ±0.06 inside it. The
+         * along-axis extent is the panel's, clamped exactly as the emission
+         * clamps it. The rotation is folded in the same way `citygen.js`'s
+         * `paint()` and its kerbside prop claim fold theirs — |cos|·L + |sin|·W
+         * — which is the third reader of that expression and is spelt the same
+         * way in all three.
+         *
+         * COST, MEASURED BEFORE IT WAS BUILT (`tools/emitcensus.mjs`): 36
+         * pylons over the resident ring, **0 new forbidden overlaps**. This
+         * declares what is there and refuses nothing.
+         */
+        const panelM = Math.min(s.width, 2.6);
+        const ca = Math.abs(Math.cos(s.yawDeg * DEG));
+        const sa = Math.abs(Math.sin(s.yawDeg * DEG));
+        const halfAlong = (ca * panelM + sa * POST_M) / 2;
+        const halfAcross = (sa * panelM + ca * POST_M) / 2;
+        const hxW = tan[0] ? halfAlong : halfAcross;
+        const hzW = tan[1] ? halfAlong : halfAcross;
+        placed.push({
+          kind: 'sign', owner: 'pylon',
+          x0: px - hxW, x1: px + hxW, z0: pz - hzW, z1: pz + hzW,
+          y0: 0, y1: Math.max(0.05, py + height / 2),
+        });
       }
     }
 
@@ -1736,15 +1784,53 @@ export function createCity(options = {}) {
           const s = Math.sin(((f.yawDeg || 0) * Math.PI) / 180);
           const wx = f.x + dx * c - dz * s;
           const wz = f.z + dx * s + dz * c;
-          props.push(setMatrix(wx, y0 + dy, wz, sx, sy, sz,
-            (yawDeg === undefined ? (f.yawDeg || 0) : yawDeg)));
+          const m = setMatrix(wx, y0 + dy, wz, sx, sy, sz,
+            (yawDeg === undefined ? (f.yawDeg || 0) : yawDeg));
+          props.push(m);
           propSkin.push({ albedo, roughness: rough });
-          const hx = Math.max(sx, sz) / 2;
-          if (wx - hx < fx0) fx0 = wx - hx;
-          if (wx + hx > fx1) fx1 = wx + hx;
-          if (wz - hx < fz0) fz0 = wz - hx;
-          if (wz + hx > fz1) fz1 = wz + hx;
-          if (dy + sy / 2 > fTop) fTop = dy + sy / 2;
+          /**
+           * THE BOX'S OWN WORLD HALF-EXTENTS, OFF THE DELIVERED MATRIX — and
+           * this line was `Math.max(sx, sz) / 2`, USED ON BOTH AXES, until
+           * session 24.
+           *
+           * A hoarding panel is `SITE.hoardingSegment` = 2.4 m long and 0.06 m
+           * deep. `max(2.4, 0.06) / 2` is 1.2, applied to x AND z, so the
+           * delivered census recorded a **2.4 × 2.4 m square** where a
+           * **2.4 × 0.06 m panel** was drawn — 40× the depth, on the axis that
+           * faces the street. CONTRACT §9's shape with two extents: the LONGER
+           * of a box's two horizontal dimensions used as BOTH of them.
+           *
+           * IT IS WHAT `citycheck` → `occupancy` HAS BEEN RED ON SINCE SESSION
+           * 22. `prop(container) × site(hoarding)` at 0.173 and 0.266 m²:
+           * session 22 diagnosed it to the hoarding's FEET (0.34 × 0.5 =
+           * 0.170 m², against 0.173 measured — an arithmetic coincidence),
+           * built two candidate repairs on the GENERATOR's claim, measured both
+           * as changing nothing, and reverted them. `tools/boxprobe.mjs` puts
+           * the delivered SUB-BOXES side by side and the answer is that **no
+           * two solids touch at all**: nearest approach 0.84 m, 0.87 m and
+           * 0.55 m on the three pairs. The overlap was between two RECORDS.
+           *
+           * AND IT IS NOT ONLY A LOOSENING, WHICH IS WHY IT IS A CORRECTION
+           * RATHER THAN A GATE WEAKENED TO PASS. A square of `max(sx, sz)` is
+           * larger than the true AABB on the short axis and SMALLER than it on
+           * a rotated box's long axis — a box yawed 45° reaches `hypot(sx, sz)`
+           * where the square stops at `max(sx, sz)`, i.e. the old record
+           * UNDER-claimed a spoil heap by up to √2. `citycheck`'s own numbers
+           * either side of this change are in STATE 24 §2.
+           *
+           * The prop loop sixty lines above has computed exactly this, off
+           * exactly this matrix, since session 21 — with a comment saying why.
+           * This is the copy that did not. Spelt the same way on purpose.
+           */
+          const e = m.elements;
+          const hx = (Math.abs(e[0]) + Math.abs(e[4]) + Math.abs(e[8])) / 2;
+          const hy = (Math.abs(e[1]) + Math.abs(e[5]) + Math.abs(e[9])) / 2;
+          const hz = (Math.abs(e[2]) + Math.abs(e[6]) + Math.abs(e[10])) / 2;
+          if (e[12] - hx < fx0) fx0 = e[12] - hx;
+          if (e[12] + hx > fx1) fx1 = e[12] + hx;
+          if (e[14] - hz < fz0) fz0 = e[14] - hz;
+          if (e[14] + hz > fz1) fz1 = e[14] + hz;
+          if (e[13] + hy - y0 > fTop) fTop = e[13] + hy - y0;
         };
         if (f.kind === 'edge') {
           /**
