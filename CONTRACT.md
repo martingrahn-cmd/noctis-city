@@ -2230,6 +2230,62 @@ when they should not have.
    runs. Knowing which of the two kinds of number is in front of you is most of
    the discipline.
 
+7. **MEASURED FROM WHAT, AND DOES THE OTHER SIDE AGREE?** Ask it of every new
+   distance, extent or datum, at the moment it is written.
+
+   This is a *class*, not an instance, and it is named here because the project
+   has now found the same defect four times in four sessions without recognising
+   it as one thing. Each was a length computed correctly from the wrong
+   reference — not a wrong number, a right number measured from the wrong place:
+
+   - **s22 — `kerbRef` measured from the wrong axis.** A band's `axis` field
+     names the axis the band is FIXED on (`{ axis: 'x', at: b.x0 }`, whose
+     `t0/t1` run over the chunk's **z**), and the doc comment over it called it
+     the axis the band RUNS ALONG — the opposite. `kerbRef = band.axis === 'x' ?
+     0 : 90` read the comment. Every kerbside prop on a north–south street was
+     drawn across its pavement with its end to the road; **1 134 of 1 596 props**
+     over the region.
+   - **s23 — the abutment topped out at the soffit, not at the deck.** `viaduct
+     SoffitY` = 18.20 m is where the deck BEARS; the deck's upper surface is
+     22.20 m. The mass was built to the first and wanted to the second, so
+     **8.60 m of the deck's 9.50 m width ended in mid air**, framed by two
+     parapet returns floating 2.80 m above the abutment they stand over.
+   - **s24 — a half-extent accumulated on the wrong axis, twice.** The delivered
+     claim took `Math.max(sx, sz)/2` and applied it to BOTH axes, so a
+     **2.4 × 0.06 m** hoarding panel was recorded as a **2.4 × 2.4 m** square:
+     the larger half-extent is correct on one axis and is 40× the truth on the
+     other.
+   - **s25 — the queue's datum is the junction MOUTH, the assertion's is the
+     STOP LINE, and they are 9.0 m apart.** `worstStopLineM` reads −12.517 m not
+     because a vehicle enters the junction — over 11 538 frames **not one ever
+     does** — but because two parts of the same system measure "how far past" from
+     two different lines.
+
+   **The reason none of them was caught is the same reason in all four: both
+   sides of the check shared the assumption.** A two-sided check is only two
+   descriptions if the two sides can disagree; where they spell the same mistake
+   the same way, they are one description written twice, and §9.1's whole design
+   is defeated without anything going red. s25's building claim is the cleanest
+   demonstration — the generator's registry and the delivered census spell the
+   yaw omission identically, so **both halves of a two-sided check report zero
+   forbidden overlaps over 51.96 m² of masonry genuinely standing in a
+   pavement**, across 78 of 419 buildings. Neither half is lying; they are the
+   same sentence in two files.
+
+   > **So a new distance carries its datum in the name, in the comment at the
+   > boundary, or in the field beside it — and the check on it is written from
+   > the OTHER end.** Rule 3 asks a quantity to carry its frame of reference;
+   > this asks the second reader to state its own and compare. Where both readers
+   > are written in the same session by the same hand, assume they share the
+   > error and find a third source — the delivered geometry, a hand-computed
+   > case, or the number printed from the opposite direction.
+
+   This rule has an unfinished obligation attached to it. **76 of the 189 bounds
+   in `tools/budget.json` have no derivation at all** (`node tools/budgetaudit.mjs`
+   lists them, STATE 25 §2.2) — 40% of every threshold in the project. Rule 5
+   says each of those is a guess; rule 7 says that for any of them expressing a
+   *distance*, nobody has established what it is measured from either.
+
 Measure before theorising. A theory about why a frame looks wrong costs an hour;
 printing the number costs a minute and is right more often.
 
