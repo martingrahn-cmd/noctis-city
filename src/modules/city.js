@@ -1400,7 +1400,47 @@ export function createCity(options = {}) {
           pz + PYLON_HALF > o.z0 && pz - PYLON_HALF < o.z1);
         const inBlock = px > BLOCK_KEEPOUT.x0 && px < BLOCK_KEEPOUT.x1 &&
           pz > BLOCK_KEEPOUT.z0 && pz < BLOCK_KEEPOUT.z1;
-        if (clash || inBlock) mount = 'flush';
+        /**
+         * AND AGAINST THE PYLONS ALREADY STANDING — SESSION 27, AND IT CLOSES
+         * THE ONE TRUE RED THIS PROJECT HAS CARRIED SINCE SESSION 24.
+         *
+         * The test above asks the chunk's OCCLUDERS, which are buildings. A
+         * pylon is not a building and never entered that list, so two pylons
+         * could be decided independently and stand on the same square metre of
+         * pavement. Delivered, over the resident ring: **two pylons 0.322 m
+         * apart at (10.000, 163.966) and (10.000, 163.644), overlapping by
+         * 0.366 m²** — one's panel through the other's post, and the only
+         * forbidden overlap in `citycheck`'s delivered sweep. CONTRACT §9.1's
+         * placement rule with the object's own category as the thing it was not
+         * tested against: *"anything placed procedurally is tested against the
+         * existing occupancy, or it is not placed."*
+         *
+         * `placed` IS THE CHUNK'S OWN CLAIM LIST and that is the right scope
+         * here rather than a limitation to apologise for — measured, both
+         * members of the pair are in chunk (0, 1), and a pylon's 1.7 m standoff
+         * puts it against its own building's elevation, so two that can collide
+         * are two on the same run of pavement. A cross-chunk pair would need
+         * two elevations 0.3 m apart across a chunk seam, which the 4.2 m
+         * pavement and the perimeter walk's own spacing do not produce. Stated
+         * so the next session knows the bound rather than discovering it.
+         *
+         * THE PAD IS `PYLON_HALF` AND THE CLAIM BELOW IS TIGHTER, DELIBERATELY.
+         * 0.55 m is a placement clearance — the same square this routine already
+         * offers a building — while the claim is the post and panel's own
+         * rotated extent (0.13–1.30 m half). So the test refuses a little more
+         * ground than the claim occupies, which is the safe direction for a
+         * keep-out: it can refuse a pylon, it cannot admit an overlapping one.
+         * Two pylons 1.2 m apart do not overlap and are still refused, and that
+         * is wanted — a sign you cannot walk between is not a sign.
+         *
+         * REFUSED BACK TO `flush`, not moved, for the reason the comment above
+         * already gives: a moved sign is a sign somewhere nobody decided.
+         */
+        const signClash = placed.some((p) =>
+          p.kind === 'sign' &&
+          px + PYLON_HALF > p.x0 && px - PYLON_HALF < p.x1 &&
+          pz + PYLON_HALF > p.z0 && pz - PYLON_HALF < p.z1);
+        if (clash || inBlock || signClash) mount = 'flush';
       }
 
       if (mount === 'rooftop') {

@@ -144,10 +144,71 @@ const TRAIN = {
   noseOverhangM: 1.6,
   noseTipRiseM: 1.1,
   noseThickM: 1.0,
+
+  /**
+   * THE SHOULDER CHAMFER — SESSION 27. The operator saw the raked nose and asked
+   * for this one by name.
+   *
+   * The nose softens the train END ON. It does nothing to the LONG upper edge,
+   * which is what the whole 72 m of the train shows you from the side and from
+   * the street below, and that edge was a 90° corner running unbroken for
+   * 17.28 m at a time.
+   *
+   * THE CHAMFER HAS NO SIZE OF ITS OWN ACROSS THE CAR. Its horizontal run is
+   * `CAP_INSET`, the 0.145 m the roof cap has been inset each side since session
+   * 21, because the face's upper edge has to land exactly on the cap's own lower
+   * corner or the two are not continuous. So the across-run is read from the cap
+   * rather than authored, and changing the cap's inset moves the chamfer with
+   * it. What IS free is how far the face rises over that run, and that is this
+   * constant.
+   *
+   * RISE 2× THE RUN, AND IT IS THE PIXEL FLOOR THAT SETS IT. A 45° face (rise =
+   * run = 0.145 m) was built first and rejected on arithmetic: against the 3 px
+   * floor session 20 derived for a navigation lamp, at the gate's own 6.4765e-4
+   * rad/px, a 0.145 m facet resolves at **75 m** — and the gate camera stands
+   * **174 m** from the crossing, so the operator would have seen exactly
+   * nothing. At rise = 2·run the facet is 0.290 m tall and resolves at
+   * **149 m**, which reaches the near half of the deck and most of the street.
+   * It is also the right shape: real rolling stock has a tall shallow shoulder,
+   * not a 45° cut, because the loading gauge is tight at the top corner and
+   * generous at the waist.
+   *
+   * Derived from those two: face length `hypot(0.145, 0.290)` = **0.3242 m**,
+   * **63.43° from horizontal**, and the visible band runs from the body's top at
+   * `carHeightM − 2·CAP_INSET` = 3.110 m to `carHeightM` = 3.400 m.
+   *
+   * THICKNESS 0.10 m. The slab lies ON the chamfer plane, pushed back along that
+   * plane's own inward normal by half its thickness — the nose's construction,
+   * one axis over — so the visible FACE lands where it was designed to and the
+   * mass sits behind it.
+   *
+   * IT DOES NOT MOVE THE TURN-ROUND CLAMP, and that is checked rather than
+   * assumed. §9's row 23 is this module's own defect: the train's BODY LENGTH
+   * used where its EXTENT was meant, once a nose existed to separate them. A
+   * chamfer is `carLengthM * 0.96` long and inset within the body on both
+   * transverse axes, so it reaches past nothing. `trainLen` is unchanged at
+   * 77.90 m and the nose tip still stops at s = 240.00, the deck's last station.
+   * The cap's TOP is unchanged at 3.58 m, so the 4.2 m structure gauge
+   * `trainprobe` prints is untouched too.
+   */
+  shoulderChamferRise: 2,
+  shoulderChamferThickM: 0.1,
 };
 
 /**
- * Boxes per train car: body, roof cap, skirt, two bogies, and the nose.
+ * Boxes per train car: body, roof cap, skirt, two bogies, the nose, and — since
+ * session 27 — the two shoulder chamfers. 6 → 8.
+ *
+ * COST, MEASURED BEFORE IT WAS BUILT, because the brief asked for it costed
+ * first: 2 trains × 4 cars × 2 = **16 new instances** and **192 triangles**, in
+ * the mesh that already exists. **No new draw call** — the chamfers ride in
+ * `bodyMesh` like every other row here, which is the whole reason this module
+ * allocates per car rather than per part. The buffers that scale with
+ * `bodyCount` grow by 16 rows: `instmotion`'s double buffer 1 024 B,
+ * `instanceColor` 192 B, `noctisRough` 64 B — **1.25 KiB**. Unlike the nose,
+ * BOTH rows are drawn on every car rather than parked at zero scale on the
+ * middle ones, because a shoulder runs the length of the unit and a cab does
+ * not.
  *
  * THE NOSE ROW IS ALLOCATED ON EVERY CAR AND DRAWN ON TWO. A unit has a cab at
  * each end and nowhere else, so cars 0 and `cars-1` carry one and the middle
@@ -156,7 +217,7 @@ const TRAIN = {
  * position would make `bodyCount` depend on the car index, and the census label
  * `citycheck` asserts against is a single number.
  */
-const BOXES_PER_CAR = 6;
+const BOXES_PER_CAR = 8;
 /** Emissive rows per car: `windowsPerSide` a side, plus one headlamp. */
 const LIGHTS_PER_CAR = TRAIN.windowsPerSide * 2 + 1;
 
@@ -241,7 +302,7 @@ export function createMoving() {
    * previous transform equal to its current one, which is what a teleport and a
    * sub-threshold row both need (CONTRACT §5.12).
    */
-  function setRow(arr, motion, row, x, y, z, yaw, sx, sy, sz, carry, rake = 0) {
+  function setRow(arr, motion, row, x, y, z, yaw, sx, sy, sz, carry, rake = 0, roll = 0) {
     pos.set(x, y, z);
     /**
      * `rake` TILTS THE BOX ABOUT ITS OWN TRANSVERSE AXIS. A `BoxGeometry(1,1,1)`
@@ -267,7 +328,24 @@ export function createMoving() {
      * CONTRACT §7.7 says an expectation that moves to match the instrument must
      * say which of the two was wrong. Here it was the comment.
      */
-    eul.set(0, yaw, rake, 'YXZ');
+    /**
+     * `roll` TILTS THE BOX ABOUT ITS OWN LONGITUDINAL AXIS — the X slot, which
+     * the comment above says was kept empty "for what it will mean rather than
+     * for what it means today". Session 27 is that day: the shoulder chamfer
+     * needs the box turned 45° about the car's length, and `rake` cannot supply
+     * it because `rake` is the Z slot and turns about the TRANSVERSE axis.
+     *
+     * With two components now non-zero the Euler order stops being a formality
+     * and starts being the claim, exactly as written: `'YXZ'` composes
+     * `Ry(yaw)·Rx(roll)·Rz(rake)`, so the roll is applied in the CAR's frame
+     * after the yaw rather than in world axes, and a chamfer stays on the
+     * shoulder all the way round the curve. Under the default `'XYZ'` it would
+     * be `Rx(roll)·Ry(yaw)·Rz(rake)` — the roll in WORLD axes — and the two
+     * stop being equal the moment `roll` is non-zero. `tools/trainprobe.mjs`
+     * carries the arm that measured them identical at roll 0 and it is the arm
+     * that now separates them.
+     */
+    eul.set(roll, yaw, rake, 'YXZ');
     quat.setFromEuler(eul);
     scl.set(sx, sy, sz);
     m4.compose(pos, quat, scl);
@@ -485,16 +563,109 @@ export function createMoving() {
           const carry = recycled || motionCutoffDistance(TRAIN.carWidthM, 4, theta) < d;
           if (carry && !recycled) suppressed += BOXES_PER_CAR;
 
-          const y = deckY + TRAIN.carHeightM / 2;
-          setRow(bodyArr, bodyMotion, bodyRow++, x, y, z, yaw, TRAIN.carLengthM, TRAIN.carHeightM, TRAIN.carWidthM, carry);
-          setRow(bodyArr, bodyMotion, bodyRow++, x, y + TRAIN.carHeightM / 2 + 0.09, z, yaw,
-            TRAIN.carLengthM * 0.96, 0.18, TRAIN.carWidthM * 0.9, carry);
+          /**
+           * THE BODY, THE CAP AND THE CHAMFER ARE ONE DECOMPOSITION — session 27.
+           *
+           * A CHAMFER IS MATERIAL REMOVED FROM A CORNER, and an InstancedMesh of
+           * boxes cannot remove anything. The first version of this laid a 45°
+           * slab on the body's top corner and it was **entirely inside the body
+           * box** — CONTRACT §9.1's "geometry authored and then drawn inside
+           * something else", which is the vehicle skirt row verbatim, caught
+           * here before it shipped rather than a session later. Laying it PROUD
+           * instead is the other failure: a strip standing off the corner reads
+           * as a fin, not a bevel.
+           *
+           * So the body's top comes DOWN by the cap's own inset and the cap
+           * comes DOWN to meet it, and the chamfer is the face that bridges
+           * them. Three rows that were two, and the shoulder is now:
+           *
+           *     body side          up to  y 3.110   half-width 1.450
+           *     63.43° chamfer     3.110 → 3.400    1.450 → 1.305
+           *     roof cap           3.110 → 3.580    half-width 1.305
+           *
+           * THE BODY COMES DOWN BY TWICE THE INSET, NOT ONCE, and the factor of
+           * two is the whole difference between a chamfer and an invisible box.
+           * At `carHeightM − CAP_INSET` the body still occupies the corner the
+           * chamfer is supposed to be cutting, so the slab is inside it and
+           * nothing changes on screen. At `carHeightM − 2·CAP_INSET` the band
+           * from 3.110 to 3.255 is reached by the CHAMFER alone outboard of
+           * 1.305 and by the cap inboard of it, which is the only arrangement
+           * of boxes in which the face is actually seen.
+           *
+           * THE CHAMFER'S SIZE IS NOT A NEW NUMBER. It is `CAP_INSET`, the
+           * 0.145 m the roof cap has been inset each side since session 21, so
+           * the chamfer's upper edge lands exactly on the cap's own lower corner
+           * and the two are continuous by construction rather than by tuning. A
+           * 45° face across a 0.145 m step is `0.145·√2` = 0.2051 m wide, which
+           * is `shoulderChamferM` and is why that constant is read rather than
+           * authored. Change the cap's inset and the chamfer follows it.
+           *
+           * The cap is EXTENDED DOWNWARD rather than moved: its top stays at
+           * 3.58 m, which is the number `trainprobe` prints against the
+           * viaduct's 4.2 m structure gauge, so the clearance is untouched.
+           */
+          const CAP_INSET = (TRAIN.carWidthM - TRAIN.carWidthM * 0.9) / 2;
+          const bodyTopM = TRAIN.carHeightM - 2 * CAP_INSET;
+          const capTopM = TRAIN.carHeightM + 0.18;
+          const y = deckY + bodyTopM / 2;
+          setRow(bodyArr, bodyMotion, bodyRow++, x, y, z, yaw, TRAIN.carLengthM, bodyTopM, TRAIN.carWidthM, carry);
+          setRow(bodyArr, bodyMotion, bodyRow++, x, deckY + (bodyTopM + capTopM) / 2, z, yaw,
+            TRAIN.carLengthM * 0.96, capTopM - bodyTopM, TRAIN.carWidthM * 0.9, carry);
           setRow(bodyArr, bodyMotion, bodyRow++, x, deckY + 0.28, z, yaw,
             TRAIN.carLengthM * 0.98, 0.56, TRAIN.carWidthM * 0.86, carry);
           for (const b of [-1, 1]) {
             const bx = x + Math.cos(yaw) * b * TRAIN.carLengthM * 0.32;
             const bz = z - Math.sin(yaw) * b * TRAIN.carLengthM * 0.32;
             setRow(bodyArr, bodyMotion, bodyRow++, bx, deckY - 0.18, bz, yaw, 3.0, 0.5, TRAIN.carWidthM * 0.7, carry);
+          }
+
+          /**
+           * THE SHOULDER CHAMFERS. Two per car, one each side, running the
+           * length — the constants block above carries the derivation.
+           *
+           * THE CONSTRUCTION IS THE NOSE'S, ONE AXIS OVER, and it is written in
+           * the car's own (across, up) frame and rotated into world XZ at the
+           * end — one basis change, at the end, the same shape the nose uses.
+           *
+           * The square corner is at `(carWidthM/2, carHeightM/2)` from the body
+           * centre. A 45° face of width `w` cuts it from `(W/2, H/2 − w/√2)` to
+           * `(W/2 − w/√2, H/2)`, so its midpoint is `w/(2√2)` in from the corner
+           * on both axes. The slab is then pushed back along that face's own
+           * inward normal `(1,1)/√2` by half its thickness, so the visible FACE
+           * lands on the chamfer plane and the mass sits behind it rather than
+           * straddling the corner.
+           *
+           * `sh` is which side, in the car's local +Z. It signs the across
+           * offset and the ROLL together: the face normal is `(+1,+1)/√2` on one
+           * shoulder and `(−1,+1)/√2` on the other, and `Rx(θ)` takes the
+           * slab's own thickness axis `(0,1,0)` to `(0, cos θ, sin θ)` — so
+           * `θ = +45°` and `θ = −45°` are exactly those two normals. The sign
+           * falls out of the geometry rather than being tried both ways.
+           */
+          const chamRun = CAP_INSET;
+          const chamRise = CAP_INSET * TRAIN.shoulderChamferRise;
+          const chamFaceLen = Math.hypot(chamRun, chamRise);
+          /** Outward unit normal of the chamfer face, in (across, up). */
+          const nAcross = chamRise / chamFaceLen;
+          const nUp = chamRun / chamFaceLen;
+          /**
+           * The face's midpoint is `chamOff` in from the body's top corner on
+           * both axes; the slab is then pushed back along the face's own inward
+           * normal by `chamBack` so the FACE lands on the chamfer plane and the
+           * mass sits behind it — the nose's construction, one axis over.
+           */
+          const half = TRAIN.shoulderChamferThickM / 2;
+          const chamAcross = TRAIN.carWidthM / 2 - chamRun / 2 - nAcross * half;
+          const chamUp = bodyTopM + chamRise / 2 - nUp * half;
+          const chamRoll = Math.atan2(chamRise, chamRun);
+          for (const sh of [-1, 1]) {
+            const across = sh * chamAcross;
+            setRow(
+              bodyArr, bodyMotion, bodyRow++,
+              x + Math.sin(yaw) * across, deckY + chamUp, z + Math.cos(yaw) * across, yaw,
+              TRAIN.carLengthM * 0.96, TRAIN.shoulderChamferThickM, chamFaceLen,
+              carry, 0, sh * chamRoll
+            );
           }
 
           /**
