@@ -685,18 +685,62 @@ export const POST = {
   bloomThreshold: 0.92,
   bloomSoftKnee: 0.55,
   /**
-   * 0.055, unchanged since session 1, and session 4 tried 0.030 and put it back.
+   * 0.055 from session 1 to 26. **0.016 in session 27**, and the reason is that
+   * SIXTY-ONE PER CENT OF THE MIDNIGHT FRAME WAS CAMERA GLOW RATHER THAN CITY.
    *
-   * The theory was that bloom, being the term that spreads a source across its
-   * neighbours, was the right half of the glow budget to cut — it would sharpen
-   * the frame, which the dusk stddev floor wants, where cutting the veil instead
-   * flattens the blacks the veil exists to hold off zero. The measurement said
-   * the opposite: at 0.030 the dusk stddev went DOWN (0.1268 → 0.1258) and both
-   * the dawn and dusk means fell out of their bands. Bloom is carrying real
-   * brightness and real structure on a night frame, not just haze. Recorded so
-   * the next session does not re-run the experiment.
+   * Session 4 tried 0.030 and put it back: "at 0.030 the dusk stddev went DOWN
+   * (0.1268 → 0.1258) and both the dawn and dusk means fell out of their bands."
+   * THAT MEASUREMENT NO LONGER REPRODUCES, and the re-measurement is the licence
+   * for this change rather than a preference against it. On today's content,
+   * 0.030 delivers dawn 0.3118 and dusk 0.1518 — both comfortably inside
+   * [0.299, 0.353] and [0.14, 0.18]. Session 4 measured an origin block; the
+   * frame now contains a streamed city, traffic, pedestrians and aircraft, and
+   * the finding was right about a world that has moved on (§9 rule 7).
+   *
+   * THE DECOMPOSITION, `lookcheck` at the gate's own camera and seed. Each arm
+   * is one constant changed from the shipped value, everything else held:
+   *
+   *     bloom  glare   midnight mean   ground pools   albedo clusters
+   *     0.055  0.075        0.1744            5              3        ← shipped
+   *     0.055  0.000        0.1505            8              3
+   *     0.000  0.075        0.1115            9              4
+   *     0.000  0.000        0.0682            9              3
+   *
+   * The exposed scene with NO camera glow at all is 0.0682, against a band of
+   * [0.072, 0.112] centred 0.092. So the city was never the thing that was too
+   * bright: bloom and veil together were adding 0.106 to a 0.068 frame, and
+   * CONTRACT §5.5 names the symptom in one line — "if the whole frame glows, the
+   * threshold is wrong."
+   *
+   * WHY THE THRESHOLD WAS NOT THE LEVER, measured before this one was touched.
+   * `bloomThreshold` 0.92 → 2.0 → 4.0 moves midnight only 0.1744 → 0.1712 →
+   * 0.1672, because the emitters this frame is full of sit ~300× over the onset
+   * (§9's `streetlampNits` row) and a 4.3× onset does not reach them. What it
+   * DOES reach is the daytime mid-tones: noon fell to 0.4277 and 0.4261, i.e.
+   * THROUGH its own 0.428 floor. The obvious repair was the wrong one and is
+   * recorded so it is not tried again.
+   *
+   * WHY BLOOM AND NOT EXPOSURE. `EXPOSURE.minEV` 3.0 → 7.0 puts midnight at
+   * 0.0923 — dead centre of the band — and leaves dawn, noon and dusk identical
+   * to four decimals, which makes it the only midnight-selective lever in the
+   * system. It was rejected on the frame it produces: darkening by exposure
+   * multiplies the near-black pixels down through the ACES toe, and midnight's
+   * crushed-black fraction went to **6.63% against a 2% ceiling** with emitter
+   * clusters at 58 against a floor of 60. Removing bloom removes halos without
+   * moving the toe: at the value below the crush is 0.88% and the clusters 83.
+   *
+   * THE COST, AND IT IS THE TIGHT PART OF THIS CHANGE. Bloom is also what holds
+   * NOON above its own floor: the noon scene without glow is 0.4255 against a
+   * band floor of 0.428. So bloom cannot go to zero, and the feasible window
+   * between "midnight under 0.112" and "noon over 0.428" is about 0.003 wide in
+   * this constant. 0.016 sits in it with midnight at 0.1101 (0.0019 of margin)
+   * and noon at 0.4293 (0.0013). Both are ~15× the run-to-run spread of these
+   * means, which is 0.0001 — resolvable under §0.1 rule 6, and thin. **The two
+   * bands were both re-centred on session 2's content and neither has been
+   * re-derived since; that they now bracket a 0.003 window is a fact about the
+   * bands, and it is STATE 27 §1.5's question for the operator.**
    */
-  bloomStrength: 0.055,
+  bloomStrength: 0.016,
   bloomMips: 8,
   /**
    * Veiling glare, as a fraction of the coarsest bloom mip added uniformly.
@@ -733,8 +777,54 @@ export const POST = {
    * The term still does its job, and that is the constraint this was re-derived
    * under rather than an afterthought: midnight's crushed-black fraction is what
    * the veil exists to hold off zero, and it stays far under its 2% ceiling.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * SESSION 27: 0.075 → 0.010, RE-DERIVED A THIRD TIME, AND THIS TIME AGAINST
+   * THE GROUND POOLS RATHER THAN AGAINST THE SATURATION RESERVE.
+   *
+   * `groundPools` asks whether the streetlights lay a pattern on the asphalt. It
+   * counts regions on the roadway brighter than **3.0 × the roadway's own
+   * median**. That ratio is the whole argument:
+   *
+   *   - A MULTIPLICATIVE change — exposure, a global gain — scales the pool and
+   *     the median together. `P > 3·median` is unchanged, and the count does not
+   *     move. Measured: `minEV` 3.0 → 6.0 lowered the roadway median 7.6% and
+   *     left the count at 5.
+   *   - An ADDITIVE change — this term, added uniformly to every pixel — raises
+   *     the median by Δ and therefore the bar by 3Δ, so a pool must now clear
+   *     `3·median + 2Δ`. **The veil makes its own test harder by twice what it
+   *     adds.** Measured: 0.075 → 0.000 lowered the median only 6.9% — less than
+   *     the exposure arm did — and took the count from 5 to 8.
+   *
+   * So the pool count was never about the light level. It was about what was
+   * being added on top of it, and this constant was the thing adding it.
+   *
+   *     glareStrength   0.075   0.035   0.022   0.010
+   *     ground pools        5       6      10      10     (floor 6)
+   *     albedo clusters     3       4       4       4     (floor 4)
+   *
+   * THE ALBEDO COLUMN IS THE SAME MECHANISM AND IT IS WHY THE PALETTE WAS NOT
+   * TOUCHED. `facadeAlbedo` measures chromaticity against log-luminance, and a
+   * uniform lift drives every ratio in a frame toward 1. The five walls it
+   * samples are two concretes, two bricks and a stucco: brick and concrete sit
+   * **2.255** apart in that metric as base reflectances and the frame was
+   * delivering them **0.294** apart. The materials were never the same; the veil
+   * was making them look it. A palette widening was built, measured, and
+   * reverted — it moved the closest pair 0.259 → 0.278 and tipped `warmth:dusk`
+   * red, which is what repairing the wrong cause looks like.
+   *
+   * WHAT BOUNDS IT FROM BELOW, so this is a window and not a direction. The veil
+   * is what holds the ACES toe off zero (§5.5), and with bloom also cut it is
+   * the only thing doing so: at 0.000, with `bloomStrength` at 0.000, midnight's
+   * crushed-black fraction is **5.89% against a 2% ceiling**. At 0.010 against
+   * the bloom value above it is **0.88%**. The term is kept, small, and still
+   * load-bearing — it is not switched off.
+   *
+   * The saturation reserve that produced the 0.15 → 0.075 re-derivation moves
+   * the safe way throughout (0.075 → 10.9%, 0.05 → 8.5% against a 12% reserve),
+   * so nothing that argument protected is put at risk by going further down it.
    */
-  glareStrength: 0.075,
+  glareStrength: 0.01,
   /**
    * Rod vision below ~3 cd/m². Applied per-pixel on absolute luminance, so a
    * neon sign stays photopic and saturated while the asphalt beside it goes
