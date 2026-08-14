@@ -34,6 +34,14 @@
 
 import * as THREE from 'three';
 import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.js';
+/**
+ * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
+ * occupancy*. The advertising pillar's placement test asks this rather than
+ * spelling out which categories a `sign` may not stand in, which is how a
+ * placement routine grows its own private predicate and becomes the eighth
+ * instance.
+ */
+import { mayOverlap } from '../lib/occupancy.js';
 import { EMITTER_CHROMA } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
@@ -71,6 +79,7 @@ import {
   ROOF_SIGN,
   HEIGHT_DISTRIBUTION,
   HEAD_CLEAR_M,
+  AD_PILLAR,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -2139,6 +2148,159 @@ export function createCity(options = {}) {
      * spending four of its nine calls per chunk on boxes that could share one.
      * The answer to a draw-call ceiling is a rendering fix, not less city.
      */
+    /**
+     * ═════════════════════════════════════════════════════════════════════
+     * THE ADVERTISING PILLARS — session 28, item 3.
+     * ═════════════════════════════════════════════════════════════════════
+     *
+     * DECLARED FROM THE START, which is the whole point of putting it here.
+     * Four sessions running found undeclared geometry — 208 signs, the
+     * viaduct's abutments, the 790 street lamps, the two pylons on one square
+     * metre — and CONTRACT §9 rule 7 was written for exactly this class. So a
+     * pillar tests `conflict()` before it claims, and it is REFUSED rather than
+     * moved: a moved pillar is a pillar somewhere nobody decided.
+     *
+     * IT RUNS AFTER THE SIGNS AND THE PROPS, deliberately, so `placed` already
+     * holds the pylons, the benches, the bins and the trees it has to miss. A
+     * placement tested against a list that is still being filled is tested
+     * against half a city.
+     *
+     * THE PAD IS SQUARE AND THE CLAIM IS THE DELIVERED BOX — session 24's own
+     * finding, which recorded a 2.4 x 0.06 m panel as a 2.4 x 2.4 m square. The
+     * pad `PILLAR_PAD` is a placement clearance, wider than the object in every
+     * direction, which is the safe direction for a keep-out. The CLAIM is the
+     * BASE — the widest part, wider than the column it carries — folded through
+     * the pillar's own yaw by the |cos|·L + |sin|·W expression `citygen.js`'s
+     * `paint()` and the pylon claim both use. Claiming the column would
+     * under-claim by 0.36 m on one axis and 0.30 m on the other.
+     *
+     * THE VERTICAL EXTENT IS THE BROW'S TOP AND NOT THE COLUMN'S, for the same
+     * reason session 25's building claim stopped at the top of the wall while
+     * the parapet and the plant stood above it.
+     */
+    const PILLAR_STANDOFF = 2.6;
+    const PILLAR_PAD = 0.85;
+    /** Local extents, in metres: along the elevation, and into it. */
+    const PILLAR_BASE_ALONG = 1.40;
+    const PILLAR_BASE_DEEP = 0.74;
+    const PILLAR_COL_ALONG = 1.04;
+    const PILLAR_COL_DEEP = 0.44;
+    const PILLAR_BASE_H = 0.18;
+    const PILLAR_COL_H = 3.40;
+    const PILLAR_BROW_H = 0.14;
+    /** The delivered top: base + column + brow. What the claim's `y1` must be. */
+    const PILLAR_TOP = PILLAR_BASE_H + PILLAR_COL_H + PILLAR_BROW_H;
+    /**
+     * cd/m². A DISPLAY PANEL, not a neon tube and not a domestic window — the
+     * distinction `LIGHT.signPlateNits` and `LIGHT.neonNits` are two numbers
+     * for. It rides in the chunk's EXISTING window mesh at a tint of
+     * `PILLAR_FACE_NITS / LIGHT.windowNits`, so the pillar costs no draw call
+     * and the delivered radiance is stated here rather than hidden in a
+     * multiplier (§9 rule 1: name the quantity in the expression).
+     *
+     * 748 is `materials.display`'s own 900 cd/m² taken down to what the window
+     * mesh's tungsten chromaticity delivers at the same luminance — and
+     * `materials.display` is worth a note: it is created, patched and tracked
+     * in this file and DRAWN BY NOTHING. Session 28 found it dead while looking
+     * for a mesh to hang these faces on. See STATE.
+     */
+    const PILLAR_FACE_NITS = 748;
+    const pillarBoxes = [];
+    const pillarSkin = [];
+    let pillarsRefused = 0;
+    if (detail) {
+      for (const bld of (chunk.buildings || [])) {
+        if (!bld.adPillar) continue;
+        const dirP = bld.facing[0] === 'x'
+          ? [bld.facing[1] === '+' ? 1 : -1, 0]
+          : [0, bld.facing[1] === '+' ? 1 : -1];
+        /** ALONG the elevation, perpendicular to the way it faces. */
+        const tanP = dirP[0] ? [0, 1] : [1, 0];
+        const offP = (dirP[0] ? bld.width : bld.depth) / 2;
+        const faceWP = dirP[0] ? bld.depth : bld.width;
+        /**
+         * SPACED ALONG THE FRONTAGE, not one per landlord. `AD_PILLAR
+         * .perFrontageM` is the spacing; the stations are the midpoints of
+         * equal divisions of the elevation, so one pillar stands centred and
+         * two stand at the quarter points rather than both at the middle.
+         */
+        const nP = Math.min(AD_PILLAR.maxPerBuilding,
+          Math.max(1, Math.round(faceWP / AD_PILLAR.perFrontageM)));
+        for (let k = 0; k < nP; k++) {
+        const alongP = (-faceWP / 2) + (faceWP * (k + 0.5)) / nP;
+        const px = bld.x + dirP[0] * (offP + PILLAR_STANDOFF) + tanP[0] * alongP;
+        const pz = bld.z + dirP[1] * (offP + PILLAR_STANDOFF) + tanP[1] * alongP;
+
+        const inBlock = px > BLOCK_KEEPOUT.x0 && px < BLOCK_KEEPOUT.x1 &&
+          pz > BLOCK_KEEPOUT.z0 && pz < BLOCK_KEEPOUT.z1;
+        const hitsBuilding = (chunk.occluders || []).some((o) =>
+          px + PILLAR_PAD > o.x0 && px - PILLAR_PAD < o.x1 &&
+          pz + PILLAR_PAD > o.z0 && pz - PILLAR_PAD < o.z1);
+        /**
+         * AGAINST EVERYTHING ALREADY CLAIMED IN THIS CHUNK, through the ONE
+         * table. `mayOverlap('sign', p.kind)` is `occupancy.js`'s own answer,
+         * so a pillar may share a pavement (that is what a pavement is for) and
+         * may not share a carriageway, a tree, a bench or another sign.
+         */
+        const hitsClaim = placed.some((p) =>
+          !mayOverlap('sign', p.kind) &&
+          px + PILLAR_PAD > p.x0 && px - PILLAR_PAD < p.x1 &&
+          pz + PILLAR_PAD > p.z0 && pz - PILLAR_PAD < p.z1);
+        if (inBlock || hitsBuilding || hitsClaim) { pillarsRefused++; continue; }
+
+        const yawP = yawForNormal(dirP[0], dirP[1]) + bld.yawDeg;
+        const baseY = worldSurface(ctx, px, pz).y;
+        const dark = { albedo: [0.055, 0.056, 0.062], roughness: 0.42 };
+
+        // base — wider than the column, and the thing the claim is taken from
+        pillarBoxes.push(setMatrix(px, baseY + PILLAR_BASE_H / 2, pz,
+          PILLAR_BASE_ALONG, PILLAR_BASE_H, PILLAR_BASE_DEEP, yawP));
+        pillarSkin.push(dark);
+        // column
+        pillarBoxes.push(setMatrix(px, baseY + PILLAR_BASE_H + PILLAR_COL_H / 2, pz,
+          PILLAR_COL_ALONG, PILLAR_COL_H, PILLAR_COL_DEEP, yawP));
+        pillarSkin.push(dark);
+        // brow — a thin cap, so the column reads as finished rather than cut
+        pillarBoxes.push(setMatrix(px, baseY + PILLAR_BASE_H + PILLAR_COL_H + PILLAR_BROW_H / 2, pz,
+          PILLAR_BASE_ALONG * 0.86, PILLAR_BROW_H, PILLAR_BASE_DEEP * 0.80, yawP));
+        pillarSkin.push(dark);
+
+        /**
+         * TWO EMISSIVE FACES, one to the street and one to the building behind
+         * it — which is not waste: the second one is what lights the dark
+         * plinth this pillar was placed in front of.
+         */
+        const faceH = 2.55;
+        const faceY = baseY + PILLAR_BASE_H + 0.42 + faceH / 2;
+        const tint = PILLAR_FACE_NITS / LIGHT.windowNits;
+        const chroma = SIGN_CHROMA[Math.abs(Math.round(bld.x + bld.z)) % SIGN_CHROMA.length];
+        for (const sgn of [1, -1]) {
+          windows.push(setMatrix(
+            px + dirP[0] * sgn * (PILLAR_COL_DEEP / 2 + 0.03),
+            faceY,
+            pz + dirP[1] * sgn * (PILLAR_COL_DEEP / 2 + 0.03),
+            PILLAR_COL_ALONG * 0.84, faceH, 0.05,
+            yawForNormal(dirP[0] * sgn, dirP[1] * sgn) + bld.yawDeg
+          ));
+          windowTint.push({
+            albedo: [chroma[0] * tint, chroma[1] * tint, chroma[2] * tint],
+            roughness: 0.05,
+          });
+        }
+
+        const caP = Math.abs(Math.cos(yawP * DEG));
+        const saP = Math.abs(Math.sin(yawP * DEG));
+        const hxP = (caP * PILLAR_BASE_ALONG + saP * PILLAR_BASE_DEEP) / 2;
+        const hzP = (saP * PILLAR_BASE_ALONG + caP * PILLAR_BASE_DEEP) / 2;
+        placed.push({
+          kind: 'sign', owner: 'adpillar',
+          x0: px - hxP, x1: px + hxP, z0: pz - hzP, z1: pz + hzP,
+          y0: 0, y1: baseY + PILLAR_TOP,
+        });
+        }
+      }
+    }
+
     // Counted BEFORE the merge, because after it there is one mesh and no
     // categories. See the `census` parameter on addInstanced.
     const massCensus = {
@@ -2157,9 +2319,14 @@ export function createCity(options = {}) {
       propBoxes: props.length,
       $props: `${detail ? chunk.props.length : 0} props`,
       patches: patches.length,
+      /** Session 28. Boxes, not pillars — three boxes a pillar, and the census's
+       *  numeric fields must sum to the mesh's instance count. */
+      adPillarBoxes: pillarBoxes.length,
+      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarsRefused} refused`,
     };
     for (let i = 0; i < crowns.length; i++) { bodies.push(crowns[i]); bodySkin.push(crownSkin[i]); }
     for (let i = 0; i < props.length; i++) { bodies.push(props[i]); bodySkin.push(propSkin[i]); }
+    for (let i = 0; i < pillarBoxes.length; i++) { bodies.push(pillarBoxes[i]); bodySkin.push(pillarSkin[i]); }
     for (let i = 0; i < patches.length; i++) {
       bodies.push(patches[i]);
       bodySkin.push({ albedo: [0.055, 0.055, 0.058], roughness: 0.88 });

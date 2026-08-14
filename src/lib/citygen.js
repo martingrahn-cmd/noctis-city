@@ -494,6 +494,66 @@ export const RETAIL = {
 };
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ADVERTISING PILLARS — SESSION 28, item 3, and the first new prop kind in
+ * several sessions.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * A freestanding emissive column on the pavement. The brief asked for
+ * "futuristic", and futuristic here means THE LIGHT DOES THE WORK: this city is
+ * flat-shaded boxes and the vocabulary holds. Five boxes — a base wider than
+ * the column, the column, two emissive faces and a brow — and the emission
+ * carries it.
+ *
+ * IT IS AWARE OF THE RETAIL ROLL RATHER THAN FIRING BLINDLY, which is the
+ * brief's own requirement and is also what makes it read: a dark postwar sockel
+ * with a lit pillar in front of it is better than the same sockel wearing
+ * shopfronts it should not have. So a frontage with NO trade is where a pillar
+ * most wants to stand, and one WITH trade still gets some — an advertising
+ * column stands on any busy pavement, and a street of shops is the busiest
+ * there is.
+ */
+export const AD_PILLAR = {
+  /**
+   * p(pillar) at a frontage with NO shops, before the density term — and it is
+   * 1.0 at any density this generator produces, which is the brief's own
+   * instruction taken literally: *put them where a blank plinth is*. A dark
+   * sockel is precisely the frontage that wants one.
+   */
+  baseNoRetail: 0.85,
+  /** And where the ground floor already trades. Lower, not zero. */
+  baseRetail: 0.34,
+  /** Both are lifted by `density * this`, the same shape every other roll here uses. */
+  density: 0.35,
+  /**
+   * Metres of frontage per pillar. AN ADVERTISING COLUMN IS SPACED ALONG A
+   * PAVEMENT, not issued one per landlord — the first version rolled once per
+   * building and delivered **1.1 pillars per 128 m chunk**, which over a chunk's
+   * roughly 500 m of frontage is one every 450 m. Nobody would see two.
+   *
+   * 19 m is the generator's own median building width (the walk draws
+   * `rng.range(11, 27)`), so a typical frontage carries one and a wide one
+   * carries two, at the ends of its elevation rather than stacked at the
+   * middle. It is a SPACING and it is measured along the elevation, which is
+   * the datum CONTRACT §9 rule 7 asks for.
+   */
+  perFrontageM: 19.0,
+  /** No frontage carries more than this, whatever its width. */
+  maxPerBuilding: 2,
+};
+
+/**
+ * Does this building's frontage carry an advertising pillar? Rolled in the
+ * generator so it is part of the chunk's own description; WHERE it stands and
+ * whether it fits are decided against the delivered occupancy in `city.js`,
+ * which is where the pylon's own placement test lives.
+ */
+export function adPillarWanted(pillarRng, retail, density) {
+  const base = retail ? AD_PILLAR.baseRetail : AD_PILLAR.baseNoRetail;
+  return pillarRng.next() < base + density * AD_PILLAR.density;
+}
+
+/**
  * Does this frontage trade? One roll per SIDE, consumed in a fixed order so the
  * answer is deterministic in (seed, chunk, side index) and independent of how
  * many buildings the side ends up carrying.
@@ -3597,6 +3657,8 @@ export function generateChunk(rootSeed, cx, cz) {
    * reading, which is exactly what a named stream is for.
    */
   const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
+  /** SESSION 28, item 3. The advertising pillars, on their own stream too. */
+  const pillarRng = chunkRng(rootSeed, cx, cz, 'pillar');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -4172,6 +4234,8 @@ export function generateChunk(rootSeed, cx, cz) {
             retail,
             /** Kept so a probe can ask why — the frontage's answer, not this building's. */
             retailFrontage: retailSide,
+            /** SESSION 28. Wants an advertising pillar; `city.js` decides if it fits. */
+            adPillar: adPillarWanted(pillarRng, retail, density),
             /** Which way the front faces: outward, toward the road. */
             facing: side.axis === 'x' ? (side.out < 0 ? 'z-' : 'z+') : (side.out < 0 ? 'x-' : 'x+'),
             yawDeg: yaw(),
@@ -4488,6 +4552,7 @@ export function generateChunk(rootSeed, cx, cz) {
            */
           retail: retailRng.next() < RETAIL.quay,
           retailFrontage: false,
+          adPillar: adPillarWanted(pillarRng, false, density),
           displayFacade: signRng.next() < 0.03 + density * 0.09,
           displayFrom: 0.30,
           displayTo: 0.72,
