@@ -3,7 +3,16 @@
  *
  * A number that appears in two files eventually appears as two different
  * numbers. Anything here is authored once.
+ *
+ * THE ONE IMPORT, AND IT IS NOT A MODULE. `src/lib/**` is pure — numbers in,
+ * numbers out, no state, no ctx, no three — so `core` may read it and
+ * `parsecheck` allows exactly this (it forbids `src/core` importing a MODULE).
+ * `LAMP_BOWL` below needs an INTEGRAL of the luminaire distribution to state
+ * its own derivation, and a constant whose derivation is copied out by hand is
+ * the thing this file exists to prevent.
  */
+
+import { bowlRadianceNits, bowlZoneAreaM2 } from '../lib/luminaire.js';
 
 /** Where the block is. Chosen, not arbitrary — see WHY_LATITUDE below. */
 export const SITE = {
@@ -147,78 +156,24 @@ export const LIGHT = {
    */
   aviationRedNits: 16300,
   /**
-   * cd/m², THE AREA-AVERAGE RADIANCE OF THE FROSTED BOWL — 9000 → 1952 in
-   * session 18, and it is `signPlateNits` again with a lamp instead of a sign.
+   * cd/m², THE AREA-AVERAGE RADIANCE OF THE FROSTED BOWL — MOVED TO
+   * `LAMP_BOWL` IN THIS FILE, session 28, and it is no longer a value here at
+   * all.
    *
-   * 9000 is not a radiance. It is an INTENSITY OVER A PROJECTION: the bowl is a
-   * sphere of radius 0.42 m (`city.js` → `geometries.bowl`), whose projected
-   * area is π·0.42² = 0.5542 m², and `streetlampCandela` / 0.5542 = 12 270
-   * cd/m². 9000 is that quantity rounded down. Both are cd/m², both are
-   * plausible, and the lamp renders — CONTRACT §9's shape exactly, and the
-   * fourth time this project has made it with a photometric quantity after the
-   * luminaire leak, the tyre reflectance and the sign plate.
+   * It sat here as a bare `9000` for eighteen sessions while `block.js` held
+   * `EMISSIVE.lampBowl = 210` for the same frosted bowl on the same column —
+   * one quantity, two values, two files, 42.86× apart, and nothing comparing
+   * them. That is CONTRACT §9's own class, so the repair is structural rather
+   * than a third number: `LAMP_BOWL` holds the fixture's geometry, derives
+   * Φ/(π·A) = 1952.2 cd/m² from `streetlampCandela` and `LUMINAIRE` through
+   * `lib/luminaire.js`, and expresses BOTH delivered radiances as declared
+   * factors of it. The full derivation, both measured arms and the reason
+   * neither path can ship the correct value today are all written there.
    *
-   * THE RADIANCE OF AN EMITTING SURFACE IS ITS FLUX OVER ITS OWN AREA, not its
-   * peak intensity over its own shadow. `luminaire.js` integrates the §5.9
-   * distribution and returns the fixture's flux; the bowl is a spherical zone
-   * from 63° to 180°, so its emitting area is 2πR²(cos 63° − cos 180°):
-   *
-   *     Φ = luminaireFlux(6800 cd, LUMINAIRE)      =  9883.5 lm
-   *     A = 2π·0.42²·(0.4540 + 1)                  =     1.6115 m²
-   *     L = Φ / (π·A) = 9883.5 / 5.0627            =  1952 cd/m²
-   *
-   * and 9000 / 1952 = **4.61×**, which is the size of the error rather than a
-   * taste. Every number in that derivation already existed in the project; none
-   * of them had ever been written on the same line.
-   *
-   * WHAT IT WAS COSTING. At the night exposure the frame actually settles at
-   * (e ≈ 0.0141), 9000 cd/m² is 127 in exposed linear against a bright-pass
-   * onset of 0.414 — **307× over the bloom threshold**, on ninety-eight lamp
-   * bowls at once. CONTRACT §5.5 says it in one line: "If the whole frame
-   * glows, the threshold is wrong." The threshold was not wrong; what sat above
-   * it was two and a half orders of magnitude over it, and `POST.glareStrength`
-   * has been re-derived twice (0.15 → 0.075) against a veil that this constant
-   * was filling. At 1952 the bowl is 66× the onset — still a lamp, still
-   * blooming, no longer the frame's dominant source of glare energy.
-   *
-   * ────────────────────────────────────────────────────────────────────────
-   * AND THE VALUE IS STILL 9000, BECAUSE THE CORRECTION WAS MEASURED AND IT
-   * MADE THE FRAME WORSE. This is the finding, not the arithmetic above.
-   *
-   * Session 18 set it to 1952, re-shot the operator's own night street from the
-   * pavement at [300, 1.77, 9.7] and read the histogram (`tools/levels.mjs`,
-   * the Zone III–VII textured band):
-   *
-   *     9000 → 1952     textured 12.15% → 3.26%   (−8.89 points)
-   *                     crushed   2.53% → 6.23%   (+3.70 points)
-   *                     clipped   0.10% → 0.10%   (unchanged)
-   *                     mean     0.1419 → 0.1042
-   *
-   * THE TOP END DID NOT MOVE AT ALL, and that is the whole explanation: a bowl
-   * at 9000 and a bowl at 1952 are both far above white, so dividing by 4.61
-   * removes no clipping. What it removes is BLOOM ENERGY — and the veiling
-   * glare fed from that energy is the only thing holding 85% of a night frame
-   * off zero. `POST.glareStrength` says so in its own derivation two blocks
-   * down: it was re-derived 0.15 → 0.075 against a frame whose glare budget
-   * this constant was filling. So the two numbers are one system, and 9000 is
-   * load-bearing as LIGHTING even though it is wrong as a RADIANCE.
-   *
-   * The honest statement is therefore: **this is a real §9 quantity confusion,
-   * the correct value is 1952 cd/m², and it cannot ship on its own** — the
-   * 8.89 points of mid-tone it removes have to come back as light before it
-   * goes in, not as camera veil. That is a lighting change (item 11's kind) and
-   * a glare re-derivation together, measured on the same frames, and session 18
-   * did not have room to land both honestly. Reverting a measured regression is
-   * not the same as declining to fix the defect, and the arithmetic is left
-   * here so the next session argues with the derivation rather than the taste.
-   *
-   * THE SPLIT IS ALSO STILL OPEN. `block.js` → `EMISSIVE.lampBowl` is **210**
-   * for the same object, read only by `block.js`, while this is read only by
-   * `city.js` — 42.9× = 5.42 stops between two paths, with the look gates
-   * watching the 210 side and the night routes filling their frames from this
-   * one. Neither number is Φ/(πA). See STATE.md.
+   * Readers take `LAMP_BOWL.streamedNits` (9000, the streamed city) or
+   * `LAMP_BOWL.originNits` (210, the origin block). `citycheck` runs a
+   * ratchet over both against the derivation.
    */
-  streetlampNits: 9000,
   /**
    * candela, PEAK intensity of a high-pressure sodium luminaire — reached at
    * LUMINAIRE.peakAngleRad off nadir, not on the axis.
@@ -1324,6 +1279,177 @@ export const LUMINAIRE = {
   peakAngleRad: (57.0 * Math.PI) / 180,
   /** Width of the roll-off at the cutoff, radians. A semi-cutoff optic, not a hard edge. */
   edgeRad: (7.0 * Math.PI) / 180,
+};
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE LAMP BOWL — ONE FIXTURE, ONE DERIVATION, AND THE TWO DELIVERED VALUES
+ * WRITTEN AS WHAT THEY ARE: DECLARED DEPARTURES FROM IT.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 28. What this replaces is CONTRACT §9's own class, and it had been
+ * standing for ten sessions: ONE QUANTITY WITH TWO VALUES IN TWO FILES AND
+ * NOTHING COMPARING THEM.
+ *
+ *     src/modules/block.js  EMISSIVE.lampBowl      210     the origin block
+ *     src/core/constants.js LIGHT.streetlampNits   9000    the streamed city
+ *     derived, and in neither file                 1952.2
+ *
+ * 9000 / 210 = **42.86×**, 5.42 stops, for the same frosted bowl on the same
+ * column carrying the same 6800 cd lantern. Neither number was Φ/(πA); one was
+ * an intensity over a projection (§9 row 18) and the other was authored into a
+ * table whose own comment says "these are authored, not measured".
+ *
+ * ── WHAT IS NOW SINGLE-SOURCE, BY CONSTRUCTION RATHER THAN BY A CHECK ──────
+ *
+ * The bowl's geometry lives HERE and both emitters build from it, so the area
+ * in the derivation and the area on the screen cannot diverge. The derivation
+ * reads `LIGHT.streetlampCandela` and `LUMINAIRE`, so a change to the lantern
+ * moves both delivered radiances with it. Before this, changing the candela
+ * left two stale radiances behind and the bowl stopped being the same lamp as
+ * its own beam — silently, in two files, in opposite directions.
+ *
+ * ── WHAT IS CHECKED, BECAUSE CONSTRUCTION CANNOT REACH IT ─────────────────
+ *
+ * `tools/city-budget.json` → `lampBowl` carries a RATCHET on how far each path
+ * may sit from the derivation, and `citycheck` runs it over the DELIVERED
+ * materials off the live scene (§9.1: a gate that reads config verifies the
+ * config). The bounds sit at today's measured departures and MAY ONLY EVER
+ * MOVE TOWARD 1.0 — the same shape as `floors.visibleInstances` and
+ * `saturation.minBrightFraction`, with an error instead of a count.
+ *
+ * ── WHY BOTH VALUES ARE STILL WRONG, WITH THE ARITHMETIC THAT SAYS SO ─────
+ *
+ * Session 28 measured the correction from both ends at once. It cannot ship on
+ * either path today, and the two failures are in OPPOSITE directions:
+ *
+ *   arm                            look band:midnight   citycheck bright reserve
+ *   ---------------------------------------------------------------------------
+ *   shipped (210 / 9000)              0.1091  ✓            4.95%  ✗ (floor 6.00)
+ *   origin block  210 → 1952          0.1187  ✗ RED        —
+ *   streamed city 9000 → 1952         0.1090               3.56%  ✗
+ *
+ * ATTRIBUTION FIRST, because it is the fact the two arms turn on. Zeroing each
+ * path in turn: the origin block's bowls carry **0.0030** of the look frame's
+ * 0.1091 mean and **0.06** points of the reserve; the streamed city's carry
+ * **0.0000** of the look frame — to four decimals, nothing — and **0.96**
+ * points of the reserve. The look gate watches one path and the night route
+ * watches the other, 16:1, and neither can see what the other is measuring.
+ *
+ *   - ON THE STREAMED CITY THE CORRECTION IS A DIMMING. 9000 → 1952 is ÷4.61,
+ *     and it costs **1.39 points** of bright reserve against a floor the city
+ *     already misses by 1.05. The only path the reserve can see is the one
+ *     where the correct value subtracts light.
+ *   - ON THE ORIGIN BLOCK IT IS A BRIGHTENING OF 9.30×, worth **+0.0096** of
+ *     midnight mean against **0.0021** of band ceiling — red by 0.0067, i.e.
+ *     4.6× the room that exists.
+ *
+ * SO THE BLOCK SIDE IS BLOCKED ON A NUMBER STATE 27 §8.3 ITEM 1 ALREADY NAMED
+ * AS THIS PROJECT'S FIRST OPEN QUESTION: `band:midnight`'s ceiling was
+ * re-centred on session 2's content and has not been re-derived in 25
+ * sessions. The lamp correction needs 0.0067 of ceiling that does not exist.
+ * Those are one question, and this comment is where they meet.
+ *
+ * Session 18 wrote "it cannot ship on its own — the mid-tone it removes has to
+ * come back as light before it goes in". That is still the answer. What is new
+ * is that the sentence now has a number on both ends, and that the two ends
+ * disagree about which direction "more light" even points.
+ */
+const BOWL_RADIUS_M = 0.42;
+const BOWL_THETA_START = Math.PI * 0.35;
+const BOWL_THETA_LENGTH = Math.PI * 0.65;
+/** Φ/(π·A) = 1952.2 cd/m². The one number both delivered values are a factor of. */
+const BOWL_DERIVED_NITS = bowlRadianceNits(
+  LIGHT.streetlampCandela, LUMINAIRE, BOWL_RADIUS_M, BOWL_THETA_START, BOWL_THETA_LENGTH
+);
+/**
+ * THE TWO FACTORS ARE MEASURED DEPARTURES, NOT AUTHORED SETTINGS, so they are
+ * quoted at the precision that reproduces what shipped rather than rounded to
+ * something that reads well:
+ *
+ *     9000 / 1952.1892 = 4.61020889     ->  4.610209 x 1952.1892 = 9000.00000
+ *      210 / 1952.1892 = 0.10757154     ->  0.1075715 x 1952.1892 = 209.99999
+ *
+ * So this refactor delivers the same two radiances the branch already shipped,
+ * to five decimal places, and every gate reading is therefore attributable to
+ * the CONTENT changes that follow rather than to the single-sourcing.
+ */
+const BOWL_STREAMED_FACTOR = 4.610209;
+const BOWL_ORIGIN_FACTOR = 0.1075715;
+
+export const LAMP_BOWL = {
+  /**
+   * The geometry BOTH emitters build. The tessellation is each emitter's own
+   * business (the origin block draws 12×8, the streamed city 8×6, because one
+   * is sixteen bowls at 30 m and the other is 790 at up to a kilometre); the
+   * SHAPE is not, because the shape is what the radiance is divided by.
+   *
+   * THETA, NOT PHI, AND THE NAMES ARE THREE'S OWN. `SphereGeometry(R, wSeg,
+   * hSeg, phiStart, phiLength, thetaStart, thetaLength)` sweeps PHI around the
+   * equator and THETA pole to pole. This bowl is a THETA zone from 63° to 180°
+   * over a FULL phi revolution. Session 28 first wrote these as `phiStart` and
+   * `phiLength`, built the geometry correctly anyway (the values went into the
+   * theta slots), and then had the delivered census read three's `phiStart` —
+   * 0 and 2π — and compare it with 0.35π and 0.65π. The gate caught it on its
+   * first real run. CONTRACT §9 rule 7, one letter wide.
+   */
+  radiusM: BOWL_RADIUS_M,
+  thetaStart: BOWL_THETA_START,
+  thetaLength: BOWL_THETA_LENGTH,
+  /**
+   * The azimuthal sweep, and it is here because `bowlZoneAreaM2` ASSUMES it.
+   * A bowl swept over less than a full revolution has a proportionally smaller
+   * emitting area and the derivation would be silently wrong by that factor,
+   * which is the same defect one axis over. `citycheck` checks the delivered
+   * geometry against it.
+   */
+  phiStart: 0,
+  phiLength: Math.PI * 2,
+
+  /**
+   * m², the EMITTING area of that zone — 2πR²(cos φ0 − cos φ1) = 1.6115.
+   *
+   * It is the denominator of the derivation and it was also a bare `1.6115`
+   * literal in `city.js`'s own boot log, written out by hand from a comment in
+   * this file. Two copies of an area, one of which would not have moved if the
+   * bowl had. §9 rule 2: derived once, read everywhere.
+   */
+  areaM2: bowlZoneAreaM2(BOWL_RADIUS_M, BOWL_THETA_START, BOWL_THETA_LENGTH),
+
+  /**
+   * cd/m². Φ/(π·A) for the fixture above — 9883.5 lm over 1.6115 m². Computed
+   * at load from `luminaire.js`, never authored: §9 rule 4 wants both numbers
+   * printed at the moment of derivation, and `city.js` prints this one beside
+   * each delivered value at init.
+   */
+  derivedNits: BOWL_DERIVED_NITS,
+
+  /**
+   * THE STREAMED CITY'S 790 BOWLS. 4.610× the derivation.
+   *
+   * This is `LIGHT.streetlampCandela / (π·0.42²)` = 12 270 rounded down to
+   * 9000 — an intensity over a projected area, used as a radiance. §9 row 18.
+   * It is load-bearing as LIGHTING while it is wrong as a RADIANCE: it carries
+   * 0.96 of the 4.95 points of bright reserve this city delivers, and the
+   * corrected value costs 1.39 of them.
+   */
+  streamedFactor: BOWL_STREAMED_FACTOR,
+  /** cd/m² AS DELIVERED to the streamed city's bowl material. 9000.0. */
+  streamedNits: BOWL_DERIVED_NITS * BOWL_STREAMED_FACTOR,
+
+  /**
+   * THE ORIGIN BLOCK'S 16 BOWLS. 0.1076× the derivation, i.e. 9.30× too dim.
+   *
+   * 210, authored in `block.js`'s EMISSIVE table under a comment that says the
+   * table is authored rather than measured — so unlike the streamed city's
+   * number this one is not a wrong derivation, it is an absent one (§9 rule 5:
+   * a number without a derivation is a guess). It is the value the look gate's
+   * `band:midnight` was last balanced against, and raising it to the
+   * derivation takes that assertion red.
+   */
+  originFactor: BOWL_ORIGIN_FACTOR,
+  /** cd/m² AS DELIVERED to the origin block's bowl material. 210.0. */
+  originNits: BOWL_DERIVED_NITS * BOWL_ORIGIN_FACTOR,
 };
 
 /**

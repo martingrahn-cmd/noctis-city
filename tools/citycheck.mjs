@@ -47,6 +47,12 @@ import {
  * how `pierEvery: 34` sat beside `i % 3 === 0` for a session.
  */
 import { findConflicts, conflictPairs } from '../src/lib/occupancy.js';
+/**
+ * The DERIVATION side of the lamp-bowl check. `harness.lampBowlCensus()` is the
+ * delivered side; these are the geometry the radiance was divided by, so the
+ * two can disagree and the disagreement is the finding (CONTRACT §9 rule 7).
+ */
+import { LAMP_BOWL } from '../src/core/constants.js';
 
 /**
  * The seed the pages below are opened with, in one place, so the gate's own
@@ -343,6 +349,60 @@ function judgeCity(M, BUDGET) {
     out.push(['saturation', `only ${(M.brightMean * 100).toFixed(2)}% of pixels on the night route are above ` +
       `${BUDGET.saturation.valueThreshold} value < ${(BUDGET.saturation.minBrightFraction * 100).toFixed(2)}% — ` +
       `the reserve's ceiling is being met by turning the lights down`]);
+  }
+
+  /**
+   * 4a. THE LAMP BOWL RATCHET — session 28, CONTRACT §9 rule 7 and §9.1.
+   *
+   * One object had two radiances in two files and nothing compared them. The
+   * derivation is now single-sourced in `constants.js` → `LAMP_BOWL`; this is
+   * the check on the OTHER end, over `harness.lampBowlCensus()`, which reads
+   * the `emissiveIntensity` that arrived on the live material and the
+   * sphere-zone parameters of the geometry it is drawn on.
+   *
+   * A gate that read the constants would verify the constants. These four
+   * sites can only fail on a disagreement between the derivation and what the
+   * scene actually got.
+   */
+  const LB = BUDGET.lampBowl;
+  if (!M.lampBowl) {
+    out.push(['lampBowl',
+      'harness.lampBowlCensus() returned nothing — the delivered lamp radiances are unmeasured. ' +
+      'UNRUN, not passed.']);
+  } else if (M.lampBowl.lampsOn === false) {
+    out.push(['lampBowl',
+      'the photocell is OFF in the census page, so every bowl carries its 0.5 standby radiance and ' +
+      'this check cannot tell a dark lamp from a wrong one. UNRUN, not passed.']);
+  } else {
+    if (M.lampBowl.paths.length < LB.minPaths) {
+      out.push(['lampBowl',
+        `only ${M.lampBowl.paths.length} tagged lamp-bowl path(s) in the delivered scene, expected at ` +
+        `least ${LB.minPaths} — a path that stops declaring itself stops being compared, which is how ` +
+        `the 42.86× split survived ten sessions`]);
+    }
+    for (const p of M.lampBowl.paths) {
+      const ratio = p.deliveredNits / M.lampBowl.derivedNits;
+      if (ratio < LB.minRatio || ratio > LB.maxRatio) {
+        out.push(['lampBowl',
+          `lamp path '${p.path}' delivers ${p.deliveredNits.toFixed(1)} cd/m² against a derived ` +
+          `${M.lampBowl.derivedNits.toFixed(1)} — ${ratio.toFixed(4)}×, outside the ratchet ` +
+          `[${LB.minRatio}, ${LB.maxRatio}]. These bounds may only ever move toward 1.0`]);
+      }
+      /**
+       * BOTH ANGLE PAIRS. `theta` is what `bowlZoneAreaM2` integrates; `phi` is
+       * the full revolution it assumes and would be silently wrong without.
+       */
+      const g = [['radiusM', LAMP_BOWL.radiusM],
+        ['thetaStart', LAMP_BOWL.thetaStart], ['thetaLength', LAMP_BOWL.thetaLength],
+        ['phiStart', LAMP_BOWL.phiStart], ['phiLength', LAMP_BOWL.phiLength]];
+      for (const [k, want] of g) {
+        if (p[k] == null || Math.abs(p[k] - want) > Math.abs(want) * LB.geometryTolerance) {
+          out.push(['lampBowl',
+            `lamp path '${p.path}' is drawn on a bowl whose ${k} is ${p[k]} where the radiance was ` +
+            `derived over ${want} — the area on the screen is not the area in the derivation`]);
+        }
+      }
+    }
   }
 
   // 5. negative space and dead zones
@@ -769,6 +829,32 @@ function goodCityFixture() {
     satMax: (S.minFraction + S.maxFraction) / 2,
     brightMean: S.minBrightFraction + 0.02,
 
+    /**
+     * The lamp-bowl census as it arrives from a healthy scene: both paths
+     * tagged, the photocell on, each delivered radiance exactly its declared
+     * factor of the derivation, and both drawn on the derivation's own bowl.
+     * Built from `LAMP_BOWL` rather than from literals, so a change to the
+     * fixture cannot leave a green fixture behind describing the old one.
+     */
+    lampBowl: {
+      derivedNits: LAMP_BOWL.derivedNits,
+      lampsOn: true,
+      paths: [
+        {
+          path: 'streamed', meshes: 25, deliveredNits: LAMP_BOWL.streamedNits,
+          radiusM: LAMP_BOWL.radiusM,
+          thetaStart: LAMP_BOWL.thetaStart, thetaLength: LAMP_BOWL.thetaLength,
+          phiStart: LAMP_BOWL.phiStart, phiLength: LAMP_BOWL.phiLength,
+        },
+        {
+          path: 'origin', meshes: 16, deliveredNits: LAMP_BOWL.originNits,
+          radiusM: LAMP_BOWL.radiusM,
+          thetaStart: LAMP_BOWL.thetaStart, thetaLength: LAMP_BOWL.thetaLength,
+          phiStart: LAMP_BOWL.phiStart, phiLength: LAMP_BOWL.phiLength,
+        },
+      ],
+    },
+
     lowDetailFraction: N.minLowDetailFraction + 0.05,
     lowKinds: N.minDistinctKinds + 1,
 
@@ -813,6 +899,37 @@ const FALSIFY_CITY = [
   ['occupancy.pierBlocked', (m) => { m.viaductPiersBlocked = 2; }],
   ['occupancy.legOutsideBlockBand', (m) => { m.viaductLegMaxInBlockM = 12.18; }],
   ['saturation.unrun', (m) => { m.softwareRenderer = true; }],
+  /**
+   * SESSION 28 — the lamp-bowl ratchet's five sites. Each perturbation is the
+   * shape of a real defect rather than a nonsense value.
+   */
+  ['lampBowl.noCensus', (m) => { m.lampBowl = null; }],
+  /** The daylight run, where every bowl carries its 0.5 standby radiance. */
+  ['lampBowl.photocellOff', (m) => { m.lampBowl = { ...m.lampBowl, lampsOn: false }; }],
+  /** A path that stops tagging itself is a path nothing compares — the defect. */
+  ['lampBowl.pathVanished', (m) => {
+    m.lampBowl = { ...m.lampBowl, paths: m.lampBowl.paths.slice(0, 1) };
+  }],
+  /**
+   * THE DEFECT AS IT ACTUALLY STOOD: the origin block at 210 while the
+   * streamed city ran at 9000 is inside the ratchet by construction, so the
+   * case that must fail is one MOVING AWAY from the derivation. 42.86x on one
+   * path is the split with both halves' error loaded onto one of them.
+   */
+  ['lampBowl.ratioWorse', (m) => {
+    m.lampBowl = {
+      ...m.lampBowl,
+      paths: [{ ...m.lampBowl.paths[0], deliveredNits: m.lampBowl.derivedNits * 42.86 },
+        m.lampBowl.paths[1]],
+    };
+  }],
+  /** A bowl re-authored in one file only: the area on screen leaves the derivation. */
+  ['lampBowl.geometryDiverged', (m) => {
+    m.lampBowl = {
+      ...m.lampBowl,
+      paths: [{ ...m.lampBowl.paths[0], radiusM: 0.5 }, m.lampBowl.paths[1]],
+    };
+  }],
   ['clumping.cv', (m) => { m.propCV = 0.1; }],
   ['clumping.populated', (m) => { m.populatedFraction = 0.1; }],
   ['sceneWalk.noCensus', (m) => { m.hasCensus = false; }],
@@ -1226,6 +1343,7 @@ try {
 
 let placement = null;
 let census = null;
+let lampBowl = null;
 let pedestrians = null;
 let signQuads = null;
 let riverCensus = null;
@@ -1303,6 +1421,17 @@ try {
     const h = window.__NOCTIS_HARNESS__;
     if (!h.sceneCensus) throw new Error('harness.sceneCensus() is missing');
     return h.sceneCensus();
+  });
+  /**
+   * The DELIVERED lamp radiances — session 28. Taken on this page, which boots
+   * at `ctx.config.t` = 0.78, so the photocell is on and `emissiveIntensity`
+   * carries the lit value rather than the 0.5 standby. The census reports the
+   * photocell state rather than inferring it, and `judgeCity` refuses rather
+   * than passing if it is off.
+   */
+  lampBowl = await page.evaluate(() => {
+    const h = window.__NOCTIS_HARNESS__;
+    return h.lampBowlCensus ? h.lampBowlCensus() : null;
   });
   pedestrians = await page.evaluate(() => {
     const h = window.__NOCTIS_HARNESS__;
@@ -1537,6 +1666,7 @@ const SW = BUDGET.sceneWalk;
 // empty, so that `M` has one shape rather than one per outcome. `hasCensus` is
 // what judgeCity branches on; the zeros below are never read once it is false.
 M.hasCensus = !!census;
+M.lampBowl = lampBowl;
 M.streamed = streamed;
 M.streamedTimedOut = !!(streamed && streamed.timedOut);
 M.instancedMeshes = census ? census.instancedMeshes : 0;
@@ -1858,6 +1988,26 @@ notes.push(
   `${(satMean / Math.max(1e-9, mean(brightSamples))).toFixed(3)} of bright pixels also clear ${BUDGET.saturation.threshold} saturation\n` +
   `                 a ceiling on the first number is met by lowering EITHER conjunct; this floor is the second one`
 );
+
+/**
+ * THE LAMP BOWL, DERIVED AND DELIVERED ON ONE LINE — session 28, and the line
+ * is the point. These two numbers existed in two files for ten sessions and
+ * nothing ever printed them together; CONTRACT §9 rule 2 says a quantity
+ * derived two ways is printed both ways at least once, and this is the once.
+ */
+if (lampBowl) {
+  notes.push(
+    `lamp bowls       derived ${lampBowl.derivedNits.toFixed(1)} cd/m² = Φ/(π·A) over a ` +
+    `${lampBowl.paths[0] ? lampBowl.paths[0].radiusM : '?'} m bowl, photocell ` +
+    `${lampBowl.lampsOn ? 'on' : 'OFF'}\n` +
+    lampBowl.paths.map((p) =>
+      `                 ${p.path.padEnd(9)} delivered ${p.deliveredNits.toFixed(1).padStart(7)} cd/m² = ` +
+      `${(p.deliveredNits / lampBowl.derivedNits).toFixed(4)}× derived, on ${p.meshes} mesh(es) ` +
+      `(ratchet [${BUDGET.lampBowl.minRatio}, ${BUDGET.lampBowl.maxRatio}], toward 1.0 only)`).join('\n')
+  );
+} else {
+  notes.push('lamp bowls       UNRUN — harness.lampBowlCensus() returned nothing');
+}
 
 // ---------------------------------------------------------------------------
 // 5. negative space and dead zones

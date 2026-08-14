@@ -22,7 +22,7 @@
  */
 
 import * as THREE from 'three';
-import { BLOCK, LIGHT, LUMINAIRE, GROUND } from '../core/constants.js';
+import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
 import { riverBankStations } from '../lib/citygen.js';
@@ -47,7 +47,21 @@ const EMISSIVE = {
   shopWarm: 9,
   shopCold: 17,
   shopDim: 4.5,
-  lampBowl: 210,
+  /**
+   * `lampBowl: 210` LIVED HERE FOR TWENTY-FIVE SESSIONS AND IS NOW IN
+   * `constants.js` → `LAMP_BOWL.originNits` — session 28.
+   *
+   * It was the origin block's half of a 42.86× split: the same frosted bowl on
+   * the same column carrying the same 6800 cd lantern was 210 cd/m² here and
+   * 9000 cd/m² in `city.js`, with nothing in the project comparing the two and
+   * neither of them equal to the Φ/(πA) = 1952.2 that both describe. CONTRACT
+   * §9's own class — one quantity, two values, two files.
+   *
+   * It belongs in `constants.js` rather than in this table because this table's
+   * own comment is the reason it went wrong: "these are authored, not
+   * measured". That is the right sentence for a lit window behind a curtain and
+   * the wrong one for a luminaire whose flux this project integrates.
+   */
   /**
    * The tube clips to white and blooms; the plate behind it is what carries the
    * colour. Sign colour that lives only in a clipped emitter is sign colour ACES
@@ -370,11 +384,13 @@ export function createBlock(options = {}) {
       const matShopFrame = surfaceMaterial(ctx, { color: 0x35322e, roughness: 0.55, metalness: 0.25 });
       lampMaterial = emissiveMaterial(ctx, {
         chroma: EMITTER_CHROMA.sodium,
-        nits: EMISSIVE.lampBowl,
+        nits: LAMP_BOWL.originNits,
         color: 0x121212,
         roughness: 0.5,
         metalness: 0,
       });
+      /** Tagged for `harness.lampBowlCensus()` — session 28. See city.js. */
+      lampMaterial.userData.noctisLampPath = 'origin';
 
       // ---- ground, road, sidewalk ----------------------------------------
 
@@ -1435,7 +1451,17 @@ export function createBlock(options = {}) {
       // ---- streetlights ---------------------------------------------------
 
       const poleGeo = track(new THREE.CylinderGeometry(0.11, 0.15, 1, 8));
-      const bowlGeo = track(new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65));
+      /**
+       * THE SHAPE COMES FROM `LAMP_BOWL`, THE TESSELLATION DOES NOT — s28.
+       * The radius and the zone angles are what the radiance is divided by
+       * (`LAMP_BOWL.areaM2`), so a literal here would be a second copy of the
+       * derivation's denominator. 12x8 is this path's own business: sixteen
+       * bowls at 30 m, against the streamed city's 790 at up to a kilometre.
+       */
+      const bowlGeo = track(new THREE.SphereGeometry(
+        LAMP_BOWL.radiusM, 12, 8,
+        LAMP_BOWL.phiStart, LAMP_BOWL.phiLength, LAMP_BOWL.thetaStart, LAMP_BOWL.thetaLength
+      ));
       const armGeo = track(new THREE.BoxGeometry(1, 0.12, 0.12));
 
       const lampHeight = 8.4;
@@ -1965,7 +1991,7 @@ export function createBlock(options = {}) {
       // cannot see them against 100 000 lux, which is the exposure system's job
       // to express, not the emitter's.
       for (const l of lampLights) l.intensity = on ? l.userData.candela : 0;
-      lampMaterial.emissiveIntensity = on ? EMISSIVE.lampBowl : 0.5;
+      lampMaterial.emissiveIntensity = on ? LAMP_BOWL.originNits : 0.5;
     },
 
     dispose(ctx) {

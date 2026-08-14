@@ -33,7 +33,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
@@ -238,7 +238,20 @@ export function createCity(options = {}) {
       sign: emissive({ chroma: [1, 1, 1], nits: LIGHT.signPlateNits, color: 0x101216, roughness: 0.1 }),
       /** Facade advertising: a display panel is a window-sized emitter, not a neon tube. */
       display: emissive({ chroma: EMITTER_CHROMA.fluorescentCold, nits: 900, color: 0x0a0b0d, roughness: 0.06 }),
-      lampBowl: emissive({ chroma: EMITTER_CHROMA.sodium, nits: LIGHT.streetlampNits, roughness: 0.35 }),
+      /**
+       * TAGGED FOR `harness.lampBowlCensus()` — session 28. The tag is what
+       * lets a gate find this material in the DELIVERED scene and read the
+       * radiance that ARRIVED, rather than re-reading the constant that was
+       * supposed to produce it (CONTRACT §9.1).
+       */
+      lampBowl: (() => {
+        const m = emissive({ chroma: EMITTER_CHROMA.sodium, nits: LAMP_BOWL.streamedNits, roughness: 0.35 });
+        // Assigned INTO userData rather than over it: `lights.patch()` has run
+        // by now and a whole-object replacement would silently drop whatever it
+        // put there.
+        m.userData.noctisLampPath = 'streamed';
+        return m;
+      })(),
       /**
        * RED AVIATION OBSTRUCTION LIGHTS — session 19, item 12. One material for
        * every beacon on every landmark; the FLASH rides in `instanceColor`,
@@ -271,7 +284,11 @@ export function createCity(options = {}) {
       box,
       plane,
       lamp: track(lamp),
-      bowl: track(new THREE.SphereGeometry(0.42, 8, 6, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65)),
+      /** Shape from `LAMP_BOWL` (s28); 8x6 is this path's own tessellation. */
+      bowl: track(new THREE.SphereGeometry(
+        LAMP_BOWL.radiusM, 8, 6,
+        LAMP_BOWL.phiStart, LAMP_BOWL.phiLength, LAMP_BOWL.thetaStart, LAMP_BOWL.thetaLength
+      )),
     };
   }
 
@@ -1048,14 +1065,14 @@ export function createCity(options = {}) {
     const c = roofSignCensus();
     if (c.faces < 24) return;
     roofSignReported = true;
-    const bowls = 98 * 1.6115 * LIGHT.streetlampNits;
+    const bowls = 98 * LAMP_BOWL.areaM2 * LAMP_BOWL.streamedNits;
     const signsEnergy = c.area * LIGHT.roofSignNits;
     ctx.log(
       `city: ${c.faces} roof-sign faces over ${resid} resident chunks, ` +
       `${c.area.toFixed(0)} m² emitting at ${LIGHT.roofSignNits} cd/m² = ` +
       `${(signsEnergy / 1000).toFixed(0)} k cd·m²/m², i.e. ` +
       `${(c.area / resid).toFixed(1)} m² of emitter per chunk. ` +
-      `AGAINST 98 lamp bowls × 1.6115 m² × ${LIGHT.streetlampNits} = ${(bowls / 1000).toFixed(0)} k, ` +
+      `AGAINST 98 lamp bowls × ${LAMP_BOWL.areaM2.toFixed(4)} m² × ${LAMP_BOWL.streamedNits.toFixed(0)} = ${(bowls / 1000).toFixed(0)} k, ` +
       `${((signsEnergy / bowls)).toFixed(1)}× — AND THAT RATIO IS AN UPPER BOUND RATHER THAN A ` +
       'MEASUREMENT, because the two populations are not the same one: the 98 bowls are what the ' +
       'pool lights within about 150 m of the camera, and these faces are everything resident over ' +
@@ -3791,7 +3808,7 @@ export function createCity(options = {}) {
      */
     const lighting = ctx.get('lighting');
     const lampsOn = lighting ? lighting.photocellOn : true;
-    if (materials) materials.lampBowl.emissiveIntensity = lampsOn ? LIGHT.streetlampNits : 0.5;
+    if (materials) materials.lampBowl.emissiveIntensity = lampsOn ? LAMP_BOWL.streamedNits : 0.5;
 
     lampCandidates.length = 0;
     for (const rec of resident.values()) {
