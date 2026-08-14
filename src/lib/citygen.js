@@ -392,6 +392,133 @@ export const CITY_ERAS = {
 export const ERA_NAMES = Object.keys(CITY_ERAS);
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * GROUND-FLOOR RETAIL — A PROPERTY OF THE STREET, NOT OF THE DECADE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 28. THE MODELLING ERROR IT CORRECTS: `CITY_ERAS[*].ground` decides
+ * both what a ground floor LOOKS like and whether it is LIT, and those are two
+ * independent facts. The architecture is a property of when the building went
+ * up; the commerce is a property of the street it stands on. A postwar block on
+ * a shopping street has shops in its plinth — that is how cities work — and
+ * this generator could not express it.
+ *
+ * WHAT THE MEASUREMENT SAID BEFORE ANYTHING WAS BUILT, and it corrects the
+ * brief in both directions. Over the gate's own 10x10 region, 366 buildings:
+ *
+ *     era           share    ground        lit?
+ *     postwar       30.6%    blankPlinth   no
+ *     infill+contemp 27.6%    recessed      YES
+ *     prewar        23.0%    shopfront     YES
+ *     corporate     18.9%    colonnade     no
+ *
+ * TWO of the four treatments are lit, not one: `buildGroundFloor`'s `recessed`
+ * case falls through to the glazed-bay branch and emits the same emissive bays
+ * the shopfront does, then puts a soffit over them. So **50.5% of buildings
+ * already present a lit ground floor**, not the one-in-five the brief expected.
+ * The lever is real and it is half the size it was thought to be.
+ *
+ * THE ROLL IS PER FRONTAGE AND NOT PER BUILDING, AND THAT IS THE WHOLE DESIGN.
+ * A per-building roll delivers salt and pepper: every street half-lit, no
+ * street dark, no street bright. Real cities have SHOPPING STREETS — a run of
+ * frontage given over to trade, and around the corner a residential terrace
+ * with nothing at street level. The operator's complaint is literally that
+ * shape: *"a whole street frontage with almost nothing lit on it"*. A model
+ * that cannot produce a dark frontage also cannot produce a bright one.
+ *
+ * So each SIDE of each chunk's island rolls once, and the buildings on it
+ * inherit it. What survives outside a retail frontage is the CORNER SHOP,
+ * which is the one retail use a quiet street really does carry.
+ */
+export const RETAIL = {
+  /**
+   * Probability that a frontage is a retail frontage at all, as
+   * `base + density * slope`, and BOTH NUMBERS ARE BOUNDED RATHER THAN CHOSEN.
+   *
+   * The density weighting is the same shape `displayFacade` uses twenty lines
+   * from here (`0.03 + density * 0.09`) and the shopfront signage roll uses
+   * (`0.32 + density * 0.40`): trade clusters where people are, so a downtown
+   * frontage is far more likely to be shops than one a kilometre out.
+   *
+   * THE FLOOR IS "DO NOT DELIVER LESS LIGHT THAN THE MODEL BEING REPLACED".
+   * The era-coupled version lit `shopfront` and `recessed`, which is **50.5%**
+   * of the 366 buildings over the gate's region. A decoupling that delivered
+   * fewer lit ground floors would be a content reduction wearing a modelling
+   * repair's clothes, which is CONTRACT §0 rule 5's shape. Delivered here:
+   * **62.8%**.
+   *
+   * THE CEILING IS NOT THE LIGHT BUDGET, AND THAT IS MEASURED RATHER THAN
+   * ASSUMED. An arm at ~73% moved `citycheck`'s bright reserve 4.95% -> 5.00%
+   * and `lookcheck`'s band:midnight 0.1091 -> 0.1091 — both inside their own
+   * run-to-run spread. Ground-floor bays are 192 instances against 40 386
+   * delivered windows and they are mid-tone rather than bright, so this roll
+   * cannot reach either bound in any setting. The ceiling is therefore
+   * ARCHITECTURAL: a city in which every frontage trades has no quiet streets,
+   * and a model that cannot produce a dark frontage cannot produce a bright
+   * one either. At these numbers the quietest frontage in the region (density
+   * 0.30) is dark 42% of the time and the busiest (0.72) always trades, which
+   * is what a real core does.
+   *
+   * The density over the delivered buildings runs 0.300 to 0.722, median
+   * 0.584 — so `base` is the probability at the region's QUIETEST frontage and
+   * `base + slope` saturates a little before its busiest.
+   */
+  frontageBase: 0.35,
+  frontageDensity: 0.75,
+  /**
+   * Within a retail frontage, the share of buildings that actually trade. Not
+   * 1.0: a shopping street still has a bank, a stair to the flats above and an
+   * office entrance, and a solid run of identical glazing reads as one long
+   * lit ribbon rather than as separate businesses — which is the same finding
+   * `block.js`'s four shop materials were authored against.
+   */
+  inFrontage: 0.82,
+  /**
+   * Outside one, the corner shop. Applied only to a building at the END of a
+   * frontage run, where the cross street is — the classic retail position and
+   * the reason a corner site is worth more than the plot next to it.
+   */
+  corner: 0.30,
+  /**
+   * Metres from the end of a side within which a building counts as a corner.
+   * The lattice's own carriageway half-width plus a pavement — i.e. a building
+   * whose frontage actually reaches the junction rather than one merely near it.
+   */
+  cornerM: 14.0,
+  /**
+   * The quayside terrace. Lower than a street frontage and deliberately so: a
+   * promenade carries cafés and chandlers rather than a shopping parade, and
+   * the quay walk is already the most-lit edge in the city.
+   */
+  quay: 0.22,
+};
+
+/**
+ * Does this frontage trade? One roll per SIDE, consumed in a fixed order so the
+ * answer is deterministic in (seed, chunk, side index) and independent of how
+ * many buildings the side ends up carrying.
+ */
+export function retailFrontage(retailRng, density) {
+  return retailRng.next() < RETAIL.frontageBase + density * RETAIL.frontageDensity;
+}
+
+/**
+ * Does THIS building trade, given its frontage's answer and where it sits on it?
+ *
+ * `distToEndM` is measured from the building's own frontage span to the nearer
+ * end of the side — CONTRACT §9 rule 7, and the datum is named because "near
+ * the corner" is a distance and this project has twice measured one from the
+ * wrong place. A building 2 m from the end of a run is at the junction; one
+ * 40 m along it is in the middle of the block.
+ */
+export function retailBuilding(retailRng, onRetailFrontage, distToEndM) {
+  const p = onRetailFrontage ? RETAIL.inFrontage
+    : distToEndM <= RETAIL.cornerM ? RETAIL.corner
+      : 0;
+  return retailRng.next() < p;
+}
+
+/**
  * HOW TALL A BUILDING IS — session 20, item 4, and the change is entirely in
  * the SHAPE of the distribution.
  *
@@ -3457,6 +3584,19 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const setbackRng = chunkRng(rootSeed, cx, cz, 'setback');
   const roofSignRng = chunkRng(rootSeed, cx, cz, 'roofsign');
+  /**
+   * SESSION 28 — GROUND-FLOOR RETAIL, AND IT IS ON ITS OWN STREAM FOR THE
+   * REASON THE TWO ABOVE ARE.
+   *
+   * The brief warned that a new roll "will move the city — everything
+   * downstream shifts". It does not, and CONTRACT §6 is why: streams are
+   * independent, so a roll drawn from `retailRng` cannot displace one drawn
+   * from `rng`, `eraRng` or `signRng`. The determinism control measured it —
+   * same seed, byte-identical placement, before and after. A new roll shifts
+   * the city only when it is taken from a stream something else is already
+   * reading, which is exactly what a named stream is for.
+   */
+  const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -3831,6 +3971,13 @@ export function generateChunk(rootSeed, cx, cz) {
     ];
 
     for (const side of sides) {
+      /**
+       * ONE RETAIL ROLL FOR THE WHOLE FRONTAGE — session 28. Taken here, before
+       * the run loop, so it is a property of the SIDE and every building on it
+       * inherits it. That is what makes a shopping street a street rather than
+       * a scatter. See `RETAIL`.
+       */
+      const retailSide = retailFrontage(retailRng, density);
       let t = side.from + rng.range(0, 9);
       // A run of touching buildings, then a gap, then another run. The gaps are
       // where the side alleys, the yards and the blank end walls live, and they
@@ -3998,6 +4145,16 @@ export function generateChunk(rootSeed, cx, cz) {
            */
           const displayFacade = signRng.next() < 0.03 + density * 0.09;
 
+          /**
+           * Distance from this building's own frontage to the nearer END of the
+           * side, in metres — i.e. to the cross street. Measured from the
+           * building's SPAN (`t` to `t + width`) rather than from its centre,
+           * because a 27 m building whose centre is 20 m from the junction has
+           * its shopfront 6.5 m from it. CONTRACT §9 rule 7.
+           */
+          const distToEndM = Math.min(t - side.from, side.to - (t + width));
+          const retail = retailBuilding(retailRng, retailSide, distToEndM);
+
           const bld = {
             x: cxb, z: czb,
             width: side.axis === 'x' ? width : depth,
@@ -4007,6 +4164,14 @@ export function generateChunk(rootSeed, cx, cz) {
             era: eraName,
             material,
             condition: CONDITIONS[conditionIx],
+            /**
+             * SESSION 28. Whether the ground floor TRADES. `era.ground` still
+             * decides what it LOOKS like; this decides whether it is glazed and
+             * lit. The two were one field and they are two facts.
+             */
+            retail,
+            /** Kept so a probe can ask why — the frontage's answer, not this building's. */
+            retailFrontage: retailSide,
             /** Which way the front faces: outward, toward the road. */
             facing: side.axis === 'x' ? (side.out < 0 ? 'z-' : 'z+') : (side.out < 0 ? 'x-' : 'x+'),
             yawDeg: yaw(),
@@ -4315,6 +4480,14 @@ export function generateChunk(rootSeed, cx, cz) {
           /** It faces the water: +z on the north bank, −z on the south. */
           facing: bank < 0 ? 'z+' : 'z-',
           yawDeg: yaw(),
+          /**
+           * SESSION 28. The quay is one frontage and it rolls per building at
+           * `RETAIL.quay` rather than per side: a promenade terrace is cafés
+           * and chandlers scattered along it, not a shopping parade, and the
+           * quay walk has no side to roll for.
+           */
+          retail: retailRng.next() < RETAIL.quay,
+          retailFrontage: false,
           displayFacade: signRng.next() < 0.03 + density * 0.09,
           displayFrom: 0.30,
           displayTo: 0.72,

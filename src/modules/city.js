@@ -2966,39 +2966,119 @@ export function createCity(options = {}) {
     const bays = Math.max(1, Math.round(faceW / 5.2));
     const bayW = faceW / bays;
 
+    /**
+     * SESSION 28 — THE FORM IS THE ERA'S AND THE TRADE IS THE STREET'S.
+     *
+     * `era.ground` still decides the piers, the plinth, the soffit and the
+     * fascia; `bld.retail` decides whether the bays are GLAZED AND LIT. Before
+     * this they were one field, so a postwar block could not have shops in its
+     * sockel and a prewar terrace could not stop having them — and which side
+     * of a street was lit was decided by which decade it happened to roll.
+     *
+     * EVERY TREATMENT CARRIES BOTH VARIANTS, and each is drawn for its own era
+     * rather than borrowing the shopfront's (the brief's own test: a colonnade
+     * with lit bays behind the piers is correct, a postwar ribbon block wearing
+     * prewar shopfront pilasters is not):
+     *
+     *   shopfront   + retail   tall glazed bays, slender piers, stallriser
+     *               − retail   the same piers, the bays infilled solid
+     *   colonnade   + retail   the piers UNCHANGED and lit bays set BEHIND them
+     *               − retail   piers, and the covered walk dark
+     *   blankPlinth + retail   openings PUNCHED in the sockel — narrower than a
+     *                          shopfront bay, deeper set, the base returning at
+     *                          each side. No pilasters: it is a plinth with
+     *                          shops in it, not a shopfront.
+     *               − retail   solid base, one service door
+     *   recessed    + retail   glazed bays under the soffit
+     *               − retail   solid wall under the soffit, one door
+     */
+    const G = era.ground;
+    const lit = !!bld.retail;
+    /**
+     * Where the glass sits, measured OUTWARD FROM THE ELEVATION — and the datum
+     * is named because the first version of this line got it wrong by doubling
+     * the recess (CONTRACT §9 rule 7).
+     *
+     * A colonnade's piers are ALREADY 0.45 to 1.35 m proud of the wall, so
+     * "behind the piers" is delivered by the piers standing forward and not by
+     * pushing the glass back. The first draft set it to −0.92, which put the
+     * shop window 0.92 m INSIDE the building — 1.37 to 2.27 m behind the pier
+     * face — and the bays were invisible from the street. Measured on the
+     * delivered frame before it shipped.
+     *
+     * So all three are shallow reveals at the wall plane, and only the depth of
+     * the reveal differs by era: a punched sockel opening sits deeper in its
+     * own masonry than a slender-piered shopfront does.
+     */
+    const glassOut = G === 'colonnade' ? -0.10 : G === 'blankPlinth' ? -0.14 : -0.06;
+    /** A punched opening in a sockel is narrower than a shopfront's full bay. */
+    const glassW = G === 'blankPlinth' ? 0.60 : 0.82;
+
     for (let i = 0; i < bays; i++) {
       const u = -faceW / 2 + bayW * (i + 0.5);
       const h = Math.abs(Math.sin((bld.x * 0.21 + bld.z * 0.13 + i * 7.7) * 8123.31) % 1);
 
-      if (era.ground === 'colonnade') {
-        // Piers, and nothing between them: a colonnade is a covered walk.
+      // ---- the era's own form, built whether or not anybody trades here ----
+      if (G === 'colonnade') {
+        // Piers, and a covered walk behind them.
         masses.push(at(-faceW / 2 + bayW * i, 0.9, (plinth - 0.9) / 2, 0.9, plinth - 0.9, 0.9));
         massSkin.push({ albedo: mat.albedo, roughness: mat.roughness });
-        continue;
-      }
-      if (era.ground === 'blankPlinth') {
-        // A solid base. One service door per building, not per bay.
-        if (i === Math.floor(bays / 2)) {
+      } else if (G === 'blankPlinth') {
+        // A solid base. One service door per building, not per bay — and only
+        // where a shop has not taken that bay.
+        if (i === Math.floor(bays / 2) && !lit) {
           masses.push(at(u, 0.1, 1.15, 1.3, 2.3, 0.24));
           massSkin.push({ albedo: [0.09, 0.09, 0.1], roughness: 0.7 });
+        }
+      } else {
+        // shopfront and recessed: slender piers between the bays either way —
+        // they are the building's structure, not its shopfittings.
+        masses.push(at(-faceW / 2 + bayW * i, 0.12, (plinth - 0.9) / 2, 0.34, plinth - 0.9, 0.42));
+        massSkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+      }
+
+      if (!lit) {
+        /**
+         * NO TRADE HERE. `shopfront` and `recessed` get their bays infilled
+         * solid rather than left as a hole — a bay with nothing in it is a
+         * missing wall, and this city's ground floors are what the routes walk
+         * past at 1.74 m. `colonnade` and `blankPlinth` are already solid.
+         */
+        if (G === 'shopfront' || G === 'recessed') {
+          masses.push(at(u, 0.02, (plinth - 1.1) / 2 + 0.55, bayW * 0.86, plinth - 1.7, 0.26));
+          massSkin.push({
+            albedo: [mat.albedo[0] * 0.86, mat.albedo[1] * 0.86, mat.albedo[2] * 0.86],
+            roughness: Math.min(1, mat.roughness + 0.08),
+          });
+          if (i === Math.floor(bays / 2)) {
+            masses.push(at(u, 0.1, 1.15, 1.3, 2.3, 0.24));
+            massSkin.push({ albedo: [0.09, 0.09, 0.1], roughness: 0.7 });
+          }
         }
         continue;
       }
 
+      // ---- the trade ----
       // Glazed bay. Emissive, because a shopfront at night is the brightest
       // thing at street level and the reason the pavement is lit at all.
       const shutDown = bld.condition === 'neglected' ? h < 0.55 : bld.condition === 'worn' ? h < 0.24 : h < 0.06;
       const glow = shutDown ? 0.01 : 0.55 + h * 0.75;
-      windows.push(at(u, -0.06, (plinth - 1.1) / 2 + 0.55, bayW * 0.82, plinth - 1.7, 0.3));
+      windows.push(at(u, glassOut, (plinth - 1.1) / 2 + 0.55, bayW * glassW, plinth - 1.7, 0.3));
       windowTint.push({ albedo: [glow * 1.0, glow * 0.9, glow * 0.76], roughness: 0.05 });
 
-      // The pier between this bay and the next.
-      masses.push(at(-faceW / 2 + bayW * i, 0.12, (plinth - 0.9) / 2, 0.34, plinth - 0.9, 0.42));
-      massSkin.push({ albedo: mat.albedo, roughness: mat.roughness });
-
       // A stallriser under the glass — the low solid panel every shopfront has.
-      masses.push(at(u, 0.1, 0.34, bayW * 0.86, 0.68, 0.28));
-      massSkin.push({ albedo: [mat.albedo[0] * 0.7, mat.albedo[1] * 0.7, mat.albedo[2] * 0.7], roughness: 0.62 });
+      // A punched sockel opening keeps the plinth's own face instead.
+      if (G !== 'blankPlinth') {
+        masses.push(at(u, 0.1, 0.34, bayW * 0.86, 0.68, 0.28));
+        massSkin.push({ albedo: [mat.albedo[0] * 0.7, mat.albedo[1] * 0.7, mat.albedo[2] * 0.7], roughness: 0.62 });
+      } else {
+        // The sockel returning at each side of the opening, so the base still
+        // reads as a base rather than as a ribbon of glass.
+        for (const sgn of [-1, 1]) {
+          masses.push(at(u + sgn * bayW * 0.4, 0.06, (plinth - 0.9) / 2, bayW * 0.2, plinth - 0.9, 0.3));
+          massSkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+        }
+      }
     }
 
     if (era.ground === 'recessed') {
