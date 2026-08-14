@@ -1288,6 +1288,38 @@ const LOFT = [
       [4.35, 1.10, 0.98, 0.30], [4.35, -1.10, 0.98, 0.30],
       [-3.30, 1.10, 0.98, 0.30], [-3.30, -1.10, 0.98, 0.30],
     ],
+    /**
+     * THE LIT SALOON — `[len, height, width, centreAlong, centreHeight, kind]`,
+     * the same row shape as `marker`, kind 3.
+     *
+     * A bus is the only road vehicle whose INTERIOR is a light source at night,
+     * and this is the one emitter in the session that is large-area rather than
+     * a line. It rides the same window band the `glaze` box occupies — centre
+     * 2.56, which is (3.02 + 2.10)/2 — and is 0.86 m tall inside the glass's
+     * 0.92, so it is the lit interior seen THROUGH the glazing rather than a
+     * strip stuck on the outside.
+     *
+     * 1.01 x 2.55 = 2.5755 m WIDE AGAINST A 2.55 m FLANK, i.e. 12.8 mm proud on
+     * each side, and that 12.8 mm is the whole reason it is visible at all: a
+     * light row has no lateral offset large enough to reach a flank from the
+     * centreline, so an interior box inside the body is CONTRACT §9.1's
+     * "geometry authored and then drawn inside something else" — which is
+     * exactly the state the hauler's marker has been in since session 6b. The
+     * span is 5.80 m, the constant-plan sections 2-5, so it never protrudes past
+     * the drawn-in tail the way a full-length box would (section 7 is 0.68 of
+     * the width, and a 2.5755 m box there would stand 0.42 m proud each side).
+     *
+     * WHY THE HAULER'S 2.78 m MARKER WAS REFUSED AND THIS IS NOT. That row was
+     * measured to cost 2.50 points of `citycheck`'s saturated-and-bright peak
+     * (8.70% -> 11.20% against a 12% ceiling) and the diagnosis beside it is
+     * *"it is not the strip, it is the bloom off its clipped core"*. This is a
+     * different case in the two ways that matter, and both are measured rather
+     * than argued in STATE: it is 160 nits against that row's authored line
+     * brightness, i.e. `g = 160/900 = 0.178` of the material's own maximum, and
+     * it is WARM WHITE, which is the low-saturation half of a conjunct whose
+     * ceiling is on saturation AND value. The peak is 2.97% today against 12%.
+     */
+    interior: [5.80, 0.86, 2.5755, 0.00, 2.56, 3],
   },
   {
     /**
@@ -1336,6 +1368,88 @@ const LOFT = [
       [2.95, 1.00, 0.86, 0.28], [2.95, -1.00, 0.86, 0.28],
       [-2.20, 1.00, 0.86, 0.28], [-2.20, -1.00, 0.86, 0.28],
     ],
+  },
+];
+
+/**
+ * SIX SINCE SESSION 29, UP FROM THREE, AND THE ALLOCATION IS WHAT A SIGNATURE
+ * COSTS.
+ *
+ * Four rows for the signature — the widest of them, `pair` and `column`, is two
+ * units at each end — plus the marker row that has existed since session 6b and
+ * one interior row that only the bus fills. A type wearing `bar` or `strip`
+ * parks two of the four; a type with no marker parks a fifth; everything but the
+ * bus parks a sixth. A parked row is written identically every frame at
+ * (0, -1000, 0) and scale 1e-4, which is the arrangement the hauler's missing
+ * third row already used.
+ *
+ * THE COST, and it is stated here because the three numbers this comment block
+ * used to carry were WRONG and nobody had checked them. 160 x 3 more rows = 480
+ * more instances in a mesh that is already drawn, at 12 triangles a row = 5 760
+ * triangles, against `ceilings.triangles` 2 000 000 and a delivered worst route
+ * of about 1.18 M. ZERO new draw calls, ZERO new meshes, ZERO new materials,
+ * ZERO new light slots — every one of these is emissive geometry, by the same
+ * argument `trafficLights.$content` makes about tail lamps. The §5.12 previous-
+ * transform double buffer for the light layer goes 560 x 64 x 2 = 70.0 KiB to
+ * 1040 x 64 x 2 = 130.0 KiB.
+ */
+const LIGHTS_PER_VEHICLE = 6;
+
+/**
+ * LIGHT SIGNATURES — SESSION 29, AND IT IS THE OLDEST UNFULFILLED REQUEST IN THE
+ * PROJECT.
+ *
+ * The operator asked for this long before any of the recent instrument work:
+ * *"every car has the same single stripe front and back"*. It was true. The
+ * session-4b comment at the top of this file states it as a feature — *"the
+ * light signatures are LINES rather than lamps: a full-width bar front and
+ * rear"* — and one line on every vehicle of every type is not a design language,
+ * it is a single object repeated 160 times.
+ *
+ * FOUR SIGNATURES, ROLLED PER VEHICLE on `traffic:signature`. Each unit's width
+ * and lateral offset are fractions of the END SECTION'S OWN WIDTH so the
+ * proportion survives a 0.64 m motorcycle and a 2.55 m bus; `h` is metres,
+ * because a lamp's height is a lamp's height at any width, and `dy` shifts a
+ * unit off the loft's own lamp line.
+ *
+ *   bar     ONE full-width bar. Exactly what shipped before this session, kept
+ *           as signature 0 so the fleet's existing look is a member of the new
+ *           vocabulary rather than something it replaced.
+ *   pair    TWO separated units, outboard. The commonest real arrangement and
+ *           the one that most changes a distant silhouette: two points of light
+ *           at a known separation is what tells an eye how wide and how far.
+ *   column  TWO units, outboard and TALL — a vertical lamp at each corner. 0.22 m
+ *           against the bar's 0.075, so it reads as an edge rather than a dot.
+ *   strip   ONE narrow central strip. The minimal signature, and the moto's only
+ *           one.
+ *
+ * A SEPARATED PAIR NEEDED A LATERAL OFFSET AND LIGHT ROWS DID NOT HAVE ONE. The
+ * emitter put every light row on the vehicle's centreline; the hauler's marker
+ * comment records that as the reason its strip could only be made visible by
+ * making it WIDER than the flank. `lat` is the seventh element of a light row and
+ * is applied down the vehicle's RIGHT, which is the same `(-cos yaw, sin yaw)`
+ * the wheels have used since session 5 — one convention, not a second one.
+ */
+const SIGNATURES = [
+  {
+    name: 'bar',
+    front: [{ w: 0.86, lat: 0, h: 0.075 }],
+    rear: [{ w: 0.88, lat: 0, h: 0.075 }],
+  },
+  {
+    name: 'pair',
+    front: [{ w: 0.20, lat: 0.33, h: 0.085 }, { w: 0.20, lat: -0.33, h: 0.085 }],
+    rear: [{ w: 0.20, lat: 0.34, h: 0.085 }, { w: 0.20, lat: -0.34, h: 0.085 }],
+  },
+  {
+    name: 'column',
+    front: [{ w: 0.13, lat: 0.36, h: 0.22 }, { w: 0.13, lat: -0.36, h: 0.22 }],
+    rear: [{ w: 0.13, lat: 0.37, h: 0.22 }, { w: 0.13, lat: -0.37, h: 0.22 }],
+  },
+  {
+    name: 'strip',
+    front: [{ w: 0.34, lat: 0, h: 0.06 }],
+    rear: [{ w: 0.34, lat: 0, h: 0.06 }],
   },
 ];
 
@@ -1485,11 +1599,61 @@ function loftBody(T) {
    * the body rather than inside it.
    */
   const lampLen = 0.10;
-  const front = [lampLen, 0.075, T.wide * T.plan[0] * 0.86,
-    T.len / 2 + 0.02 - lampLen / 2, noseBottom + 0.60 * (noseTop - noseBottom), 0];
-  const rear = [lampLen, 0.075, T.wide * T.plan[SECTIONS - 1] * 0.88,
-    -(T.len / 2 + 0.02 - lampLen / 2), tailBottom + 0.60 * (tailTop - tailBottom), 1];
-  const lights = T.marker ? [front, rear, T.marker] : [front, rear];
+  const frontAlong = T.len / 2 + 0.02 - lampLen / 2;
+  const rearAlong = -(T.len / 2 + 0.02 - lampLen / 2);
+  const frontY = noseBottom + 0.60 * (noseTop - noseBottom);
+  const rearY = tailBottom + 0.60 * (tailTop - tailBottom);
+  const frontW = T.wide * T.plan[0];
+  const rearW = T.wide * T.plan[SECTIONS - 1];
+
+  /**
+   * THE SIGNATURE, EXPANDED AGAINST THIS TYPE'S OWN END FACES — SESSION 29.
+   *
+   * A row is `[len, height, width, along, y, kind, lat]`. Every unit's width and
+   * lateral offset are FRACTIONS OF THE END SECTION'S OWN WIDTH, so a 0.64 m
+   * motorcycle tail and a 2.55 m bus tail get the same proportion rather than the
+   * same metres — the identical argument the section chamfers are authored under.
+   * The heights and the along positions are the loft's, unchanged, so §9 rule 4's
+   * "a lamp height authored beside a body height is two numbers that drift" still
+   * holds: nothing here is authored, all of it is derived from the finished
+   * sections.
+   *
+   * Padded to LIGHTS_PER_VEHICLE with nulls. The emitter parks a null row, which
+   * is the mechanism the hauler's missing third row has used since session 6b.
+   */
+  const sigLights = SIGNATURES.map((sig) => {
+    const rows = [];
+    for (const u of sig.front) {
+      rows.push([lampLen, u.h, frontW * u.w, frontAlong, frontY + (u.dy || 0), 0, frontW * (u.lat || 0)]);
+    }
+    for (const u of sig.rear) {
+      rows.push([lampLen, u.h, rearW * u.w, rearAlong, rearY + (u.dy || 0), 1, rearW * (u.lat || 0)]);
+    }
+    while (rows.length < LIGHTS_PER_VEHICLE - 2) rows.push(null);
+    rows.push(T.marker ? [...T.marker, 0] : null);
+    rows.push(T.interior ? [...T.interior, 0] : null);
+    if (rows.length !== LIGHTS_PER_VEHICLE) {
+      throw new Error(`${T.name}/${sig.name}: ${rows.length} light rows against LIGHTS_PER_VEHICLE ${LIGHTS_PER_VEHICLE}`);
+    }
+    return rows;
+  });
+  /**
+   * Which signatures this type may wear. A class constrains it — the brief's own
+   * requirement — and the constraint is a property of what the vehicle IS:
+   *
+   *   moto        ONE unit at each end. A motorcycle has one headlamp; a
+   *               separated pair on a 0.64 m fairing is two lamps 0.21 m apart,
+   *               which reads as a fault rather than as a style.
+   *   bus/lorry/  DISCRETE CLUSTERS ONLY (bar or pair). A goods or passenger
+   *   hauler      vehicle's lamps are type-approved units in a housing, not a
+   *               styling light-line; the full-width bar and the outboard pair
+   *               are both real and the two styling signatures are not.
+   *   the rest    all four.
+   */
+  const sigAllowed = T.name === 'moto' ? [3]
+    : (T.name === 'bus' || T.name === 'lorry' || T.name === 'hauler') ? [0, 1]
+      : [0, 1, 2, 3];
+  const lights = sigLights[sigAllowed[0]];
 
   /**
    * `min` is the smallest overall body dimension and is what CONTRACT §5.12's
@@ -1541,7 +1705,7 @@ function loftBody(T) {
 
   return {
     name: T.name, min, len: T.len, wide: T.wide, speed: T.speed, weight: T.weight,
-    boxes, wheels: T.wheels, lights,
+    boxes, wheels: T.wheels, lights, sigLights, sigAllowed,
     rowGrime, rowAlbScale,
     _probeH: probeH,
     _straddle: straddle,
@@ -1575,7 +1739,6 @@ const BODY_TYPES = LOFT.map(loftBody);
  */
 const BOXES_PER_VEHICLE = SECTIONS + SEAMS_PER_VEHICLE + 2;
 const WHEELS_PER_VEHICLE = 4;
-const LIGHTS_PER_VEHICLE = 3;
 
 /**
  * THE PAINT PALETTE, AND WHY THE OLD ONE DELIVERED TWO COLOURS FROM SIX.
@@ -1713,6 +1876,29 @@ const NITS_FRONT = 70;
  */
 const NITS_FRONT_DAY = 900;
 const NITS_MARKER = 22;
+/**
+ * THE LIT BUS SALOON, SEEN FROM OUTSIDE THROUGH THE GLAZING. cd/m², session 29.
+ *
+ * Derived rather than chosen, because §9 rule 5 says a number without a
+ * derivation is a guess and this one is the subject of an experiment. What a
+ * window band delivers is the AREA AVERAGE of what is behind it, and there are
+ * two populations behind a bus window:
+ *
+ *   THE SURFACES — seat backs, the opposite glazing, standing passengers. A bus
+ *     saloon is lit to about 150 lx (BS EN 13272's band for urban service is
+ *     100-150), and at a reflectance of 0.40 that is E·rho/pi = 150 x 0.40 /
+ *     3.1416 = 19.1 cd/m².
+ *   THE LUMINAIRES — the ceiling diffuser run, visible directly along the top of
+ *     the aperture, about 8% of it at roughly 1 750 cd/m² = 140 cd/m².
+ *
+ *   19.1 + 140 = 159.1  ->  160 cd/m²
+ *
+ * CHECKED AGAINST THE ONE NEIGHBOUR THAT MATTERS: `LIGHT.windowNits` = 220 is a
+ * lit building window. 160 / 220 = 0.73, so a bus interior is a little dimmer
+ * than an office window, which is the right ordering and is the sort of thing
+ * that would have been obviously wrong at 900 or at 20.
+ */
+const NITS_INTERIOR = 160;
 
 /**
  * The material's `emissiveIntensity`, which every instance scales DOWN through
@@ -1860,6 +2046,14 @@ export function createTraffic(options = {}) {
        */
       const classRng = ctx.rng('traffic:class');
       /**
+       * The light signature, on its own stream too — session 29, item 2. Same
+       * argument as `traffic:class` above: retuning the signature vocabulary,
+       * or adding a fifth, must not move a single vehicle. It is a NEW roll on a
+       * NEW stream, which is the case session 28 measured as byte-identical
+       * downstream, so unlike the class roll it re-phases nothing at all.
+       */
+      const sigRng = ctx.rng('traffic:signature');
+      /**
        * The root seed, as a string, for `riverNoRoad` — which asks the pure
        * generator which crossing carries a bridge and must be handed the same
        * seed `citygen` was. `String()` because the config value may arrive as a
@@ -1907,10 +2101,19 @@ export function createTraffic(options = {}) {
       // --- geometry --------------------------------------------------------
       //
       // THREE InstancedMeshes for 160 vehicles: 1 920 body rows at 28
-      // triangles, 480 light quads at 12 and 640 wheels at 40 — 53 760 + 5 760 +
-      // 25 600 = 85 120 triangles against `floors.triangles` 940 000 and
-      // `ceilings.triangles` 2 000 000. Session 9's merge freed 8 960 of the
-      // 7c loft's 62 720.
+      // triangles, 1 040 light rows at 12 and 640 wheels at 40 — 53 760 +
+      // 12 480 + 25 600 = 91 840 triangles against `floors.triangles` 940 000
+      // and `ceilings.triangles` 2 000 000. Session 9's merge freed 8 960 of
+      // the 7c loft's 62 720.
+      //
+      // SESSION 29 CORRECTED THIS BLOCK'S ARITHMETIC AS WELL AS ITS INPUTS, and
+      // the correction is worth recording because the error was of exactly the
+      // kind §9.1 is about. It read "480 light quads" — which is `signalBase`,
+      // the VEHICLE rows alone — while the mesh has always been allocated
+      // `signalBase + SIGNAL_APPROACHES * SIGNAL_ROWS`, i.e. 560 rows since the
+      // signal heads landed in session 21. The stated total was 85 120 against a
+      // true 86 080: a number written from one of the two terms that make it,
+      // in a comment nothing checks. The light row count is now 160 x 6 + 80.
       //
       // Each mesh owns its OWN geometry object because an instanced attribute
       // lives on the GEOMETRY: `noctisRough` and the §5.12 previous-transform
@@ -2130,8 +2333,19 @@ export function createTraffic(options = {}) {
 
       const vehicles = [];
       for (let i = 0; i < count; i++) {
+        const type = pickType();
         vehicles.push({
-          type: pickType(),
+          type,
+          /**
+           * Which of `SIGNATURES` this vehicle wears, drawn from the ones its
+           * CLASS allows. Rolled once at construction and never again: a
+           * signature that changed when a vehicle was recycled would be a
+           * different car wearing the same instance rows, and the eye finds that
+           * even when a gate cannot.
+           */
+          sig: BODY_TYPES[type].sigAllowed[
+            Math.min(BODY_TYPES[type].sigAllowed.length - 1,
+              Math.floor(sigRng.next() * BODY_TYPES[type].sigAllowed.length))],
           axis: 0, line: 0, dir: 1, lane: 0,
           s: 0,
           v: FREE_SPEED,
@@ -2165,6 +2379,14 @@ export function createTraffic(options = {}) {
 
       const warmHead = kelvinToLinearRGB(4300);
       const coolDay = kelvinToLinearRGB(5600);
+      /**
+       * The bus saloon. 4000 K is the neutral-white LED a modern service
+       * interior is lit with — warmer than the 5600 K running lamp, cooler than
+       * the 4300 K headlamp — and it is a CHROMATICITY rather than a colour, so
+       * it goes through the same blackbody conversion every other emitter here
+       * uses instead of being authored as a hex triple.
+       */
+      const warmCabin = kelvinToLinearRGB(4000);
       /** HEADLAMP_SLOTS lights for VEHICLE_COUNT vehicles, re-assigned by distance. */
       const lampPool = [];
       if (lights) {
@@ -3180,9 +3402,10 @@ export function createTraffic(options = {}) {
           // Light lines. `kind` picks the chromaticity and the gain, and the
           // brake gain is the one thing on a vehicle that changes frame to
           // frame — which is what makes the stopping legible.
+          const sigRows = type.sigLights[veh.sig];
           for (let l = 0; l < LIGHTS_PER_VEHICLE; l++) {
             const row = vi * LIGHTS_PER_VEHICLE + l;
-            const spec = type.lights[l];
+            const spec = sigRows[l];
             if (!spec) {
               // A body type with fewer light lines than the allocation parks
               // its spare rows. A parked row is written IDENTICALLY every
@@ -3197,9 +3420,17 @@ export function createTraffic(options = {}) {
               continue;
             }
             const lx = spec[3];
+            /**
+             * `spec[6]` is the lateral offset, down the vehicle's RIGHT, which
+             * is `(-cos yaw, sin yaw)` — the same convention the wheels use, and
+             * written out here for the same reason it is written out there: the
+             * sign is invisible on a symmetric pair and would put every
+             * asymmetric signature on the wrong side.
+             */
+            const lt = spec[6] || 0;
             writeRow(
               lightArr, lightMotion, row,
-              px + syaw * lx, spec[4], pz + cyaw * lx, yaw,
+              px + syaw * lx - cyaw * lt, spec[4], pz + cyaw * lx + syaw * lt, yaw,
               spec[2], spec[1], spec[0],
               suppress
             );
@@ -3213,6 +3444,16 @@ export function createTraffic(options = {}) {
               // A brake lamp works at every hour; a tail lamp is a night lamp.
               chroma = EMITTER_CHROMA.neonRed;
               nits = veh.braking ? NITS_BRAKE : (lampsOn ? NITS_TAIL : 0);
+            } else if (spec[5] === 3) {
+              /**
+               * The bus saloon. A night light and nothing else: an interior lit
+               * at noon delivers nothing against 100 000 lux and would be a
+               * emitter budget spent on a frame that cannot show it. `veh.cab`
+               * is the per-vehicle interior gain that already exists for the
+               * marker row, so two buses in a queue are not the same object.
+               */
+              chroma = warmCabin;
+              nits = lampsOn ? NITS_INTERIOR * (0.6 + 0.4 * veh.cab) : 0;
             } else {
               chroma = EMITTER_CHROMA.sodium;
               nits = lampsOn ? NITS_MARKER * veh.cab : 0;
@@ -3395,6 +3636,18 @@ export function createTraffic(options = {}) {
         `-> ${BOXES_PER_VEHICLE * SECTION_TRIANGLES} tris/vehicle (14 rows / 392 before s9); secLen ` +
         `${BODY_TYPES.map((t) => `${t.name} (${t.len} - ${SEAMS_PER_VEHICLE}x${SEAM_LEN})/${SECTIONS} = ` +
           `${t._secLen.toFixed(3)} m, seams @ ${t._seamAlong.map((a) => a.toFixed(2)).join(' / ')}`).join('; ')}; ` +
+        /**
+         * SESSION 29 item 2, §9 rule 4: the signature vocabulary and what the
+         * roll actually DELIVERED, side by side. A vocabulary of four that
+         * delivers one is the shape this whole item exists to end, and it would
+         * be invisible in any count of rows.
+         */
+        `light signatures ${SIGNATURES.length} (${SIGNATURES.map((s) => s.name).join('/')}) in ` +
+        `${LIGHTS_PER_VEHICLE} rows/vehicle -> ${count * LIGHTS_PER_VEHICLE} + ${signalCount} = ${lightCount} light rows; ` +
+        `delivered ${SIGNATURES.map((s, i) => `${s.name} ${vehicles.filter((v) => v.sig === i).length}`).join(' / ')}; ` +
+        `allowed per class ${BODY_TYPES.map((t) => `${t.name} ${t.sigAllowed.map((i) => SIGNATURES[i].name).join('+')}`).join(', ')}; ` +
+        `bus saloon ${NITS_INTERIOR} cd/m2 = ${(NITS_INTERIOR / LIGHT.windowNits).toFixed(2)}x LIGHT.windowNits ` +
+        `over ${(BODY_TYPES.find((t) => t.name === 'bus') ? 5.80 * 0.86 : 0).toFixed(2)} m2 a flank; ` +
         `signals ${GREEN_S}/${AMBER_S}/${GREEN_S}/${AMBER_S} s, amber covers ` +
         `${(AMBER_S * FREE_SPEED).toFixed(0)} m against a ${((FREE_SPEED * FREE_SPEED) / (2 * BRAKE_A)).toFixed(0)} m ` +
         `braking distance, so the dilemma zone is empty; prev-instance buffers ` +
