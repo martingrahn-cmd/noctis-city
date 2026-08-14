@@ -2239,8 +2239,44 @@ export function createTraffic(options = {}) {
            * candidate that still wins when every draw is bad.
            */
           if (riverNoRoad(rootSeed, pos.x, pos.z, axis === 0)) continue;
-          // HARD, not scored. See CAMERA_CLEARANCE.
-          if (d2 < CAMERA_CLEARANCE * CAMERA_CLEARANCE) continue;
+          /**
+           * HARD, not scored. See CAMERA_CLEARANCE.
+           *
+           * MEASURED FROM THE BODY, NOT FROM THE ORIGIN — SESSION 29, AND THE
+           * CONSTANT'S OWN DERIVATION ALREADY SAID SO.
+           *
+           * `CAMERA_CLEARANCE` is derived above as *"2.0 + 1.2 x 12 = 16.4 m,
+           * less half a hauler — 9.60/2 = 4.80 — so the derivation gives 11.6 m
+           * and the constant holds the CONSERVATIVE side of it"*. That is a
+           * statement about where the NOSE ends up. The test was
+           * `d2 < CAMERA_CLEARANCE^2` on the vehicle's ORIGIN, so what it
+           * actually guaranteed was `14.0 − len/2` to the body: 11.2 m for a
+           * hauler, and 8.0 m for the 12.00 m bus this session adds. CONTRACT §9
+           * rule 7 — a right number measured from the wrong place — and it was
+           * invisible for as long as the longest half-length in the fleet was
+           * the 4.80 m the derivation happened to be written against.
+           *
+           * So the clearance is now to the oriented BODY, which makes it
+           * STRICTER for every type and strictest for the longest: a bus must
+           * now seed its origin 20.0 m out where 14.0 m used to do. At seed time
+           * the body is axis-aligned to its lane, so the distance is the same
+           * clamp-to-box the probe uses — half the length along the lane, half
+           * the width across it.
+           *
+           * IT DOES NOT MOVE THE STREAM. The candidate loop still draws exactly
+           * five numbers per iteration for exactly twelve iterations; only which
+           * candidate wins changes. `traffic:layout`'s phase is untouched.
+           */
+          {
+            const halfL = BODY_TYPES[veh.type].len * 0.5;
+            const halfW = BODY_TYPES[veh.type].wide * 0.5;
+            // The lane's own axes: the body runs along `axis`, across the other.
+            const dAlong = axis === 0 ? Math.abs(dx) : Math.abs(dz);
+            const dAcross = axis === 0 ? Math.abs(dz) : Math.abs(dx);
+            const bx = Math.max(0, dAlong - halfL);
+            const bz = Math.max(0, dAcross - halfW);
+            if (bx * bx + bz * bz < CAMERA_CLEARANCE * CAMERA_CLEARANCE) continue;
+          }
           /**
            * NOT SEEDED INSIDE A BODY THAT IS ALREADY THERE — SESSION 29, AND IT
            * IS A DEFECT THIS SESSION MEASURED RATHER THAN INTRODUCED.

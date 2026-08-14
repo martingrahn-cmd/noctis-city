@@ -128,6 +128,59 @@ for (const t of BODY_TYPES) {
   console.log(`  declared weights sum to ${wsum.toFixed(4)}; weighted mean length ${lsum.toFixed(3)} m`);
 }
 
+/**
+ * WHERE THE NEW CLASSES ACTUALLY ARE IN A `lookat` FRAME — `--where`.
+ *
+ * `tools/lookat.mjs` opens the page with `paused=1`, and `traffic.update` takes
+ * its step from `time.now - lastNow` (CONTRACT §11: traffic integrates the one
+ * clock, not the raw dt). Paused, that difference is ZERO, so no vehicle ever
+ * moves and no vehicle is ever recycled. The disposition in every `lookat` frame
+ * is therefore the BOOT SEEDING AROUND THE CAMERA'S BOOT POSITION — which is
+ * `camera.js` → SHOTS.street, [70, 1.74, 0.9] — and NOT around wherever
+ * `setShotAt` later puts the eye.
+ *
+ * That is what makes a pinned pose possible for a moving object at all: seeding
+ * is deterministic in (seed, boot camera position), both of which this probe can
+ * reproduce exactly, so the position printed here is the position the frame
+ * draws. Without it, aiming at a vehicle is aiming at where one was last run —
+ * which is session 27's camera defect with a vehicle instead of a wall.
+ */
+if (args.has('where')) {
+  const want = String(args.get('where') === 'true' ? 'bus,lorry' : args.get('where')).split(',');
+  // One update at step 0: it writes px/pz/hx/hz off the seeded s without
+  // advancing anything, which is exactly the state a paused page renders.
+  time.now = 0;
+  traffic.update(ctx, 0);
+  traffic.update(ctx, 0);
+  console.log(`\n== WHERE THE CLASSES ARE, seeded around the boot eye [${LOOK_EYE.join(', ')}] ==`);
+  console.log('  This is the disposition a `lookat` frame draws, because paused means step 0.');
+  console.log('    idx  type      x         z        heading      dist from eye');
+  const rows = [];
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    const t = BODY_TYPES[v.type];
+    if (!want.includes(t.name)) continue;
+    rows.push({ i, t, d: Math.hypot(v.px - LOOK_EYE[0], v.pz - LOOK_EYE[2]), v });
+  }
+  rows.sort((a, b) => a.d - b.d);
+  for (const r of rows) {
+    const head = r.v.axis === 0 ? (r.v.dir > 0 ? 'east' : 'west') : (r.v.dir > 0 ? 'south' : 'north');
+    console.log(
+      `    ${String(r.i).padStart(3)}  ${r.t.name.padEnd(9)} ${r.v.px.toFixed(1).padStart(8)}  ` +
+      `${r.v.pz.toFixed(1).padStart(8)}  ${head.padEnd(10)} ${r.d.toFixed(1).padStart(8)} m`
+    );
+  }
+  console.log(`\n  ${rows.length} of ${vehicles.length} vehicles are in {${want.join(', ')}}.`);
+  console.log('  Aim `lookat` at one of these from a stand-off that clears the body:');
+  if (rows.length) {
+    const r = rows[0];
+    const eyeH = 1.74;
+    console.log(`    node tools/lookat.mjs --pos=${LOOK_EYE[0]},${eyeH},${LOOK_EYE[2]} ` +
+      `--target=${r.v.px.toFixed(1)},1.6,${r.v.pz.toFixed(1)} --fov=50 --t=0.0`);
+  }
+  process.exit(0);
+}
+
 // --- drive it ---------------------------------------------------------------
 
 const N = vehicles.length;
