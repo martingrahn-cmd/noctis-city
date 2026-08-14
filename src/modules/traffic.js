@@ -107,6 +107,50 @@ const TURN_RADIUS = 8.0;
 const TURN_SPEED = 5.0;
 
 /**
+ * THE LONGEST BODY THAT MAY TAKE THIS TURN — SESSION 29, AND IT IS DERIVED.
+ *
+ * The arc above is run by the vehicle's ORIGIN. A rigid body of half-length L
+ * sitting on that origin puts its front outer corner at radius
+ * sqrt((R + W)^2 + L^2) from the turn centre, where W is the body's half-width,
+ * so the corner swings
+ *
+ *     sqrt((R + W)^2 + L^2) - (R + W)  ~=  L^2 / (2R)
+ *
+ * OUTSIDE the band its own width entitles it to. The quantity is in the SQUARE
+ * of the half-length, which is why it is invisible on a short body and
+ * unignorable on a long one, and it is exactly CONTRACT §9 row 23's shape: a
+ * length that stopped meaning what it meant the moment the body got longer.
+ *
+ * MEASURED BEFORE THIS CONSTANT EXISTED, on the delivered arc, by
+ * `tools/fleetprobe.mjs` — measured against L^2/2R predicted:
+ *
+ *     moto   0.072 / 0.076     pod  0.192 / 0.214     wedge  0.397 / 0.456
+ *     van    0.483 / 0.563     hauler 1.162 / 1.440
+ *
+ * Two derivations agreeing to within the sampling of the arc (§9 rule 2); the
+ * measurement sits under the asymptote because a frame rarely lands on the exact
+ * mid-arc where the excursion peaks.
+ *
+ * THE BOUND IS THE LANE HALF-PITCH. Lanes are 3.50 m apart (`LANE_OFFSET`:
+ * 5.25 - 1.75), so an excursion over 1.75 m puts a corner past the NEXT LANE'S
+ * CENTRELINE — into the space the following model is keeping clear for somebody
+ * else. Solving L^2/(2R) <= 1.75 at R = 8.0:
+ *
+ *     L <= sqrt(2 x 8.0 x 1.75) = sqrt(28) = 5.2915 m,  i.e. len <= 10.583 m
+ *
+ * The delivered fleet against it: hauler 9.60 m (L 4.80, 1.44 m) passes with
+ * 0.31 m to spare, lorry 8.20 m (L 4.10, 1.05 m) passes, and the 12.00 m bus
+ * (L 6.00, 2.25 m) DOES NOT. So a bus does not turn here.
+ *
+ * REFUSED RATHER THAN MOVED, which is the discipline the sign pylon and the
+ * advertising pillars already use: the alternative is a second turn radius for
+ * long vehicles, which is a junction geometry this city does not have and a
+ * kerb line it would drive over. A bus that runs straight through junctions is
+ * a bus on a route; a bus that cuts the corner is a bug.
+ */
+const MAX_TURN_HALF_LEN_M = Math.sqrt(2 * TURN_RADIUS * (5.25 - 1.75) / 2);
+
+/**
  * Free-flow speed, m/s. 12 m/s is 43 km/h, an urban arterial between signals.
  *
  * It is also the speed CONTRACT §5.11's motion-vector arithmetic was written
@@ -223,6 +267,18 @@ const CYCLE_S = 2 * (GREEN_S + AMBER_S);
 const CAMERA_CLEARANCE = 14.0;
 /** Metres either side of a lane centre within which the camera is IN that lane. */
 const CAMERA_LANE_HALF = 2.2;
+
+/**
+ * The clearance a re-seeded vehicle must have from the nearest body already on
+ * its line, BUMPER TO BUMPER, metres. Session 29.
+ *
+ * It is the standing term of the following model's own gap — `safe = 2.0 +
+ * 1.2 v` at v = 0 — and NOT a car length, because a gap expressed in car lengths
+ * is the quantity CONTRACT §9 has caught this project confusing four times. A
+ * vehicle seeded exactly at this clearance is a vehicle stopped in a queue, and
+ * the following model will hold it there rather than close it up.
+ */
+const SEED_CLEAR_M = 2.0;
 
 /** Comfortable deceleration, m/s^2, and the stop line it implies. */
 const BRAKE_A = 2.0;
@@ -1142,6 +1198,145 @@ const LOFT = [
       [0.78, 0, 0.56, 0.16], [-0.78, 0, 0.56, 0.16],
     ],
   },
+  /* -------------------------------------------------------------------------
+   * SESSION 29: TWO CLASSES, AND THE BRIEF'S PREMISE ABOUT THIS TABLE IS WRONG.
+   *
+   * The brief said "today every vehicle is a car-length body". MEASURED off this
+   * table by `tools/fleetprobe.mjs` before anything was written: the fleet is
+   * 2.20 to 9.60 m long and 1.28 to 3.62 m tall, and the hauler is already
+   * taller than it is wide (3.62 against 2.66). What was actually missing is
+   * narrower and worth saying exactly:
+   *
+   *   NO PASSENGER VEHICLE OF ANY KIND. Nothing in this city carries people
+   *     except the people themselves, and a bus is the one road vehicle whose
+   *     INTERIOR is a light source at night.
+   *   NO STEP IN THE SIDE ELEVATION. Every one of the five is a monotone wedge —
+   *     widest at the nose, drawn in at the tail, roof rising or falling once.
+   *     A rigid lorry is a LOW CAB WITH A TALL BOX BEHIND IT, and that step is a
+   *     silhouette this fleet does not contain at any length.
+   *
+   * So the two additions are chosen for the silhouettes the table lacks rather
+   * than for the lengths, and the length follows from the class.
+   * ---------------------------------------------------------------------------
+   */
+  {
+    /**
+     * THE CITY BUS. 12.00 m is the standard rigid single-decker and it is the
+     * length the class is defined by, not a number chosen to be long: 12.00 /
+     * 5.40 = 2.22x the wedge and 2.67x a 4.50 m reference-era saloon, which is
+     * the "three times a car" the brief asked for measured against a real car
+     * rather than against this fleet's own wedge.
+     *
+     * 2.55 m wide is the EU maximum for a bus (Directive 96/53/EC), and this
+     * world's hauler at 2.66 is over it — a freighter here is wider than
+     * anything licensed to carry passengers, which is a distinction worth
+     * keeping rather than smoothing. 3.20 m to the roof is a low-floor
+     * single-decker: 0.34 m floor, 2.40 m saloon headroom, 0.46 m of roof
+     * structure and air-conditioning.
+     *
+     * SPEED 0.78. A bus is not slow because it is heavy, it is slow because it
+     * stops; 0.78 x 12 = 9.4 m/s free-running, between the hauler's 8.9 and the
+     * van's 10.3. The dwell that makes it actually slow is item 4 and is not
+     * here.
+     *
+     * THE ROOFLINE IS A RAKED NOSE AND THAT IS WHAT MAKES IT MEASURABLE. A real
+     * bus is a flat-topped slab and would read roofSpan near zero against a 0.30
+     * floor — §7.5's own `$minWidthSpan_notAllVehiclesTaper` records the same
+     * trade for a panel van, and this is that trade taken deliberately rather
+     * than discovered. The lowered driver's bay at 1.98 m under a 3.20 m saloon
+     * roof is 1.22 m of step: a raked screen, the same device the viaduct
+     * train's nose uses, and session 23's finding is that a silhouette change
+     * reads at distance far better than added polygons do.
+     *
+     * THE FIRST DRAFT OF THIS TABLE FAILED BOTH FLOORS AND THE NUMBERS WRITTEN
+     * HERE BEFORE IT WAS MEASURED WERE WRONG. `tools/fleetprobe.mjs` scored the
+     * first bus at roofSpan 0.2307 against a comment claiming 0.4211, because
+     * the §7.4 sampling trims 10% of the length at each end and then takes
+     * TWELVE stations over what is left — which on an eight-section body reaches
+     * sections 1 to 6 and NEVER SAMPLES SECTIONS 0 OR 7. A nose deck authored in
+     * section 0 is invisible to the metric however deep it is. The step
+     * therefore lives in section 1, and the floors are cleared by the sampled
+     * body rather than by the drawn one agreeing with it by luck.
+     *
+     * DELIVERED, through the geometry path: roofSpan 0.3265, widthSpan 0.1670.
+     * Both above their floors (0.30 / 0.12); the width is above the whole
+     * pre-session-29 fleet's worst (hauler 0.1610). Every sampled section top
+     * clears the 1.60 m width probe by 0.38 m or more.
+     *
+     * IT CANNOT MAKE THE JUNCTION TURN AND THAT IS DERIVED, NOT DECIDED. See
+     * MAX_TURN_HALF_LEN_M: a rigid body of half-length L on an 8.0 m arc swings
+     * its corners L^2/(2R) outside the band its own width entitles them to, and
+     * at L = 6.00 that is 2.25 m against a 1.75 m lane half-pitch. A turning bus
+     * would put its front corner past the next lane's centreline. Refused rather
+     * than moved.
+     */
+    name: 'bus', len: 12.00, wide: 2.55, speed: 0.78, weight: 0.03, rough: 0.46,
+    plan: [1.00, 1.00, 1.00, 1.00, 0.99, 0.95, 0.82, 0.68],
+    top: [1.80, 1.98, 3.20, 3.20, 3.20, 3.20, 3.14, 2.92],
+    seams: [1, 5],
+    floorY: 0.62, sillY: 0.26,
+    /**
+     * The saloon glazing band, spanning sections 2-5 — the constant-plan,
+     * constant-roof run — so it is one continuous window down the flank rather
+     * than a visor. Local tops 3.20, glass 3.02 (strictly under); local plans
+     * 1.00, glass 0.92, which is inside the flank and outside the tumblehome
+     * plane at 0.76, so the band breaks through the crease facet and shows. Its
+     * span [-2.90, +2.90] stays inside sections 2-5 at [-2.97, +2.97].
+     */
+    glaze: [0.00, 5.80, 3.02, 2.10, 0.90],
+    wheels: [
+      [4.35, 1.10, 0.98, 0.30], [4.35, -1.10, 0.98, 0.30],
+      [-3.30, 1.10, 0.98, 0.30], [-3.30, -1.10, 0.98, 0.30],
+    ],
+  },
+  {
+    /**
+     * THE RIGID LORRY, AND IT IS THE STEP THIS FLEET DOES NOT HAVE.
+     *
+     * 8.20 m over two axles is a 12-tonne rigid goods vehicle — the size that
+     * actually delivers to a city street, between the van's 6.00 m and the
+     * hauler's 9.60. 2.40 m wide, 3.30 m to the top of the box: TALLER THAN IT
+     * IS WIDE by 1.375x, which is the brief's own definition of the class and is
+     * a proportion no other type here has except the hauler.
+     *
+     * WHAT MAKES IT NOT A LONGER VAN. The van is a monotone aero wedge: nose
+     * deck, one rake step, cargo box, blunt tail. This is a CAB AND A BOX — a
+     * 2.06 m cab over the front axle, a hard step up to a 3.30 m body that runs
+     * flat to a square tail with no draw-in at the roof at all. In plan the box
+     * is the widest thing on it and the cab is narrower, which is the opposite
+     * of every other type in this table (all of them widest at the nose). That
+     * inversion is the point: a queue of five types that all taper the same way
+     * is one shape at five scales.
+     *
+     * THE CAB IS NARROWER THAN THE BOX AND THAT IS BOTH THE STYLING AND THE
+     * MEASUREMENT. 0.82 of 2.40 m is a 1.97 m cab under a 2.40 m body. A real
+     * box lorry has a cab the same width as its body and would read widthSpan
+     * 0.114 against a 0.12 floor — measured on the first draft of this row, and
+     * the same trade the bus above records.
+     *
+     * Delivered, through the geometry path: roofSpan 0.3295, widthSpan 0.1740.
+     * Every sampled section top clears the 1.65 m width probe by 0.37 m or more.
+     * Off-tracking at L = 4.10 m is 1.05 m, inside the 1.75 m lane half-pitch,
+     * so it turns like the rest of the fleet.
+     */
+    name: 'lorry', len: 8.20, wide: 2.40, speed: 0.82, weight: 0.06, rough: 0.55,
+    plan: [0.86, 0.82, 1.00, 1.00, 1.00, 1.00, 0.88, 0.74],
+    top: [1.94, 2.02, 3.30, 3.30, 3.30, 3.30, 3.30, 3.26],
+    seams: [1, 5],
+    floorY: 0.72, sillY: 0.26,
+    /**
+     * The cab screen, inside sections 0-1 only (tops 2.06/2.20, glass 1.98;
+     * plans 0.86/0.88, glass 0.82, which is inside the narrower of the two and
+     * outside tumble 0.76 x 0.86 = 0.654). It stops at the cab because the box
+     * behind it has no windows — which is the whole difference between this and
+     * the van.
+     */
+    glaze: [3.05, 1.60, 1.90, 1.58, 0.78],
+    wheels: [
+      [2.95, 1.00, 0.86, 0.28], [2.95, -1.00, 0.86, 0.28],
+      [-2.20, 1.00, 0.86, 0.28], [-2.20, -1.00, 0.86, 0.28],
+    ],
+  },
 ];
 
 /**
@@ -1639,6 +1834,32 @@ export function createTraffic(options = {}) {
       const lights = ctx.get('lights');
       const rng = ctx.rng('traffic:layout');
       /**
+       * THE CLASS ROLL GETS ITS OWN NAMED STREAM — SESSION 29 — AND WHAT THAT
+       * DOES AND DOES NOT BUY IS WORTH STATING, BECAUSE THE OBVIOUS CLAIM IS
+       * FALSE.
+       *
+       * CONTRACT §6 makes streams independent, so a roll on its own stream
+       * cannot shift another system's sequence. Session 28 used that to add a
+       * `retailRng` and leave 7 851 rows of the streamed city byte-identical.
+       *
+       * THIS IS NOT THAT CASE AND SAYING SO IS THE POINT. The class roll ALREADY
+       * EXISTED, on `traffic:layout`, one draw per vehicle at construction. A
+       * NEW roll on a new stream shifts nothing; MOVING an existing one off a
+       * shared stream re-phases everything drawn after it — here `pref` and
+       * `cab`, and through them every speed and therefore the whole disposition.
+       * There is no arm in which the fleet gains two classes and the traffic
+       * stands still, because the weights alone re-type every vehicle, so the
+       * re-phasing costs nothing that was available anyway.
+       *
+       * WHAT THE SEPARATE STREAM IS ACTUALLY FOR is the other direction: from
+       * here on, adding an eighth class or retuning a share cannot move `pref`,
+       * `cab`, `junctionsLeft` or a single seeding draw. The determinism control
+       * for the claim that nothing OUTSIDE traffic moved is a byte-identical
+       * dump of the streamed city's registry, and it holds for a stronger reason
+       * than stream independence: `citygen` never reads a traffic stream at all.
+       */
+      const classRng = ctx.rng('traffic:class');
+      /**
        * The root seed, as a string, for `riverNoRoad` — which asks the pure
        * generator which crossing carries a bridge and must be handed the same
        * seed `citygen` was. `String()` because the config value may arrive as a
@@ -1863,10 +2084,43 @@ export function createTraffic(options = {}) {
 
       // --- the vehicles ----------------------------------------------------
 
+      /**
+       * CLASS SHARE, AND IT IS A CONTENT DECISION WITH ARITHMETIC UNDER IT.
+       *
+       * The weights are NOT normalised in the table: `typeTotal` is their sum
+       * and `pickType` divides by it. That is deliberate and it is what makes
+       * session 29 a two-line change to the composition rather than a seven-line
+       * one — the five pre-existing weights are UNTOUCHED, so their proportions
+       * relative to each other are exactly what they were, and the two new
+       * classes take their share pro rata from all five at once. Editing five
+       * numbers to make room would have made every one of them a number nobody
+       * could attribute.
+       *
+       *   sum = 0.34 + 0.24 + 0.20 + 0.10 + 0.12 + 0.03 + 0.06 = 1.09
+       *   bus   0.03 / 1.09 = 2.75% of 160 =  4.4 vehicles in the ring
+       *   lorry 0.06 / 1.09 = 5.50% of 160 =  8.8 vehicles in the ring
+       *   the five existing shares are each scaled by 1 / 1.09 = 0.9174
+       *
+       * WHY THOSE TWO NUMBERS AND NOT EQUAL ONES. The brief's requirement is the
+       * ordering — buses rare, delivery lorries less so — and the ratio is 1:2.
+       * In flow terms, which is the checkable form: 4.4 buses over the 1 772 m of
+       * centreline inside the 190 m ring is one every 403 m, i.e. 26.8 buses per
+       * hour per lane at the 12 m/s free speed. THAT IS AT THE TOP OF THE REAL
+       * RANGE and it is chosen rather than derived: a trunk corridor with several
+       * routes converging runs 20-30 buses an hour, and a bus the camera never
+       * meets is content that does not exist. The lorry's 8.8 is 53.5 veh/h/lane,
+       * which against this fleet's already freight-heavy van (18.3%) and hauler
+       * (9.2%) shares is the smaller claim of the two.
+       *
+       * WHAT IT COSTS IN LENGTH, because that is the quantity item 1(f) is about:
+       * the weighted mean body length goes 5.148 -> 5.505 m, +6.9%, at a fixed
+       * vehicle count of 160 and a fixed 1 772 m of centreline. Road area is
+       * unchanged; the fleet occupies 6.9% more of it.
+       */
       const typeWeights = BODY_TYPES.map((t) => t.weight);
       const typeTotal = typeWeights.reduce((a, b) => a + b, 0);
       function pickType() {
-        let r = rng.next() * typeTotal;
+        let r = classRng.next() * typeTotal;
         for (let i = 0; i < BODY_TYPES.length; i++) {
           r -= typeWeights[i];
           if (r <= 0) return i;
@@ -1892,6 +2146,12 @@ export function createTraffic(options = {}) {
           px: 0, pz: 0, hx: 0, hz: 1, d2: 0, nose: 0,
           /** Set on the frame an instance is re-seated. Its previous transform is elsewhere. */
           recycled: true,
+          /**
+           * False until `seed()` has put this vehicle somewhere. Session 29's
+           * spawn spacing test reads it: a vehicle still stacked at the
+           * constructor's origin is not an obstacle, it is an absence.
+           */
+          placed: false,
           /** Interior glow gain, fixed per vehicle so a row of cabs is not identical. */
           cab: rng.range(0.25, 1.0),
         });
@@ -1935,6 +2195,9 @@ export function createTraffic(options = {}) {
       const tracks = new Map();
       const lampOrder = [];
       const camLane = { axis: -1, line: 0, dir: 1, lane: 0, s: 0 };
+      /** Session 29's two seeding instruments. Run-cumulative; read by `stats()`. */
+      let seedRejects = 0;
+      let seedFallbacks = 0;
 
       /**
        * Seed or re-seed a vehicle somewhere inside the ring.
@@ -1978,6 +2241,63 @@ export function createTraffic(options = {}) {
           if (riverNoRoad(rootSeed, pos.x, pos.z, axis === 0)) continue;
           // HARD, not scored. See CAMERA_CLEARANCE.
           if (d2 < CAMERA_CLEARANCE * CAMERA_CLEARANCE) continue;
+          /**
+           * NOT SEEDED INSIDE A BODY THAT IS ALREADY THERE — SESSION 29, AND IT
+           * IS A DEFECT THIS SESSION MEASURED RATHER THAN INTRODUCED.
+           *
+           * `seed()` had NO spacing test of any kind. Every other placement
+           * routine in this project tests what is already there — CONTRACT §9.1
+           * states it as a rule and session 21 turned it into `occupancy.js`
+           * after it had been broken seven times — and the one placement routine
+           * that re-runs 160 times a second was the eighth.
+           *
+           * MEASURED ON THE FLEET AS IT STOOD, BEFORE A BUS EXISTED
+           * (`tools/fleetprobe.mjs`, 216 simulated seconds, eye parked at the
+           * look shot): 245 of 637 re-seats — 38.5% — landed INSIDE a body
+           * already on that line, worst overlap 9.475 m, and those overlaps
+           * account for essentially all of the 17% of pair-frames whose
+           * bumper-to-bumper gap is negative. The car-following model cannot
+           * undo one: with `gap < 0` its limit is `max(0, lead.v x gap/safe)` =
+           * 0, so the vehicle behind simply STOPS INSIDE the vehicle in front
+           * and waits for it to drive out.
+           *
+           * WHY IT IS FIXED HERE RATHER THAN LEFT. Item 1's whole subject is
+           * that a longer body finds the places an extent is used, and this is
+           * the largest of them: the depth of an overlap is bounded by the two
+           * bodies' half-lengths, so a 12.00 m bus makes every overlap it is in
+           * up to 3.20 m deeper than the 9.60 m hauler could. Shipping the bus
+           * over this would have been shipping the defect at its new maximum.
+           *
+           * HARD, NOT SCORED, for the same reason the two tests above it are:
+           * a scored candidate still wins when every draw is bad. The clearance
+           * asked for is the model's own standing gap at rest — `2.0 m`, the
+           * constant term of `safe = 2.0 + 1.2 v` — and not a car length, which
+           * is the quantity this project has confused with a gap before.
+           */
+          {
+            const half = BODY_TYPES[veh.type].len * 0.5;
+            let clash = false;
+            for (const other of vehicles) {
+              if (other === veh) continue;
+              /**
+               * A VEHICLE THAT HAS NEVER BEEN SEEDED IS NOT AN OBSTACLE, AND
+               * LEAVING THIS OUT WOULD HAVE BIASED THE WHOLE BOOT.
+               *
+               * The constructor gives every vehicle `axis 0, line 0, dir 1,
+               * lane 0, s 0` and the boot loop then seeds them one at a time, so
+               * on the first call 159 vehicles are stacked at the world origin
+               * on exactly one lane. Without this line the first seeds would
+               * have found that lane occupied by 159 bodies and refused every
+               * candidate on it — a systematic hole in the initial distribution,
+               * on the line z = 0 that runs the length of the origin block and
+               * carries every look shot in the project.
+               */
+              if (!other.placed) continue;
+              if (other.axis !== axis || other.line !== line || other.dir !== dir || other.lane !== lane) continue;
+              if (Math.abs(other.s - s) < half + BODY_TYPES[other.type].len * 0.5 + SEED_CLEAR_M) { clash = true; break; }
+            }
+            if (clash) { seedRejects++; continue; }
+          }
           const ahead = (dx * fwd.x + dz * fwd.z) / Math.max(1, Math.sqrt(d2));
           const score = initial ? 0 : ahead;
           if (score > bestScore) { bestScore = score; best = { axis, line, dir, lane, s }; }
@@ -1986,6 +2306,14 @@ export function createTraffic(options = {}) {
           // Twelve candidates all inside the clearance or outside the ring is
           // possible only if the ring is degenerate. Park it at the far edge of
           // the camera's own street, which is always outside both.
+          //
+          // SESSION 29 added a third hard rejection above, so this branch is
+          // reachable for a new reason and its rate is now an instrument rather
+          // than an impossibility: `stats().seedFallbacks` counts it and
+          // `fleetprobe` prints it. A fallback places a body WITHOUT the spacing
+          // test, so a high rate would mean the test is not doing what the
+          // number below claims.
+          seedFallbacks++;
           best = { axis: 0, line: cj, dir: 1, lane: 1, s: cam.x + SIM_RADIUS * 0.8 };
         }
         veh.axis = best.axis;
@@ -2012,6 +2340,12 @@ export function createTraffic(options = {}) {
          */
         veh.cleared = null;
         veh.recycled = true;
+        /**
+         * From here this vehicle is somewhere real, so it becomes an obstacle
+         * for every later seed. Set LAST, after `best` has been written, so a
+         * vehicle can never be tested against its own stale position.
+         */
+        veh.placed = true;
       }
 
       /**
@@ -2048,6 +2382,16 @@ export function createTraffic(options = {}) {
         bodyTypes: BODY_TYPES.length,
         suppressedByThreshold: 0,
         recycledThisFrame: 0,
+        /**
+         * SESSION 29. Run-cumulative counts of the spawn spacing test above:
+         * how many candidate placements it refused, and how many times all
+         * twelve candidates were refused and the fallback placed a body without
+         * it. Instruments, not thresholds — `tools/fleetprobe.mjs` reads them and
+         * no gate asserts either, because the quantity a gate should assert here
+         * is the DELIVERED overlap and that is what the probe measures.
+         */
+        seedRejects: 0,
+        seedFallbacks: 0,
         cutoffM: 0,
         turning: 0,
         stopped: 0,
@@ -2299,6 +2643,9 @@ export function createTraffic(options = {}) {
         queueNow.clear();
         stats.holdingAtRed = 0;
         stats.recycledThisFrame = 0;
+        // Run-cumulative, so they are published rather than reset. Session 29.
+        stats.seedRejects = seedRejects;
+        stats.seedFallbacks = seedFallbacks;
         /**
          * THE PER-FRAME WORST, BESIDE THE RUN-CUMULATIVE ONE — session 25.
          *
@@ -2579,7 +2926,16 @@ export function createTraffic(options = {}) {
             const toTurn = (nextJ - along) * veh.dir - (TURN_RADIUS + LANE_OFFSET[veh.lane]);
             if (
               veh.lane === 1 && !veh.turn && phase === 0 && veh.junctionsLeft === 0 &&
-              toTurn <= 0 && toTurn > -3 && veh.v > 1.0
+              toTurn <= 0 && toTurn > -3 && veh.v > 1.0 &&
+              /**
+               * A body too long for the arc does not take it. See
+               * MAX_TURN_HALF_LEN_M: the excursion is L^2/(2R) and the bound is
+               * the 1.75 m lane half-pitch. Tested on the TYPE's half-length
+               * rather than on a flag in the table, so a later retune of `len`
+               * moves the eligibility with it instead of leaving a stale
+               * boolean behind (§9.1's config-the-code-does-not-read).
+               */
+              type.len * 0.5 <= MAX_TURN_HALF_LEN_M
             ) {
               // Start the arc from where the vehicle actually is, not from the
               // tangent point it has already passed by up to one frame's travel.
