@@ -504,9 +504,11 @@ session 27 ended with two gates unreported.
   inputcheck   GREEN
   gateaudit    RED AT 3   all three are lookcheck's two restated one layer up. Every
                           --falsify self-test underneath passed at 100% coverage.
-  citycheck    RED AT 1   the carried bright reserve, 4.66% against 6.00%. sceneWalk and
-                          occupancy are GREEN — occupancy at 0 / 0 forbidden overlaps
-                          over 50 forbidden pairs, generator AND delivered.
+  citycheck    RED AT 2   the carried bright reserve, AND `sceneWalk` TIMING OUT rather
+                          than failing — see §7.3.1. `occupancy` is GREEN at 0 / 0
+                          forbidden overlaps over 50 forbidden pairs, generator AND
+                          delivered, which is the number this session's two new
+                          placement systems had to earn.
   perfcheck    RED AT 8   THREE are milliseconds and are INADMISSIBLE at this machine's
                           load (3.70 against a bar of 1.6). FOUR are the carried
                           stop-line datum. ONE is the tone profile, and it IMPROVED.
@@ -549,6 +551,24 @@ that changed the content they measure:
   inputcheck --falsify  13/13 rejected, coverage 100%
   windcheck, lookcheck  green
 ```
+
+### 7.3.1 `citycheck` → `sceneWalk` IS A MACHINE READING, NOT A CONTENT READING
+
+```
+  ✗ [sceneWalk] the city had not finished arriving when the census was taken —
+    Bound hit: wall after 2950 frames / 20 142.8 ms, with 16 bakes still queued.
+```
+
+**This is the load, and the assertion says so in its own message**: *"'wall' means a bake
+is slow or stuck"*, and it warns in the same breath **not** to raise the frame budget for
+it. Three invocations this session, at load 4.68, 3.54 and 3.58, and the earlier one on a
+quieter machine returned the census cleanly. Its content half is what caught this session's
+own double-count (§6.1) and it went green the moment that was repaired.
+
+**The reserve's spread over those same runs is 4.54 / 4.66 / 4.74 / 5.26%**, which is 0.72
+points against a 1.3-point deficit — STATE 28 recorded 0.23–1.04 for the same statistic and
+this session adds a fourth invocation to that. No single `citycheck` run can resolve the
+question §8 item 1 asks.
 
 ### 7.3 `perfcheck` — the counts, which ARE admissible
 
@@ -705,7 +725,8 @@ the seeding fallback's untested placement, and **a bus never turns**.
 **New gaps this session opened, stated rather than left to be found:**
 
 - **`highway_speed` DRAW MARGIN IS NOW THE TIGHTEST BOUND IN THE PROJECT.** **431 → 434 of
-  a 440 ceiling**, six of margin, and five content systems landed inside it only because
+  a 440 ceiling** measured before the §7.4 repairs (which only ever refuse content, so it
+  cannot have risen), six of margin, and five content systems landed inside it only because
   every one of them rides in a mesh that was already drawn. The next session should assume
   it has no room for a new mesh in the streamed city at all.
 - **`band:midnight` HAS 0.0009 LEFT.** The block is at parity and the budget is spent. Any
