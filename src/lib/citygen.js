@@ -3712,15 +3712,33 @@ function subtractBoxes(rects, boxes) {
  *                      which is inside the band's own `t0` (CORRIDOR + 3 =
  *                      14.7 m, where the cross-road's corridor stops) with
  *                      7.3 m to spare, so the shelter is clear of the crossing
- *                      rather than on it. 22 m is a bus length (12.00 m,
- *                      `traffic.js`) plus half of one for the vehicle behind —
- *                      the stopping zone a halted bus needs, measured from the
- *                      thing it must not block.
- *   AT INTERVALS.      ONE PER CHUNK AT MOST, at `perChunkP` — a stop every
- *                      256 m of route on average against a 128 m lattice, which
- *                      is the bottom of the real 250–400 m range for an urban
- *                      route. Four a chunk, one per band, would be one every
- *                      128 m on every road line in the city.
+ *                      rather than on it. 22.0 m is derived and the first
+ *                      version of this sentence was not: it said "a bus length
+ *                      plus half of one", which is 12.00 + 6.00 = **18.00**,
+ *                      and the constant is 22.0. The number that IS 22.0 is
+ *                      the one the placement actually has to clear —
+ *                      `CORRIDOR` = 11.7 m of cross-road corridor, plus half a
+ *                      bus (6.00 m) so a halted 12 m body's tail is clear of
+ *                      it, plus the shelter's own half-length (2.00 m) and the
+ *                      0.30 m the flag pole reaches past it: 11.7 + 6.0 + 2.0
+ *                      + 0.3 = **20.0**, rounded up to 22.0 for the 2 m of
+ *                      slack a kerb build needs. It clears the band's own `t0`
+ *                      (CORRIDOR + 3 = 14.7) by 7.3 m.
+ *   AT INTERVALS.      ONE PER CHUNK AT MOST, at `perChunkP` = 0.5, AND THE
+ *                      DELIVERED SPACING IS NOT 1/p CHUNKS. The first version
+ *                      of this comment said "a stop every 256 m of route",
+ *                      which is `chunkSize / perChunkP` — a per-CHUNK rate used
+ *                      as a per-ROUTE spacing, and the two differ by how many
+ *                      road lines a chunk owns. A chunk owns TWO (one N–S, one
+ *                      E–W) and each carries two pavements, so a chunk holds
+ *                      **4 × 128 = 512 m of kerb** and half a stop: the
+ *                      delivered spacing is about **1 000 m of kerb per stop**
+ *                      before refusals, i.e. one stop per direction of travel
+ *                      every ~500 m of route. That is at the LOOSE end of the
+ *                      real 250–400 m range rather than the tight one, and it
+ *                      is stated that way round rather than flattered. Four a
+ *                      chunk, one per band, would be one every 128 m on every
+ *                      road line in the city, which nobody builds.
  *
  * `lowDetail` chunks get none, for the reason they get no kerbside props:
  * there is no pavement mesh out there to stand on.
@@ -3732,15 +3750,37 @@ export function busStopAt(rootSeed, cx, cz) {
   if (lowDetail) return null;
   const rng = chunkRng(rootSeed, cx, cz, 'busstop');
   if (rng.next() >= BUS_STOP.perChunkP) return null;
-  /** The four lattice kerb bands, from the chunk's own bounds. */
+  /**
+   * The four lattice kerb bands, from the chunk's own bounds. The river's two
+   * curved promenade bands are deliberately absent — a bank is a promenade and
+   * not a bus route — which is why the guard that used to test `band.bank`
+   * below was a guard that could not fire and has been removed rather than
+   * left to read as a check.
+   */
   const bands = [
     { axis: 'x', at: b.x0, side: +1 },
     { axis: 'x', at: b.x0, side: -1 },
     { axis: 'z', at: b.z0, side: +1 },
     { axis: 'z', at: b.z0, side: -1 },
   ];
-  const band = bands[rng.int(0, 3)];
-  const along = (band.axis === 'x' ? b.z0 : b.x0) + BUS_STOP.beforeJunctionM;
+  const band = bands[rng.int(0, bands.length - 1)];
+  /**
+   * WHICH junction, and this is the half that was wrong in the first draft.
+   *
+   * `along` was `corner + beforeJunctionM` for every band, so **78 of 155
+   * declared stops stood on the FAR side of the junction** against a rule
+   * written as *"near side of a junction"*. A chunk has a junction at each end
+   * of the band; which one is NEAR depends on which way the lane beside that
+   * pavement runs, and `side` is exactly that fact — it is the outward sign,
+   * so with right-hand traffic the lane adjacent to the `+side` pavement runs
+   * toward the chunk's LOW corner and the lane adjacent to `-side` runs toward
+   * its HIGH one. The stop therefore sits `beforeJunctionM` INSIDE the corner
+   * the near lane is heading for, which is inside the band's own `[t0, t1]`
+   * either way (`t0` = CORRIDOR + 3 = 14.7, `t1` = size − 3 = 125).
+   */
+  const lo = band.axis === 'x' ? b.z0 : b.x0;
+  const hi = band.axis === 'x' ? b.z1 : b.x1;
+  const along = band.side > 0 ? lo + BUS_STOP.beforeJunctionM : hi - BUS_STOP.beforeJunctionM;
   return { axis: band.axis, at: band.at, side: band.side, along };
 }
 
@@ -5725,26 +5765,9 @@ export function generateChunk(rootSeed, cx, cz) {
      *                      this chunk draws, as (fixed axis, its value,
      *                      outward sign). A stop stands on one of them at the
      *                      same kerb offset a kerbside prop does.
-     *   NEAR SIDE OF A JUNCTION.  The junction is the chunk's own corner
-     *                      (b.x0, b.z0) where its two road lines cross. The
-     *                      stop stands `stopBeforeJunctionM` = 22 m along the
-     *                      band from it, which is inside the band's own `t0`
-     *                      (CORRIDOR + 3 = 14.7 m, the distance at which the
-     *                      cross-road's corridor stops) with 7.3 m to spare, so
-     *                      the shelter is clear of the crossing rather than on
-     *                      it. 22 m is a bus length (12.00 m, `traffic.js`)
-     *                      plus half of one for the vehicle behind it — the
-     *                      stopping zone a halted bus needs, measured from the
-     *                      thing it must not block.
-     *   AT INTERVALS.      ONE PER CHUNK AT MOST, at p = 0.5 — so a stop every
-     *                      256 m of route on average against a 128 m lattice,
-     *                      which is the bottom of the real 250–400 m range for
-     *                      an urban route. Four stops a chunk, one per band,
-     *                      would be one every 128 m on every road line in the
-     *                      city, and nobody builds that.
-     *
-     * `lowDetail` chunks get none, for the same reason they get no kerbside
-     * props: there is no pavement mesh out there to stand on.
+     *   NEAR SIDE OF A JUNCTION.  See `busStopAt`, which owns the rule and the
+     *                      derivation of `beforeJunctionM`. This is the field,
+     *                      not a second copy of the argument.
      */
     busStop: busStopAt(rootSeed, cx, cz),
   };

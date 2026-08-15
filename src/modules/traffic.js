@@ -1763,12 +1763,18 @@ const WHEELS_PER_VEHICLE = 4;
  *
  * SO THE SPREAD IS BUILT FROM CHROMATICITY AND NOT FROM TASTE. Each entry's
  * (r, b) chromaticity is written beside it. **The closest CHROMATIC pair is
- * 0.098 apart, which is 4.9x the threshold and leaves room for the illuminant
- * to close some of it.** The sentence here used to say "the closest pair is
+ * teal and pale blue at 0.0608, which is 3.04x the threshold and leaves room
+ * for the illuminant to close some of it.** (The second-tightest is oxide red
+ * and livery red at 0.0983, and an earlier draft of this sentence quoted that
+ * one as though it were the minimum.) The sentence here used to say "the closest pair is
  * 0.088", full stop, and measured over the whole table that was false by an
- * order of magnitude: graphite and silver sit **0.0082** apart, which is 0.41x
- * the threshold. They are meant to. Three of these entries are NEUTRALS and a
- * neutral is defined by having no chromaticity to separate — what separates
+ * order of magnitude: the ten tightest pairs in the table are all
+ * neutral-on-neutral, from off-white/white at **0.0022** to graphite/off-white
+ * at 0.0194, and the pair the old sentence would have been about — graphite
+ * and silver — sits at **0.0082**, which is 0.41x the threshold. They are
+ * meant to. **FIVE of these entries are NEUTRALS** — graphite, mid grey,
+ * silver, off-white and white — and a neutral is defined by having no
+ * chromaticity to separate — what separates
  * them is LUMINANCE, and stating a chromaticity floor over a set that contains
  * neutrals is CONTRACT §9.1's comment-that-claims-a-property. Corrected in
  * session 30 by measuring it, and the floor is now stated over the pairs it
@@ -1795,9 +1801,12 @@ const WHEELS_PER_VEHICLE = 4;
  * on, and no count of colours could see it, which is CONTRACT §7.2 with a
  * palette instead of a body type.
  *
- * The repair is a LADDER — an entry roughly every half-stop from 0.047 to
- * 0.697, thirteen of them — and a WEIGHTED draw per class, so the shape of
- * the distribution is a decision rather than a side effect of a stride.
+ * The repair is a LADDER — thirteen entries from 0.047 to 0.698, which is
+ * log2(0.6977/0.0469) = **3.90 stops over twelve gaps, i.e. 0.325 of a stop a
+ * rung**; the first draft of this sentence said "roughly every half-stop",
+ * which over thirteen entries would have spanned six stops rather than 3.9 —
+ * and a WEIGHTED draw per class, so the shape of the distribution is a
+ * decision rather than a side effect of a stride.
  *
  *   0.047 deep blue   0.048 oxide red  0.053 graphite   0.054 teal
  *   0.062 olive       0.095 livery red 0.124 sand       0.148 pale blue
@@ -1816,8 +1825,14 @@ const WHEELS_PER_VEHICLE = 4;
  * saturation measures pixels that are saturated AND bright — `valueThreshold`
  * 0.5 on the encoded frame — on `night_rain`, and the whole point of that
  * threshold is that a chromatic surface which does not GLOW is not spending the
- * reserve. Deep blue paint at reflectance 0.115 under LIGHT.streetAverageLux =
- * 16 lux is nowhere near HSV value 0.5 in a frame metered for neon. The two
+ * reserve. The BRIGHTEST paint in this table, white at Rec.709 reflectance
+ * 0.698, under `LIGHT.streetAverageLux` = 16 lx delivers rho*E/pi =
+ * **3.56 cd/m2** and is nowhere near HSV value 0.5 in a frame metered for
+ * neon; deep blue at 0.047 delivers 0.24. (The figure here was "deep blue at
+ * reflectance 0.115" for twenty-one sessions and matches no reading of that
+ * entry's albedo [0.030, 0.046, 0.105] — max channel 0.105, luminance 0.047,
+ * mean 0.060. Session 30 replaced it with the case that actually bounds the
+ * argument, which is the brightest entry rather than a middling one.) The two
  * saturated things on a vehicle at night are its tail bar and its brake bar,
  * both of which were already budgeted at 0.26 points in session 4b and neither
  * of which is paint.
@@ -1859,7 +1874,7 @@ const PAINT = [
    *  this table's tightest chromatic pair and the number the header quotes. */
   { name: 'pale blue', albedo: [0.120, 0.150, 0.205] },
   /** livery red    (0.724, 0.128)  lum 0.0947 — a BUS red: 1.99x oxide red's
-   *  luminance and 0.0977 from it in chromaticity, so an operator's livery and
+   *  luminance and 0.0983 from it in chromaticity, so an operator's livery and
    *  a rusting flank are two colours rather than one at two exposures. */
   { name: 'livery red', albedo: [0.255, 0.052, 0.045] },
 ];
@@ -1875,18 +1890,22 @@ const PAINT = [
  * chosen, so the next session can disagree with the source instead of with the
  * taste (§9 rule 5). European new-car colour share runs roughly white 27%,
  * black 22%, grey 22%, silver 8%, blue 10%, red 5%, other 6%. Mapped onto this
- * ladder — white+off-white+cream 0.30, graphite 0.20, mid grey+silver 0.24,
- * pale blue+deep blue 0.11, the two reds 0.06, olive+teal+sand 0.09 — which
- * reproduces every band inside three points except grey, where this table
- * splits six points of it into silver.
+ * ladder — white+off-white+cream 0.30 (census 27), graphite 0.20 (22), mid
+ * grey 0.14 + silver 0.10 (grey 22 + silver 8 = 30), pale blue+deep blue 0.11
+ * (10), the two reds 0.06 (5), olive+teal+sand 0.09 (other 6) — which
+ * reproduces white, black, blue and red inside three points and is **six
+ * points short on grey-plus-silver**, spent on the three chromatic entries
+ * this fleet needs for §7.2's cluster floor. Stated rather than rounded away.
  *
  * THE OTHER ROWS ARE STATEMENTS ABOUT WHAT THE VEHICLE IS, which is what the
  * brief asked for and is also why they are not derived from the same census:
  * a census of CARS says nothing about a bus.
  *
  *   van, lorry, hauler   a commercial body is bought white and is signwritten
- *                        afterwards, so the light end carries two thirds of
- *                        each of these rows
+ *                        afterwards, so the light end (white, off-white, cream,
+ *                        silver) carries **0.78 / 0.68 / 0.70** of those three
+ *                        rows respectively — the first draft said "two thirds
+ *                        of each", which is true of none of them
  *   bus                  A LIVERY IS NOT A COLOUR CHOICE. Three entries, one
  *                        dominant, because an operator paints a fleet and not
  *                        a vehicle — and the same argument session 29 used to

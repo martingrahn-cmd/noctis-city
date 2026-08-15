@@ -1135,6 +1135,34 @@ export function createCity(options = {}) {
     }
   }
 
+  /**
+   * WHERE THIS CHUNK'S STREET LAMP COLUMNS STAND — pure in (cx, cz).
+   *
+   * Hoisted out of the lamp run in session 30 because the bus stop has to miss
+   * them and it is emitted 270 lines earlier. Two copies of a station list is
+   * the arrangement `pierEvery: 34` sat in (CONTRACT §9.1), so there is one.
+   *
+   * IT IS ALSO A GAP MADE VISIBLE RATHER THAN CLOSED. These columns are in NO
+   * occupancy band at all — STATE 23's `lampprobe` finding, that *"the 790
+   * lamps that do light this city are emitted by `city.js` directly and are in
+   * NO registry band, not their column, not their head"*. So a shelter cannot
+   * be refused against them through `placed`; it is refused against this list
+   * directly, which repairs the collision without pretending the lamps are
+   * declared. Measured before this existed: **14 of 155 declared shelters had
+   * an 8.4 m lamp column standing inside the roof they claim.**
+   */
+  function lampStationsFor(cx, cz) {
+    const b = chunkBounds(cx, cz);
+    const out = [];
+    for (let i = 0; i < 4; i++) {
+      const off = ((cx * 7 + cz * 13) % 10) + i * 30;
+      if (off > CITY.chunkSize) continue;
+      out.push({ x: b.x0 + CITY.roadHalfWidth + 1.3, z: b.z0 + off, axis: 'x', side: 1 });
+      out.push({ x: b.x0 + off, z: b.z0 + CITY.roadHalfWidth + 1.3, axis: 'z', side: 1 });
+    }
+    return out;
+  }
+
   function buildChunkBody(ctx, cx, cz, detail, ring, chunk, group, bytesIn, near, ground) {
     /**
      * WHAT THIS CHUNK ACTUALLY PUT ON THE GROUND — session 21, and it is the
@@ -2522,17 +2550,52 @@ export function createCity(options = {}) {
       const yawS = yawForNormal(awayDir[0], awayDir[1]);
       const caS = Math.abs(Math.cos(yawS * DEG));
       const saS = Math.abs(Math.sin(yawS * DEG));
-      const hxS = (caS * A.roofAlongM + saS * A.roofDeepM) / 2;
-      const hzS = (saS * A.roofAlongM + caS * A.roofDeepM) / 2;
+      /**
+       * THE CLAIMED BOX COVERS THE ROOF **AND THE POLE**, and the first draft
+       * covered only the roof.
+       *
+       * The brief's rule is *claim what is DELIVERED* and a shelter roof
+       * overhangs its posts, which is why the roof and not the posts is the
+       * footprint. But the flag pole is drawn a metre past the roof's
+       * downstream end, so a roof-only claim left **1.31 m of delivered pole
+       * outside both the claim and the collision test** — geometry standing in
+       * the world that nothing had been told about, which is session 23's
+       * viaduct abutment with a bus stop instead. The along extent is therefore
+       * the roof plus the 1.0 m gap plus the flag's own half-width, taken about
+       * a centre shifted downstream by half of that growth so the box still
+       * contains the roof exactly.
+       */
+      const poleReach = A.roofAlongM / 2 + 1.0 + A.flagAlongM / 2;
+      const alongHalf = (poleReach + A.roofAlongM / 2) / 2;
+      const alongShift = poleReach - alongHalf;
+      const hxS = (caS * (alongHalf * 2) + saS * A.roofDeepM) / 2;
+      const hzS = (saS * (alongHalf * 2) + caS * A.roofDeepM) / 2;
 
       const baseS = worldSurface(ctx, bx, bz).y;
-      const inBlockS = bx > BLOCK_KEEPOUT.x0 && bx < BLOCK_KEEPOUT.x1 &&
-        bz > BLOCK_KEEPOUT.z0 && bz < BLOCK_KEEPOUT.z1;
+      /** The claimed box's own centre — the shelter's, shifted down the pole. */
+      const cxS = bx + alongDir[0] * alongShift;
+      const czS = bz + alongDir[1] * alongShift;
+      const inBlockS = cxS > BLOCK_KEEPOUT.x0 && cxS < BLOCK_KEEPOUT.x1 &&
+        czS > BLOCK_KEEPOUT.z0 && czS < BLOCK_KEEPOUT.z1;
       const hitsBuildingS = (chunk.occluders || []).some((o) =>
-        bx + hxS > o.x0 && bx - hxS < o.x1 && bz + hzS > o.z0 && bz - hzS < o.z1);
+        cxS + hxS > o.x0 && cxS - hxS < o.x1 && czS + hzS > o.z0 && czS - hzS < o.z1);
       const hitsClaimS = placed.some((p) =>
         !mayOverlap('prop', p.kind) &&
-        bx + hxS > p.x0 && bx - hxS < p.x1 && bz + hzS > p.z0 && bz - hzS < p.z1);
+        cxS + hxS > p.x0 && cxS - hxS < p.x1 && czS + hzS > p.z0 && czS - hzS < p.z1);
+      /**
+       * AND AGAINST THIS CHUNK'S OWN LAMP COLUMNS AND ITS EIGHT NEIGHBOURS' —
+       * see `lampStationsFor` for why they cannot be reached through `placed`.
+       */
+      let hitsLampS = false;
+      for (let dz = -1; dz <= 1 && !hitsLampS; dz++) {
+        for (let dx = -1; dx <= 1 && !hitsLampS; dx++) {
+          for (const L of lampStationsFor(cx + dx, cz + dz)) {
+            if (Math.abs(L.x - cxS) < hxS + 0.30 && Math.abs(L.z - czS) < hzS + 0.30) {
+              hitsLampS = true; break;
+            }
+          }
+        }
+      }
       /**
        * AND AGAINST EVERY LANDMARK IN THE WORLD, NOT THIS CHUNK'S.
        *
@@ -2555,15 +2618,15 @@ export function createCity(options = {}) {
         for (const o of landmarkOccluders(l)) {
           if (o.deck) continue;
           if (l.kind === 'viaduct') continue;
-          if (bx + hxS > o.x0 && bx - hxS < o.x1 && bz + hzS > o.z0 && bz - hzS < o.z1) return true;
+          if (cxS + hxS > o.x0 && cxS - hxS < o.x1 && czS + hzS > o.z0 && czS - hzS < o.z1) return true;
         }
         for (const g of landmarkGroundBlockers(l)) {
-          if (bx + hxS > g.x0 && bx - hxS < g.x1 && bz + hzS > g.z0 && bz - hzS < g.z1) return true;
+          if (cxS + hxS > g.x0 && cxS - hxS < g.x1 && czS + hzS > g.z0 && czS - hzS < g.z1) return true;
         }
         return false;
       });
 
-      if (inBlockS || hitsBuildingS || hitsClaimS || hitsLandmarkS) {
+      if (inBlockS || hitsBuildingS || hitsClaimS || hitsLandmarkS || hitsLampS) {
         busStopsRefused++;
       } else {
         const grey = { albedo: [0.088, 0.090, 0.096], roughness: 0.44 };
@@ -2622,8 +2685,8 @@ export function createCity(options = {}) {
 
         placed.push({
           kind: 'prop', owner: 'busstop',
-          x0: bx - hxS, x1: bx + hxS, z0: bz - hzS, z1: bz + hzS,
-          y0: 0, y1: baseS + A.roofY + A.roofThickM,
+          x0: cxS - hxS, x1: cxS + hxS, z0: czS - hzS, z1: czS + hzS,
+          y0: 0, y1: baseS + Math.max(A.roofY + A.roofThickM, A.flagY + 0.17),
         });
         busStops++;
       }
@@ -2765,12 +2828,10 @@ export function createCity(options = {}) {
       const bowls = [];
       // Staggered on the two roads this chunk owns, at a 30 m pitch. Offset by
       // chunk so the pattern does not line up across the whole city.
-      for (let i = 0; i < 4; i++) {
-        const off = ((cx * 7 + cz * 13) % 10) + i * 30;
-        if (off > CITY.chunkSize) continue;
-        const a = { x: b.x0 + CITY.roadHalfWidth + 1.3, z: b.z0 + off, axis: 'x', side: 1 };
-        const c = { x: b.x0 + off, z: b.z0 + CITY.roadHalfWidth + 1.3, axis: 'z', side: 1 };
-        for (const spot of [a, c]) {
+      // `lampStationsFor` IS THE LIST, read here and by the bus stop above —
+      // one list, two readers (§9.1). Session 30.
+      {
+        for (const spot of lampStationsFor(cx, cz)) {
           if (spot.x > BLOCK_KEEPOUT.x0 && spot.x < BLOCK_KEEPOUT.x1 &&
               spot.z > BLOCK_KEEPOUT.z0 && spot.z < BLOCK_KEEPOUT.z1) continue;
           /**

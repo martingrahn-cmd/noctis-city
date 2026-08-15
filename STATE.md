@@ -338,9 +338,14 @@ where an island has four sides per island across the whole city:
    and lights whatever its run rolled; a blank plinth, a colonnade and a recessed front are
    the three whose ground floor may be let, and those are what the roll decides.
 
-Delivered: **8 lit ground floors of 10** (floor 6, ceiling 8 over all six pairings), 2 runs
-of 4 trading, **12 openings punched in three blank plinths**, 19 shop lights against a cap
-of 23.
+Delivered: **8 lit ground floors of 10** — 2 runs of 4 trading, **12 openings punched in
+three blank plinths**, 19 shop lights against a cap of 23. **The floor over all six
+pairings is 5 and not the 6 this session first wrote**, and that correction came from the
+adversarial pass in §12: the three shopfronts sit in R0, R1 and R3, so **R2 has none**, and
+trading exactly the two two-building runs leaves 2+2+1. Had the shopfront-free run been a
+two-building one every pairing would give 6 or 7. **So the floor is a property of this
+seed's era draw and not of the construction** — a bound asserted in prose with no check
+behind it, which is CONTRACT §9.1's own class.
 
 **IT RE-PHASES NOTHING, BY CONSTRUCTION.** The roll is its own named stream, and the
 lit/unlit decision changes no `block:windows` draw: a bay that does not trade is still
@@ -574,6 +579,76 @@ threshold moved.**
 The four stop-line violations are 10.77 to 13.50 m against session 29's 10.81 to 13.07 m.
 **Carried, diagnosed (STATE 25's datum disagreement), and NOT REPAIRED**, as the brief
 required. Item 5 was not built, so nothing this session moved a queue.
+
+---
+
+## 7.4 AN ADVERSARIAL PASS OVER THE BRANCH, AND WHAT IT FOUND
+
+Everything above was measured by the gates. **This section is a different
+instrument**: five independent read-only lenses over the session's own diff —
+arithmetic-in-comments, quantity confusion, placement and claims, determinism and
+streams, gates and budgets — each finding then handed to a separate agent told to
+REFUTE it. 43 candidates, **12 refuted, 28 confirmed**, and it reproduced this
+project's RNG streams from `src/lib/rng.js` to check the block's era draw rather
+than trusting the delivered census.
+
+**It is not a gate and it must never become one** (§7's rule about `lookat.mjs`,
+for the same reason: it measures whoever wrote its prompts). What it is good at is
+the one thing every gate here is blind to — **a number in a comment that no code
+reads**, which CONTRACT §9 rule 5 calls a guess and §9.1 calls the failure mode
+that advertises a guarantee.
+
+**Five confirmed findings changed delivered geometry and are repaired in
+`<repair>`:**
+
+1. **The flag pole stood up to 1.31 m outside the claim, and outside every test.**
+   The claim was the roof, correctly; the pole is drawn a metre past its
+   downstream end. Session 23's viaduct abutment with a bus stop instead — mass
+   standing in the world that nothing had been told about. The claimed box now
+   covers roof-plus-pole, about a centre shifted downstream, so it still contains
+   the roof exactly.
+2. **14 of 155 declared shelters had an 8.4 m lamp column inside the roof they
+   claim.** The streamed lamps are emitted by `city.js` directly and are in NO
+   occupancy band at all — STATE 23's `lampprobe` finding — so no `placed` test
+   could ever have caught it. The stations are now one hoisted pure list read by
+   the lamp run and by the shelter, and the shelter is refused against the 3×3
+   neighbourhood of them.
+3. **78 of 155 stops stood on the FAR side of their junction.** `along` was
+   `corner + 22` for every band regardless of `side`, against a rule written as
+   *"near side of a junction"*. A chunk has a junction at each end of the band and
+   which is near depends on which way the lane beside that pavement runs — which
+   is exactly what `side` is.
+4. **`beforeJunctionM` = 22.0 under a derivation that computes 18.0.** *"A bus
+   length plus half of one"* is 12.00 + 6.00. The number that is 22.0 is
+   `CORRIDOR` 11.7 + half a bus 6.0 + half a shelter 2.0 + the pole's 0.3 = 20.0,
+   rounded up for 2 m of kerb slack. §9 rule 5, and it is mine.
+5. **`BLOCK_RETAIL`'s stated floor of 6 of 10 is 5.** Enumerated over all six
+   pairings: 6, 8, 6, 7, **5**, 7. The first draft argued the 5 away with *"the
+   three shopfronts sit in three different runs"*, which only guarantees ONE
+   shopfront in the dark pair; what decides the bound is which run has none, and
+   here it is a three-building run. §5.2.
+
+**And a further sixteen were comment arithmetic**, all corrected in the same
+change: the closest chromatic pair (0.098 → **0.0608**, teal/pale blue), the
+whole-table minimum (0.0082 → **0.0022**, off-white/white), the count of neutrals
+(three → **five**), the ladder's spacing (*"roughly every half-stop"* → **0.325 of
+a stop a rung**), the commercial rows' light share (*"two thirds of each"* →
+**0.78 / 0.68 / 0.70**), the census mapping's six-point shortfall on grey, a
+twenty-one-session-old *"deep blue paint at reflectance 0.115"* that matches no
+reading of that entry, livery-to-oxide 0.0977 → **0.0983**, *"one in twenty"* →
+**one in twenty-four**, *"the last 30% of the range"* → **24%**, `originFactor`'s
+own doc comment still saying 9.30× after this session made it 4.65×,
+`blockprobe`'s bowl classifier still keyed on the literal 210 the same session
+changed to 420, a stop-interval of *"256 m"* that is a per-CHUNK rate used as a
+per-ROUTE spacing (delivered ~500 m per direction), a guard on `band.bank` that
+cannot fire, *"`placed` is read in exactly two places"* that is now three, and a
+`counts` comment still describing the corner rule §5.2 replaced.
+
+> **The pattern is worth more than the list. Every one of the sixteen is a number
+> beside a number, and this project's own §9 rule 2 — *anything derived two ways
+> must be printed both ways* — is what would have caught them at the moment each
+> was written.** The gates caught the five that reached the geometry within one
+> run each. Nothing in this project reads a comment.
 
 ---
 

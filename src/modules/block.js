@@ -256,8 +256,8 @@ const ERAS = [
  * run of the four traded. The expectation was 7.3 and the draw was 5, which is
  * not a bad seed, it is the estimator: over four runs a Bernoulli count has
  * standard deviation 0.99 on a mean of 2.2, so **one street in eleven has every
- * frontage trading and one in twenty has none**, and the operator has exactly
- * one street.
+ * frontage trading (0.55⁴ = 0.092) and one in twenty-four has none
+ * (0.45⁴ = 0.041)**, and the operator has exactly one street.
  *
  * A choose-k draw has the same mean and **zero variance in the count**, and it
  * turns the floor from an expectation into a construction. **k = 2 of 4** is
@@ -286,13 +286,28 @@ const ERAS = [
  *
  *     lit  =  (the two trading runs)  +  (the shopfronts on the other two)
  *
- * FROM BELOW: the two smallest runs trading with no shopfront outside them
- * gives 2+2+1 = 5... which cannot occur here, because the three shopfronts sit
- * in three different runs. The delivered floor over all six pairings is
- * **6 of 10** — exactly what the model being replaced delivered — and the
- * ceiling is **8**, so a dark stretch exists in every draw and the
- * uniformly-interesting street `docs/authored-city.md` §5 names is unreachable
- * rather than merely unlikely.
+ * ENUMERATED OVER ALL SIX PAIRINGS RATHER THAN ARGUED, because the first
+ * version of this paragraph argued it and was wrong. Runs are R0={b0,b1,b2},
+ * R1={b3,b4}, R2={b5,b6,b7}, R3={b8,b9}; the three shopfronts are b2 in R0, b3
+ * in R1 and b9 in R3, so **R2 has none**:
+ *
+ *     {R0,R1} 6    {R0,R2} 8    {R0,R3} 6
+ *     {R1,R2} 7    {R1,R3} 5    {R2,R3} 7
+ *
+ * **FLOOR 5, CEILING 8.** The floor is FIVE and not six, and the reason the
+ * first draft said six is instructive: it wrote *"2+2+1 = 5 cannot occur,
+ * because the three shopfronts sit in three different runs"*, which is not
+ * sufficient — three shopfronts in three runs only guarantees at least ONE in
+ * the dark pair. What decides the bound is WHICH run has none, and here it is
+ * a three-building run, so both two-building runs carry a shopfront and
+ * trading exactly those two leaves 2+2+1. Had the empty run been a
+ * two-building one every pairing would give 6 or 7. **The floor is therefore a
+ * property of this seed's era draw and not of the construction**, and saying
+ * otherwise was a bound asserted in prose with no check behind it — CONTRACT
+ * §9.1's own class, twice recorded. The ceiling of 8 is right, so a dark
+ * stretch exists in every draw and the uniformly-interesting street
+ * `docs/authored-city.md` §5 names is unreachable rather than merely unlikely.
+ * The delivered draw at seed 1337 is {R0,R2} = **8**.
  *
  * IT RE-PHASES NOTHING, AND THAT IS A CONSTRUCTION RATHER THAN A HOPE. The roll
  * is on its own named stream (CONTRACT §6). The lit/unlit decision does NOT
@@ -2509,7 +2524,9 @@ export function createBlock(options = {}) {
            * is a COUNT of frontages that trade and `retailBuildings` is how many
            * ground floors that actually lit, which is the quantity the count
            * stands for and is not derivable from it — a run carries two or three
-           * buildings and a run that does not trade still lights its corner.
+           * buildings, and a run that does not trade still lights whichever of
+           * them is a shopfront era. (The corner-shop exception this comment
+           * used to name was replaced; see `BLOCK_RETAIL`.)
            */
           retailRuns: runTrades.filter(Boolean).length,
           retailRunsTotal: runTrades.length,

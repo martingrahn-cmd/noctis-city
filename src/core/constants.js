@@ -1399,9 +1399,11 @@ const BOWL_STREAMED_FACTOR = 4.610209;
  * 420 leaves **0.0008** of headroom against a run-to-run spread of **0.0001**,
  * which is eight times the instrument's own resolution and is therefore a
  * margin CONTRACT §0.1 permits a decision on. 630 is red by 0.0005. The
- * crossing is at about 550, and shipping there would leave a margin smaller
- * than the spread, which is the thing §0.1 forbids — so the last 30% of the
- * available range is deliberately not taken.
+ * crossing is at about **550**, so what is deliberately not taken is
+ * (550 − 420) / 550 = **24% of the range that exists**, or 31% of the step up
+ * from the shipped value — and it is not taken because shipping at the
+ * crossing leaves a margin smaller than the spread, which is the thing §0.1
+ * forbids.
  *
  * NO THRESHOLD MOVED IN THE FORBIDDEN DIRECTION. `look-budget.json` is
  * byte-identical; `band:midnight` is [0.072, 0.112] before and after. The one
@@ -1473,7 +1475,10 @@ export const LAMP_BOWL = {
   streamedNits: BOWL_DERIVED_NITS * BOWL_STREAMED_FACTOR,
 
   /**
-   * THE ORIGIN BLOCK'S 16 BOWLS. 0.1076× the derivation, i.e. 9.30× too dim.
+   * THE ORIGIN BLOCK'S 16 BOWLS. **0.2151× the derivation, i.e. 4.65× too dim**
+   * since session 30, and 0.1076× / 9.30× before it — see `BOWL_ORIGIN_FACTOR`
+   * above for the sweep that moved it and for why the remaining 30% of the
+   * available range was not taken.
    *
    * 210, authored in `block.js`'s EMISSIVE table under a comment that says the
    * table is authored rather than measured — so unlike the streamed city's

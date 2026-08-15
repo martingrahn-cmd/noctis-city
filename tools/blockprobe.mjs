@@ -48,6 +48,10 @@
  */
 
 import { startServer, launchBrowser, openPage, readRendererString } from './lib/page.mjs';
+import { LAMP_BOWL } from '../src/core/constants.js';
+
+/** What the origin block's bowls are DELIVERED at. Read, never transcribed. */
+const ORIGIN_BOWL_NITS = LAMP_BOWL.originNits;
 
 const args = new Map(
   process.argv.slice(2).map((a) => {
@@ -168,6 +172,7 @@ const census = await page.evaluate(() => {
   const buildings = (blk && blk.buildings ? blk.buildings : []).map((b) => ({
     x: b.x, z: b.z, width: b.width, depth: b.depth, side: b.side,
     plinth: b.plinth, height: b.height, ground: b.era && b.era.ground, era: b.era && b.era.id,
+    run: b.run, retail: !!b.retail,
   }));
   return { rows, block: info.block, buildings, cam: { pos: cam.position.toArray(), fov: cam.fov } };
 });
@@ -204,8 +209,13 @@ const family = (r) => {
   if (/sign:/.test(r.name)) return 'block:sign plates';
   return 'block:other';
 };
-/** The 16 lamp bowls are separate lathes with no name; they are 210 cd/m². */
-const key = (r) => (r.root === undefined && Math.abs(r.nits - 210) < 0.5 ? 'block:lamp bowls' : family(r));
+/**
+ * The 16 lamp bowls are separate lathes with no name, so they are identified by
+ * their RADIANCE — and that radiance is read from `LAMP_BOWL.originNits` rather
+ * than written here, because session 30 moved it from 210 to 420 and a literal
+ * here would have silently stopped matching in the same session that changed it.
+ */
+const key = (r) => (r.root === undefined && Math.abs(r.nits - ORIGIN_BOWL_NITS) < 0.5 ? 'block:lamp bowls' : family(r));
 const roll = new Map();
 for (const r of rows) {
   const k = key(r);
@@ -236,7 +246,8 @@ census.buildings.forEach((b, i) => {
   console.log(
     `  ${String(i).padStart(3)}   ${String(b.era).padEnd(10)}  ${String(b.ground).padEnd(12)}` +
     `${b.x.toFixed(1).padStart(7)}  ${b.z.toFixed(1).padStart(7)}  ${b.width.toFixed(2).padStart(7)}` +
-    `  ${b.depth.toFixed(2).padStart(6)}  ${b.height.toFixed(2).padStart(6)}  ${String(b.side).padStart(5)}`
+    `  ${b.depth.toFixed(2).padStart(6)}  ${b.height.toFixed(2).padStart(6)}  ${String(b.side).padStart(5)}` +
+    `  ${String(b.run).padStart(3)}  ${b.retail ? 'TRADES' : '  -   '}`
   );
 });
 console.log(`    total street frontage ${front.toFixed(1)} m over ${census.buildings.length} buildings`);
