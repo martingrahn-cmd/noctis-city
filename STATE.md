@@ -221,7 +221,8 @@ Each commit is independently revertible.
   963b293  STATE 30  <- session 30's head, and the "before" of every pair above
 ```
 
-**THE BRIEF SAYS THE BRANCH CARRIES FOURTEEN COMMITS. IT CARRIES 29 above `main`** and 19
+**THE BRIEF SAYS THE BRANCH CARRIES FOURTEEN COMMITS. IT CARRIES 30 above `main`**
+(counting this file's own commit, which is the last of them) and 19
 above session 27's tip `6f4990b`, counted with `git rev-list --count main..HEAD`. First
 false premise, cheapest to check.
 
