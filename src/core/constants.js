@@ -171,8 +171,10 @@ export const LIGHT = {
    * neither path can ship the correct value today are all written there.
    *
    * Readers take `LAMP_BOWL.streamedNits` (9000, the streamed city) or
-   * `LAMP_BOWL.originNits` (210, the origin block). `citycheck` runs a
-   * ratchet over both against the derivation.
+   * `LAMP_BOWL.originNits` (**420**, the origin block — session 30 took it
+   * from 210 and this sentence went on saying 210, which is exactly 2.0000×
+   * the value a reader would actually have got). `citycheck` runs a ratchet
+   * over both against the derivation.
    */
   /**
    * candela, PEAK intensity of a high-pressure sodium luminaire — reached at
@@ -1477,8 +1479,10 @@ export const LAMP_BOWL = {
   /**
    * THE ORIGIN BLOCK'S 16 BOWLS. **0.2151× the derivation, i.e. 4.65× too dim**
    * since session 30, and 0.1076× / 9.30× before it — see `BOWL_ORIGIN_FACTOR`
-   * above for the sweep that moved it and for why the remaining 30% of the
-   * available range was not taken.
+   * above for the sweep that moved it and for why the remaining **24%** of the
+   * available range was not taken. (550 - 420) / 550 = 23.64%; the 30% this
+   * line carried is the figure from before the bowl moved, and the corrected
+   * value has been 77 lines above it since session 30.)
    *
    * 210, authored in `block.js`'s EMISSIVE table under a comment that says the
    * table is authored rather than measured — so unlike the streamed city's

@@ -1224,13 +1224,21 @@ export function createCity(options = {}) {
      * nothing quietly. STATE 29 §7.2 found it by reading; this fixes it.
      *
      * WHY MOVING IT IS SAFE FOR EVERY OTHER READER, checked rather than
-     * assumed. `placed` is read in exactly two places in this file: the pylon's
-     * `signClash`, which filters `p.kind === 'sign'` and therefore cannot see a
-     * ground rect whatever the order, and the pillar's `hitsClaim`, which is
-     * the reader this exists for. Everything else only pushes.
+     * assumed. `placed` is read in **three** places in this file — the sentence
+     * here said two for a session after the bus stop became the third, which is
+     * §9.1's "a comment that claims a check" with a count instead of a check:
      *
-     * `ground` IS NULL FOR EVERY CHUNK OUTSIDE THE NEAR RING — `buildGround` is
-     * only called for those, and a geometry-ring chunk has massing and no road
+     *   the pylon's `signClash`, which filters `p.kind === 'sign'` and
+     *     therefore cannot see a ground rect whatever the order;
+     *   the pillar's `hitsClaim`, which is the reader this exists for;
+     *   the bus stop's `mayOverlap('prop', p.kind)` sweep, added in session 30,
+     *     which DOES see ground rects and wants to — that is what makes a
+     *     shelter in a carriageway refusable.
+     *
+     * Everything else only pushes.
+     *
+     * `ground` IS NULL FOR EVERY CHUNK OUTSIDE THE GROUND RING — `buildGround`
+     * is only called for those, and a geometry-ring chunk has massing and no road
      * surface. The first version of this walk did not check and quarantined
      * `city` on the first chunk past ring 2, which `faultcheck`'s empty-faults
      * assertion and `citycheck`'s own harness call both caught within a minute

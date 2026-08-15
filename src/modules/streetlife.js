@@ -1823,7 +1823,18 @@ for (const type of BODY_TYPES) {
  * pavement, y = 0 is the pavement. `STALL_FOOTPRINT.faceDeg` decides whether
  * the front ends up pointing at the road or at the walking corridor.
  *
- * EVERY KIND IS AUTHORED SYMMETRIC IN Z, |z| <= halfAcross. That is not
+ * ALMOST EVERY KIND IS AUTHORED SYMMETRIC IN Z — AND TWO ARE NOT, MEASURED
+ * OFF THE DELIVERED GEOMETRY IN SESSION 31. Four of the five kinds are
+ * asymmetric in z and two BREACH `halfAcross`: `infill` spans [-0.34, +0.45]
+ * against 0.34 and `food` spans [-0.80, +0.845] against 0.80. Both overhangs
+ * are CLOTH, at y 2.11-2.45 m and 1.82-2.14 m — an awning over the walking
+ * corridor rather than a body in it — and both bodies stay inside the
+ * [7.5, 11.7] pavement band, so nothing is standing where it should not. But
+ * the sentence below claimed a bound that the geometry does not hold, which is
+ * CONTRACT 9.1's own subject, and it is left here corrected rather than
+ * quietly deleted. The original read:
+ *
+ *   EVERY KIND IS AUTHORED SYMMETRIC IN Z, |z| <= halfAcross. That is not
  * tidiness: `STALL_FOOTPRINT` gives one depth per kind and the occupancy
  * rectangle is built from it, so a part that stuck out further than the table
  * says would be a stall whose drawn body is bigger than the body that was

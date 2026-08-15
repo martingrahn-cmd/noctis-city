@@ -714,11 +714,24 @@ export function retailBuilding(retailRng, onRetailFrontage, distToEndM) {
  * times what a block a kilometre out has, not one and a half times". Height is
  * the same quantity one axis over and had a uniform roll.
  *
- * DELIVERED, BOTH ARMS THROUGH THE SAME GENERATOR (`heightprobe`, seed 1337,
- * 432 buildings):
+ * DELIVERED, BOTH ARMS THROUGH THE SAME GENERATOR (`heightprobe`, seed 1337).
+ * THE FIGURES BELOW ARE SESSION 20's, AND THEY WERE EXACT WHEN WRITTEN — a
+ * session-31 pass re-ran THIS COMMIT'S OWN heightprobe out of `git archive` and
+ * reproduced every one of them to the digit, including "nine of 432". What
+ * moved is the POPULATION, not the distribution: session 21's occupancy
+ * registry refused 65 buildings and the region has held 366 ever since, while
+ * p99 and max are byte-identical at every commit from ca0169f to HEAD. Both
+ * columns are kept, because the RATIO is the claim and it survives:
  *
+ *     session 20, 432 buildings
  *     uniform 12–64        mean 36.13   median 34.8   p99  65   max  66   sd/mean 0.425
  *     lognormal 34, σ 0.62 mean 38.43   median 31.1   p99 134   max 154   sd/mean 0.664
+ *
+ *     TODAY, 366 buildings (session 31, same probe, same seed, same region)
+ *     uniform 12–64        mean 36.71   median 36.0   p99  65   max  66   sd/mean 0.416
+ *     lognormal 34, σ 0.62 mean 38.90   median 32.7   p99 134   max 154   sd/mean 0.645
+ *
+ *     the ratio then 0.664/0.425 = 1.562×, now 0.645/0.416 = 1.550×
  *
  * **sd/mean 0.664 against 0.425 — a 1.56× wider spread**, which is the whole
  * change; and a p99 at 134 m against 65, which is the part you can see. σ = 0.62
@@ -2785,12 +2798,19 @@ export function landmarkGroundBlockers(l) {
 /**
  * The underside of the viaduct's deck, in metres above the ground datum.
  *
- * ONE EXPRESSION, READ BY THREE THINGS. `city.js` composes the section from
- * `slabThick` 0.9 and `boxDepth` 1.9 under `l.height`; the registry needs the
- * same number to say what may pass under the deck; and `citycheck` needs it to
- * check that nothing does. Three literals is CONTRACT §9.1's arrangement, and
- * the roof parapet was exactly this — `1.05` written twice under a comment
- * claiming one read the other — one session ago.
+ * ONE EXPRESSION, AND SESSION 31 COUNTED ITS READERS RATHER THAN TRUSTING
+ * THIS PARAGRAPH. What it used to say was that the number is read by three
+ * things, naming `city.js` first. `city.js` DOES NOT IMPORT EITHER CONSTANT:
+ * it declares its own `const slabThick = 0.9` and `const boxDepth = 1.9` and
+ * computes its own soffit from them, so the module that DRAWS the section is
+ * the one place that does not read the number. `viaductSoffitY` is read by
+ * `moving.js` and by `portalprobe`; `VIADUCT_SLAB_THICK_M` and
+ * `VIADUCT_BOX_DEPTH_M` are read by nothing outside this file except through
+ * it. That is the roof parapet's own shape — `1.05` written twice under a
+ * comment claiming one read the other — still standing in the sentence written
+ * to retire it. The literals agree today (`tools/stationprobe.mjs --check`
+ * prints both columns and both say 0.9000 and 1.9000); what does not exist is
+ * the link.
  */
 export const VIADUCT_SLAB_THICK_M = 0.9;
 export const VIADUCT_BOX_DEPTH_M = 1.9;
