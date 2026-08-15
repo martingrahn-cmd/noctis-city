@@ -66,6 +66,10 @@ import {
   viaductArc,
   viaductPiers,
   viaductEnds,
+  viaductStations,
+  viaductStationSegment,
+  VIADUCT_STATION,
+  VIADUCT_RAIL_RISE_M,
   generatorCanProduce,
   CORRIDOR,
   BLOCK_KEEPOUT,
@@ -4012,6 +4016,240 @@ export function createCity(options = {}) {
             const [wx, wz] = across(side * (halfDeck - 1.05));
             push(wx, slabTop + 0.12, wz, segLen, 0.24, 1.0, yaw,
               [albedo[0] * 0.92, albedo[1] * 0.92, albedo[2] * 0.9], 0.86);
+          }
+        }
+
+        /**
+         * THE STATION — SESSION 31, STAGES 1 AND 2. `citygen.viaductStations`
+         * decides where and how wide; this draws it, the same arrangement
+         * `viaductPiers` and `viaductEnds` already have.
+         *
+         * EVERY BOX RIDES IN THE CHUNK'S EXISTING `landmark:viaduct` MESH, so
+         * the whole station costs **zero new draw calls** — which is the only
+         * budget that matters here: `highway_speed` measured 434 against a 440
+         * ceiling before this, six of margin, and STATE 30 §10 says to assume
+         * there is no room for a new mesh in the streamed city at all.
+         *
+         * NOTHING BELOW SUPPRESSES OR MOVES AN EXISTING BOX. See
+         * `VIADUCT_STATION` for the six clearances that buy that property.
+         */
+        const stations = viaductStations(arc, l);
+        const S = VIADUCT_STATION;
+        const platformTopY = h + VIADUCT_RAIL_RISE_M + S.topAboveRailM;
+        const platformBotY = platformTopY - S.thickM;
+        /** Concrete a shade lighter than the soffit: it is washed and walked on. */
+        const platAlbedo = [albedo[0] * 1.04, albedo[1] * 1.04, albedo[2] * 1.03];
+        /** The coping is the one thing on a platform that is a different material. */
+        const copeAlbedo = [albedo[0] * 1.28, albedo[1] * 1.27, albedo[2] * 1.22];
+
+        for (const st of stations) {
+          for (let i = st.segFrom; i <= st.segTo; i++) {
+            const a = arc.stations[i];
+            const b = arc.stations[i + 1];
+            const sx = (a.x + b.x) / 2;
+            const sz = (a.z + b.z) / 2;
+            const yaw = (-Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI;
+            const segLen = Math.hypot(b.x - a.x, b.z - a.z) * 1.02;
+            const cc = Math.cos((yaw * Math.PI) / -180);
+            const ss = Math.sin((yaw * Math.PI) / -180);
+            const at = (t) => [sx - ss * t, sz + cc * t];
+
+            for (const side of [-1, 1]) {
+              /** Centre of a transverse span [t0, t1] on this side. */
+              const span = (t0, t1) => at(side * (t0 + t1) / 2);
+              const wide = (t0, t1) => t1 - t0;
+
+              // The platform slab: 3.00 m of walking surface, from `innerT`.
+              const pOut = S.innerT + S.widthM;
+              const [px, pz] = span(S.innerT, pOut);
+              push(px, (platformBotY + platformTopY) / 2, pz,
+                segLen, S.thickM, wide(S.innerT, pOut), yaw, platAlbedo, 0.88);
+
+              // The tactile edge strip, proud of the surface at the track side.
+              const [cx2, cz2] = span(S.innerT, S.innerT + S.copingWidthM);
+              push(cx2, platformTopY + S.copingProudM / 2, cz2,
+                segLen, S.copingProudM, S.copingWidthM, yaw, copeAlbedo, 0.7);
+
+              /**
+               * The edge wall — the station's outer skin and the only part of
+               * it a person on the pavement sees end-on. It runs from the deck
+               * slab's own top up past the platform, so the widened structure
+               * reads as a solid box rather than as a slab floating in air.
+               */
+              const wOut = pOut + S.wallThickM;
+              const [wx, wz] = span(pOut, wOut);
+              const wallTop = platformTopY + S.wallAboveM;
+              push(wx, (slabTop + wallTop) / 2, wz,
+                segLen, wallTop - slabTop, S.wallThickM, yaw, parapetAlbedo, 0.72);
+
+              // The canopy, cantilevered off a column line at the outer edge.
+              const [kx, kz] = span(S.canopyInnerT, wOut);
+              push(kx, S.canopyTopM - S.canopyThickM / 2, kz,
+                segLen, S.canopyThickM, wide(S.canopyInnerT, wOut), yaw, platAlbedo, 0.8);
+              // Its inner downstand: what a light under the canopy washes.
+              const [fx, fz] = span(S.canopyInnerT, S.canopyInnerT + 0.15);
+              push(fx, S.canopyTopM - S.canopyThickM - S.fasciaDropM / 2, fz,
+                segLen, S.fasciaDropM, 0.15, yaw, platAlbedo, 0.78);
+              // One column a segment — 10.9 m centres, which is a canopy bay.
+              const colT = pOut - S.columnSideM;
+              const [ox, oz] = span(colT, colT + S.columnSideM);
+              push(ox, (platformTopY + S.canopyTopM - S.canopyThickM) / 2, oz,
+                S.columnSideM, S.canopyTopM - S.canopyThickM - platformTopY, S.columnSideM,
+                yaw, parapetAlbedo, 0.6);
+            }
+          }
+
+          /**
+           * STAGE 2 — THE VERTICAL CIRCULATION, AS GEOMETRY.
+           *
+           * A switchback stair and a lift shaft per platform. The steps are
+           * REAL BOXES and that is a measurement rather than a preference: a
+           * 0.17 m riser at the 70 m the operator's own pose stands off
+           * subtends 2.43e-3 rad, and the gate camera's own scale is
+           * 6.4765e-4 rad/px (CONTRACT §9, session-20 row), so a riser is
+           * **3.75 px**. A stair drawn as a ramp would be a ramp on screen.
+           *
+           * STAGE 3 IS NOT STARTED. Nothing here touches `walkableAt`,
+           * `surfaceAt` or the flood fill, so no pedestrian can climb this yet
+           * and none tries — STATE 27 §8.1 costs that as its own session.
+           */
+          for (const core of st.cores) {
+            const cc = Math.cos((core.yawDeg * Math.PI) / -180);
+            const ss = Math.sin((core.yawDeg * Math.PI) / -180);
+            /**
+             * Local frame about the core: `u` ACROSS the deck and always
+             * pointing AWAY from it, `v` ALONG it. The outward sign is applied
+             * here, once, rather than at every call site — the first draft of
+             * this used the raw transverse axis and the core on the `-t` side
+             * grew back UNDER the deck, which is CONTRACT §9 rule 7's own
+             * subject (`kerbBands`' `side`, session 30) with a stair instead of
+             * a bus shelter.
+             */
+            const out = Math.sign(core.t) || 1;
+            const put = (u, v, y, du, hgt, dv, alb, rough) => push(
+              core.x - ss * (u * out) + cc * v, y, core.z + cc * (u * out) + ss * v,
+              dv, hgt, du, core.yawDeg, alb, rough,
+            );
+
+            /**
+             * THE RISE IS MEASURED FROM THE PAVEMENT THE CORE STANDS ON, NOT
+             * FROM THE DATUM. CONTRACT §9's session-19 row is exactly this
+             * mistake — every lamp, mast and stall in the city stood at y = 0
+             * while its own pavement was somewhere else — and a stair is the
+             * one object where the error would be visible as a step.
+             */
+            const baseY = GROUND.pavement;
+            const rise = platformTopY - baseY;
+            const nRisers = Math.ceil(rise / S.riserM);
+            const flightRun = S.risersPerFlight * S.goingM;
+            /** The core's own half-width, from the two flights and the well. */
+            const halfU = (S.flightWidthM * 2 + S.wellM) / 2;
+            /**
+             * The stair's own footprint along the deck. The flights run
+             * `0 .. flightRun` and the landings hang one `landingM` off each
+             * end, so the extent is `flightRun + 2·landingM` centred on
+             * `flightRun/2` — measured from the geometry below rather than
+             * guessed, because a wall shorter than the stair it encloses is
+             * the same defect as the flag pole outside its claim (STATE 30 §7.4).
+             */
+            const stairMidV = flightRun / 2;
+            const stairRunV = flightRun + 2 * S.landingM;
+
+            /**
+             * THE SHAFT — TWO SIDE WALLS AND ONE END WALL, AND THE OPEN SIDE
+             * IS A DECISION THE FIRST FRAME MADE FOR ME.
+             *
+             * With the side walls alone the core read as a stack of twelve
+             * shelves: the landings are 3.80 x 1.40 m and recur every 2.04 m of
+             * height, so from the street they are the loudest thing in it and
+             * the flights between them disappear. Closing the turn end makes it
+             * a tower with the flights read against a wall instead of against
+             * the sky. The street end stays open, because a stair core you
+             * cannot see into is a lift shaft with steps in it — and because
+             * stage 4 has to put people on those flights where they can be seen.
+             */
+            for (const sgn of [-1, 1]) {
+              put(sgn * (halfU + 0.1), stairMidV,
+                baseY + rise / 2, 0.2, rise, stairRunV,
+                parapetAlbedo, 0.8);
+            }
+            put(0, flightRun + S.landingM - 0.1, baseY + rise / 2,
+              (halfU + 0.1) * 2, rise, 0.2, parapetAlbedo, 0.8);
+
+            /**
+             * The steps. Flight `f` runs in alternating directions along `v`;
+             * each step is one box from the flight's own landing level up to
+             * its tread, so the flight reads as a solid stair rather than as
+             * floating plates. `k` counts risers from the ground, so the loop
+             * stops at the platform rather than at a flight boundary.
+             */
+            for (let k = 0; k < nRisers; k++) {
+              const f = Math.floor(k / S.risersPerFlight);
+              const inFlight = k - f * S.risersPerFlight;
+              const dir = f % 2 === 0 ? 1 : -1;
+              /** Which of the two parallel flights this one is. */
+              const u = (f % 2 === 0 ? -1 : 1) * (S.flightWidthM + S.wellM) / 2;
+              const flightBase = baseY + f * S.risersPerFlight * S.riserM;
+              const treadY = flightBase + (inFlight + 1) * S.riserM;
+              if (treadY > platformTopY + 1e-6) break;
+              const v = dir === 1
+                ? (inFlight + 0.5) * S.goingM
+                : flightRun - (inFlight + 0.5) * S.goingM;
+              put(u, v, (flightBase + treadY) / 2,
+                S.flightWidthM, treadY - flightBase, S.goingM, platAlbedo, 0.9);
+            }
+
+            /** The landings, one at each flight head, spanning both flights. */
+            for (let f = 1; f * S.risersPerFlight * S.riserM < rise; f++) {
+              const y = baseY + f * S.risersPerFlight * S.riserM;
+              const v = f % 2 === 0 ? -S.landingM / 2 : flightRun + S.landingM / 2;
+              put(0, v, y - 0.09, halfU * 2, 0.18, S.landingM, platAlbedo, 0.9);
+            }
+
+            /**
+             * The lift shaft, at the far END of the stair along the deck
+             * rather than beside it across the deck. Across, it would push the
+             * core's outer face to `coreT + halfU + 0.2 + liftSide` = 12.80 m
+             * and out through the origin block's own clear cross-street band at
+             * |x| <= 10.5; end-on, the core stays 3.80 m wide and the band is
+             * clear by 0.30 m. A shaft is 2.40 m square either way, so this is
+             * the same object rotated about the thing that constrains it.
+             *
+             * A blank tower is what a lift is from outside, and the head
+             * over-run is the one thing that says it is a lift and not a flue.
+             */
+            const liftV = flightRun + S.landingM + 0.2 + S.liftSideM / 2;
+            put(0, liftV, baseY + (platformTopY - baseY) / 2,
+              S.liftSideM, platformTopY - baseY, S.liftSideM, parapetAlbedo, 0.78);
+            put(0, liftV, platformTopY + S.liftHeadM / 2,
+              S.liftSideM * 0.9, S.liftHeadM, S.liftSideM * 0.9, soffitAlbedo, 0.82);
+
+            /**
+             * THERE IS NO BRIDGE, AND THE ARITHMETIC IS WHY — WRITTEN DOWN
+             * RATHER THAN LEFT AS A BRANCH THAT CANNOT FIRE.
+             *
+             * The first draft emitted a walkway from the core to the platform
+             * under `if (coreInner > platformOuter)`. That guard is FALSE at
+             * every value this file can produce: the core's inner face is
+             * `coreT - halfU` = 8.30 - 1.90 = **6.40 m** and the platform's
+             * outer edge is `innerT + widthM` = **7.30 m**, so the core
+             * overlaps the platform by 0.90 m and the top flight lands ON it.
+             * A guard that is false by construction is what STATE 30 §7.4
+             * removed from `band.bank` rather than leave reading as a check.
+             *
+             * The consequence to state: over the core's own 8.8 m of length the
+             * station's edge wall runs THROUGH it, which is a doorway in a
+             * stair core and is drawn as a merge rather than as a hole. Both
+             * masses are claimed, both are the same concrete, and the wall is
+             * visible either side of the core — this is not the invisible
+             * geometry CONTRACT §9.1 records, it is two solids meeting.
+             *
+             * The core's outer face lands at |x| = **10.40 m** against the
+             * origin block's clear cross-street band of 10.5 (LANDMARKS →
+             * viaduct, session 5). **0.10 m of margin**, measured off the
+             * delivered boxes and not off these constants. It is the tightest
+             * clearance in this change and the reason the lift went end-on.
+             */
           }
         }
 

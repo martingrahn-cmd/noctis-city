@@ -2394,9 +2394,19 @@ export function landmarkOccluders(l) {
       for (const leg of viaductLegs(arc, l)) {
         out.push(box(leg.x, leg.z, arc.legHalf + 0.3, arc.legHalf + 0.3, l.height));
       }
+      /**
+       * SESSION 31. The station widens the deck and rises past it, and BOTH
+       * halves of that have to reach this list or the widened part is mass
+       * standing in the world that nothing was told about — CONTRACT §9.1's
+       * placement rule, and session 23's viaduct abutment is the same object
+       * making the same mistake. `city.js` draws the platform from
+       * `viaductStations`; this claims the same span from the same function.
+       */
+      const stations = viaductStations(arc, l);
       for (let i = 0; i < arc.stations.length - 1; i++) {
         const a = arc.stations[i];
         const b = arc.stations[i + 1];
+        const st = viaductStationSegment(stations, i);
         // Axis-aligned cover of one rotated deck segment: the chord's own
         // extent plus the deck's half-width. Conservative at the corners, which
         // for a sky-occlusion march at 2.79 m voxels is below a texel.
@@ -2409,16 +2419,47 @@ export function landmarkOccluders(l) {
         // writing it down: "what blocks a ray to the sky" and "what a building
         // may not grow through" are the two questions session 5 answered with
         // one list, and a vertical extent answers both from one entry.
+        /**
+         * A station segment reaches `halfAcrossM` = 7.55 m instead of the
+         * deck's 4.75, and tops out at the canopy rather than at the slab. The
+         * `top` is the one that matters to the registry: `deck` conflicts with
+         * `building` alone and the test is on `[y0, y1]`, so a canopy at 25.50
+         * asks a taller question of the same buildings than a slab at 21.00.
+         */
+        const halfAcross = st ? st.halfAcrossM : l.deck / 2;
+        const top = st ? st.topY : l.height;
         out.push({
           ...box(
             (a.x + b.x) / 2, (a.z + b.z) / 2,
-            Math.abs(b.x - a.x) / 2 + l.deck / 2,
-            Math.abs(b.z - a.z) / 2 + l.deck / 2,
-            l.height
+            Math.abs(b.x - a.x) / 2 + halfAcross,
+            Math.abs(b.z - a.z) / 2 + halfAcross,
+            top
           ),
           base: viaductSoffitY(l) - VIADUCT_DECK_CLEARANCE_M,
           deck: true,
         });
+      }
+      /**
+       * THE CORES ARE `landmark`, NOT `deck`, AND THE SPLIT IS THE WHOLE POINT
+       * OF `occupancy.js` CARRYING A VERTICAL EXTENT. A platform is an elevated
+       * structure with clear space under it and a stair core is a solid
+       * standing on the ground — `deck` conflicts only with `building` and
+       * `landmark` conflicts with the carriageway and the pavement it would be
+       * standing in. One claim kind for both would be right about one of them.
+       */
+      for (const st of stations) {
+        for (const core of st.cores) {
+          const h = Math.max(
+            VIADUCT_STATION.landingM + VIADUCT_STATION.goingM * VIADUCT_STATION.risersPerFlight,
+            VIADUCT_STATION.liftSideM,
+          ) / 2;
+          const w = (VIADUCT_STATION.flightWidthM * 2 + VIADUCT_STATION.wellM
+            + VIADUCT_STATION.liftSideM) / 2;
+          // Axis-aligned cover of a core turned to the deck's own yaw.
+          const c = Math.abs(Math.cos((core.yawDeg * Math.PI) / -180));
+          const s = Math.abs(Math.sin((core.yawDeg * Math.PI) / -180));
+          out.push(box(core.x, core.z, h * c + w * s, h * s + w * c, st.platformTopY));
+        }
       }
       return out;
     }
@@ -2849,6 +2890,251 @@ export function viaductEnds(arc, l) {
     });
   }
   return out;
+}
+
+/**
+ * THE STATION — SESSION 31, STAGES 1 AND 2 OF THE FIVE STATE 27 §8.1 DESIGNED.
+ * ===========================================================================
+ *
+ * The operator's words, carried through four sessions that each listed this
+ * last and each ran out of room: *stairs and lifts up to the deck, people
+ * riding them, good lighting, at both ends and spread along the line.* Stage 1
+ * is the platform, stage 2 is the vertical circulation. Stage 3 —
+ * `walkableAt` leaving the ground plane, which is what lets people ride it —
+ * is deliberately NOT started; it is a subsystem and STATE 27 says so.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE DESIGN SAID "TWO SIDE PLATFORMS ON THE DECK, 3.0 m WIDE" AND THE DECK HAS
+ * 1.36 m. Measured before anything was built, by `tools/stationprobe.mjs`,
+ * which reads the DELIVERED instance matrices rather than these constants:
+ *
+ *     what                          transverse t, metres from the deck centreline
+ *     ballast trough        0.68 .. 3.78   (two of them, at +/- 2.2325 +/- 1.55)
+ *     walkway kerb          3.20 .. 4.20
+ *     catenary mast         3.85 .. 4.15   (0.30 square, y 21.00 .. 27.20)
+ *     parapet               4.30 .. 4.70   (y 21.00 .. 22.20)
+ *     deck edge                     4.75
+ *
+ *     the gaps inside the deck edges:  0.150 / 0.100 / 1.364 / 0.100 m
+ *
+ * The widest clear run on this deck is **1.364 m and it is the six-foot** —
+ * the space BETWEEN the two running lines, where a platform would serve no
+ * door and could not be reached. The two edge gaps are 0.150 and 0.100 m.
+ * STATE 27's 3.0 m is short by 1.636 m against the best of them and by 2.9 m
+ * against the ones in the right place. That design was written by a session
+ * with the code in front of it and the number was never checked against the
+ * section; this is CONTRACT §9 rule 7 — a dimension correct in itself, taken
+ * from a datum nobody confirmed.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * SO THE STRUCTURE WIDENS AT THE STATION, WHICH IS WHAT AN ELEVATED STATION IS.
+ *
+ * Every elevated railway that has ever had a station does this: the running
+ * viaduct is as narrow as two tracks need, and it swells where people stand.
+ * The platforms are carried OUTSIDE the deck on the station's own edge walls.
+ *
+ * AND IT IS PURELY ADDITIVE — NOT ONE EXISTING BOX MOVES OR DISAPPEARS. That
+ * is not a happy accident, it is what the offsets below were chosen for, and
+ * each clearance is a subtraction anybody can check:
+ *
+ *   platform inner edge  4.30   vs the catenary mast's outer face 4.15
+ *                               clear by 0.15 m, so no mast is suppressed
+ *   platform underside  22.37   vs the parapet's top 22.20
+ *                               clear by 0.17 m, so no parapet is suppressed
+ *   canopy inner edge    4.60   vs the same mast at 4.15, clear by 0.45 m
+ *   canopy top          25.50   vs the catenary ARM at 26.90, clear by 1.40 m
+ *   edge wall outer      7.55   vs the origin block's clear cross-street band
+ *                               |x| <= 10.5 (LANDMARKS → viaduct, session 5),
+ *                               clear by 2.95 m
+ *   edge wall outer      7.55   vs the pier legs' outer face 11.60 — and the
+ *                               legs stop at the soffit 18.20 m anyway, which
+ *                               is 4.17 m below the platform
+ *
+ * A revert of this station therefore restores the previous viaduct exactly,
+ * which is the property CONTRACT asks a commit to have and the reason the
+ * platform is threaded between the mast and the parapet rather than replacing
+ * either of them.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE PLATFORM'S HEIGHT IS STATE 27's AND IT IS THE ONE NUMBER THAT SURVIVED.
+ * Rail level is `l.height + VIADUCT_RAIL_RISE_M` = 21.62 m, and 1.10 m over it
+ * is 22.72 m — inside the 0.90–1.15 m a high-floor metro platform is built at,
+ * and 0.20 m over the train's own floor.
+ *
+ * THE STEPPING GAP IS 0.62 m AND IT IS A CONSEQUENCE, NOT A CHOICE. A car is
+ * `TRAIN.carWidthM` 2.9 m on a track at 2.2325, so its side is at 3.6825; the
+ * platform edge is at 4.30 because the mast is at 4.15. A real station would
+ * move the mast; moving it would mean suppressing existing geometry over the
+ * station length, and a first delivery that is purely additive is worth more
+ * than 0.5 m of realism nobody can see from the street. Written down here
+ * rather than discovered, and it is what stage 4 will have to close.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * STAGE 2, AND STATE 27's PLAN FIGURE IS ALSO WRONG — IN THE OTHER DIRECTION.
+ *
+ * It says a switchback with a landing every ~12 risers *"occupies about 8 x 12 m
+ * in plan"*. It does not. A flight of 12 risers at 0.28 m going is 3.36 m of
+ * run; a switchback cycle is one flight, one landing, and the return flight
+ * folded back over it, so the plan is `flightRun + landing` = 4.76 m long by
+ * `2 * flightWidth + well` = 3.80 m wide, and the HEIGHT is what accumulates:
+ * 24 risers a cycle at 0.17 m is 4.08 m. 8 x 12 m is a stair drawn end to end
+ * instead of folded, which is the thing a switchback is defined by not being.
+ *
+ * The rise is measured from the pavement, not from the datum: the core stands
+ * on `BLOCK.kerbHeight` 0.16 m and climbs to the platform at 22.72, so 22.56 m
+ * / 0.17 = **133 risers**, 12 flights, six cycles at 4.08 m = 24.48 m of
+ * available rise with the top flight part-used. 0.17 m is inside
+ * `PLAYER.stepUpM` = 0.20 by construction, which is why STATE 27 chose it and
+ * why stage 3 will not have to change it.
+ */
+export const VIADUCT_STATION = {
+  /**
+   * Where the stations are, as signed arc distance from the crown, in metres.
+   *
+   * ONE ENTRY, AND IT IS THE CROSSING. STATE 27 established with
+   * `tools/portalprobe.mjs` that no gate camera in this project sees either end
+   * of this viaduct, and the operator has been waiting four sessions to SEE a
+   * station — so the first one goes where he is standing. It is a list rather
+   * than a scalar because *"spread along the line"* is his own phrasing and the
+   * next station is then data rather than code.
+   */
+  atS: [0],
+  /**
+   * Half the platform length. 40 m either side takes the eight deck segments
+   * whose midpoints fall inside it — `arc.chord` is 10.909 m, so the delivered
+   * platform is **87.27 m**, against the 80 m STATE 27 asked for. It is a
+   * segment count rather than a length because the platform rides the deck's
+   * own stations and a platform that ended mid-segment would need a box the
+   * deck does not have.
+   */
+  halfLengthM: 40,
+
+  /** Transverse inner edge of the platform. Clears the catenary mast by 0.15 m. */
+  innerT: 4.30,
+  /** Metres of walking surface. STATE 27's number, delivered as written. */
+  widthM: 3.00,
+  /** Platform top above RAIL level, not above the slab. STATE 27's number. */
+  topAboveRailM: 1.10,
+  /** Slab depth. Clears the parapet's 22.20 m top by 0.17 m at 22.37. */
+  thickM: 0.35,
+
+  /** The edge wall: the station's outer skin, and what the street sees. */
+  wallThickM: 0.25,
+  /** Metres the wall stands above the platform surface. A parapet you lean on. */
+  wallAboveM: 1.15,
+
+  /** The tactile edge strip, in a lighter concrete. What makes it read as a platform. */
+  copingWidthM: 0.55,
+  copingProudM: 0.06,
+
+  /** Canopy, on a column line. STATE 27's 25.5 m top. */
+  canopyTopM: 25.50,
+  canopyThickM: 0.30,
+  /** Canopy inner edge. Clears the catenary mast by 0.45 m. */
+  canopyInnerT: 4.60,
+  /** The downstand at the canopy's inner edge — what catches light from below. */
+  fasciaDropM: 0.30,
+  columnSideM: 0.30,
+
+  /**
+   * STAGE 2. A switchback stair and a lift shaft, per platform.
+   *
+   * `alongM` 4.76 = flight run 3.36 + landing 1.40. `acrossM` 3.80 = two 1.80 m
+   * flights either side of a 0.20 m well. Both derived above rather than
+   * chosen.
+   */
+  riserM: 0.17,
+  goingM: 0.28,
+  risersPerFlight: 12,
+  flightWidthM: 1.80,
+  wellM: 0.20,
+  landingM: 1.40,
+  /** Lift shaft, STATE 27's 2.4 x 2.4 m, with a head over-run for the motor. */
+  liftSideM: 2.40,
+  liftHeadM: 1.80,
+  /**
+   * Where a core stands, as (transverse t, along-deck s) from the station
+   * centre. The cores go NORTH of the crossing because the origin block's main
+   * street occupies |z| <= 7.5 with its pavements out to 11.7, and a stair core
+   * in a carriageway is the defect this project has recorded seven times.
+   * `t` is the pier line's own 8.3 m, so the core stands where the structure
+   * already comes down.
+   */
+  coreT: 8.30,
+  coreS: 14.0,
+};
+
+/**
+ * THE STATIONS ON A VIADUCT, DECIDED HERE AND DRAWN BY `city.js`.
+ *
+ * The `viaductPiers` / `viaductEnds` arrangement, for the reason `viaductArc`
+ * gives: three consumers had three copies of one curve once, and the field was
+ * describing a bridge nobody could see. `city.js` draws what this decides,
+ * `landmarkOccluders` claims the same span, and `citycheck` reads the delivered
+ * result — three readers, one description.
+ *
+ * A station is returned as its centre station, the SEGMENT INDEX RANGE it
+ * covers, and its cores. Segments rather than metres because the platform is
+ * emitted per deck segment and shares its stations.
+ */
+export function viaductStations(arc, l) {
+  const out = [];
+  for (const atS of VIADUCT_STATION.atS) {
+    /** The deck station nearest this arc distance — the platform's mid-point. */
+    const centre = arc.stations.reduce((a, b) => (Math.abs(b.s - atS) < Math.abs(a.s - atS) ? b : a));
+    /**
+     * Every segment whose MIDPOINT falls inside the half-length. A segment is
+     * `stations[i] .. stations[i+1]`, so its midpoint is the mean of the two
+     * arc distances — the same quantity `city.js` positions the segment box at.
+     */
+    const segs = [];
+    for (let i = 0; i < arc.stations.length - 1; i++) {
+      const mid = (arc.stations[i].s + arc.stations[i + 1].s) / 2;
+      if (Math.abs(mid - atS) <= VIADUCT_STATION.halfLengthM) segs.push(i);
+    }
+    if (!segs.length) continue;
+
+    /**
+     * The cores, one per platform side. Placed from the CENTRE STATION's own
+     * frame — `city.js`'s `across` expression inverted — so a station on a part
+     * of the arc that has turned puts its cores square to the deck rather than
+     * square to the world.
+     */
+    const c = Math.cos((centre.yawDeg * Math.PI) / -180);
+    const sn = Math.sin((centre.yawDeg * Math.PI) / -180);
+    const cores = [];
+    for (const side of [-1, 1]) {
+      const t = side * VIADUCT_STATION.coreT;
+      const s = VIADUCT_STATION.coreS;
+      cores.push({
+        side,
+        /** `across(t)` displaced by `s` along the deck: the two are orthogonal. */
+        x: centre.x - sn * t + c * s,
+        z: centre.z + c * t + sn * s,
+        yawDeg: centre.yawDeg,
+        t, s,
+      });
+    }
+
+    out.push({
+      atS, centre, segs,
+      segFrom: segs[0], segTo: segs[segs.length - 1],
+      lengthM: segs.length * arc.chord,
+      cores,
+      /** Platform surface, in metres above the ground datum. */
+      platformTopY: l.height + VIADUCT_RAIL_RISE_M + VIADUCT_STATION.topAboveRailM,
+      /** How far across the widened structure reaches, for the claim. */
+      halfAcrossM: VIADUCT_STATION.innerT + VIADUCT_STATION.widthM + VIADUCT_STATION.wallThickM,
+      topY: VIADUCT_STATION.canopyTopM,
+    });
+  }
+  return out;
+}
+
+/** Is deck segment `i` inside a station? Read by `city.js` and by the occluders. */
+export function viaductStationSegment(stations, i) {
+  for (const st of stations) if (i >= st.segFrom && i <= st.segTo) return st;
+  return null;
 }
 
 /** Which chunk a landmark's centre falls in. */
