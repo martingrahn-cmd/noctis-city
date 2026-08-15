@@ -337,6 +337,59 @@ const BLOCK_RETAIL = {
   punchPitchM: 4.6,
 };
 
+/**
+ * ITEM 3c — THE ADVERTISING PILLARS, ON THE BLOCK'S OWN PAVEMENT.
+ *
+ * SHIPPED, AND ITEM 0 SAID IT COULD NOT BE. That estimate is the session's own
+ * largest error and it is recorded rather than quietly corrected, because it is
+ * CONTRACT §9's failure mode committed inside the instrument written to avoid
+ * it (§7.7). `blockprobe.mjs` reports every emitter as an AREA times a
+ * RADIANCE; item 0 calibrated four slopes of that product against
+ * `band:midnight` by zeroing known emitters, and predicted that nine pillars
+ * at 29 993 m2*cd/m2 would cost **+0.0066** of a 0.0027 headroom — over by
+ * 2.4x on the most generous of the four and by 6x on the tightest.
+ *
+ * MEASURED: **+0.0004**. The estimate was 16x high.
+ *
+ * WHY, AND THE INSTRUMENT'S OWN HEADER SAYS IT: *"that product is NOT a
+ * luminance and does not predict a mean on its own"*. The quantity a frame mean
+ * responds to is PROJECTED SOLID ANGLE, and the four calibration points were
+ * all emitters that are either numerous and spread across the whole frame (558
+ * lit windows) or bright, large in the image and close (sixteen lamp bowls at
+ * 8.4 m). A 0.87 x 2.55 m panel standing against a building 40 to 160 m down
+ * the street, seen nearly edge-on from a camera on the crown of the road, is
+ * neither. Area times radiance was computed correctly and used as a different
+ * quantity.
+ *
+ * WHAT IT DELIVERS. Nine pillars of ten candidate stations — one refused
+ * against a lamp column — spaced by the streamed city's own rule
+ * (`round(faceWidth / perFrontageM)` at 19 m) over 214.0 m of frontage across
+ * ten buildings of 16.72 to 27.32 m. Two emissive faces each at the streamed
+ * city's own `PILLAR_FACE_NITS`, so the two content paths cannot end up
+ * describing one object with two radiances the way the lamp bowl did for
+ * twenty-five sessions.
+ *
+ * THERE IS NO `conflict()` HERE AND THAT IS A FACT ABOUT THIS FILE RATHER THAN
+ * AN OMISSION: **the origin block has no occupancy registry.** It owns
+ * everything inside `BLOCK_KEEPOUT` — the streamed city refuses to place
+ * anything there — so what a pillar must miss is this file's own `occluders`
+ * list and its sixteen lamp columns, and that is what it is tested against,
+ * before it is drawn, and refused rather than moved.
+ */
+const AD_PILLAR_BLOCK = {
+  /** Session 30's bisecting switch for this content, in the `?quayLamps` shape. */
+  enabled: true,
+  standoff: 2.6,
+  baseAlong: 1.40, baseDeep: 0.74, baseH: 0.18,
+  colAlong: 1.04, colDeep: 0.44, colH: 3.40,
+  browH: 0.14,
+  faceH: 2.55, faceFrac: 0.84,
+  /** cd/m², the streamed city's own `PILLAR_FACE_NITS`. */
+  faceNits: 748,
+  /** Metres of frontage per pillar — `AD_PILLAR.perFrontageM`. */
+  perFrontageM: 19.0,
+};
+
 export function createBlock(options = {}) {
   const cfg = { ...BLOCK, ...options };
 
@@ -500,6 +553,17 @@ export function createBlock(options = {}) {
         emissiveMaterial(ctx, { chroma: SHOP_CHROMA[3], nits: EMISSIVE.shopDim }),
       ];
       const matShutter = surfaceMaterial(ctx, { color: 0x6a6660, roughness: 0.58, metalness: 0.2 });
+      /**
+       * Item 3c's arm. A DISPLAY PANEL at the streamed city's own
+       * `PILLAR_FACE_NITS`, so the two paths cannot describe the same object
+       * with two radiances the way the lamp bowl did for twenty-five sessions.
+       */
+      const matPillarFace = emissiveMaterial(ctx, {
+        chroma: SHOP_CHROMA[2],
+        nits: AD_PILLAR_BLOCK.faceNits,
+        color: 0x16181c,
+        roughness: 0.05,
+      });
       const matShopFrame = surfaceMaterial(ctx, { color: 0x35322e, roughness: 0.55, metalness: 0.25 });
       lampMaterial = emissiveMaterial(ctx, {
         chroma: EMITTER_CHROMA.sodium,
@@ -1593,6 +1657,67 @@ export function createBlock(options = {}) {
       }
 
       /**
+       * WHERE THE SIXTEEN LAMP COLUMNS STAND — [x, z, side, aimAxis].
+       *
+       * Hoisted out of the lamp run below in session 30, because item 3c's
+       * pillar arm has to test against them and it runs first. ONE list, read
+       * twice: a second copy of these stations is exactly the arrangement
+       * `pierEvery: 34` sat in (CONTRACT §9.1).
+       */
+      const LAMP_STATIONS = [];
+      for (let i = 0; i < 7; i++) {
+        LAMP_STATIONS.push([-108 + i * 30, halfStreet + 1.3, 1, 'z']);
+        LAMP_STATIONS.push([-93 + i * 30, -(halfStreet + 1.3), -1, 'z']);
+      }
+      LAMP_STATIONS.push([halfCross + 1.3, -34, 1, 'x']);
+      LAMP_STATIONS.push([-(halfCross + 1.3), 30, -1, 'x']);
+
+      /** ITEM 3c. The whole argument is over `AD_PILLAR_BLOCK`; this is the wiring. */
+      const pillarInstances = [];
+      const pillarSkin = [];
+      const pillarFaces = [];
+      let pillarsRefused = 0;
+      if (AD_PILLAR_BLOCK.enabled) {
+        const P = AD_PILLAR_BLOCK;
+        for (const b of buildings) {
+          const zFace = b.z - b.side * (b.depth / 2);
+          const nP = Math.max(1, Math.round(b.width / P.perFrontageM));
+          for (let k = 0; k < nP; k++) {
+            const px = b.x + (-b.width / 2) + (b.width * (k + 0.5)) / nP;
+            const pz = zFace - b.side * P.standoff;
+            const pad = 0.85;
+            const hitsBuilding = occluders.some((o) =>
+              px + pad > o.x0 && px - pad < o.x1 && pz + pad > o.z0 && pz - pad < o.z1);
+            const hitsLamp = LAMP_STATIONS.some((l) =>
+              Math.abs(l[0] - px) < pad + 0.3 && Math.abs(l[1] - pz) < pad + 0.3);
+            if (hitsBuilding || hitsLamp) { pillarsRefused++; continue; }
+
+            const baseY = blockSurfaceAt(px, pz).y;
+            const yaw = b.side > 0 ? 0 : Math.PI;
+            q.setFromEuler(new THREE.Euler(0, yaw, 0));
+            const put = (y, sx, sy, sz) => {
+              s3.set(sx, sy, sz);
+              pillarInstances.push(m4.clone().compose(new THREE.Vector3(px, baseY + y, pz), q, s3));
+              pillarSkin.push({ albedo: [0.055, 0.056, 0.062], roughness: 0.42 });
+            };
+            put(P.baseH / 2, P.baseAlong, P.baseH, P.baseDeep);
+            put(P.baseH + P.colH / 2, P.colAlong, P.colH, P.colDeep);
+            put(P.baseH + P.colH + P.browH / 2, P.baseAlong * 0.86, P.browH, P.baseDeep * 0.80);
+
+            const faceY = baseY + P.baseH + 0.42 + P.faceH / 2;
+            for (const sgn of [1, -1]) {
+              const fq = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(0, sgn > 0 ? yaw : yaw + Math.PI, 0));
+              s3.set(P.colAlong * P.faceFrac, P.faceH, 1);
+              pillarFaces.push(m4.clone().compose(
+                new THREE.Vector3(px, faceY, pz - b.side * sgn * (P.colDeep / 2 + 0.03)), fq, s3));
+            }
+            addOccluder(px, pz, P.baseAlong, P.baseDeep, baseY + P.baseH + P.colH + P.browH);
+          }
+        }
+      }
+
+      /**
        * Window-to-wall ratio, per building: glazed area over the area of the
        * upper facade the glazing is spread across. Measured, not authored — see
        * `b.windowArea` above.
@@ -1694,9 +1819,26 @@ export function createBlock(options = {}) {
       addInstanced(boxGeo, matFacade, pilasterInstances, 'block:pilasters', true, pilasterSkin);
       addInstanced(boxGeo, matFacade, spandrelInstances, 'block:spandrels', true, spandrelSkin);
       addInstanced(boxGeo, matFacade, canopyInstances, 'block:canopies', true, canopySkin);
-      addInstanced(boxGeo, matFacade, plinthInstances, 'block:plinths', true, plinthSkin);
       addInstanced(boxGeo, matFacade, pierInstances, 'block:piers', true, pierSkin);
       addInstanced(boxGeo, matFacade, soffitInstances, 'block:soffits', true, soffitSkin);
+      /**
+       * ITEM 3c'S DARK BOXES RIDE IN THE PLINTH MESH — same geometry, same
+       * material, same per-instance skin, same shadow flag — so nine pillars
+       * cost ONE draw call and not two. `counts.adPillars` is written BEFORE
+       * the merge, which is `city.js`'s own arrangement and the reason it is
+       * written down there: after a merge there is one mesh and no categories,
+       * and a refactor that erases a category erases the check on it
+       * (CONTRACT §9.1).
+       *
+       * The FACES cannot join anything. A window is 21–30 cd/m² and a sign
+       * plate 38; this is 748, and one material carries one radiance.
+       */
+      for (let i = 0; i < pillarInstances.length; i++) {
+        plinthInstances.push(pillarInstances[i]);
+        plinthSkin.push(pillarSkin[i]);
+      }
+      addInstanced(boxGeo, matFacade, plinthInstances, 'block:plinths', true, plinthSkin);
+      addInstanced(planeGeo, matPillarFace, pillarFaces, 'block:adpillar:faces');
 
       // ---- streetlights ---------------------------------------------------
 
@@ -1841,12 +1983,10 @@ export function createBlock(options = {}) {
       // The run has to cover the whole visible corridor including the ground in
       // front of the camera. Lighting only the far half leaves the foreground —
       // a third of the frame — black, which is what the first pass did.
-      for (let i = 0; i < 7; i++) {
-        addLamp(-108 + i * 30, halfStreet + 1.3, 1);
-        addLamp(-93 + i * 30, -(halfStreet + 1.3), -1);
-      }
-      addLamp(halfCross + 1.3, -34, 1, 'x');
-      addLamp(-(halfCross + 1.3), 30, -1, 'x');
+      // `LAMP_STATIONS` is built above rather than here, because item 3c's
+      // pillar arm has to miss these columns and two copies of a station list
+      // is CONTRACT §9.1's config-the-code-does-not-read with a position.
+      for (const st of LAMP_STATIONS) addLamp(st[0], st[1], st[2], st[3]);
 
       // ---- signage --------------------------------------------------------
 
@@ -2234,6 +2374,8 @@ export function createBlock(options = {}) {
           retailBuildings: buildings.filter((b) => b.retail).length,
           plinthOpenings,
           shopLightsRefused,
+          adPillars: pillarInstances.length / 3,
+          adPillarsRefused: pillarsRefused,
           streetlights: lampLights.length,
           signs: signLights.length,
           shopLights: shopLights.length,
