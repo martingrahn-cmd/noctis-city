@@ -25,7 +25,7 @@ import * as THREE from 'three';
 import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
-import { riverBankStations } from '../lib/citygen.js';
+import { riverBankStations, BUS_STOP } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
 const DEG = Math.PI / 180;
@@ -563,6 +563,19 @@ export function createBlock(options = {}) {
         nits: AD_PILLAR_BLOCK.faceNits,
         color: 0x16181c,
         roughness: 0.05,
+      });
+      /**
+       * ITEM 4. The backlit timetable case, at `BUS_STOP.panelNits` — the
+       * STREAMED CITY'S OWN NUMBER, imported rather than authored here, for the
+       * reason `LAMP_BOWL` exists at all: one object described in two files
+       * with two radiances is CONTRACT §9's own class and this project carried
+       * one for twenty-five sessions.
+       */
+      const matTimetable = emissiveMaterial(ctx, {
+        chroma: EMITTER_CHROMA.fluorescentCold,
+        nits: BUS_STOP.panelNits,
+        color: 0x1a1d22,
+        roughness: 0.08,
       });
       const matShopFrame = surfaceMaterial(ctx, { color: 0x35322e, roughness: 0.55, metalness: 0.25 });
       lampMaterial = emissiveMaterial(ctx, {
@@ -1672,6 +1685,126 @@ export function createBlock(options = {}) {
       LAMP_STATIONS.push([halfCross + 1.3, -34, 1, 'x']);
       LAMP_STATIONS.push([-(halfCross + 1.3), 30, -1, 'x']);
 
+      /**
+       * ITEM 4 — THE ORIGIN BLOCK'S OWN BUS STOPS.
+       *
+       * BOTH CONTENT PATHS, WHICH IS THE HALF OF THIS ITEM THE BRIEF SAID WAS
+       * MOST LIKELY TO BE MISSED, and session 28 is why it said so: it built a
+       * whole session of content into `city.js` while the operator was standing
+       * in `block.js`. Every dimension and the panel's radiance come from
+       * `BUS_STOP` in `citygen.js` — IMPORTED, not re-authored — so a shelter
+       * here and a shelter three chunks away cannot become two different
+       * objects the way one lamp bowl became 210 and 9000.
+       *
+       * THE PLACEMENT RULE, and it is the streamed city's rule with this
+       * street's own geometry substituted rather than a second rule:
+       *
+       *   ON THE PAVEMENT.   z = side * (halfStreet + kerbGap + roofDeep/2) =
+       *                      +/-8.575 m, inside a footway that runs 7.5 to 11.7.
+       *   NEAR SIDE OF THE JUNCTION.  This block has exactly one junction — the
+       *                      cross street at x = 0 — and `beforeJunctionM` = 22
+       *                      is the same 22 m. Which SIDE of it depends on which
+       *                      way the near lane runs: with right-hand traffic the
+       *                      kerbside lane on the south pavement runs east, so
+       *                      its stop is 22 m WEST of the crossing; the north
+       *                      pavement's runs west, so its stop is 22 m EAST.
+       *                      One per direction, mirrored through the junction,
+       *                      which is what a real pair of stops is.
+       *   AT INTERVALS.      TWO on 214 m of frontage. There is no roll here and
+       *                      there should not be: ten hand-placed buildings on
+       *                      one street is not a population, and session 30
+       *                      has already paid twice for transplanting a
+       *                      streamed-city roll onto a sample of four
+       *                      (`BLOCK_RETAIL`).
+       *
+       * DECLARED BEFORE DRAWN AND REFUSED RATHER THAN MOVED, against the only
+       * registry this file has: its own `occluders` and its sixteen
+       * `LAMP_STATIONS`. The claim is recorded in `counts` and its footprint is
+       * THE ROOF — 4.00 x 1.35 m — and not the 0.09 m posts, which is the
+       * brief's own requirement and session 24's finding.
+       */
+      const timetablePanels = [];
+      let busStops = 0;
+      let busStopsRefused = 0;
+      {
+        const A = BUS_STOP;
+        const half = A.roofAlongM / 2;
+        for (const side of [1, -1]) {
+          /** South pavement's near lane runs east, so its stop is west of the
+           *  crossing; the north pavement's is the mirror. */
+          const sx = side > 0 ? -A.beforeJunctionM : A.beforeJunctionM;
+          const sz = side * (halfStreet + A.kerbGapM + A.roofDeepM / 2);
+          const hx = half;
+          const hz = A.roofDeepM / 2;
+          const hitsBuilding = occluders.some((o) =>
+            sx + hx > o.x0 && sx - hx < o.x1 && sz + hz > o.z0 && sz - hz < o.z1);
+          const hitsLamp = LAMP_STATIONS.some((l) =>
+            Math.abs(l[0] - sx) < hx + 0.4 && Math.abs(l[1] - sz) < hz + 0.4);
+          if (hitsBuilding || hitsLamp) { busStopsRefused++; continue; }
+
+          const baseS = blockSurfaceAt(sx, sz).y;
+          /**
+           * `side` TAKES YOU AWAY FROM THE ROAD CENTRE, which is the same
+           * convention `citygen`'s `kerbBands` uses and the opposite of what
+           * this first read as. The shelter's back is therefore at `sz + side *
+           * delta` and the carriageway is at `-side`. `city.js` carries the
+           * same correction and the same comment — CONTRACT §9 rule 7, and the
+           * delivered frame is what caught it: a shelter with its back to the
+           * pavement and its lit timetable facing a wall.
+           */
+          const yawS = side > 0 ? 0 : Math.PI;
+          const qs = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yawS, 0));
+          const grey = { albedo: [0.088, 0.090, 0.096], roughness: 0.44 };
+          const glass = { albedo: [0.052, 0.056, 0.061], roughness: 0.10 };
+          const put = (x, y, z, sxx, syy, szz, skin) => {
+            s3.set(sxx, syy, szz);
+            plinthInstances.push(
+              m4.clone().compose(new THREE.Vector3(x, y, z), qs, s3));
+            plinthSkin.push(skin);
+          };
+          /** roof — the claimed footprint */
+          put(sx, baseS + A.roofY + A.roofThickM / 2, sz,
+            A.roofAlongM, A.roofThickM, A.roofDeepM, grey);
+          /** two posts at the BACK corners, inside the roof's own footprint */
+          for (const k of [-1, 1]) {
+            put(sx + k * (half - 0.22), baseS + A.roofY / 2,
+              sz + side * (A.roofDeepM / 2 - 0.14), A.postM, A.roofY, A.postM, grey);
+          }
+          /** the glazed back panel, on the building side */
+          put(sx, baseS + (A.backBottomY + A.backTopY) / 2,
+            sz + side * (A.roofDeepM / 2 - A.backThickM / 2),
+            A.roofAlongM - 0.18, A.backTopY - A.backBottomY, A.backThickM, glass);
+          /** the bench against it, facing the road */
+          put(sx, baseS + A.benchY,
+            sz + side * (A.roofDeepM / 2 - A.backThickM - A.benchDeepM / 2 - 0.04),
+            A.benchAlongM, 0.07, A.benchDeepM, grey);
+          /** the pole and its flag, a metre past the downstream end */
+          const px2 = sx + (side > 0 ? half + 1.0 : -(half + 1.0));
+          const baseP = blockSurfaceAt(px2, sz).y;
+          put(px2, baseP + A.flagY / 2, sz, A.poleM, A.flagY, A.poleM, grey);
+          put(px2, baseP + A.flagY, sz, A.flagAlongM, 0.34, A.flagDeepM, grey);
+
+          /**
+           * The lit timetable case, on the back panel and FACING THE ROAD —
+           * which is where a person waiting stands and where the light has to
+           * land. `PlaneGeometry` faces +z, so it wants yaw PI on the pavement
+           * at +z and yaw 0 on the one at -z.
+           */
+          s3.set(A.panelAlongM, A.panelH, 1);
+          timetablePanels.push(m4.clone().compose(
+            new THREE.Vector3(
+              sx + (side > 0 ? half - A.panelAlongM / 2 - 0.12 : -(half - A.panelAlongM / 2 - 0.12)),
+              baseS + A.panelY,
+              sz + side * (A.roofDeepM / 2 - A.backThickM - 0.05)
+            ),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(0, side > 0 ? Math.PI : 0, 0)),
+            s3));
+
+          addOccluder(sx, sz, A.roofAlongM, A.roofDeepM, baseS + A.roofY + A.roofThickM);
+          busStops++;
+        }
+      }
+
       /** ITEM 3c. The whole argument is over `AD_PILLAR_BLOCK`; this is the wiring. */
       const pillarInstances = [];
       const pillarSkin = [];
@@ -1839,6 +1972,15 @@ export function createBlock(options = {}) {
       }
       addInstanced(boxGeo, matFacade, plinthInstances, 'block:plinths', true, plinthSkin);
       addInstanced(planeGeo, matPillarFace, pillarFaces, 'block:adpillar:faces');
+      /**
+       * ITEM 4'S SHELTERS. The seven opaque boxes of each stop ride in
+       * `block:plinths` above — same geometry, material, skin and shadow flag —
+       * so a stop costs ZERO new box draws here exactly as it does in the
+       * streamed city. The lit timetable panel cannot join anything: this
+       * file's brightest window is 30 cd/m2 and its sign plate 38, against
+       * `BUS_STOP.panelNits` = 420, and one material carries one radiance.
+       */
+      addInstanced(planeGeo, matTimetable, timetablePanels, 'block:busstop:panels');
 
       // ---- streetlights ---------------------------------------------------
 
@@ -2376,6 +2518,8 @@ export function createBlock(options = {}) {
           shopLightsRefused,
           adPillars: pillarInstances.length / 3,
           adPillarsRefused: pillarsRefused,
+          busStops,
+          busStopsRefused,
           streetlights: lampLights.length,
           signs: signLights.length,
           shopLights: shopLights.length,

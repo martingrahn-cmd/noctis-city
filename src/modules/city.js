@@ -80,6 +80,7 @@ import {
   HEIGHT_DISTRIBUTION,
   HEAD_CLEAR_M,
   AD_PILLAR,
+  BUS_STOP,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -2369,6 +2370,152 @@ export function createCity(options = {}) {
       }
     }
 
+    /**
+     * SESSION 30, ITEM 4 — THE BUS STOP. The chunk DECLARED where it wants one
+     * (`citygen.js` -> `busStop`, and the placement rule is written down there);
+     * this decides whether that ground is free, and draws it if it is.
+     *
+     * DECLARED BEFORE DRAWN, REFUSED RATHER THAN MOVED. The test here is
+     * `occupancy.js`'s own `mayOverlap('prop', p.kind)` over everything already
+     * in `placed` — which, since this session's ordering fix, INCLUDES the
+     * ground rectangles, so a shelter that would stand in a carriageway is
+     * refused by the same table that refuses a bollard one. It runs after the
+     * pylons, the props, the park features and the pillars, so the list it is
+     * tested against is full.
+     *
+     * `prop` AND NOT `sign`, and the two rows differ in exactly the place that
+     * matters: `prop x path` is forbidden and `sign x path` is not. A shelter
+     * is a 4.00 x 1.35 m roof with a bench under it — the thing `prop` is for —
+     * and the flag pole beside it is part of the same object rather than a
+     * freestanding pylon.
+     *
+     * THE CLAIM IS THE ROOF AND NOT THE POSTS. `BUS_STOP.roofAlongM` x
+     * `roofDeepM`, folded through the stop's own yaw by the |cos|*L + |sin|*W
+     * expression the pylon and the pillar already use. The posts are 0.09 m
+     * square and stand inside it; claiming them would under-claim by 3.91 m on
+     * one axis, which is session 24's own finding with a shelter instead of a
+     * hoarding panel.
+     *
+     * ZERO NEW DRAW CALLS. The seven opaque parts ride in the chunk's box mesh
+     * and the lit timetable panel rides in its window mesh at a tint of
+     * `BUS_STOP.panelNits / LIGHT.windowNits`, exactly as the pillar's face
+     * does. `highway_speed` sits at 435 of a 440 ceiling and there is no
+     * margin to spend on a new mesh.
+     */
+    let busStops = 0;
+    let busStopsRefused = 0;
+    if (detail && chunk.busStop) {
+      const A = BUS_STOP;
+      const S = chunk.busStop;
+      /**
+       * TWO DIRECTIONS AND THEY ARE NAMED FOR WHAT THEY POINT AT, because the
+       * first version of this had exactly one of them and used it as both.
+       *
+       * `kerbBands`' `side` is the sign that takes you AWAY FROM THE ROAD
+       * CENTRE — `x = band.at + band.side * offset` is how a kerbside prop is
+       * placed and `band.at` is the road line. So `awayDir` is the direction
+       * toward the building line and `roadDir` is its negation. The shelter's
+       * CENTRE is placed along `awayDir`; every part INSIDE it — the back
+       * panel, the posts, the bench, the timetable's facing — is measured from
+       * the back, which is the `awayDir` edge, and the first draft measured
+       * them from the road edge instead. CONTRACT §9 rule 7: a right offset
+       * from the wrong datum, and the delivered frame showed a shelter with its
+       * back to the pavement and its lit panel facing a wall.
+       */
+      const alongDir = S.axis === 'x' ? [0, 1] : [1, 0];
+      const awayDir = S.axis === 'x' ? [S.side, 0] : [0, S.side];
+      const roadDir = [-awayDir[0], -awayDir[1]];
+      /**
+       * The shelter's front face stands `kerbGapM` clear of the kerb — the same
+       * relation to the kerb that `citygen`'s own kerbside props have, and the
+       * kerb line is `CITY.roadHalfWidth` from the road's centre. Delivered:
+       * centre at 7.5 + 0.40 + 0.675 = 8.575, near face at 7.9, kerb at 7.5.
+       */
+      const standoff = CITY.roadHalfWidth + A.kerbGapM + A.roofDeepM / 2;
+      const bx = S.axis === 'x' ? S.at + awayDir[0] * standoff : S.along;
+      const bz = S.axis === 'x' ? S.along : S.at + awayDir[1] * standoff;
+      /** The box's own yaw. Its long axis lies ALONG the kerb. */
+      const yawS = yawForNormal(awayDir[0], awayDir[1]);
+      const caS = Math.abs(Math.cos(yawS * DEG));
+      const saS = Math.abs(Math.sin(yawS * DEG));
+      const hxS = (caS * A.roofAlongM + saS * A.roofDeepM) / 2;
+      const hzS = (saS * A.roofAlongM + caS * A.roofDeepM) / 2;
+
+      const baseS = worldSurface(ctx, bx, bz).y;
+      const inBlockS = bx > BLOCK_KEEPOUT.x0 && bx < BLOCK_KEEPOUT.x1 &&
+        bz > BLOCK_KEEPOUT.z0 && bz < BLOCK_KEEPOUT.z1;
+      const hitsBuildingS = (chunk.occluders || []).some((o) =>
+        bx + hxS > o.x0 && bx - hxS < o.x1 && bz + hzS > o.z0 && bz - hzS < o.z1);
+      const hitsClaimS = placed.some((p) =>
+        !mayOverlap('prop', p.kind) &&
+        bx + hxS > p.x0 && bx - hxS < p.x1 && bz + hzS > p.z0 && bz - hzS < p.z1);
+
+      if (inBlockS || hitsBuildingS || hitsClaimS) {
+        busStopsRefused++;
+      } else {
+        const grey = { albedo: [0.088, 0.090, 0.096], roughness: 0.44 };
+        const glass = { albedo: [0.052, 0.056, 0.061], roughness: 0.10 };
+        const push = (x, y, z, sx, sy, sz, skin) => {
+          bodies.push(setMatrix(x, y, z, sx, sy, sz, yawS));
+          bodySkin.push(skin);
+        };
+        /** roof — cantilevered, and the only part that is claimed */
+        push(bx, baseS + A.roofY + A.roofThickM / 2, bz, A.roofAlongM, A.roofThickM, A.roofDeepM, grey);
+        /** two posts at the BACK corners — the away side — inside the roof */
+        for (const k of [-1, 1]) {
+          const ox = alongDir[0] * k * (A.roofAlongM / 2 - 0.22) + awayDir[0] * (A.roofDeepM / 2 - 0.14);
+          const oz = alongDir[1] * k * (A.roofAlongM / 2 - 0.22) + awayDir[1] * (A.roofDeepM / 2 - 0.14);
+          push(bx + ox, baseS + A.roofY / 2, bz + oz, A.postM, A.roofY, A.postM, grey);
+        }
+        /** the glazed back panel, at the away edge */
+        push(
+          bx + awayDir[0] * (A.roofDeepM / 2 - A.backThickM / 2),
+          baseS + (A.backBottomY + A.backTopY) / 2,
+          bz + awayDir[1] * (A.roofDeepM / 2 - A.backThickM / 2),
+          A.roofAlongM - 0.18, A.backTopY - A.backBottomY, A.backThickM, glass
+        );
+        /** the bench, against the back, facing the road */
+        push(
+          bx + awayDir[0] * (A.roofDeepM / 2 - A.backThickM - A.benchDeepM / 2 - 0.04),
+          baseS + A.benchY,
+          bz + awayDir[1] * (A.roofDeepM / 2 - A.backThickM - A.benchDeepM / 2 - 0.04),
+          A.benchAlongM, 0.07, A.benchDeepM, grey
+        );
+        /** the pole, one metre past the downstream end of the roof */
+        const bpx = bx + alongDir[0] * (A.roofAlongM / 2 + 1.0);
+        const bpz = bz + alongDir[1] * (A.roofAlongM / 2 + 1.0);
+        const baseP = worldSurface(ctx, bpx, bpz).y;
+        push(bpx, baseP + A.flagY / 2, bpz, A.poleM, A.flagY, A.poleM, grey);
+        /** the flag, across the pole, read from a moving bus */
+        push(bpx, baseP + A.flagY, bpz, A.flagAlongM, 0.34, A.flagDeepM, grey);
+
+        /**
+         * THE LIT TIMETABLE PANEL, in the chunk's window mesh at a tint of
+         * `panelNits / LIGHT.windowNits`. It faces INTO the shelter, which is
+         * where a timetable is read from, and it is what puts light on the
+         * bench and on the pavement under the roof.
+         */
+        const tintS = A.panelNits / LIGHT.windowNits;
+        windows.push(setMatrix(
+          bx + alongDir[0] * (A.roofAlongM / 2 - A.panelAlongM / 2 - 0.12)
+            + awayDir[0] * (A.roofDeepM / 2 - A.backThickM - 0.05),
+          baseS + A.panelY,
+          bz + alongDir[1] * (A.roofAlongM / 2 - A.panelAlongM / 2 - 0.12)
+            + awayDir[1] * (A.roofDeepM / 2 - A.backThickM - 0.05),
+          A.panelAlongM, A.panelH, 0.04,
+          yawForNormal(roadDir[0], roadDir[1])
+        ));
+        windowTint.push({ albedo: [0.96 * tintS, 0.98 * tintS, 1.00 * tintS], roughness: 0.06 });
+
+        placed.push({
+          kind: 'prop', owner: 'busstop',
+          x0: bx - hxS, x1: bx + hxS, z0: bz - hzS, z1: bz + hzS,
+          y0: 0, y1: baseS + A.roofY + A.roofThickM,
+        });
+        busStops++;
+      }
+    }
+
     // Counted BEFORE the merge, because after it there is one mesh and no
     // categories. See the `census` parameter on addInstanced.
     const massCensus = {
@@ -2390,6 +2537,10 @@ export function createCity(options = {}) {
       /** Session 28. Boxes, not pillars — three boxes a pillar, and the census's
        *  numeric fields must sum to the mesh's instance count. */
       adPillarBoxes: pillarBoxes.length,
+      /** Session 30. Seven boxes a stop, and the census's numeric fields must
+       *  sum to the mesh's instance count — so this is boxes, not stops. */
+      busStopBoxes: busStops * 7,
+      $busStops: `${busStops} bus stops, ${busStopsRefused} refused`,
       $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground refused`,
     };
     for (let i = 0; i < crowns.length; i++) { bodies.push(crowns[i]); bodySkin.push(crownSkin[i]); }

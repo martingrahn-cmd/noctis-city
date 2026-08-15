@@ -513,6 +513,64 @@ export const RETAIL = {
  * column stands on any busy pavement, and a street of shops is the busiest
  * there is.
  */
+/**
+ * SESSION 30, ITEM 4 — THE BUS STOP.
+ *
+ * A SHELTER, A POLE WITH A FLAG, A BENCH AND A LIT TIMETABLE PANEL, and the
+ * dimensions are a real one: a 4.0 x 1.35 m cantilever shelter is the common
+ * UK/EU footprint, its roof is at 2.45 m so it clears `HEAD_CLEAR_M` = 2.10 by
+ * 0.35 m, and the flag sits at 2.90 m where it is read from a moving bus.
+ *
+ * THE CLAIM IS THE ROOF AND NOT THE POSTS, which is the brief's own
+ * requirement and session 24's finding is the reason: a claim taken off the
+ * thing that touches the ground recorded a 2.4 x 0.06 m hoarding panel as a
+ * 2.4 x 2.4 m square. A shelter roof OVERHANGS its posts — that is what a
+ * cantilever shelter is — so what a person cannot walk through is the roof's
+ * footprint, and the roof is what is claimed. Both numbers are here so the two
+ * cannot drift.
+ */
+export const BUS_STOP = {
+  /** p(this chunk has one). See `busStop` in the chunk return for the interval. */
+  perChunkP: 0.5,
+  /** Metres along the kerb from the chunk's own junction. Derived there. */
+  beforeJunctionM: 22.0,
+  /** The roof: along the kerb, and out from the building line. WHAT IS CLAIMED. */
+  roofAlongM: 4.00,
+  roofDeepM: 1.35,
+  roofThickM: 0.12,
+  roofY: 2.45,
+  /** The posts, which are NOT what is claimed. */
+  postM: 0.09,
+  /** The back panel — glazed, and the thing the timetable is lit against. */
+  backThickM: 0.06,
+  backTopY: 2.30,
+  backBottomY: 0.35,
+  /** The bench inside it. */
+  benchAlongM: 2.20,
+  benchDeepM: 0.42,
+  benchY: 0.46,
+  /** The pole and its flag, at the downstream end of the shelter. */
+  poleM: 0.08,
+  flagY: 2.90,
+  flagAlongM: 0.62,
+  flagDeepM: 0.05,
+  /** The lit timetable panel, inside the back, at reading height. */
+  panelAlongM: 0.72,
+  panelH: 1.05,
+  panelY: 1.42,
+  /**
+   * cd/m². A backlit timetable case is a fluorescent box behind diffusing
+   * acrylic — brighter than a domestic window and far below a neon tube. It
+   * rides in the chunk's EXISTING window mesh at a tint of
+   * `BUS_STOP.panelNits / LIGHT.windowNits`, exactly as the advertising
+   * pillar's face does, so it costs no draw call and the delivered radiance is
+   * named in the expression (§9 rule 1) rather than hidden in a multiplier.
+   */
+  panelNits: 420,
+  /** The gap between the shelter's road-side face and the kerb line. */
+  kerbGapM: 0.40,
+};
+
 export const AD_PILLAR = {
   /**
    * p(pillar) at a frontage with NO shops, before the density term — and it is
@@ -3659,6 +3717,8 @@ export function generateChunk(rootSeed, cx, cz) {
   const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
   /** SESSION 28, item 3. The advertising pillars, on their own stream too. */
   const pillarRng = chunkRng(rootSeed, cx, cz, 'pillar');
+  /** SESSION 30, item 4. The bus stops. Same argument as the five above. */
+  const busStopRng = chunkRng(rootSeed, cx, cz, 'busstop');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -5588,6 +5648,51 @@ export function generateChunk(rootSeed, cx, cz) {
      * session the answer was zero and nothing said so, because nothing asked.
      */
     propsKerbside,
+    /**
+     * SESSION 30, ITEM 4 — WHERE THIS CHUNK WANTS A BUS STOP, OR NULL.
+     *
+     * A DECLARATION AND NOT A PLACEMENT. What is decided here is *which kerb,
+     * how far from the junction, and facing which way*; whether that ground is
+     * free is `city.js`'s question, because the answer depends on the DELIVERED
+     * claims (CONTRACT §9.1: the registry says what was tested and the census
+     * says what arrived, and this side is neither — it is the intent).
+     *
+     * THE PLACEMENT RULE, WRITTEN DOWN, because the brief asked for a rule and
+     * not a scatter:
+     *
+     *   ON THE PAVEMENT.   `kerbBands` already names the four pavement lines
+     *                      this chunk draws, as (fixed axis, its value,
+     *                      outward sign). A stop stands on one of them at the
+     *                      same kerb offset a kerbside prop does.
+     *   NEAR SIDE OF A JUNCTION.  The junction is the chunk's own corner
+     *                      (b.x0, b.z0) where its two road lines cross. The
+     *                      stop stands `stopBeforeJunctionM` = 22 m along the
+     *                      band from it, which is inside the band's own `t0`
+     *                      (CORRIDOR + 3 = 14.7 m, the distance at which the
+     *                      cross-road's corridor stops) with 7.3 m to spare, so
+     *                      the shelter is clear of the crossing rather than on
+     *                      it. 22 m is a bus length (12.00 m, `traffic.js`)
+     *                      plus half of one for the vehicle behind it — the
+     *                      stopping zone a halted bus needs, measured from the
+     *                      thing it must not block.
+     *   AT INTERVALS.      ONE PER CHUNK AT MOST, at p = 0.5 — so a stop every
+     *                      256 m of route on average against a 128 m lattice,
+     *                      which is the bottom of the real 250–400 m range for
+     *                      an urban route. Four stops a chunk, one per band,
+     *                      would be one every 128 m on every road line in the
+     *                      city, and nobody builds that.
+     *
+     * `lowDetail` chunks get none, for the same reason they get no kerbside
+     * props: there is no pavement mesh out there to stand on.
+     */
+    busStop: (() => {
+      if (lowDetail) return null;
+      if (busStopRng.next() >= BUS_STOP.perChunkP) return null;
+      const band = kerbBands[busStopRng.int(0, 3)];
+      if (!band || band.bank) return null;
+      const along = (band.axis === 'x' ? b.z0 : b.x0) + BUS_STOP.beforeJunctionM;
+      return { axis: band.axis, at: band.at, side: band.side, along };
+    })(),
   };
 }
 
