@@ -1762,9 +1762,54 @@ const WHEELS_PER_VEHICLE = 4;
  * lighting rather than of the paint.
  *
  * SO THE SPREAD IS BUILT FROM CHROMATICITY AND NOT FROM TASTE. Each entry's
- * (r, b) chromaticity is written beside it; the closest pair is 0.088 apart,
- * which is 4.4x the threshold and leaves room for the illuminant to close some
- * of it.
+ * (r, b) chromaticity is written beside it. **The closest CHROMATIC pair is
+ * 0.098 apart, which is 4.9x the threshold and leaves room for the illuminant
+ * to close some of it.** The sentence here used to say "the closest pair is
+ * 0.088", full stop, and measured over the whole table that was false by an
+ * order of magnitude: graphite and silver sit **0.0082** apart, which is 0.41x
+ * the threshold. They are meant to. Three of these entries are NEUTRALS and a
+ * neutral is defined by having no chromaticity to separate — what separates
+ * them is LUMINANCE, and stating a chromaticity floor over a set that contains
+ * neutrals is CONTRACT §9.1's comment-that-claims-a-property. Corrected in
+ * session 30 by measuring it, and the floor is now stated over the pairs it
+ * can apply to.
+ *
+ * ---------------------------------------------------------------------------
+ * SESSION 30: THE LADDER, AND THE MEASUREMENT THAT SAID THE SPREAD WAS NOT
+ * WHERE THE COMMENT ABOVE SAID IT WAS.
+ *
+ * The brief for this session said paint "has never been touched" and that the
+ * fleet reads near-black. **The first half is wrong and the second is right,
+ * and the reason they are both true at once is the whole of this section.**
+ * Session 9 built the table above and it already carried silver at Rec.709
+ * luminance 0.318 and off-white at 0.465. What it did not carry was a
+ * DISTRIBUTION. Measured on the delivered eight:
+ *
+ *   luminance ladder   0.047 0.048 0.053 0.054 0.062 | 0.123 0.318 0.465
+ *
+ * FIVE OF EIGHT inside 0.047-0.062 — a 1.32x band at the very bottom — and
+ * `bodyAlbedo` walked the table at a fixed stride, so each entry was drawn
+ * equally often and **62.5% of a 160-vehicle fleet was inside that band**. A
+ * night carriageway in this project's own delivered frame sits at 0.05-0.10.
+ * So five eighths of the traffic was painted the colour of the road it stood
+ * on, and no count of colours could see it, which is CONTRACT §7.2 with a
+ * palette instead of a body type.
+ *
+ * The repair is a LADDER — an entry roughly every half-stop from 0.047 to
+ * 0.697, thirteen of them — and a WEIGHTED draw per class, so the shape of
+ * the distribution is a decision rather than a side effect of a stride.
+ *
+ *   0.047 deep blue   0.048 oxide red  0.053 graphite   0.054 teal
+ *   0.062 olive       0.095 livery red 0.124 sand       0.148 pale blue
+ *   0.177 mid grey    0.318 silver     0.421 cream      0.465 off-white
+ *   0.698 white
+ *
+ * 0.698 IS DERIVED AND NOT PICKED. Automotive white is about 0.75-0.85 total
+ * reflectance in the visible; at 0.70 linear albedo this table's white sits
+ * just under the bottom of that range, which is where a panel that has been
+ * outdoors for a decade sits. It is 14.9x the darkest entry and 1.50x the
+ * off-white it stands above, and it is the first body colour in this project
+ * lighter than a lit pavement.
  *
  * AND IT COSTS NOTHING FROM THE SATURATION RESERVE, which is the check that had
  * to be done before adding colour to 160 objects. `tools/city-budget.json` ->
@@ -1778,25 +1823,120 @@ const WHEELS_PER_VEHICLE = 4;
  * of which is paint.
  */
 const PAINT = [
-  /** graphite      (0.333, 0.343) — the neutral, and half a fleet is neutral */
-  [0.052, 0.053, 0.055],
-  /** silver        (0.331, 0.339) — bright neutral. The single biggest win in
-   *  daylight legibility per unit of anything: it is the only body value that
-   *  is lighter than the road. */
-  [0.315, 0.318, 0.322],
-  /** deep blue     (0.170, 0.596) */
-  [0.030, 0.046, 0.105],
-  /** oxide red     (0.641, 0.183) */
-  [0.112, 0.030, 0.032],
-  /** olive         (0.243, 0.270) */
-  [0.036, 0.072, 0.040],
-  /** sand          (0.428, 0.221) */
-  [0.148, 0.121, 0.076],
-  /** teal          (0.196, 0.451) */
-  [0.032, 0.058, 0.074],
-  /** off-white     (0.334, 0.330) — a white van is a white van in every era */
-  [0.470, 0.464, 0.458],
+  /** graphite      (0.325, 0.344)  lum 0.0529 — the neutral, and half a fleet is neutral */
+  { name: 'graphite', albedo: [0.052, 0.053, 0.055] },
+  /** silver        (0.330, 0.337)  lum 0.3177 — bright neutral, and until session
+   *  30 the only body value lighter than the road. */
+  { name: 'silver', albedo: [0.315, 0.318, 0.322] },
+  /** deep blue     (0.166, 0.580)  lum 0.0469 */
+  { name: 'deep blue', albedo: [0.030, 0.046, 0.105] },
+  /** oxide red     (0.644, 0.184)  lum 0.0476 */
+  { name: 'oxide red', albedo: [0.112, 0.030, 0.032] },
+  /** olive         (0.243, 0.270)  lum 0.0620 */
+  { name: 'olive', albedo: [0.036, 0.072, 0.040] },
+  /** sand          (0.429, 0.220)  lum 0.1235 */
+  { name: 'sand', albedo: [0.148, 0.121, 0.076] },
+  /** teal          (0.195, 0.451)  lum 0.0536 */
+  { name: 'teal', albedo: [0.032, 0.058, 0.074] },
+  /** off-white     (0.338, 0.329)  lum 0.4648 — a white van is a white van in every era */
+  { name: 'off-white', albedo: [0.470, 0.464, 0.458] },
+
+  /* ---- session 30, the five rungs the ladder was missing ---------------- */
+
+  /** white         (0.336, 0.330)  lum 0.6977 — the top of the ladder. See the
+   *  header for why 0.70 linear and not 0.85. */
+  { name: 'white', albedo: [0.700, 0.698, 0.688] },
+  /** cream         (0.378, 0.274)  lum 0.4209 — warm white. A delivery livery,
+   *  and the one light colour that is not a neutral, so the light end of the
+   *  fleet is not three greys. */
+  { name: 'cream', albedo: [0.455, 0.420, 0.330] },
+  /** mid grey      (0.328, 0.340)  lum 0.1769 — the rung between silver and
+   *  graphite that was a factor of six of empty ladder. */
+  { name: 'mid grey', albedo: [0.175, 0.177, 0.181] },
+  /** pale blue     (0.253, 0.432)  lum 0.1476 — deep blue's rung 3.1x up, and
+   *  0.172 away from it in chromaticity, so the two do not read as one colour
+   *  at two brightnesses. Its closest neighbour is teal at 0.0608, which is
+   *  this table's tightest chromatic pair and the number the header quotes. */
+  { name: 'pale blue', albedo: [0.120, 0.150, 0.205] },
+  /** livery red    (0.724, 0.128)  lum 0.0947 — a BUS red: 1.99x oxide red's
+   *  luminance and 0.0977 from it in chromaticity, so an operator's livery and
+   *  a rusting flank are two colours rather than one at two exposures. */
+  { name: 'livery red', albedo: [0.255, 0.052, 0.045] },
 ];
+
+/**
+ * WHICH PAINTS A CLASS WEARS, AND IN WHAT PROPORTION.
+ *
+ * The brief asked for this and it is the half of item 2 that did not exist:
+ * `bodyAlbedo` walked one table at a fixed stride for every body type, so a
+ * bus, a skip lorry and a motorcycle drew from the same distribution.
+ *
+ * THE CAR ROW IS DERIVED FROM THE REAL AUTOMOTIVE COLOUR CENSUS rather than
+ * chosen, so the next session can disagree with the source instead of with the
+ * taste (§9 rule 5). European new-car colour share runs roughly white 27%,
+ * black 22%, grey 22%, silver 8%, blue 10%, red 5%, other 6%. Mapped onto this
+ * ladder — white+off-white+cream 0.30, graphite 0.20, mid grey+silver 0.24,
+ * pale blue+deep blue 0.11, the two reds 0.06, olive+teal+sand 0.09 — which
+ * reproduces every band inside three points except grey, where this table
+ * splits six points of it into silver.
+ *
+ * THE OTHER ROWS ARE STATEMENTS ABOUT WHAT THE VEHICLE IS, which is what the
+ * brief asked for and is also why they are not derived from the same census:
+ * a census of CARS says nothing about a bus.
+ *
+ *   van, lorry, hauler   a commercial body is bought white and is signwritten
+ *                        afterwards, so the light end carries two thirds of
+ *                        each of these rows
+ *   bus                  A LIVERY IS NOT A COLOUR CHOICE. Three entries, one
+ *                        dominant, because an operator paints a fleet and not
+ *                        a vehicle — and the same argument session 29 used to
+ *                        give buses discrete lamp clusters rather than a
+ *                        styling light-line
+ *   moto                 no commercial whites; a fairing is either dark or it
+ *                        is a colour
+ *
+ * A NAME THAT IS NOT IN `PAINT` THROWS AT MODULE LOAD, the arrangement
+ * `occupancy.js` uses for its conflict table: a weight on a paint nobody has
+ * is §9.1's config-the-code-does-not-read, and this file is not the place for
+ * one. Each row is normalised at load, so the numbers can be read as shares
+ * whatever they sum to.
+ */
+const PAINT_WEIGHTS = {
+  wedge: { white: 0.15, 'off-white': 0.12, cream: 0.03, silver: 0.10, 'mid grey': 0.14,
+    'pale blue': 0.05, sand: 0.03, 'livery red': 0.01, olive: 0.03, teal: 0.03,
+    graphite: 0.20, 'oxide red': 0.05, 'deep blue': 0.06 },
+  pod: { white: 0.15, 'off-white': 0.12, cream: 0.03, silver: 0.10, 'mid grey': 0.14,
+    'pale blue': 0.05, sand: 0.03, 'livery red': 0.01, olive: 0.03, teal: 0.03,
+    graphite: 0.20, 'oxide red': 0.05, 'deep blue': 0.06 },
+  van: { white: 0.34, 'off-white': 0.22, cream: 0.10, silver: 0.12, 'mid grey': 0.08,
+    'pale blue': 0.04, 'livery red': 0.04, graphite: 0.06 },
+  lorry: { white: 0.30, 'off-white': 0.18, cream: 0.10, silver: 0.10, 'mid grey': 0.08,
+    'livery red': 0.08, 'pale blue': 0.05, sand: 0.05, graphite: 0.06 },
+  hauler: { white: 0.28, 'off-white': 0.20, silver: 0.14, cream: 0.08, 'mid grey': 0.10,
+    'livery red': 0.06, 'deep blue': 0.06, graphite: 0.08 },
+  bus: { 'livery red': 0.55, cream: 0.25, white: 0.20 },
+  moto: { graphite: 0.26, 'oxide red': 0.16, 'deep blue': 0.14, teal: 0.10, silver: 0.12,
+    white: 0.10, 'livery red': 0.08, olive: 0.04 },
+};
+
+/**
+ * The weights above as a cumulative table per body type, built once at load.
+ * Throws HERE on an unknown paint name or a body type with no row, rather than
+ * silently drawing graphite forever.
+ */
+const PAINT_INDEX = new Map(PAINT.map((p, i) => [p.name, i]));
+function buildPaintTable(typeName) {
+  const row = PAINT_WEIGHTS[typeName];
+  if (!row) throw new Error(`traffic: no PAINT_WEIGHTS row for body type '${typeName}'`);
+  const entries = Object.entries(row).map(([name, w]) => {
+    const idx = PAINT_INDEX.get(name);
+    if (idx === undefined) throw new Error(`traffic: PAINT_WEIGHTS.${typeName} names unknown paint '${name}'`);
+    return [idx, w];
+  });
+  const total = entries.reduce((a, e) => a + e[1], 0);
+  let acc = 0;
+  return entries.map(([idx, w]) => { acc += w / total; return [idx, acc]; });
+}
 
 /**
  * EMISSIVE NITS FOR THE LIGHT LINES.
@@ -2053,6 +2193,23 @@ export function createTraffic(options = {}) {
        * downstream, so unlike the class roll it re-phases nothing at all.
        */
       const sigRng = ctx.rng('traffic:signature');
+      /**
+       * The paint, on its own stream — session 30, item 2. Same argument as
+       * `traffic:class` and `traffic:signature`: retuning a colour share, or
+       * adding a rung to the ladder, must not move a single vehicle. It is a
+       * NEW roll on a NEW stream, so like the signature roll it re-phases
+       * nothing at all, and the determinism control is that the nearest-vehicle
+       * list at the look camera is identical across the change.
+       */
+      const paintRng = ctx.rng('traffic:paint');
+      /** Cumulative weights per body type. Throws at build on a bad name. */
+      const paintTables = BODY_TYPES.map((t) => buildPaintTable(t.name));
+      function pickPaint(type) {
+        const table = paintTables[type];
+        const r = paintRng.next();
+        for (const [idx, cum] of table) if (r <= cum) return idx;
+        return table[table.length - 1][0];
+      }
       /**
        * The root seed, as a string, for `riverNoRoad` — which asks the pure
        * generator which crossing carries a bridge and must be handed the same
@@ -2346,6 +2503,13 @@ export function createTraffic(options = {}) {
           sig: BODY_TYPES[type].sigAllowed[
             Math.min(BODY_TYPES[type].sigAllowed.length - 1,
               Math.floor(sigRng.next() * BODY_TYPES[type].sigAllowed.length))],
+          /**
+           * Which of `PAINT` this vehicle wears, drawn from its CLASS's own
+           * weights. Rolled once at construction and never again, for the
+           * reason `sig` gives: a vehicle that changed colour when it was
+           * recycled is a different vehicle wearing the same instance rows.
+           */
+          paint: pickPaint(type),
           axis: 0, line: 0, dir: 1, lane: 0,
           s: 0,
           v: FREE_SPEED,
@@ -3545,17 +3709,21 @@ export function createTraffic(options = {}) {
       }
 
       /**
-       * Body albedo, deterministic per vehicle. See the module-level `PAINT`
-       * table for the palette and for why the previous one delivered two
-       * distinguishable colours across thirteen vehicles.
+       * Body albedo. **A LOOKUP NOW, NOT A STRIDE** — session 30.
        *
-       * `vi * 7 + type * 3` modulo 8: 7 and 8 are coprime, so consecutive
-       * vehicles in a queue never share a paint, and the `type * 3` term makes
-       * the same index a different colour on a different body — which is what
-       * stops every hauler being the same colour as every other hauler.
+       * It used to be `PAINT[(vi * 7 + type * 3) % 8]`, whose comment said 7
+       * and 8 are coprime so consecutive vehicles never share a paint. That is
+       * true and it is also what made every entry equally likely, which over a
+       * table with five of eight entries inside a 1.32x luminance band put
+       * 62.5% of the fleet the colour of the road. A stride cannot express a
+       * distribution; the roll is at construction now, from the class's own
+       * weights, and this reads it. See the module-level `PAINT`.
+       *
+       * `vi` is unused and is kept in the signature because the grime function
+       * beside it takes the same pair and the two are called together.
        */
-      function bodyAlbedo(veh, vi) {
-        return PAINT[(vi * 7 + veh.type * 3) % PAINT.length];
+      function bodyAlbedo(veh, vi) {   // eslint-disable-line no-unused-vars
+        return PAINT[veh.paint].albedo;
       }
 
       /**
