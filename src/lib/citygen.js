@@ -3681,6 +3681,69 @@ function subtractBoxes(rects, boxes) {
  *   occluders:object[], landmarks:object[], objectCount:number
  * }}
  */
+/**
+ * SESSION 30, ITEM 4 — WHERE A CHUNK WANTS A BUS STOP, OR NULL.
+ *
+ * A DECLARATION AND NOT A PLACEMENT. What is decided here is *which kerb, how
+ * far from the junction, and facing which way*; whether that ground is free is
+ * `city.js`'s question, because the answer depends on the DELIVERED claims
+ * (CONTRACT §9.1: the registry says what was tested and the census says what
+ * arrived, and this side is neither — it is the intent).
+ *
+ * IT IS PURE IN (rootSeed, cx, cz) AND EXPORTED FOR THAT REASON, which is not
+ * tidiness — it is the fix for a defect the delivered census found. `city.js`'s
+ * `placed` list is the CHUNK'S OWN, so an advertising pillar in one chunk could
+ * not see a shelter declared by the chunk next door, and `citycheck` →
+ * `occupancy` reported **0.733 m² of pillar standing in a bus stop** across a
+ * seam. Asking `generateChunk` for eight neighbours to find that out would cost
+ * eight full generations per stop; this costs one hash and a bounds call, so
+ * the pillar loop can sweep the 3×3 neighbourhood for nothing.
+ *
+ * THE PLACEMENT RULE, because the brief asked for a rule and not a scatter:
+ *
+ *   ON THE PAVEMENT.   `kerbBands` names the four pavement lines a chunk draws,
+ *                      as (fixed axis, its value, outward sign). The four
+ *                      lattice bands are reproduced here from `chunkBounds`
+ *                      alone — the river's two curved bands are excluded, and
+ *                      a bank is a promenade rather than a bus route.
+ *   NEAR SIDE OF A JUNCTION.  The junction is the chunk's own corner
+ *                      (b.x0, b.z0) where its two road lines cross. The stop
+ *                      stands `beforeJunctionM` = 22 m along the band from it,
+ *                      which is inside the band's own `t0` (CORRIDOR + 3 =
+ *                      14.7 m, where the cross-road's corridor stops) with
+ *                      7.3 m to spare, so the shelter is clear of the crossing
+ *                      rather than on it. 22 m is a bus length (12.00 m,
+ *                      `traffic.js`) plus half of one for the vehicle behind —
+ *                      the stopping zone a halted bus needs, measured from the
+ *                      thing it must not block.
+ *   AT INTERVALS.      ONE PER CHUNK AT MOST, at `perChunkP` — a stop every
+ *                      256 m of route on average against a 128 m lattice, which
+ *                      is the bottom of the real 250–400 m range for an urban
+ *                      route. Four a chunk, one per band, would be one every
+ *                      128 m on every road line in the city.
+ *
+ * `lowDetail` chunks get none, for the reason they get no kerbside props:
+ * there is no pavement mesh out there to stand on.
+ */
+export function busStopAt(rootSeed, cx, cz) {
+  const b = chunkBounds(cx, cz);
+  const density = densityAt(rootSeed, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+  const lowDetail = landmarksTouching(cx, cz).length === 0 && density < CITY.lowDetailThreshold;
+  if (lowDetail) return null;
+  const rng = chunkRng(rootSeed, cx, cz, 'busstop');
+  if (rng.next() >= BUS_STOP.perChunkP) return null;
+  /** The four lattice kerb bands, from the chunk's own bounds. */
+  const bands = [
+    { axis: 'x', at: b.x0, side: +1 },
+    { axis: 'x', at: b.x0, side: -1 },
+    { axis: 'z', at: b.z0, side: +1 },
+    { axis: 'z', at: b.z0, side: -1 },
+  ];
+  const band = bands[rng.int(0, 3)];
+  const along = (band.axis === 'x' ? b.z0 : b.x0) + BUS_STOP.beforeJunctionM;
+  return { axis: band.axis, at: band.at, side: band.side, along };
+}
+
 export function generateChunk(rootSeed, cx, cz) {
   const b = chunkBounds(cx, cz);
   const cxWorld = (b.x0 + b.x1) / 2;
@@ -3717,8 +3780,6 @@ export function generateChunk(rootSeed, cx, cz) {
   const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
   /** SESSION 28, item 3. The advertising pillars, on their own stream too. */
   const pillarRng = chunkRng(rootSeed, cx, cz, 'pillar');
-  /** SESSION 30, item 4. The bus stops. Same argument as the five above. */
-  const busStopRng = chunkRng(rootSeed, cx, cz, 'busstop');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -5685,14 +5746,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * `lowDetail` chunks get none, for the same reason they get no kerbside
      * props: there is no pavement mesh out there to stand on.
      */
-    busStop: (() => {
-      if (lowDetail) return null;
-      if (busStopRng.next() >= BUS_STOP.perChunkP) return null;
-      const band = kerbBands[busStopRng.int(0, 3)];
-      if (!band || band.bank) return null;
-      const along = (band.axis === 'x' ? b.z0 : b.x0) + BUS_STOP.beforeJunctionM;
-      return { axis: band.axis, at: band.at, side: band.side, along };
-    })(),
+    busStop: busStopAt(rootSeed, cx, cz),
   };
 }
 

@@ -81,6 +81,7 @@ import {
   HEAD_CLEAR_M,
   AD_PILLAR,
   BUS_STOP,
+  busStopAt,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -1202,6 +1203,41 @@ export function createCity(options = {}) {
       });
     }
 
+    /**
+     * AND THE LANDMARK SOLIDS GO IN HERE TOO, FOR THE SAME REASON AND AFTER THE
+     * SAME GATE CAUGHT IT.
+     *
+     * These were pushed at the END of this function beside the buildings, which
+     * was invisible while the only reader below them was the advertising pillar
+     * — a pillar is already tested against `chunk.occluders`, and
+     * `landmarkOccluders` is folded into that list. Session 30's bus stop is
+     * not: it is tested against `placed`, and the DELIVERED census reported
+     * **5.4 m2 of bus shelter standing inside the stack's ground solid** on its
+     * first run. Item 1's ordering trap, one object over, in the session that
+     * fixed item 1's.
+     *
+     * `chunk.landmarks`, `LANDMARKS`, `landmarkOccluders` and
+     * `landmarkGroundBlockers` are all pure, so nothing here depends on
+     * anything built later. THE BUILDINGS STAY AT THE BOTTOM and that is
+     * deliberate: their claim's `y1` is `deliveredTopByBld`, which is what this
+     * chunk actually drew on the roof and does not exist yet up here. Every
+     * placement routine below already tests `chunk.occluders`, which is where a
+     * building's box is.
+     */
+    for (const name of chunk.landmarks) {
+      const l = LANDMARKS.find((q) => q.name === name);
+      if (!l) continue;
+      for (const o of landmarkOccluders(l)) {
+        if (o.deck) placed.push({ kind: 'deck', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: o.base, y1: o.top });
+        else if (l.kind !== 'viaduct') placed.push({ kind: 'landmark', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top });
+      }
+      if (l.kind === 'viaduct') {
+        for (const g of landmarkGroundBlockers(l)) {
+          placed.push({ kind: 'landmark', owner: `${l.name}:leg`, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: 0, y1: g.top });
+        }
+      }
+    }
+
     const bodies = [];
     const bodySkin = [];
     const crowns = [];
@@ -2269,7 +2305,7 @@ export function createCity(options = {}) {
      * counted apart for the same reason: the first was always live and the
      * second is the one that was dead.
      */
-    const pillarRefused = { block: 0, building: 0, claim: 0, ground: 0 };
+    const pillarRefused = { block: 0, building: 0, claim: 0, ground: 0, busstop: 0 };
     const GROUND_OWNED = /^ground:/;
     if (detail) {
       for (const bld of (chunk.buildings || [])) {
@@ -2309,9 +2345,45 @@ export function createCity(options = {}) {
           !mayOverlap('sign', p.kind) &&
           px + PILLAR_PAD > p.x0 && px - PILLAR_PAD < p.x1 &&
           pz + PILLAR_PAD > p.z0 && pz - PILLAR_PAD < p.z1);
-        if (inBlock || hitsBuilding || clash) {
+        /**
+         * AND AGAINST THE BUS STOPS OF THE 3x3 NEIGHBOURHOOD — session 30, and
+         * it is a defect the DELIVERED census found rather than a precaution.
+         *
+         * `placed` is THE CHUNK'S OWN claim list, which the pylon's comment
+         * above already states as a bound. It holds for two pylons because both
+         * members of a colliding pair are on the same run of pavement inside one
+         * chunk. It does NOT hold for a pillar and a bus stop: a stop stands
+         * 22 m from a chunk's own junction, a pillar stands 2.6 m off a building
+         * elevation that may belong to the chunk next door, and `citycheck` →
+         * `occupancy` reported **0.733 m2 of `sign(adpillar)` inside
+         * `prop(busstop)`** across a seam on the first run that had both.
+         *
+         * THE PILLAR YIELDS, and that is the right way round: a stop's position
+         * is determined by a junction and a pillar's is a scatter along a
+         * frontage. `busStopAt` is pure in (rootSeed, cx, cz) and costs one hash
+         * and a bounds call, so sweeping nine chunks is nothing — asking
+         * `generateChunk` for the eight neighbours instead would have been eight
+         * full generations per pillar.
+         */
+        let hitsStop = false;
+        for (let dz = -1; dz <= 1 && !hitsStop; dz++) {
+          for (let dx = -1; dx <= 1 && !hitsStop; dx++) {
+            const S = busStopAt(rootSeed, cx + dx, cz + dz);
+            if (!S) continue;
+            const off = CITY.roadHalfWidth + BUS_STOP.kerbGapM + BUS_STOP.roofDeepM / 2;
+            const sx = S.axis === 'x' ? S.at + S.side * off : S.along;
+            const sz = S.axis === 'x' ? S.along : S.at + S.side * off;
+            /** The ROOF's half-extents, axis-aligned: its long axis lies along the kerb. */
+            const shx = S.axis === 'x' ? BUS_STOP.roofDeepM / 2 : BUS_STOP.roofAlongM / 2;
+            const shz = S.axis === 'x' ? BUS_STOP.roofAlongM / 2 : BUS_STOP.roofDeepM / 2;
+            hitsStop = px + PILLAR_PAD > sx - shx && px - PILLAR_PAD < sx + shx &&
+              pz + PILLAR_PAD > sz - shz && pz - PILLAR_PAD < sz + shz;
+          }
+        }
+        if (inBlock || hitsBuilding || clash || hitsStop) {
           if (inBlock) pillarRefused.block++;
           else if (hitsBuilding) pillarRefused.building++;
+          else if (hitsStop) pillarRefused.busstop++;
           else if (GROUND_OWNED.test(clash.owner)) pillarRefused.ground++;
           else pillarRefused.claim++;
           continue;
@@ -2404,6 +2476,18 @@ export function createCity(options = {}) {
      */
     let busStops = 0;
     let busStopsRefused = 0;
+    /**
+     * THE SHELTER'S BOXES GO IN THEIR OWN LIST AND ARE MERGED BELOW THE CENSUS,
+     * which is the arrangement the advertising pillar already has and the
+     * reason it has it. The first draft pushed them straight into `bodies`
+     * ABOVE `massCensus`, so `buildingBoxes: bodies.length` already contained
+     * them and `busStopBoxes` counted them a second time. `citycheck` →
+     * `sceneWalk` caught it on its first run — *"27 mesh(es) hold a different
+     * number of instances from the number they describe"* — which is exactly
+     * what that assertion is for (§9.1).
+     */
+    const stopBoxes = [];
+    const stopSkin = [];
     if (detail && chunk.busStop) {
       const A = BUS_STOP;
       const S = chunk.busStop;
@@ -2449,15 +2533,44 @@ export function createCity(options = {}) {
       const hitsClaimS = placed.some((p) =>
         !mayOverlap('prop', p.kind) &&
         bx + hxS > p.x0 && bx - hxS < p.x1 && bz + hzS > p.z0 && bz - hzS < p.z1);
+      /**
+       * AND AGAINST EVERY LANDMARK IN THE WORLD, NOT THIS CHUNK'S.
+       *
+       * CONTRACT §9.1 already writes this distinction down for the registry:
+       * *"THE LANDMARKS THE REGISTRY MUST KNOW ABOUT ARE NOT THE ONES THE CHUNK
+       * BUILDS. `landmarksTouching` answers 'whose geometry is mine to draw'
+       * and pads by 4 m."* `chunk.landmarks` is that drawing list, so a shelter
+       * 22 m from a junction can stand inside a solid whose owner is the chunk
+       * next door — and it did: `citycheck` -> `occupancy` reported **5.4 m2 of
+       * `prop(busstop)` inside `landmark(stack)`** in the DELIVERED scene, and
+       * moving the landmark claims to the top of this function did not close it
+       * because the claim list is still this chunk's.
+       *
+       * `LANDMARKS` is eight entries and both accessors are pure, so the honest
+       * test is simply all of them. It is not folded into `placed` because
+       * `placedClaims()` is the DELIVERED census for THIS chunk, and a
+       * neighbour's landmark recorded here would be counted twice.
+       */
+      const hitsLandmarkS = LANDMARKS.some((l) => {
+        for (const o of landmarkOccluders(l)) {
+          if (o.deck) continue;
+          if (l.kind === 'viaduct') continue;
+          if (bx + hxS > o.x0 && bx - hxS < o.x1 && bz + hzS > o.z0 && bz - hzS < o.z1) return true;
+        }
+        for (const g of landmarkGroundBlockers(l)) {
+          if (bx + hxS > g.x0 && bx - hxS < g.x1 && bz + hzS > g.z0 && bz - hzS < g.z1) return true;
+        }
+        return false;
+      });
 
-      if (inBlockS || hitsBuildingS || hitsClaimS) {
+      if (inBlockS || hitsBuildingS || hitsClaimS || hitsLandmarkS) {
         busStopsRefused++;
       } else {
         const grey = { albedo: [0.088, 0.090, 0.096], roughness: 0.44 };
         const glass = { albedo: [0.052, 0.056, 0.061], roughness: 0.10 };
         const push = (x, y, z, sx, sy, sz, skin) => {
-          bodies.push(setMatrix(x, y, z, sx, sy, sz, yawS));
-          bodySkin.push(skin);
+          stopBoxes.push(setMatrix(x, y, z, sx, sy, sz, yawS));
+          stopSkin.push(skin);
         };
         /** roof — cantilevered, and the only part that is claimed */
         push(bx, baseS + A.roofY + A.roofThickM / 2, bz, A.roofAlongM, A.roofThickM, A.roofDeepM, grey);
@@ -2539,13 +2652,14 @@ export function createCity(options = {}) {
       adPillarBoxes: pillarBoxes.length,
       /** Session 30. Seven boxes a stop, and the census's numeric fields must
        *  sum to the mesh's instance count — so this is boxes, not stops. */
-      busStopBoxes: busStops * 7,
+      busStopBoxes: stopBoxes.length,
       $busStops: `${busStops} bus stops, ${busStopsRefused} refused`,
-      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground refused`,
+      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground + ${pillarRefused.busstop} busstop refused`,
     };
     for (let i = 0; i < crowns.length; i++) { bodies.push(crowns[i]); bodySkin.push(crownSkin[i]); }
     for (let i = 0; i < props.length; i++) { bodies.push(props[i]); bodySkin.push(propSkin[i]); }
     for (let i = 0; i < pillarBoxes.length; i++) { bodies.push(pillarBoxes[i]); bodySkin.push(pillarSkin[i]); }
+    for (let i = 0; i < stopBoxes.length; i++) { bodies.push(stopBoxes[i]); bodySkin.push(stopSkin[i]); }
     for (let i = 0; i < patches.length; i++) {
       bodies.push(patches[i]);
       bodySkin.push({ albedo: [0.055, 0.055, 0.058], roughness: 0.88 });
@@ -2810,19 +2924,6 @@ export function createCity(options = {}) {
         z0: bld.z - bld.depth / 2, z1: bld.z + bld.depth / 2,
         y0: 0, y1: deliveredTopByBld.get(bld) || bld.height,
       });
-    }
-    for (const name of chunk.landmarks) {
-      const l = LANDMARKS.find((q) => q.name === name);
-      if (!l) continue;
-      for (const o of landmarkOccluders(l)) {
-        if (o.deck) placed.push({ kind: 'deck', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: o.base, y1: o.top });
-        else if (l.kind !== 'viaduct') placed.push({ kind: 'landmark', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top });
-      }
-      if (l.kind === 'viaduct') {
-        for (const g of landmarkGroundBlockers(l)) {
-          placed.push({ kind: 'landmark', owner: `${l.name}:leg`, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: 0, y1: g.top });
-        }
-      }
     }
     chunkClaims.set(chunkKey(cx, cz), placed);
 
