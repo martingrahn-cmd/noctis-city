@@ -1375,7 +1375,42 @@ const BOWL_DERIVED_NITS = bowlRadianceNits(
  * the CONTENT changes that follow rather than to the single-sourcing.
  */
 const BOWL_STREAMED_FACTOR = 4.610209;
-const BOWL_ORIGIN_FACTOR = 0.1075715;
+/**
+ * SESSION 30: 0.1075715 -> 0.2151430, i.e. 210.0 -> 420.0 cd/m2, AND THE
+ * RATCHET MOVES IN WITH IT.
+ *
+ * Session 28 built this as a one-way ratchet on an ERROR — the two departures
+ * from the derived 1952.19 that could not be repaired then — and said in
+ * `city-budget.json` that *"a session that repairs one moves its bound in and
+ * cannot move it back."* This is the first session that repairs one, and it
+ * repairs half of it: the origin block's departure goes from **9.30x too dim
+ * to 4.65x too dim**, and `lampBowl.minRatio` goes 0.1075 -> 0.2151.
+ *
+ * WHY 2x AND NOT THE DERIVATION, AND THE NUMBER IS MEASURED RATHER THAN
+ * CHOSEN. `band:midnight` has a ceiling of 0.112 and the look gate's camera
+ * stands in this block, so the block's own emitters are the only thing that
+ * spends it. Swept on this session's head, three runs at the shipped value and
+ * one per arm:
+ *
+ *     originNits      0     210      420      630      840     1952
+ *     band:midnight  --   0.1098   0.1112   0.1125   (0.1127 pre-3b)  0.1187 (s28)
+ *     verdict              ships    SHIPS    RED       RED             RED
+ *
+ * 420 leaves **0.0008** of headroom against a run-to-run spread of **0.0001**,
+ * which is eight times the instrument's own resolution and is therefore a
+ * margin CONTRACT §0.1 permits a decision on. 630 is red by 0.0005. The
+ * crossing is at about 550, and shipping there would leave a margin smaller
+ * than the spread, which is the thing §0.1 forbids — so the last 30% of the
+ * available range is deliberately not taken.
+ *
+ * NO THRESHOLD MOVED IN THE FORBIDDEN DIRECTION. `look-budget.json` is
+ * byte-identical; `band:midnight` is [0.072, 0.112] before and after. The one
+ * number that moves in a budget file is `lampBowl.minRatio`, and it moves
+ * TOWARD 1.0, which is the only direction its own definition allows and is a
+ * tightening: a future session that puts this bowl back at 210 now FAILS
+ * `citycheck`.
+ */
+const BOWL_ORIGIN_FACTOR = 0.2151430;
 
 export const LAMP_BOWL = {
   /**
@@ -1448,7 +1483,7 @@ export const LAMP_BOWL = {
    * derivation takes that assertion red.
    */
   originFactor: BOWL_ORIGIN_FACTOR,
-  /** cd/m² AS DELIVERED to the origin block's bowl material. 210.0. */
+  /** cd/m² AS DELIVERED to the origin block's bowl material. 420.0 — session 30. */
   originNits: BOWL_DERIVED_NITS * BOWL_ORIGIN_FACTOR,
 };
 
