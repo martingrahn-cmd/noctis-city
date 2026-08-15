@@ -92,11 +92,15 @@
  *   site          construction-site fixtures: hoarding, crane base, spoil,
  *                 part-built frame
  *   feature       a park's own built content: pond, pavilion, monument, edging
+ *   ground        SESSION 31. A surface that is neither carriageway nor
+ *                 footway: a construction site's stripped hardcore, a park's
+ *                 mown grass. Things STAND ON it, which is the whole reason it
+ *                 had to be split from `site`.
  */
 export const CATEGORIES = [
   'building', 'landmark', 'deck', 'water',
   'carriageway', 'pavement', 'path', 'block',
-  'prop', 'canopy', 'sign', 'site', 'feature',
+  'prop', 'canopy', 'sign', 'site', 'feature', 'ground',
 ];
 
 /**
@@ -218,6 +222,39 @@ const FORBIDDEN = {
   sign: ['building', 'landmark', 'water', 'carriageway', 'block', 'prop', 'sign', 'site', 'feature'],
 
   site: ['building', 'landmark', 'water', 'carriageway', 'pavement', 'path', 'block', 'prop', 'sign'],
+
+  /**
+   * `ground` — A SURFACE, AND IT IS SPLIT FROM `site` FOR THE REASON
+   * `pavement` IS SPLIT FROM `carriageway`. Session 31.
+   *
+   * `city.js` labelled a construction site's own GROUND RECTANGLE `site`,
+   * which is the category for a site's FIXTURES — hoarding, crane base, spoil,
+   * part-built frame — and `site × prop` is forbidden. So a container, a
+   * cabinet and a fence standing on the hardcore of their own building site
+   * read as collisions. A surface given the category of the objects that stand
+   * on it: CONTRACT §9's shape, with a category instead of a length.
+   *
+   * IT WAS INVISIBLE UNTIL THE GROUND RING WAS WIDENED. `nearRadius` = 2 meant
+   * the delivered census only ever saw 25 chunks' ground, and none of those
+   * carried a site with props on it; `groundRadius` = 4 brought in 56 more and
+   * the gate reported **60 forbidden overlaps in the delivered scene**, worst
+   * `site(ground:site) × prop(container)` at 4.48 m². The defect is as old as
+   * the label; what changed is that something finally looked at it.
+   *
+   * STATE 30 §10 NAMED THIS GAP AND THIS CLOSES IT: *"`'ground'` is not a
+   * category and two ground kinds fall through to it"* — `siteGround` and
+   * `grass`, the second of which was claiming nothing at all because `grass`
+   * matches no category name and `mayOverlap` therefore returned true for
+   * every pair. One of the two was over-claiming and the other was not
+   * claiming, and they are the same missing row.
+   *
+   * The row is short and every entry is a sentence: a building may not stand
+   * in a site's hardcore or a park's grass (both are outdoor ground), a
+   * landmark's ground solid may not, and the river may not run through either.
+   * Everything else — props, signs, site fixtures, park features, paths — is a
+   * thing that STANDS ON ground, which is what ground is for.
+   */
+  ground: ['building', 'landmark', 'water'],
 
   feature: ['building', 'landmark', 'water', 'carriageway', 'pavement', 'path', 'block', 'prop', 'sign'],
 };

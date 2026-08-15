@@ -106,17 +106,78 @@ export const CITY = {
   geometryRadius: 5,
   fieldRadius: 2,
   /**
-   * Chunks whose ROAD SURFACE is drawn — the carriageway, the pavement and, on
-   * a park block, the grass. Two rings rather than four, because a road at
-   * 400 m is a slightly darker strip on a dark plane and it was costing a draw
-   * call a chunk across a hundred and twenty of them.
+   * Chunks whose STREET LAMPS are built. Two rings, and the number is now
+   * about the lamps alone — see `groundRadius` below, which took the road
+   * surface off it in session 31.
    *
-   * It is here, beside the other three radii, because `city.js` needs it in TWO
+   * The bound that holds it at 2 is a DRAW CALL one and it is still live: a
+   * lamp chunk emits two `InstancedMesh`es (`:lamps` and `:bowls`), so ring 2
+   * is 25 chunks paying 50 draws and ring 4 would be 81 chunks paying 162 —
+   * **+112 against a `ceilings.drawCalls` of 440 that `highway_speed` measures
+   * 434 of.** That is the reason this number cannot simply be raised, and it
+   * is why the ground got its own.
+   *
+   * It is here, beside the other radii, because `city.js` needs it in TWO
    * places — once to decide what to build and once to decide whether what was
    * built is still right — and a threshold that lived in only the first of
    * those is why the city had no roads. See `city.js` → `update()`.
    */
   nearRadius: 2,
+
+  /**
+   * Chunks whose ROAD SURFACE is drawn — the carriageway, the pavement and, on
+   * a park block, the grass. SESSION 31, AND IT IS A SPLIT RATHER THAN A NEW
+   * IDEA: this was `nearRadius` until the operator reported that "the pavement
+   * runs along a block and then simply stops against raw ground".
+   *
+   * IT IS NOT THE BUILDINGS. Measured over 289 chunks, every one of them emits
+   * pavement rectangles — all 66 lowDetail chunks and all 74 with zero
+   * buildings included — because the `ground` block in `generateChunk` sits
+   * ABOVE its `if (!lowDetail)`. What ends the pavement is residency, and at
+   * `nearRadius` = 2 it ended **256.0 to 395.7 m** from the camera, on a box
+   * that moves with it. Walked along one street: pavement from x = 264 to
+   * 383.9, then earth from x = 384.0 = (2+1)·128, for ever.
+   *
+   * THE OLD JUSTIFICATION WAS TRUE AND IS NOT ANY MORE, WHICH IS WHY IT MOVED.
+   * The comment here read *"it was costing a draw call a chunk across a hundred
+   * and twenty of them"*. That was the arrangement when each chunk carried its
+   * own ground mesh; `rebuildGroundMesh` now concatenates every resident
+   * chunk's ground into ONE `city:ground` mesh with one material, so the whole
+   * ring is **one draw call at any radius**. CONTRACT §9's shape with a
+   * justification instead of a value — a number derived correctly for an
+   * arrangement that was later replaced, still load-bearing afterwards.
+   *
+   * SO WHAT DOES IT COST? Triangles and bytes, both measured by walking the
+   * generator over the annuli rather than by scaling a per-chunk mean (which
+   * over-stated by 18%, because the near ring at the origin contains
+   * `BLOCK_KEEPOUT` and is not a typical chunk):
+   *
+   *     ring <= 2   25 chunks    185 rects    370 tris    39 960 B
+   *     ring <= 4   81 chunks    536 rects   1072 tris   115 776 B
+   *     delta                   +351 rects   +702 tris   +75 816 B
+   *
+   * +702 triangles against `ceilings.triangles` 2 000 000 with `highway_speed`
+   * at 1.40M, and +0.076 MB against `ceilings.chunkMemoryMB` 96. Both are
+   * noise; the draw call, which is the only tight budget in this project, does
+   * not move at all.
+   *
+   * WHY 4 AND NOT MORE. `detailRadius` is 4 and the predicate is
+   * `detail && ring <= groundRadius`, so 4 is where this stops binding — a
+   * larger value here would be a number the code cannot read, which is §9.1's
+   * own subject. It moves the pavement's end from 256–395.7 m to
+   * **512.0–651.7 m**.
+   *
+   * WHAT IT DOES NOT FIX, STATED SO NOBODY READS MORE INTO IT: the pavement
+   * still ENDS, 256 m further out, and it still ends as a zero-thickness slab.
+   * `buildGround` emits horizontal quads only — one `quad()` per rectangle, six
+   * vertices at one y with normal (0,1,0) — so the streamed city contains no
+   * vertical ground face anywhere, not at the termination and not along any
+   * kerb line. The only real kerb geometry in this world is `block.js`'s, inside
+   * `BLOCK_KEEPOUT`. The step at the termination is `GROUND.pavement` 0.160 −
+   * `GROUND.earth` (−0.020) = **0.180 m**, which is under `PLAYER.stepUpM` 0.20
+   * so it is a visual defect and not a collision one.
+   */
+  groundRadius: 4,
 
   /**
    * The canyon field, per chunk.
@@ -5305,12 +5366,38 @@ export function generateChunk(rootSeed, cx, cz) {
            * island edge is a railing half of which is on the pavement, and the
            * registry said so 197 times: the island edge IS the pavement's inner
            * boundary, so there is no room for a boundary object ON it.
+           *
+           * SESSION 31 — AND BY ITS ROTATION'S BULGE AS WELL, BECAUSE THE
+           * CLAIM WAS THE UNROTATED BOX AND THE DELIVERY IS THE ROTATED ONE.
+           *
+           * `features.push` below carries `yawDeg: ... + yaw()`, and a 6 m
+           * segment turned even a degree projects `(seg/2)·sin θ` past the face
+           * its centre was set back from. So the generator tested a box flush
+           * with the island edge and `city.js` drew one hanging over the
+           * pavement: measured, **60 forbidden `pavement × feature` overlaps in
+           * the delivered census**, 0.012 to 0.066 m² each. CONTRACT §9 rule 7 —
+           * both halves of the two-sided check spelled the same yaw omission,
+           * so both reported zero for as long as the ring was narrow enough to
+           * hide the parks. Widening `CITY.groundRadius` is what put them in
+           * the census; the defect is as old as the jitter.
+           *
+           * The bound is `CITY.maxYawDeg`, which is the project's own declared
+           * ceiling on that jitter and the one `citycheck` → `alignment`
+           * enforces. Using the bound rather than the drawn angle keeps this
+           * expression out of the RNG sequence — rolling `yaw()` here to get
+           * the exact value would move every subsequent draw in the park — and
+           * it errs by OVER-claiming, which §9.1 says is the safe direction: an
+           * over-claim shows up as a conflict a reader can see and an
+           * under-claim shows up as nothing at all.
            */
+          const yawBulge = (CITY.maxYawDeg * Math.PI) / 180;
+          const halfAcross = EDGE_HALF_T * Math.cos(yawBulge) + (seg / 2) * Math.sin(yawBulge);
+          const halfAlong = (seg / 2) * Math.cos(yawBulge) + EDGE_HALF_T * Math.sin(yawBulge);
           const inward = run.axis === 'x' ? (run.at < mz ? +1 : -1) : (run.at < mx ? +1 : -1);
-          const x = run.axis === 'x' ? c : run.at + inward * EDGE_HALF_T;
-          const z = run.axis === 'x' ? run.at + inward * EDGE_HALF_T : c;
+          const x = run.axis === 'x' ? c : run.at + inward * halfAcross;
+          const z = run.axis === 'x' ? run.at + inward * halfAcross : c;
           const box = claimAt('feature', x, z,
-            run.axis === 'x' ? seg / 2 : EDGE_HALF_T, run.axis === 'x' ? EDGE_HALF_T : seg / 2,
+            run.axis === 'x' ? halfAlong : halfAcross, run.axis === 'x' ? halfAcross : halfAlong,
             { y0: 0, y1: edgeH, owner: `park:${edge}` });
           if (reg.conflict(box)) continue;
           features.push({ kind: 'edge', edge, x, z, length: seg, height: edgeH, yawDeg: (run.axis === 'x' ? 0 : 90) + yaw() });

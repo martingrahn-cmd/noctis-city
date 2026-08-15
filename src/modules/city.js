@@ -905,9 +905,22 @@ export function createCity(options = {}) {
               : kind === 'siteGround' ? siteAlbedo
                 : walkAlbedo);
 
+    /**
+     * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
+     * DIFFERENT MISTAKES — session 31, and STATE 30 §10 named it first.
+     *
+     * `siteGround` was mapped to `site`, which is the category for a site's
+     * FIXTURES, so every container and cabinet standing on the hardcore of its
+     * own building site was a forbidden overlap — 60 of them the moment
+     * `groundRadius` widened the delivered census. `grass` was passed through
+     * unmapped, and `grass` matches no entry in `CATEGORIES`, so `mayOverlap`
+     * returned true against everything and a park's lawn claimed nothing at
+     * all. Over-claiming and under-claiming, from one missing row.
+     */
+    const CATEGORY_FOR_GROUND = { siteGround: 'ground', grass: 'ground' };
     for (const g of chunk.ground) {
       quad(g.x0, g.z0, g.x1, g.z1, Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth,
-        albedoFor(g.kind), g.kind === 'siteGround' ? 'site' : g.kind);
+        albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
     }
 
     /**
@@ -1123,9 +1136,21 @@ export function createCity(options = {}) {
      * `scanGround`. Cleared in `finally` so a throw mid-build cannot leave a
      * stale chunk shadowing a real one for the rest of the session.
      */
+    /**
+     * TWO RADII, AND THE SPLIT IS THE WHOLE OF SESSION 31's ITEM 2.
+     *
+     * `near` gates the STREET LAMPS, which are two `InstancedMesh`es a chunk
+     * and therefore two DRAW CALLS a chunk — 25 chunks is 50 draws and ring 4
+     * would be 162, +112 against a ceiling of 440 that `highway_speed` measures
+     * 434 of. `groundNear` gates the ROAD SURFACE, which
+     * `rebuildGroundMesh` merges into ONE mesh however many chunks contribute.
+     * One number for both was why the pavement stopped 256 m from the camera:
+     * the ground was paying the lamps' draw-call bound. See `CITY.groundRadius`.
+     */
     const near = detail && ring <= CITY.nearRadius;
+    const groundNear = detail && ring <= CITY.groundRadius;
     let ground = null;
-    if (near) {
+    if (groundNear) {
       ground = buildGround(chunk);
       bytes += ground.bytes;
     }
@@ -5383,8 +5408,13 @@ export function createCity(options = {}) {
            * `if (w.detail && !rec.detail)`, and `rec.detail` is a boolean about
            * ONE of the two ring thresholds `buildChunk` branches on:
            *
-           *     detail = ring <= 4    facades, windows, signage, props
-           *     near   = detail && ring <= 2    THE CARRIAGEWAY AND PAVEMENT
+           *     detail     = ring <= 4                 facades, windows, signage, props
+           *     near       = detail && ring <= 2       the street lamps
+           *     groundNear = detail && ring <= 4       THE CARRIAGEWAY AND PAVEMENT
+           *
+           * (`near` carried the road surface as well until session 31 split
+           * them; the sentences below about "the carriageway and pavement" are
+           * the history of THIS bug and are left in the tense it happened in.)
            *
            * A chunk enters the resident set at ring 5 as massing, is upgraded
            * once when it reaches ring 4, and is NEVER LOOKED AT AGAIN — so a
@@ -5407,7 +5437,17 @@ export function createCity(options = {}) {
            * costs the same budgeted slot rather than a free one.
            */
           const near = w.detail && w.ring <= CITY.nearRadius;
-          if ((w.detail && !rec.detail) || (near && !rec.near)) generateQueue.push(w);
+          /**
+           * SESSION 31. The ground's own threshold has to be compared HERE too,
+           * and this is not optional: the comment above records that a
+           * threshold written in `buildChunk` and not in this comparison is why
+           * *"the road surface of this city had never been drawn except on the
+           * nine chunks resident at boot"* for four sessions. A second radius
+           * with only one of its two sites is that defect verbatim.
+           */
+          const groundNear = w.detail && w.ring <= CITY.groundRadius;
+          if ((w.detail && !rec.detail) || (near && !rec.near)
+            || (groundNear && !rec.groundNear)) generateQueue.push(w);
           // Both directions, every frame, no rebuild. See `casts` in buildChunk.
           if (rec.massMesh) rec.massMesh.castShadow = w.detail && w.ring <= CAST_RADIUS;
           if (rec.nearMeshes) for (const m of rec.nearMeshes) m.visible = near;
@@ -5446,8 +5486,10 @@ export function createCity(options = {}) {
           nearMeshes: made.nearMeshes,
           bytes: made.bytes,
           detail: w.detail,
-          /** What `buildChunk` decided about the road surface. See above. */
+          /** What `buildChunk` decided about the street lamps. See above. */
           near: w.detail && w.ring <= CITY.nearRadius,
+          /** And what it decided about the road surface — session 31's split. */
+          groundNear: w.detail && w.ring <= CITY.groundRadius,
           /**
            * The chunk's own description, so `residentOccluders()` can answer
            * "what buildings are on screen" from the resident set rather than by
