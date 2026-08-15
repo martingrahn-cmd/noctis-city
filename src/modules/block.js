@@ -218,6 +218,125 @@ const ERAS = [
   },
 ];
 
+/**
+ * RETAIL IS A PROPERTY OF THE STREET, NOT OF THE DECADE — session 28 for the
+ * streamed city, session 30 for this block, and the block is where the operator
+ * has been standing the whole time.
+ *
+ * `era.ground` decided both what a ground floor LOOKS like and whether it is
+ * LIT. Those are independent facts: the architecture is when the building went
+ * up, the commerce is which street it stands on. Session 28 separated them in
+ * `citygen.js`; this is the same separation here, and it had to be made twice
+ * because the two files are two content paths and always have been.
+ *
+ * THE BRIEF SAID TO CHECK WHETHER THE ERA TABLES EVEN MATCH BEFORE ASSUMING THE
+ * SAME CHANGE APPLIES. **They do**, and more than the brief expected: this
+ * file's `ERAS` carries prewar/shopfront, postwar/blankPlinth,
+ * corporate/colonnade and infill/recessed — the same four ids against the same
+ * four treatments `CITY_ERAS` uses. What is NOT the same is how much was
+ * already lit. `glazedRun` is called by THREE of the four treatments here, and
+ * the fourth already gets a lit service door, so the origin block was at
+ * **60% lit ground floors** where the streamed city was at 50.5%. The lever is
+ * real and it is smaller than it was in `city.js`.
+ *
+ * THE UNIT IS A RUN, NOT A SIDE, AND THAT IS THIS FILE'S OWN CORRECTION.
+ * Session 28 rolls once per SIDE of each island because an island has four of
+ * them. This block has TWO sides, so a per-side roll is a coin flip on the
+ * operator's own street — all-or-nothing, which is the mirror of the salt-and-
+ * pepper failure session 28 rejected a per-building roll for. But `placeRun`
+ * has recorded `b.run` since session 3, and the block has FOUR runs: three
+ * buildings west of the cross street and two east of it, per side. A run is
+ * bounded by the cross street, which is exactly where a real shopping frontage
+ * ends, so it is the right unit for a reason rather than for a count.
+ *
+ * AND THE ROLL IS A CHOOSE-k, NOT FOUR COIN FLIPS, WHICH IS THE SECOND PLACE
+ * SESSION 28'S DESIGN DOES NOT SURVIVE A SAMPLE OF FOUR. This shipped as a
+ * per-run Bernoulli at p = 0.55 first, and the delivered street was **5 lit
+ * ground floors of 10 against the 6 the model it replaced delivered** — one
+ * run of the four traded. The expectation was 7.3 and the draw was 5, which is
+ * not a bad seed, it is the estimator: over four runs a Bernoulli count has
+ * standard deviation 0.99 on a mean of 2.2, so **one street in eleven has every
+ * frontage trading and one in twenty has none**, and the operator has exactly
+ * one street.
+ *
+ * A choose-k draw has the same mean and **zero variance in the count**, and it
+ * turns the floor from an expectation into a construction. **k = 2 of 4** is
+ * half, which is what *"a shopping street and, round the corner, a terrace with
+ * nothing at street level"* means.
+ *
+ * WHAT SURVIVES ON A RUN THAT DOES NOT TRADE IS THE SHOPFRONT ERA, AND THAT IS
+ * THIS FILE'S SECOND CORRECTION TO SESSION 28'S RULE. Session 28 keeps the
+ * CORNER unit — *"at the end of the run where the cross street is"* — and that
+ * shipped here first. The count it delivered was fine and the FRAME was not:
+ * at this seed the two runs that traded were both west of the crossing, so the
+ * operator's own pose at x = 70 looking west LOST the lit shopfront nearest him
+ * (b9, 20.6 m from the camera) and GAINED two frontages 100–160 m away. The
+ * before/after pair at his own pose is a street that got darker where he stands
+ * — 8 of 10 lit by count, and a regression in the picture. CONTRACT §7.2 with a
+ * retail roll instead of a body type: **a count of lit frontages is not a
+ * measurement of the light in front of the camera.**
+ *
+ * So the exception is a statement about the architecture instead of about the
+ * geometry: **a prewar SHOPFRONT is a shop.** Its ground floor is a shop unit,
+ * tall glazed bays between slender piers with a stallriser, and it has no other
+ * use — a run of them with the lights off is a dead high street rather than a
+ * terrace. A blank plinth, a colonnade and a recessed front are all buildings
+ * whose ground floor MAY be let, and those are the three the roll decides. Over
+ * runs of 3, 2, 3 and 2 carrying three shopfronts:
+ *
+ *     lit  =  (the two trading runs)  +  (the shopfronts on the other two)
+ *
+ * FROM BELOW: the two smallest runs trading with no shopfront outside them
+ * gives 2+2+1 = 5... which cannot occur here, because the three shopfronts sit
+ * in three different runs. The delivered floor over all six pairings is
+ * **6 of 10** — exactly what the model being replaced delivered — and the
+ * ceiling is **8**, so a dark stretch exists in every draw and the
+ * uniformly-interesting street `docs/authored-city.md` §5 names is unreachable
+ * rather than merely unlikely.
+ *
+ * IT RE-PHASES NOTHING, AND THAT IS A CONSTRUCTION RATHER THAN A HOPE. The roll
+ * is on its own named stream (CONTRACT §6). The lit/unlit decision does NOT
+ * change how many numbers `block:windows` draws: a bay that does not trade is
+ * still GLAZED and still consumes the same two draws, and what changes is which
+ * material its panes are pushed into. An untraded shopfront is glass with
+ * nothing on behind it, which is what an empty shop looks like anyway — and it
+ * means the upper facade of every building in this block is bit-identical
+ * whatever the frontages roll.
+ */
+const BLOCK_RETAIL = {
+  /**
+   * How many of the block's four runs trade. A COUNT, not a probability —
+   * bounded above and below in the header, and the bound is a construction
+   * rather than an expectation because four is too small a sample to have one.
+   */
+  tradingRuns: 2,
+  /**
+   * CLUSTERED LIGHT SLOTS THIS FILE MAY SPEND ON SHOPFRONTS, and it is an
+   * arithmetic rather than a budget: `tools/budget.json` → `lightRoles
+   * .ceilings.block` is **60**, this file delivers **32** lamp beams and **5**
+   * sign lights, and 60 − 32 − 5 = **23**. A module may not import a gate's
+   * contract (CONTRACT §2.2), so this is the `HUD.budgets` arrangement — a copy
+   * that is CHECKED rather than trusted, and what checks it is `perfcheck`'s
+   * own role census going red and naming the role if any of the three numbers
+   * drifts.
+   *
+   * It binds for the first time this session: before the decoupling the block
+   * delivered 15 shop lights against 23, and a street where all four frontages
+   * trade wants more than that.
+   */
+  shopLightSlots: 23,
+  /**
+   * A punched sockel opening: width, height, and metres of frontage per
+   * opening. A blank plinth that trades does not become a shopfront — it gets
+   * HOLES CUT IN ITS BASE, which is session 28's own word for the blankPlinth
+   * variant and is what a 1960s slab looks like when the ground floor is let.
+   * 4.6 m of pitch over a 16.7–23.3 m elevation gives three to five of them.
+   */
+  punchW: 1.15,
+  punchH: 2.05,
+  punchPitchM: 4.6,
+};
+
 export function createBlock(options = {}) {
   const cfg = { ...BLOCK, ...options };
 
@@ -601,7 +720,24 @@ export function createBlock(options = {}) {
       const spandrelInstances = [];
       const canopyInstances = [];
       const shopBayInstances = [[], [], [], []];
+      /**
+       * GLAZED AND UNLIT — session 30. A bay on a frontage that does not trade
+       * is not shuttered and it is not a hole: it is the same glass with
+       * nothing on behind it, which is both what an empty shop looks like and
+       * the reason the lit/unlit decision costs `block:windows` no draw.
+       * `matWindowOff`'s own comment already says why "unlit" is not "black".
+       */
+      const shopBayOffInstances = [];
       const shutterInstances = [];
+      /** Openings cut in a trading blank plinth. Counted for `harness.info()`. */
+      let plinthOpenings = 0;
+      /**
+       * REFUSED SHOPFRONT LIGHTS. `BLOCK_RETAIL.shopLightSlots` is this file's
+       * share of `lightRoles.ceilings.block`, and a budget that silently drops
+       * the light nobody asked about is the failure `lights.js` writes down
+       * about its own cap. Counted here and printed in `info()`.
+       */
+      let shopLightsRefused = 0;
       const shopFrameInstances = [];
       /** Session 3 ground floors: a solid plinth, a colonnade pier, a soffit. */
       const plinthInstances = [];
@@ -715,6 +851,49 @@ export function createBlock(options = {}) {
       }
 
       /**
+       * DOES THIS FRONTAGE TRADE? A choose-k over the RUNS, on its own named
+       * stream. See `BLOCK_RETAIL` for the unit, the count and both bounds.
+       *
+       * On a run that does not trade, what survives is the SHOPFRONT ERA —
+       * a ground floor that is a shop unit and has no other use. That is this
+       * file's correction to session 28's corner rule, and the header says what
+       * the corner rule delivered when it was measured in the frame rather than
+       * in the count.
+       */
+      /**
+       * One place that claims a clustered slot for a shopfront, so the cap is
+       * enforced once rather than at each of the three call sites. Over budget
+       * it REFUSES and counts, never truncates silently — the same discipline
+       * `lights.js` applies to `maxClusterLights`.
+       */
+      const addShopLight = (spec) => {
+        if (shopLights.length >= BLOCK_RETAIL.shopLightSlots) { shopLightsRefused++; return; }
+        shopLights.push(lights.add({ role: 'block', type: 'point', ...spec }));
+      };
+
+      const retailRng = ctx.rng('block:retail');
+      const runCount = runIndex;
+      /**
+       * WHICH runs trade is a shuffle-and-take, so the COUNT is exact and only
+       * the identity is random. Fisher-Yates on the run indices; the first
+       * `tradingRuns` of them trade.
+       */
+      const runOrder = [];
+      for (let r = 0; r < runCount; r++) runOrder.push(r);
+      for (let i = runOrder.length - 1; i > 0; i--) {
+        const j = retailRng.int(0, i);
+        const t = runOrder[i]; runOrder[i] = runOrder[j]; runOrder[j] = t;
+      }
+      const trading = new Set(runOrder.slice(0, Math.min(BLOCK_RETAIL.tradingRuns, runCount)));
+      const runTrades = [];
+      for (let r = 0; r < runCount; r++) runTrades.push(trading.has(r));
+      /**
+       * `b.era` is not assigned until the era walk below, so the shopfront
+       * exception is applied there rather than here; this records the run's own
+       * decision and the walk reads it. Two statements, one place each.
+       */
+
+      /**
        * WHERE THE FACADE SPILL WENT
        *
        * Session 1 put four point lights per building out in the roadway, forty
@@ -820,6 +999,15 @@ export function createBlock(options = {}) {
         b.eraIndex = eraOf.eras[i];
         b.baseMaterial = FACADE_MATERIALS[eraOf.mats[i]];
         b.baseMaterialIndex = eraOf.mats[i];
+
+        /**
+         * DOES THIS GROUND FLOOR TRADE — session 30. The run's own decision,
+         * OR the architecture overriding it: a prewar shopfront is a shop unit
+         * and has no other use, so it lights whatever its run rolled. See
+         * `BLOCK_RETAIL` for why that exception replaced session 28's corner
+         * one and what the corner one delivered in the frame.
+         */
+        b.retail = runTrades[b.run] || b.era.ground === 'shopfront';
 
         /**
          * Condition: 1 is a building somebody looks after, 0.35 is one nobody
@@ -1203,6 +1391,15 @@ export function createBlock(options = {}) {
                   continue;
                 }
 
+                /**
+                 * SESSION 30: DOES THIS FRONTAGE TRADE? Both draws above have
+                 * already been made and both are unconditional, so a run going
+                 * dark cannot move a window three storeys up — see
+                 * `BLOCK_RETAIL`. What changes below is which material the
+                 * panes are pushed into and whether the bay gets a light.
+                 */
+                const lit = b.retail;
+
                 // Glazed in panes with mullions between them. One plane the
                 // width of the whole bay reads as a backlit panel; three panes
                 // with dark frames between them read as a shop.
@@ -1216,7 +1413,8 @@ export function createBlock(options = {}) {
                   pp.add(n.clone().multiplyScalar(-setBack));
                   pp.y = glassTop / 2 + 0.75;
                   s3.set(paneW, glassTop, 1);
-                  shopBayInstances[kind].push(m4.clone().compose(pp, q, s3));
+                  (lit ? shopBayInstances[kind] : shopBayOffInstances)
+                    .push(m4.clone().compose(pp, q, s3));
                 }
 
                 // A sill under the glazing rather than a frame around it: a
@@ -1231,24 +1429,23 @@ export function createBlock(options = {}) {
                 shopFrameInstances.push(m4.clone().compose(fp, q, s3));
 
                 // Interior spill onto the pavement. This is most of why a night
-                // street has a floor at all.
+                // street has a floor at all — and a bay with nothing on behind
+                // it throws none, which is the whole of what an unlit frontage
+                // costs the pavement in front of it.
+                if (!lit) continue;
                 const lp = centre.clone().add(along.clone().multiplyScalar(u));
                 lp.add(n.clone().multiplyScalar(1.9 - setBack));
                 lp.y = glassTop * 0.8;
-                shopLights.push(
-                  lights.add({
-                    role: 'block',
-                    position: lp,
-                    color: SHOP_CHROMA[kind],
-                    intensity: 165,
-                    radius: 14,
-                    type: 'point',
-                    // A lit shopfront is a wall of glass, not a bulb. Its
-                    // reflection in a wet pavement is a broad soft band, and at
-                    // zero radius it would be a pinprick.
-                    sourceRadius: 1.3,
-                  })
-                );
+                addShopLight({
+                  position: lp,
+                  color: SHOP_CHROMA[kind],
+                  intensity: 165,
+                  radius: 14,
+                  // A lit shopfront is a wall of glass, not a bulb. Its
+                  // reflection in a wet pavement is a broad soft band, and at
+                  // zero radius it would be a pinprick.
+                  sourceRadius: 1.3,
+                });
               }
             };
 
@@ -1327,17 +1524,69 @@ export function createBlock(options = {}) {
               const dl = centre.clone().add(along.clone().multiplyScalar(du));
               dl.add(n.clone().multiplyScalar(1.1));
               dl.y = 2.8;
-              shopLights.push(
-                lights.add({
-                  role: 'block',
-                  position: dl,
-                  color: SHOP_CHROMA[3],
-                  intensity: 42,
-                  radius: 9,
-                  type: 'point',
-                  sourceRadius: 0.5,
-                })
-              );
+              addShopLight({
+                position: dl,
+                color: SHOP_CHROMA[3],
+                intensity: 42,
+                radius: 9,
+                sourceRadius: 0.5,
+              });
+
+              /**
+               * AND IF THIS FRONTAGE TRADES, THE SOCKEL IS PUNCHED — session
+               * 30, and this is the whole of the decoupling for the treatment
+               * the operator was actually looking at.
+               *
+               * STATE 28 §0.2 measured his frame and named the near-left mass:
+               * *"the block's building 4, a `blankPlinth`"*. A blank plinth
+               * that lets its ground floor does not become a shopfront — it
+               * gets openings CUT IN ITS BASE, no pilasters, no canopy, the
+               * solid base still reading as a solid base between them. That is
+               * session 28's own blankPlinth variant, here.
+               *
+               * THE GEOMETRY IS DRAWN FROM `retailRng` AND FROM NOTHING ELSE,
+               * so adding it consumes no `block:windows` number and the upper
+               * facade of every building in this block is unmoved (§6, and the
+               * determinism control is in STATE 30 §3).
+               */
+              if (b.retail) {
+                const runW = half * 2 - 1.6;
+                const nOpen = Math.max(2, Math.round(runW / BLOCK_RETAIL.punchPitchM));
+                const pitch = runW / nOpen;
+                for (let oi = 0; oi < nOpen; oi++) {
+                  const ou = -runW / 2 + pitch * (oi + 0.5) + retailRng.range(-0.18, 0.18);
+                  const op = centre.clone().add(along.clone().multiplyScalar(ou));
+                  op.add(n.clone().multiplyScalar(0.10));
+                  op.y = 0.95 + BLOCK_RETAIL.punchH / 2;
+                  s3.set(BLOCK_RETAIL.punchW, BLOCK_RETAIL.punchH, 1);
+                  shopBayInstances[retailRng.int(0, shopMaterials.length - 1)]
+                    .push(m4.clone().compose(op, q, s3));
+                  plinthOpenings++;
+                }
+                /**
+                 * TWO LIGHTS FOR THE WHOLE FRONTAGE, not one per opening, and
+                 * the reason is a measured bound rather than taste: the block
+                 * delivers 32 lamp beams and 5 sign lights against a role
+                 * ceiling of 60, so there are 23 slots for shopfronts and a
+                 * street where all four runs trade wants more than that if
+                 * every punched opening claims one. A 1.15 m hole in a plinth
+                 * is a window, not a shopfront, and session 20's own argument
+                 * about navigation lamps applies: what makes it read is the
+                 * emitter, not the pool it throws.
+                 */
+                for (const k of [-1, 1]) {
+                  const wl = centre.clone().add(along.clone().multiplyScalar(k * runW * 0.26));
+                  wl.add(n.clone().multiplyScalar(1.4));
+                  wl.y = 2.2;
+                  addShopLight({
+                    position: wl,
+                    color: SHOP_CHROMA[1],
+                    intensity: 74,
+                    radius: 11,
+                    sourceRadius: 0.8,
+                  });
+                }
+              }
             }
           }
         }
@@ -1439,6 +1688,7 @@ export function createBlock(options = {}) {
       shopBayInstances.forEach((list, i) =>
         addInstanced(planeGeo, shopMaterials[i], list, `block:shopbay:${i}`)
       );
+      addInstanced(planeGeo, matWindowOff, shopBayOffInstances, 'block:shopbay:off');
       addInstanced(planeGeo, matShutter, shutterInstances, 'block:shutters');
       addInstanced(boxGeo, matShopFrame, shopFrameInstances, 'block:shopframes', true);
       addInstanced(boxGeo, matFacade, pilasterInstances, 'block:pilasters', true, pilasterSkin);
@@ -1810,6 +2060,8 @@ export function createBlock(options = {}) {
       const shopNits = [EMISSIVE.shopBright, EMISSIVE.shopWarm, EMISSIVE.shopCold, EMISSIVE.shopDim];
       windowInstances.forEach((list, i) => accumulate(list, windowChroma[i], windowNits[i]));
       accumulate(windowOffInstances, kelvinToLinearRGB(2900), 1.1);
+      /** Session 30. Same material, same radiance, so the same row. */
+      accumulate(shopBayOffInstances, kelvinToLinearRGB(2900), 1.1);
       shopBayInstances.forEach((list, i) => accumulate(list, SHOP_CHROMA[i], shopNits[i]));
 
       let facadeArea = 0;
@@ -1967,7 +2219,21 @@ export function createBlock(options = {}) {
           windowsLit: windowInstances.reduce((a, l) => a + l.length, 0),
           windowsOff: windowOffInstances.length,
           shopBays: shopBayInstances.reduce((a, l) => a + l.length, 0),
+          /** Session 30. Glazed on a frontage that does not trade. */
+          shopBaysUnlit: shopBayOffInstances.length,
           shopsClosed: shutterInstances.length,
+          /**
+           * Session 30, and it is the pair CONTRACT §7.2 asks for: `retailRuns`
+           * is a COUNT of frontages that trade and `retailBuildings` is how many
+           * ground floors that actually lit, which is the quantity the count
+           * stands for and is not derivable from it — a run carries two or three
+           * buildings and a run that does not trade still lights its corner.
+           */
+          retailRuns: runTrades.filter(Boolean).length,
+          retailRunsTotal: runTrades.length,
+          retailBuildings: buildings.filter((b) => b.retail).length,
+          plinthOpenings,
+          shopLightsRefused,
           streetlights: lampLights.length,
           signs: signLights.length,
           shopLights: shopLights.length,
