@@ -458,7 +458,7 @@ const LEG_TINT = [0.55, 0.55, 0.58];
 const STALL_RING = 2;
 
 /**
- * Pitches per chunk: `round(30 * smoothstep(0.34, 0.85, density))`.
+ * Pitches per chunk: `round(18 * smoothstep(0.34, 0.85, density))`.
  * `tools/city-budget.json` -> `streetLevel.$derivation_count`.
  *
  * A THRESHOLD AND NOT A POWER LAW, WHICH IS THE ONE PLACE THIS DIFFERS FROM
@@ -467,13 +467,114 @@ const STALL_RING = 2;
  * stallholder is different in kind: below some number of passers-by a pitch
  * is not worth setting up, and above it one more stall is marginal. The lower
  * knee is `CITY.lowDetailThreshold` = 0.34, the generator's own dead-zone
- * threshold, rather than a second number invented here. At the field's mean
- * density near 0.5 that is 30 x 0.2335 = 7 per chunk and about 175 over the
- * 25-chunk ring; kerb per chunk is 2 owned edges x 128 m x 2 sides = 512 m,
- * so 7 stalls is one per 73 m on an average block and one per 17 m on a dense
- * one.
+ * threshold, rather than a second number invented here.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * SESSION 31: 30 -> 18, AND THE OLD DERIVATION BESIDE IT WAS WRONG BY 1.94x.
+ *
+ * The paragraph that stood here said *"at the field's mean density near 0.5
+ * that is 30 x 0.2335 = 7 per chunk and about 175 over the 25-chunk ring"*.
+ * Measured, two independent ways that agree exactly — a headless import of
+ * this module reading `stallStats()`, and the live page through
+ * `harness.stallCensus()` — the ring delivers **340 stalls, 13.6 per chunk**.
+ * The ring's own mean density is **0.5747**, not 0.5, and `smoothstep` is
+ * steep there; 0.2335 is the value at 0.5 used as the value at the mean.
+ *
+ * AND THE DIVISOR WAS THE WRONG LENGTH. *"512 m of kerb per chunk"* is 2 owned
+ * edges x 128 m x 2 sides. Stalls are placed on the island LOOP, which is
+ * 4 x 108.8 = **435.2 m** — the 76.8 m difference is the 4 x 2 x 9.6 m of
+ * junction corner the loop excludes and on which no stall can stand. A length
+ * computed correctly and used as a different quantity: CONTRACT §9, in the
+ * comment that justifies the count.
+ *
+ * SO THE DELIVERED RATE WAS ONE STALL PER 32.0 m OF PAVEMENT, and the operator
+ * reported *"about ten stand in a row along the same pavement"*. That row was
+ * located rather than believed: chunk (-2,-2), the island's north pavement, **9
+ * stalls on one 108.8 m edge** spanning 88.97 m at a mean gap of 11.12 m, plus
+ * a tenth 12.45 m further on round the corner. 90 of the ring's 100 edges carry
+ * a stall and 20 carry six or more.
+ *
+ * 18 delivers about **200 over the ring, one per 54.4 m**. The reason for that
+ * number rather than a smaller one: a street market is a thing a city has in
+ * places, and `city-budget.json` -> `minStallsNearRing` is 60, so the floor is
+ * clear by 3.3x. What actually breaks the row of ten is `STALL_MAX_PER_EDGE`
+ * below; this sets the density and that sets the clumping, and they are two
+ * different complaints inside one sentence.
  */
-const STALL_MAX_PER_CHUNK = 30;
+const STALL_MAX_PER_CHUNK = 18;
+
+/**
+ * Pitches on any ONE edge of the island loop. Session 31.
+ *
+ * The count above is a chunk-wide budget and says nothing about where the
+ * pitches land: the loop is sampled uniformly, so a 108.8 m edge collecting
+ * nine of a chunk's fourteen is an ordinary draw rather than a bug, and it is
+ * exactly what the operator was looking at. A per-edge cap is the smallest
+ * thing that makes "a row of ten" impossible by construction rather than
+ * improbable.
+ *
+ * 4 on 108.8 m is one per 27.2 m at the worst, which is a short parade rather
+ * than a market street. Four is also the largest run length that the measured
+ * ring already produced on 39 of its 90 occupied edges, so it is inside the
+ * distribution rather than outside it — the cap removes the tail (the 8s and
+ * 9s) and leaves the body alone.
+ */
+const STALL_MAX_PER_EDGE = 4;
+
+/**
+ * PER-PITCH SIZE, AND IT IS THE DEFECT THE OPERATOR ACTUALLY SAW.
+ *
+ * His words were that the stalls *"have one form and vary only in canopy
+ * colour"*. The first half is wrong and the measurement says so: there are
+ * five kinds and each is a separate merged prototype with its own box count
+ * and envelope — infill 5 boxes at 2.60 x 2.45 x 0.79 m, market 8 at
+ * 2.50 x 2.25 x 1.655, food 7, produce 12, rack 9 — and his own row of nine
+ * contains all five of them.
+ *
+ * The second half is righter than he knew. Across all 340 delivered stalls
+ * there was **exactly one instance scale, (1.000000, 1.000000, 1.000000)**, and
+ * **exactly one yaw modulo 90°**. Every market stall in the city was the same
+ * 2.50 m box at the same angle. What varies per instance is colour: 8 canopy
+ * cloths, 336 distinct soil tints, 6 light chromaticities. So the vocabulary is
+ * five and the dimensions are one, and at close range a dimension is what you
+ * read.
+ *
+ * THE SCALE RIDES IN `instanceMatrix`, WHICH IS ALREADY UPLOADED — 0 boxes,
+ * 0 meshes, 0 draw calls, 0 materials. three's instanced normal path divides
+ * by each column's squared length, so an axis-aligned non-uniform scale keeps
+ * the normals correct.
+ *
+ * ACROSS NEVER EXCEEDS 1.0, AND THAT IS NOT TIMIDITY. `STALL_FOOTPRINT` derives
+ * every kind's depth against the [7.55, 9.25] and [10.95, 11.65] pitch strips
+ * by name — *"the body spans [7.48, 9.32] against the [7.55, 9.25] stall run,
+ * 0.07 m OVER at each end, so halfAcross is 0.92"*. A scale above 1 across
+ * would invalidate each of those derivations silently. Capping at 1 keeps
+ * every one of them true by construction.
+ *
+ * THE TRAP, AND IT IS CONTRACT §9's EXACT SHAPE: `hx`/`hz` in the placement
+ * loop come from `fp.halfAlong`/`fp.halfAcross` UNSCALED, so a widened stall
+ * would be DRAWN wider than the rectangle `rectBlocked` TESTED — a box tested
+ * and a different box drawn, which is §9.1's own recorded failure. The roll
+ * therefore happens BEFORE the test and multiplies both.
+ */
+const STALL_SIZE = { loAlong: 0.82, hiAlong: 1.22, loUp: 0.90, hiUp: 1.12, loAcross: 0.86, hiAcross: 1.0 };
+
+/**
+ * Degrees a pitch may sit off its kerb's own axis. Session 31.
+ *
+ * A stall is set up by hand against a shutter and nobody uses a square. Every
+ * one of the 340 was exactly axis-parallel, which is also why they contributed
+ * nothing to `citycheck` -> `alignment`'s off-axis fraction.
+ *
+ * 2.0° against that gate's own ceiling of 3° on the largest deviation, which
+ * the ring currently measures at 2.27°. It is under the cap, so this cannot
+ * move the assertion's worst case; it can only move the fraction, in the
+ * direction the floor wants. The tested rectangle carries the jitter through
+ * the |cos|·L + |sin|·W expression the pylon and the bus stop already use —
+ * session 24's row, where a half-extent applied to the wrong axis recorded a
+ * 2.4 x 0.06 m panel as 2.4 x 2.4 m.
+ */
+const STALL_YAW_JITTER_DEG = 2.0;
 const STALL_KNEE_LO = CITY.lowDetailThreshold;
 const STALL_KNEE_HI = 0.85;
 
@@ -2831,6 +2932,8 @@ export function createStreetlife(options = {}) {
 
     const pitches = [];
     const counts = Object.fromEntries(Object.keys(STALL_KINDS).map((k) => [k, 0]));
+    /** Pitches taken on each of the island loop's four edges. `STALL_MAX_PER_EDGE`. */
+    const edgeCount = [0, 0, 0, 0];
     let gaveUp = 0;
 
     if (want > 0) {
@@ -2886,16 +2989,48 @@ export function createStreetlife(options = {}) {
 
           const fp = STALL_FOOTPRINT[thisKind];
           loopPoint(cx, cz, p, fp.inset, scratchPoint);
+
+          /**
+           * A ROW OF FOUR IS A PARADE; A ROW OF NINE IS A TEXTURE. The cap is
+           * per EDGE of the island loop because that is the unit the operator
+           * was looking down — one continuous run of pavement — and not the
+           * chunk, which is four of them. See `STALL_MAX_PER_EDGE`.
+           */
+          if (edgeCount[scratchPoint.edge] >= STALL_MAX_PER_EDGE) continue;
+
+          /**
+           * THE SIZE AND THE YAW ARE ROLLED HERE, ABOVE THE TEST, AND THAT
+           * ORDER IS THE WHOLE POINT. `hx`/`hz` are what `rectBlocked` tests
+           * and what the pitch is recorded with; the same numbers reach
+           * `composeScaledYaw` below. Rolling them after the test would ship a
+           * box tested and a different box drawn, which is CONTRACT §9.1's own
+           * recorded failure and is what the park's edge hedging was doing in
+           * this same session.
+           */
+          const sAlong = rng.range(STALL_SIZE.loAlong, STALL_SIZE.hiAlong);
+          const sUp = rng.range(STALL_SIZE.loUp, STALL_SIZE.hiUp);
+          const sAcross = rng.range(STALL_SIZE.loAcross, STALL_SIZE.hiAcross);
+          const jitterDeg = rng.range(-STALL_YAW_JITTER_DEG, STALL_YAW_JITTER_DEG);
+          const jr = Math.abs(jitterDeg) * DEG;
+          /** The rotated box's own half-extents — |cos|·L + |sin|·W, session 24's row. */
+          const halfAlong = fp.halfAlong * sAlong * Math.cos(jr) + fp.halfAcross * sAcross * Math.sin(jr);
+          const halfAcross = fp.halfAcross * sAcross * Math.cos(jr) + fp.halfAlong * sAlong * Math.sin(jr);
+
           // Edges 0 and 2 run along x, so the stall's width is its x extent
           // there and its z extent on the other two.
           const alongX = scratchPoint.edge === 0 || scratchPoint.edge === 2;
-          const hx = alongX ? fp.halfAlong : fp.halfAcross;
-          const hz = alongX ? fp.halfAcross : fp.halfAlong;
+          const hx = alongX ? halfAlong : halfAcross;
+          const hz = alongX ? halfAcross : halfAlong;
           if (rectBlocked(boxes, scratchPoint.x, scratchPoint.z, hx, hz)) continue;
+          edgeCount[scratchPoint.edge]++;
 
           pitches.push({
             p,
             kind: thisKind,
+            sAlong,
+            sUp,
+            sAcross,
+            jitterDeg,
             x: scratchPoint.x,
             z: scratchPoint.z,
             /**
@@ -2987,7 +3122,18 @@ export function createStreetlife(options = {}) {
         // `of[i].groundY`, not the literal 0 it was until session 19 — the
         // pitch's own pavement height, queried once at placement. See `groundY`
         // in `buildStallChunk`.
-        mesh_.setMatrixAt(i, composeScaledYaw(of[i].x, of[i].groundY, of[i].z, of[i].yawDeg, 1, 1, 1));
+        /**
+         * THE PER-PITCH SCALE AND JITTER, AND THEY ARE THE SAME NUMBERS THE
+         * PLACEMENT TESTED. Until session 31 this passed the literals `1, 1, 1`
+         * and no jitter, so all 340 delivered stalls in the ring were the same
+         * box at the same angle — see `STALL_SIZE`. The prototype's local x is
+         * the along-kerb axis and its local z the depth, which is why the
+         * arguments are in that order.
+         */
+        mesh_.setMatrixAt(i, composeScaledYaw(
+          of[i].x, of[i].groundY, of[i].z, of[i].yawDeg + of[i].jitterDeg,
+          of[i].sAlong, of[i].sUp, of[i].sAcross,
+        ));
         const m = of[i].soil;
         // Soiling darkens and warms. A SIGNED colour jitter used as a soiling
         // term is CONTRACT §9 row 14; this one only ever multiplies down.
@@ -3041,17 +3187,32 @@ export function createStreetlife(options = {}) {
       const glow = new THREE.InstancedMesh(glowGeometry, materials.stallGlow, glowCount);
       let gi = 0;
       for (const q of pitches) {
-        const rad = q.yawDeg * DEG;
+        /**
+         * THE GLOW RIDES THE BODY'S OWN SCALE AND JITTER — session 31. These
+         * boxes are positioned in the stall's local frame and emitted as
+         * separate instances in a separate mesh, so a per-pitch scale applied
+         * to the body alone would leave every awning strip and every griddle
+         * at the size and place of a stall that is no longer there. The local
+         * offset is scaled by the same three numbers before it is rotated, and
+         * the box's own dimensions by the matching axis: `g.x` is along, `g.z`
+         * is across, `g.y` is up, which is the frame `STALL_KINDS` authors in.
+         */
+        const rad = (q.yawDeg + q.jitterDeg) * DEG;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
         for (const g of STALL_KINDS[q.kind].glow) {
-          const wx = q.x + g.x * cos + g.z * sin;
-          const wz = q.z - g.x * sin + g.z * cos;
+          const lx = g.x * q.sAlong;
+          const lz = g.z * q.sAcross;
+          const wx = q.x + lx * cos + lz * sin;
+          const wz = q.z - lx * sin + lz * cos;
           // `g.y` is the glow box's height in the STALL's own frame; the stall's
           // frame now sits on the pavement rather than on y = 0, so the two are
           // added. Session 19 — a glow strip left at `g.y` would have floated
           // 0.160 m over the awning it belongs to.
-          glow.setMatrixAt(gi, composeScaledYaw(wx, q.groundY + g.y, wz, q.yawDeg, g.w, g.h, g.d));
+          glow.setMatrixAt(gi, composeScaledYaw(
+            wx, q.groundY + g.y * q.sUp, wz, q.yawDeg + q.jitterDeg,
+            g.w * q.sAlong, g.h * q.sUp, g.d * q.sAcross,
+          ));
           const c = STALL_CHROMA[g.chroma < 0 ? q.chroma : g.chroma];
           tmpColor.setRGB(c[0] * g.gain, c[1] * g.gain, c[2] * g.gain, THREE.LinearSRGBColorSpace);
           glow.setColorAt(gi, tmpColor);
