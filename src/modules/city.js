@@ -1149,6 +1149,58 @@ export function createCity(options = {}) {
     const placed = [];
     let bytes = bytesIn;
 
+    /**
+     * THE GROUND GOES IN FIRST, AND UNTIL SESSION 30 IT WENT IN LAST.
+     *
+     * These claims used to be pushed at the END of this function, below every
+     * generator that reads `placed`. There is exactly one such reader that
+     * cares — the advertising pillar's `hitsClaim`, at its `mayOverlap('sign',
+     * p.kind)` test — and its own comment says it refuses a pillar that would
+     * stand in a carriageway. **It could not.** At the moment that loop ran, `placed`
+     * held pylons, props and park features and no ground at all, so the one
+     * category `occupancy.js` forbids a freestanding sign from sharing was the
+     * one category the list did not contain. A guard that cannot fire, in the
+     * same class as the vsync ceiling (STATE 23) and the near-ring claim floor
+     * — and it shipped green, because a test that refuses nothing refuses
+     * nothing quietly. STATE 29 §7.2 found it by reading; this fixes it.
+     *
+     * WHY MOVING IT IS SAFE FOR EVERY OTHER READER, checked rather than
+     * assumed. `placed` is read in exactly two places in this file: the pylon's
+     * `signClash`, which filters `p.kind === 'sign'` and therefore cannot see a
+     * ground rect whatever the order, and the pillar's `hitsClaim`, which is
+     * the reader this exists for. Everything else only pushes.
+     *
+     * `ground` IS NULL FOR EVERY CHUNK OUTSIDE THE NEAR RING — `buildGround` is
+     * only called for those, and a geometry-ring chunk has massing and no road
+     * surface. The first version of this walk did not check and quarantined
+     * `city` on the first chunk past ring 2, which `faultcheck`'s empty-faults
+     * assertion and `citycheck`'s own harness call both caught within a minute
+     * of each other. A claim list that is short because the chunk drew no
+     * ground is the correct answer, not a missing one.
+     *
+     * `ground.rects` IS the emitted mesh — the same list `surfaceAt` reads —
+     * so this is the DELIVERED surface and not a description of it.
+     *
+     * WHAT IT REFUSES, MEASURED IN BOTH DIRECTIONS (§7.3), because "the guard
+     * now runs" is a claim about a guard and this project has shipped four of
+     * those that could not fire. At the delivered `PILLAR_PAD` of 0.85 m the
+     * ground test refuses **0 of 205** candidates and the delivered count is
+     * **190**, unchanged from session 28. At a pad of 2.20 m — wide enough to
+     * reach a kerb 4.2 m from the elevation, and past the 2.6 m standoff — it
+     * refuses **40** under this ordering and **0** under the old one. So the
+     * guard is live, the geometry that ships simply clears the carriageway by
+     * 0.75 m, and the demonstration is a pair of measurements rather than an
+     * argument. STATE 30 §1.
+     */
+    for (const q of (ground && ground.rects) || []) {
+      placed.push({
+        kind: q.kind === 'road' ? 'carriageway'
+          : q.kind === 'walk' ? 'pavement'
+            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site' : 'ground',
+        owner: `ground:${q.kind}`, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: 0, y1: 0.05,
+      });
+    }
+
     const bodies = [];
     const bodySkin = [];
     const crowns = [];
@@ -2207,7 +2259,17 @@ export function createCity(options = {}) {
     const PILLAR_FACE_NITS = 748;
     const pillarBoxes = [];
     const pillarSkin = [];
-    let pillarsRefused = 0;
+    /**
+     * REFUSALS BY CAUSE, not one total — session 30. A single counter says a
+     * pillar was refused and not which of three tests did it, and the whole
+     * question item 1 asks is *what does the carriageway test refuse now that
+     * it runs at all*. A total cannot answer that and a per-cause breakdown
+     * can, so the string below carries the split. `claim` and `ground` are
+     * counted apart for the same reason: the first was always live and the
+     * second is the one that was dead.
+     */
+    const pillarRefused = { block: 0, building: 0, claim: 0, ground: 0 };
+    const GROUND_OWNED = /^ground:/;
     if (detail) {
       for (const bld of (chunk.buildings || [])) {
         if (!bld.adPillar) continue;
@@ -2242,11 +2304,17 @@ export function createCity(options = {}) {
          * so a pillar may share a pavement (that is what a pavement is for) and
          * may not share a carriageway, a tree, a bench or another sign.
          */
-        const hitsClaim = placed.some((p) =>
+        const clash = placed.find((p) =>
           !mayOverlap('sign', p.kind) &&
           px + PILLAR_PAD > p.x0 && px - PILLAR_PAD < p.x1 &&
           pz + PILLAR_PAD > p.z0 && pz - PILLAR_PAD < p.z1);
-        if (inBlock || hitsBuilding || hitsClaim) { pillarsRefused++; continue; }
+        if (inBlock || hitsBuilding || clash) {
+          if (inBlock) pillarRefused.block++;
+          else if (hitsBuilding) pillarRefused.building++;
+          else if (GROUND_OWNED.test(clash.owner)) pillarRefused.ground++;
+          else pillarRefused.claim++;
+          continue;
+        }
 
         const yawP = yawForNormal(dirP[0], dirP[1]) + bld.yawDeg;
         const baseY = worldSurface(ctx, px, pz).y;
@@ -2322,7 +2390,7 @@ export function createCity(options = {}) {
       /** Session 28. Boxes, not pillars — three boxes a pillar, and the census's
        *  numeric fields must sum to the mesh's instance count. */
       adPillarBoxes: pillarBoxes.length,
-      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarsRefused} refused`,
+      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground refused`,
     };
     for (let i = 0; i < crowns.length; i++) { bodies.push(crowns[i]); bodySkin.push(crownSkin[i]); }
     for (let i = 0; i < props.length; i++) { bodies.push(props[i]); bodySkin.push(propSkin[i]); }
@@ -2562,28 +2630,11 @@ export function createCity(options = {}) {
     }
 
     /**
-     * The ground, the buildings and the landmark solids, from the same three
-     * sources the geometry came from: `ground.rects` IS the emitted mesh,
-     * `masses` is what `buildingTiers` produced, and the landmark boxes are the
-     * ones `buildLandmark` drew.
+     * The buildings and the landmark solids, from the same sources the geometry
+     * came from: `masses` is what `buildingTiers` produced and the landmark
+     * boxes are the ones `buildLandmark` drew. **The ground went in at the top
+     * of this function** — session 30, and the comment there says why.
      */
-    /**
-     * `ground` IS NULL FOR EVERY CHUNK OUTSIDE THE NEAR RING — `buildGround` is
-     * only called for those, and a geometry-ring chunk has massing and no road
-     * surface. The first version of this walk did not check and quarantined
-     * `city` on the first chunk past ring 2, which `faultcheck`'s empty-faults
-     * assertion and `citycheck`'s own harness call both caught within a minute
-     * of each other. A claim list that is short because the chunk drew no
-     * ground is the correct answer, not a missing one.
-     */
-    for (const q of (ground && ground.rects) || []) {
-      placed.push({
-        kind: q.kind === 'road' ? 'carriageway'
-          : q.kind === 'walk' ? 'pavement'
-            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site' : 'ground',
-        owner: `ground:${q.kind}`, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: 0, y1: 0.05,
-      });
-    }
     for (const bld of chunk.buildings) {
       /**
        * `y1` IS WHAT THIS CHUNK DREW ON THE ROOF — session 25 — and it was
