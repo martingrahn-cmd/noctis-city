@@ -221,9 +221,11 @@ Each commit is independently revertible.
   963b293  STATE 30  <- session 30's head, and the "before" of every pair above
 ```
 
-**THE BRIEF SAYS THE BRANCH CARRIES FOURTEEN COMMITS. IT CARRIES 30 above `main`**
-(counting this file's own commit, which is the last of them) and 19
-above session 27's tip `6f4990b`, counted with `git rev-list --count main..HEAD`. First
+**THE BRIEF SAYS THE BRANCH CARRIES FOURTEEN COMMITS. IT DOES NOT.** Anchored to
+references that do not move as this file is written: **23 above `main` when this session
+started**, everything after `963b293` is session 31's own, and **19 above session 27's tip
+`6f4990b`**. The live count is `git rev-list --count main..HEAD` and it went up twice while
+this paragraph was being corrected, which is why it is not the number quoted here. First
 false premise, cheapest to check.
 
 **NO BUDGET FILE CHANGED.** `budget.json`, `look-budget.json`, `city-budget.json` and
