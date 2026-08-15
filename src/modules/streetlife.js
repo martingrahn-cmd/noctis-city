@@ -582,8 +582,9 @@ const STALL_KNEE_HI = 0.85;
  * Metres along the loop between two pitches. A market stall is 2.4 m wide, so
  * 7 m is the stall plus a 4.6 m gap to get past it — the minimum a pavement
  * 4.2 m wide can carry without the run reading as a wall. It also bounds the
- * ring: 4 x 108.8 = 435.2 m of loop per chunk over 7 m is 62 pitches, twice
- * the 30 the count can ask for, so the spacing never silently caps the count.
+ * ring: 4 x 108.8 = 435.2 m of loop per chunk over 7 m is 62 pitches, 3.44x
+ * the 18 the count can ask for since session 31 (it was twice the 30 before
+ * it), so the spacing never silently caps the count.
  */
 const STALL_MIN_SPACING_M = 7;
 
@@ -770,8 +771,17 @@ function smoothstep(a, b, x) {
  * placement rule that rejected everything, which CONTRACT §9.1 records as the
  * shape of a check that is itself wrong.
  *
- * Stalls yaw in multiples of 90 degrees, so the world AABB is exact and this
- * is not a conservative bound.
+ * THIS FUNCTION TESTS AN AXIS-ALIGNED RECTANGLE AND THE CALLER IS WHAT MAKES
+ * THAT SOUND. Until session 31 the note here read *"stalls yaw in multiples of
+ * 90 degrees, so the world AABB is exact"*, and `STALL_YAW_JITTER_DEG` = 2.0
+ * made the premise false in the same session that relied on the conclusion.
+ * The conclusion survives, but for a different reason and one the caller owns:
+ * the BASE yaw is an exact multiple of 90°, and the call site at the stall
+ * roll folds the 2° jitter and all three rolled scales into a rotated AABB
+ * before handing `hx`/`hz` down. So the rectangle tested here is the drawn
+ * box's world AABB plus the rotation bulge — never under it, which is the
+ * safe direction. A reader of this function alone must not conclude the
+ * boxes are axis-aligned; they are not, and the bound is the caller's.
  */
 function rectBlocked(boxes, x, z, hx, hz) {
   for (let i = 0; i < boxes.length; i++) {
@@ -3482,12 +3492,10 @@ export function createStreetlife(options = {}) {
 
       ctx.log(
         `streetlife: stalls round(${STALL_MAX_PER_CHUNK} x smoothstep(${STALL_KNEE_LO}, ` +
-        `${STALL_KNEE_HI}, density)) per chunk over Chebyshev ring ${STALL_RING} = ` +
-        `${(2 * STALL_RING + 1) ** 2} chunks; at the field mean 0.5 that is ` +
-        `${Math.round(STALL_MAX_PER_CHUNK * smoothstep(STALL_KNEE_LO, STALL_KNEE_HI, 0.5))} per chunk ` +
-        `and ${Math.round(STALL_MAX_PER_CHUNK * smoothstep(STALL_KNEE_LO, STALL_KNEE_HI, 0.5)) * (2 * STALL_RING + 1) ** 2} ` +
-        `over the ring, one per ${(512 / Math.max(1, Math.round(STALL_MAX_PER_CHUNK * smoothstep(STALL_KNEE_LO, STALL_KNEE_HI, 0.5)))).toFixed(0)} m ` +
-        `of the 2 x ${CITY.chunkSize} x 2 = 512 m of kerb a chunk owns. ` +
+        `${STALL_KNEE_HI}, density)) per chunk, at most ${STALL_MAX_PER_EDGE} per island edge, ` +
+        `over Chebyshev ring ${STALL_RING} = ${(2 * STALL_RING + 1) ** 2} chunks of ` +
+        `4 x 108.8 = 435.2 m of island loop each. THE DELIVERED COUNT IS \`stallStats()\`, ` +
+        `NOT A NUMBER DERIVED HERE — session 31 measured 199 over the ring, one per 54.7 m. ` +
         `${stallLightPool.length} worklight slots at ${STALL_WORKLIGHT_CANDELA.toFixed(1)} cd = ` +
         `${STALL_WORKLIGHT_LUMENS} lm / 4pi, giving ${STALL_WORKLIGHT_CANDELA.toFixed(1)} lux at 1 m ` +
         `against ${LIGHT.streetAverageLux} lux of ambient; radius ${STALL_WORKLIGHT_RADIUS_M} m is ` +

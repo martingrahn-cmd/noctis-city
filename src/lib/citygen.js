@@ -772,7 +772,12 @@ export function retailBuilding(retailRng, onRetailFrontage, distToEndM) {
  * than no tower. 150 leaves 20 m of margin, and the delivered maximum is 154 m
  * because `floors · (era.floor + jitter)` is applied AFTER the clamp: the clamp
  * bounds the ROLL and the era's own storey height carries it a little past.
- * Nine of 432 buildings clear 34 storeys.
+ * **Seven of 366** buildings clear 34 storeys, measured by `heightprobe` at
+ * HEAD. The "nine of 432" this line carried is session 20's figure, quoted
+ * correctly 55 lines above as a REPRODUCED session-20 measurement and left
+ * standing here as a bare present-tense fact — the population fell to 366 when
+ * session 21's occupancy registry began refusing buildings. The ratio is the
+ * claim and it survives: 9/432 = 2.08%, 7/366 = 1.91%.
  *
  * FLOOR 9 m, because `floors = max(3, ...)` already imposes three storeys and a
  * log-normal's lower tail otherwise spends draws below it that all land on the

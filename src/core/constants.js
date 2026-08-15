@@ -1484,12 +1484,18 @@ export const LAMP_BOWL = {
    * line carried is the figure from before the bowl moved, and the corrected
    * value has been 77 lines above it since session 30.)
    *
-   * 210, authored in `block.js`'s EMISSIVE table under a comment that says the
-   * table is authored rather than measured — so unlike the streamed city's
-   * number this one is not a wrong derivation, it is an absent one (§9 rule 5:
-   * a number without a derivation is a guess). It is the value the look gate's
-   * `band:midnight` was last balanced against, and raising it to the
-   * derivation takes that assertion red.
+   * ITS HISTORY, IN THE PAST TENSE, BECAUSE SESSION 31 FOUND THIS PARAGRAPH
+   * STILL WRITTEN IN THE PRESENT FIVE LINES BELOW ITS OWN 210 -> 420
+   * CORRECTION. The value **was** 210 and is 420; it **was** authored in
+   * `block.js`'s EMISSIVE table and has not lived there since session 2 — see
+   * `block.js`'s own note, which says so. So it was never a wrong derivation,
+   * it was an absent one (§9 rule 5: a number without a derivation is a
+   * guess), and session 30 gave it one. The claim that it "is the value the
+   * look gate's `band:midnight` was last balanced against" was true of 210 and
+   * is not true of 420: session 30 measured 420 at `band:midnight` 0.1112 and
+   * shipped it, and session 31 measured 0.0745 with the station standing in
+   * the same frame. Nothing here is what that assertion is balanced against
+   * any more, and §8 of STATE 31 is where that balance now lives.
    */
   originFactor: BOWL_ORIGIN_FACTOR,
   /** cd/m² AS DELIVERED to the origin block's bowl material. 420.0 — session 30. */

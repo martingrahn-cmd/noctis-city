@@ -163,7 +163,7 @@ export function createCity(options = {}) {
   let meanFacadeHeight = 26;
   let generateQueue = [];
   let frameStamp = 0;
-  /** The one merged ground mesh, and whether it still describes the near ring. */
+  /** The one merged ground mesh, and whether it still describes the GROUND ring. */
   let groundMesh = null;
   let groundDirty = false;
   /** The one merged signage mesh, same arrangement. */
@@ -954,7 +954,13 @@ export function createCity(options = {}) {
   }
 
   /**
-   * ONE GROUND MESH FOR THE WHOLE NEAR RING, NOT ONE PER CHUNK.
+   * ONE GROUND MESH FOR THE WHOLE GROUND RING, NOT ONE PER CHUNK.
+   *
+   * NOT THE NEAR RING, AND THE DISTINCTION IS ITEM 2 OF SESSION 31. `near` is
+   * `CITY.nearRadius` = 2 and gates the STREET LAMPS; this mesh is gated by
+   * `CITY.groundRadius` = 4. They were one threshold until session 31, which
+   * is why the pavement ended 256 m from the camera in every frame this
+   * project had shipped. 81 ground chunks, not 25.
    *
    * The same move session 4 made on the four per-chunk box meshes, for the same
    * reason and against the same ceiling. Twenty-five near chunks is twenty-five
@@ -996,7 +1002,8 @@ export function createCity(options = {}) {
       groundMesh = new THREE.Mesh(geo, materials.ground);
       groundMesh.name = 'city:ground';
       groundMesh.receiveShadow = true;
-      // One mesh spanning the whole near ring: a bound that is always in view.
+      // One mesh spanning the whole GROUND ring (radius 4, 81 chunks — not the
+      // lamps' near ring of 2): a bound that is always in view.
       groundMesh.frustumCulled = false;
       root.add(groundMesh);
     }
