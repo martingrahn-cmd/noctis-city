@@ -3106,8 +3106,81 @@ export const VIADUCT_STATION = {
 
   /** The edge wall: the station's outer skin, and what the street sees. */
   wallThickM: 0.25,
-  /** Metres the wall stands above the platform surface. A parapet you lean on. */
+  /**
+   * Metres the balustrade stands above the platform surface, and SESSION 32
+   * MADE THE PART ABOVE THE PLATFORM OPEN. It was a solid screen and it hid
+   * the train from the street; the skirt below the platform is still solid.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * THE NUMBER SESSION 32's BRIEF CARRIED WAS 2.87 m ABOVE THE PLATFORM. IT
+   * IS 1.15, AND 2.87 IS ITS HEIGHT ABOVE THE DECK SLAB.
+   *
+   * `stationprobe` reads the delivered box as t 7.20..7.45, y 21.00..23.870,
+   * height 2.870. The platform's walking surface is at 22.720, so 1.720 m of
+   * that box is BELOW the surface — it is the skirt that closes the widened
+   * structure's side elevation — and only 1.150 m of it is parapet. The
+   * constant said 1.15 the whole time. A height measured from the wrong datum
+   * is CONTRACT §9's own subject, and this is the second time this station has
+   * produced one (STATE 31 §0.3, the 3.0 m platform on a 1.364 m deck).
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * AND THE CORRECTED NUMBER DOES NOT SAVE THE SOLID WALL — IT CONDEMNS IT.
+   *
+   * From the operator's own pose [70, 1.74, 0.9], against the DELIVERED train
+   * (`trainprobe`: rail 21.62, lit window strip 23.25..24.20, roof cap top
+   * 25.20 — not the 25.82 loading gauge, which is a bound and not a roof), the
+   * lowest train height an occluder lets through is
+   * `1.74 + (top - 1.74)·(70 - 3.7115)/(70 - x)`, where 3.7115 is the near
+   * car's window face:
+   *
+   *     occluder                              lets through   of the 0.95 m strip
+   *     edge wall      x 7.45  top 23.87        25.19 m          0.00 m
+   *     skirt alone    x 7.45  top 22.72        23.97 m          0.23 m
+   *     platform slab  x 7.30  top 22.72        23.92 m          0.28 m
+   *     the OLD parapet x 4.60 top 22.20        22.48 m          0.95 m  <- all of it
+   *
+   * The wall lets through everything above 25.19 m against a roof at 25.20:
+   * **one centimetre of a 3.58 m train.** And a SOLID parapet cannot be lowered
+   * out of the way either — to show any window at all it must top out below
+   * 22.93 m, which is **0.21 m above the platform**, a kerb rather than a
+   * railing. So the repair is not a shorter wall. It is an OPEN one, and the
+   * brief's word *railing* is exactly right for a reason its own number missed.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * WHAT THE REPAIR CANNOT REACH, STATED SO NOBODY RE-DERIVES IT.
+   *
+   * Once the balustrade is air, the binding occluder is the platform slab's own
+   * outer top corner at (7.30, 22.72) — 23.92 m, the **top 0.28 m of the window
+   * strip and 1.28 m of the 3.58 m train**. That ceiling is set by a 3.0 m
+   * platform standing at 22.72 m outboard of the deck, not by this wall, and
+   * closing it would mean narrowing or lowering the platform. The rake of
+   * windows the street had before the station is 0.95 m, and it is not coming
+   * back at 70 m without moving the platform. It comes back with distance: the
+   * same arithmetic clears the whole strip past about 150 m.
+   */
   wallAboveM: 1.15,
+
+  /**
+   * THE BALUSTRADE — posts, a mid rail and a top rail, all inside the old
+   * wall's own 0.25 m envelope so nothing claims ground the wall did not.
+   *
+   * Six posts to an 11.13 m segment is 1.855 m centres, which is a balustrade
+   * bay. The top rail keeps the wall's own 23.87 m top so the station's
+   * parapet LINE is unchanged and only its opacity moves — the silhouette a
+   * reader compares against STATE 31's frames is the same silhouette.
+   *
+   * There is deliberately NO toe board. A 0.06 m lip at x 7.45 raises the
+   * lowest visible train height from 23.92 to 24.04 m and costs 0.12 m of a
+   * 0.28 m window sliver — 43% of what this repair recovers, for a detail
+   * nobody resolves at 70 m.
+   */
+  railPostSideM: 0.10,
+  railPostsPerSeg: 6,
+  railTopThickM: 0.14,
+  railTopDeepM: 0.09,
+  railMidThickM: 0.08,
+  railMidDeepM: 0.06,
+  railMidAboveM: 0.55,
 
   /** The tactile edge strip, in a lighter concrete. What makes it read as a platform. */
   copingWidthM: 0.55,

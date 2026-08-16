@@ -4112,15 +4112,52 @@ export function createCity(options = {}) {
 
               /**
                * The edge wall — the station's outer skin and the only part of
-               * it a person on the pavement sees end-on. It runs from the deck
-               * slab's own top up past the platform, so the widened structure
-               * reads as a solid box rather than as a slab floating in air.
+               * it a person on the pavement sees end-on. SESSION 32 SPLIT IT
+               * IN TWO AT THE WALKING SURFACE, because as one solid box from
+               * the deck slab to 23.87 m it hid the train from the street:
+               * it let through everything above 25.19 m against a roof cap at
+               * 25.20, which is one centimetre of a 3.58 m train. The whole
+               * measurement, both ends of it and what it cannot reach, is in
+               * `VIADUCT_STATION.wallAboveM`.
+               *
+               * BELOW the platform the skirt stays solid — it is what makes
+               * the widened structure read as a box rather than as a slab
+               * floating in air, and it costs nothing to keep: the platform
+               * slab's own outer corner is the binding occluder either way
+               * (23.92 m against the skirt's 23.97 m).
                */
               const wOut = pOut + S.wallThickM;
               const [wx, wz] = span(pOut, wOut);
               const wallTop = platformTopY + S.wallAboveM;
-              push(wx, (slabTop + wallTop) / 2, wz,
-                segLen, wallTop - slabTop, S.wallThickM, yaw, parapetAlbedo, 0.72);
+              push(wx, (slabTop + platformTopY) / 2, wz,
+                segLen, platformTopY - slabTop, S.wallThickM, yaw, parapetAlbedo, 0.72);
+
+              /**
+               * ABOVE it, the balustrade: a top rail on the wall's own 23.87 m
+               * line, a mid rail, and six posts to the segment. Everything
+               * sits inside the skirt's 0.25 m transverse envelope, so the
+               * station claims exactly the ground it claimed before and the
+               * occupancy registry sees a strictly smaller solid.
+               */
+              const railTop = wallTop - S.railTopDeepM;
+              const [rx, rz] = span(pOut, wOut);
+              push(rx, (railTop + wallTop) / 2, rz,
+                segLen, S.railTopDeepM, S.railTopThickM, yaw, parapetAlbedo, 0.62);
+              const midY = platformTopY + S.railMidAboveM;
+              push(rx, midY, rz,
+                segLen, S.railMidDeepM, S.railMidThickM, yaw, parapetAlbedo, 0.62);
+              for (let p = 0; p < S.railPostsPerSeg; p++) {
+                /**
+                 * Along-deck offset from the segment centre. `(p + 0.5)/n`
+                 * rather than `p/(n-1)` so no post lands on a segment joint,
+                 * where two segments would each push one and the pair would
+                 * read as a single fat post every 11 m instead of a rhythm.
+                 */
+                const v = ((p + 0.5) / S.railPostsPerSeg - 0.5) * segLen;
+                push(rx + cc * v, (platformTopY + railTop) / 2, rz + ss * v,
+                  S.railPostSideM, railTop - platformTopY, S.railPostSideM,
+                  yaw, parapetAlbedo, 0.62);
+              }
 
               // The canopy, cantilevered off a column line at the outer edge.
               const [kx, kz] = span(S.canopyInnerT, wOut);
