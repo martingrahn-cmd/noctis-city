@@ -35,8 +35,31 @@ It is that the street wall is broken.
 - **Buildings meet the lot line.** A block's frontage is continuous. Where a
   parcel is empty, it is empty *for a reason* — a yard, a site, a park — not
   because a noise field came out low.
-- **Fill approaches 1.0 in the core.** Measured at session 31: 23 of 100 chunks
-  carry zero buildings, one of them at density 0.715. That is the defect.
+- **THE EMPTY CHUNKS ARE NOT THE DEFECT, AND THE CLAIM THAT THEY WERE WAS MINE.**
+  This bullet used to read *"23 of 100 chunks carry zero buildings, one of them at
+  density 0.715 — that is the defect"*, and STATE 31, this file and session 32's
+  brief all carried it. Session 32 asked the generator **why**, which nobody had:
+  **seventeen of the twenty-three are `park`, `yard`, `lot`, `parking` and
+  `construction`** — the previous bullet's own list, shipped — and the other six
+  are `built` chunks whose islands stand under a landmark or in the river.
+  **`(-3,1)` at 0.715, the one held up as the proof, lies 100% inside the weir.**
+  At `fill = 1.0`, twenty-one of the twenty-three are still empty. At HEAD, after
+  session 32's raise, the region reads **480 buildings and 21 empty chunks — 17
+  non-`built`, 4 `built`, `(-3,1)` still among them.** The city already does what
+  the bullet above asks. **The real complaint is inside the `built` chunks and it
+  is the frontage:** median block frontage occupancy 0.162 before the raise and
+  0.244 after, with 148 of 400 block sides still bare end to end.
+- **THE LIMITER IS THE OCCUPANCY REGISTRY, NOT DRAW CALLS AND NOT BATCHING.**
+  Session 32 measured the fill law one exponent further on (`d^1.4` → `d^1.2`,
+  480 → 515 buildings) and the delivered scene carried **one forbidden overlap,
+  `sign(adpillar) × prop(planter)`, 0.061 m²**. §7 reserves the registry's
+  authority absolutely, so that is the stop. The three ceilings people expected
+  are all slack: **+31% buildings cost +2 draw calls** (430 → 432 of 440), 1.57 M
+  triangles of 2.00 M, and 2–3 ms of frame-time margin. And a merged building
+  pool does not help: the frustum test **rejects 54–60% of the city's triangles**,
+  so one pool would submit **1.90 M against the 2.00 M ceiling** before the sky,
+  the traffic, the people and the stalls. The per-chunk meshes are doing the
+  culling work.
 - **Heights are lognormal, not an even comb.** Mostly six to twelve storeys,
   with occasional towers standing well clear. `citygen.js` already carries the
   argument and both measured arms: sd/mean 0.664 against today's 0.425, p99
@@ -76,8 +99,17 @@ Light is the city's main material. Geometry is what the light lands on.
 The camera that matters is a person standing on the pavement. Everything here
 is judged from about 1.7 m.
 
-- **Crossings.** Marked crossings at junctions, with signals pedestrians
-  actually use. Currently absent and conspicuous by it.
+- **Crossings. THE PAINT IS NOT ABSENT — THAT WAS THE THIRD FALSE CLAIM IN THIS
+  FILE, FOUND IN SESSION 33.** This bullet read *"currently absent and conspicuous
+  by it"*. Session 21 built crossing markings into `citygen.js`'s road-marking
+  path, and over `citycheck`'s own 10 × 10 region the generator delivers **2 077
+  crossing stripes, with 82 of 100 chunks carrying a full four-approach set**.
+  They render, in the streamed props mesh, at no draw call of their own.
+  **What is actually missing is everything the paint is for**: nobody walks on
+  it — the pedestrian model is a per-island perimeter loop and no agent has ever
+  left the pavement — and no vehicle yields to anyone standing on it. A crossing
+  with no one crossing is a texture. Judge this bullet from the pavement, not
+  from the marking census.
 - **Parks and planting.** Green in a dense city is punctuation — small squares,
   a strip of trees, a fenced garden between two blocks. Parks exist as a block
   type; they read as dark empty ground at night.
@@ -102,18 +134,29 @@ is judged from about 1.7 m.
 
 ---
 
-## 6. Already built, never seen
+## 6. Already built, never *looked at*
 
 `weather.js` implements wet film, puddle roughness, Fresnel reflectance for
 water and a screen-space reflection gate. `ssr` defaults to 1.
 
-**`wet` defaults to 0.** Every frame in this project's history — every gate
-frame, every screenshot in every STATE — is a dry street.
+**THIS SECTION USED TO SAY "never seen", AND THAT WAS WRONG — MINE, AND CORRECTED
+IN SESSION 33.** It read *"every frame in this project's history — every gate
+frame, every screenshot in every STATE — is a dry street"*, and the
+counter-example is a gate. `lookcheck` captures **dry and wet at all four times
+of day** (`look-budget.json` → `wetness.value` = 1.0), writes
+`tools/look-out/{midnight,dawn,noon,dusk}-wet.png`, and asserts four bars on the
+wet side specifically — road specular spread ≥ 1.6× dry, a minimum dry↔wet MSD,
+an elongated-SSR reflection count, and the per-frame quarantine and
+cluster-overflow checks. `night_rain` has run at `wet: 0.85` for many sessions.
+
+**The narrower truth, which is the whole point.** `main.js` → `wet: 0`, so the
+running app, every `lookat` frame and every screenshot in every STATE is dry. The
+water has been measured for many sessions and never *looked at*.
 
     localhost:5173/?player=1&wet=1&t=0.0
 
-Before anything in §3 is built, this needs looking at, because it may already
-deliver a large part of it.
+That default is what session 33 was told to change, and changing it moves every
+band in `look-budget.json` at once — see §7 for what is owed when it does.
 
 ---
 
