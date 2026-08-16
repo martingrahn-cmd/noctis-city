@@ -42,7 +42,7 @@ import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.
  * instance.
  */
 import { mayOverlap } from '../lib/occupancy.js';
-import { EMITTER_CHROMA } from '../lib/color.js';
+import { EMITTER_CHROMA, luminance } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
   CITY,
@@ -129,6 +129,136 @@ const SIGN_CHROMA = [
   EMITTER_CHROMA.tungsten,
   EMITTER_CHROMA.neonGreen,
 ];
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * COLD LIGHT — LOOK.md §3, SESSION 32. AND THE BRIEF'S ORDER WAS BACKWARDS.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * LOOK.md §3: *"NOCTIS is currently monochrome amber — nearly every emitter is
+ * warm. The reference works because cold cyan fights warm sodium in the same
+ * frame. A third of emitters should be cold."* The brief said to do the
+ * SIGNAGE first because it is authored colour and costs nothing.
+ *
+ * IT IS ALREADY DONE. Measured over the 121 resident chunks at the operator's
+ * own pose, off the DELIVERED `instanceColor` and instance scales, weighted by
+ * each instance's largest face — which is the area that actually emits:
+ *
+ *     mesh       lit instances    emitting m2    warm      cold     neutral
+ *     windows          33 213        106 374    98.5%      1.5%       0.0%
+ *     signs               824         18 155    54.1%     45.9%       0.0%
+ *
+ * The signs are **45.9% cold already** and have been since `SIGN_CHROMA` got
+ * its six members. The 1.5% of cold window area is the display-facade bands
+ * and the ad pillars' two faces, which read `SIGN_CHROMA` too. Everything else
+ * — every ordinary lit window in the streamed city — was the single literal
+ * `[1, 0.88, 0.72]` on a tungsten material, and windows carry **5.9× the
+ * emitting area of every sign in the city put together.**
+ *
+ * So the monochrome is not the signage and never was. **8.0% of the delivered
+ * emissive area is cold**, against LOOK.md's third, and closing that gap is one
+ * population: the windows.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE PALETTE, AND IT IS A DECISION RATHER THAN A MEASUREMENT.
+ *
+ * `fluorescentCold` [0.80, 0.92, 1.0] for the majority. That is cool-white
+ * office and corridor lighting, and it is what is actually behind a cold window
+ * at night. It is only mildly blue, which is right: real colour opposition on a
+ * street is a very warm source against a neutral one, not two equal saturations
+ * fighting. The delivered pair is R−B **+0.938 warm against −0.222 cold**, and
+ * the asymmetry is the sodium's, as it should be.
+ *
+ * `mercuryBlue` [0.30, 0.55, 1.0] for one cold window in five. Old
+ * mercury-vapour stair and plant lighting, still in service in 2049 in the
+ * buildings nobody has re-fitted. This is the member that supplies actual cyan
+ * — a handful of strongly blue panes among the cool-white ones, rather than an
+ * even wash of slightly-blue, which would read as a white balance error and not
+ * as two kinds of light.
+ *
+ * NOT `neonCyan`, and not for a window. A window is a room seen through glass;
+ * a saturated cyan pane is a sign with a room behind it, and this project's
+ * `SIGN_CHROMA` already owns that colour for the things that are signs.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHY THE TINTS ARE COMPUTED AND NOT TYPED.
+ *
+ * The window material's own chroma is `EMITTER_CHROMA.tungsten` and
+ * `instanceColor` multiplies into it (§5.6), so a tint is a RATIO and not a
+ * colour: the delivered chroma is `tungsten ⊙ tint`. Typing a cold triple would
+ * silently deliver `tungsten ⊙ cold`, which is a warm cold. Each tint below
+ * divides its target chroma by the tungsten it is riding on and rescales to the
+ * warm window's own delivered luminance, so **a cold window is the same
+ * brightness as the warm one it replaced** and every luminance band this change
+ * moves, it moves because the HUE moved. That is the only way the frame is the
+ * verdict rather than a confound.
+ */
+const WINDOW_WARM_TINT = [1, 0.88, 0.72];
+const SHOP_WARM_TINT = [1, 0.9, 0.76];
+/**
+ * The tint that delivers `chroma` at the luminance `warmTint` already delivers
+ * on this material. `EMITTER_CHROMA` entries carry luminance 1 by construction,
+ * so the whole scale is the warm pair's own luminance.
+ */
+function matchedTint(chroma, warmTint) {
+  const t = EMITTER_CHROMA.tungsten;
+  const L = luminance(t[0] * warmTint[0], t[1] * warmTint[1], t[2] * warmTint[2]);
+  return [(L * chroma[0]) / t[0], (L * chroma[1]) / t[1], (L * chroma[2]) / t[2]];
+}
+const WINDOW_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, WINDOW_WARM_TINT);
+const WINDOW_MERCURY_TINT = matchedTint(EMITTER_CHROMA.mercuryBlue, WINDOW_WARM_TINT);
+const SHOP_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, SHOP_WARM_TINT);
+
+/**
+ * WHICH windows, and this is the half that decides whether it reads as a city
+ * or as confetti.
+ *
+ * Cold light is a LAND USE, not a per-pane roll. An office block is cold from
+ * the third floor to the roof; the tenement beside it is warm in every window.
+ * Scattering cold panes uniformly through every elevation would hit the same
+ * one-third and look like a broken white balance, which is the failure mode
+ * LOOK.md §4 already names for the market stalls: variation applied to the
+ * wrong quantity.
+ *
+ * So the primary roll is PER BUILDING at 0.30, and a second roll flips 0.12 of
+ * FLOORS against their building's grain — a lit stair core in a warm block, a
+ * let floor in a cold one, which is what the exceptions actually are. The two
+ * compose by XOR, so the delivered share is
+ * `0.30·0.88 + 0.70·0.12` = **0.348**, and LOOK.md asks for a third.
+ *
+ * BOTH ROLLS ARE PURE HASHES OF POSITION AND NOT `rng` DRAWS. STATE 31 §6
+ * established that the `layout` stream re-phases the whole region if a single
+ * verdict in it changes — the accept and reject branches consume different
+ * numbers of draws — so a colour decision taken from that stream would move
+ * every building downstream of it. These are the same `Math.sin`-hash shape the
+ * `lit` roll on the line below already uses, for the same reason: deterministic
+ * in the window's own position, and outside the RNG entirely.
+ */
+const COLD_BUILDING_SHARE = 0.30;
+const COLD_FLOOR_EXCEPTION = 0.12;
+/**
+ * How many of the cold windows are mercury rather than cool-white. 0.20 was
+ * the first choice and the frame refused it: `fluorescentCold` at R−B −0.111
+ * against a warm pane at +0.938 reads as grey rather than as a second colour
+ * of light, so a fifth of a third of it is invisible. 0.35 puts genuinely blue
+ * panes on **12.2% of all windows** — common enough to read as a kind of light
+ * and rare enough that the street is still mostly sodium, which is
+ * `docs/authored-city.md` §4's rule and LOOK.md §5's boundary.
+ */
+const MERCURY_SHARE_OF_COLD = 0.35;
+/**
+ * A shopfront is warmer than an office and a minority of them are not — the
+ * chemist, the laundrette, the convenience store. Rolled PER BAY rather than
+ * per building, because a shop is a bay: one cold unit in a run of warm ones is
+ * the pavement-height half of LOOK.md §3, and it is the light a walker at
+ * 1.74 m is actually lit BY.
+ */
+const COLD_SHOP_SHARE = 0.25;
+
+/** The unit-interval hash this file already uses for `lit`, named once. */
+function unitHash(a, b, c) {
+  return Math.abs(Math.sin((a + b + c) * 43758.5453) % 1);
+}
 
 export function createCity(options = {}) {
   const cfg = { ...CITY, ...options };
@@ -3310,9 +3440,25 @@ export function createCity(options = {}) {
           const display = bld.displayFacade && front &&
             fracUp >= bld.displayFrom && fracUp <= bld.displayTo;
           const on = display ? 1 : lit > 0.42 ? 1 : lit > 0.3 ? 0.35 : 0.02;
+          /**
+           * COLD LIGHT — LOOK.md §3. See `COLD_BUILDING_SHARE` for the whole
+           * argument, the measured 98.5%-warm it repairs, and why both rolls
+           * are position hashes rather than `rng` draws.
+           *
+           * `floorBase + fl` and not `fl`, for the same reason the display band
+           * uses it: a stepped tower's tiers are one building, and a cold floor
+           * that changed its mind at every setback would draw the setback.
+           */
+          const cold = !display &&
+            (unitHash(bld.x * 0.317, bld.z * 0.911, 0) < COLD_BUILDING_SHARE) !==
+            (unitHash((floorBase + fl) * 5.13, bld.x * 0.041, bld.z * 0.023) < COLD_FLOOR_EXCEPTION);
           const base = display
             ? SIGN_CHROMA[(fl + c) % SIGN_CHROMA.length]
-            : [1, 0.88, 0.72];
+            : !cold
+              ? WINDOW_WARM_TINT
+              : unitHash(c * 7.31, (floorBase + fl) * 2.17, bld.z * 0.13) < MERCURY_SHARE_OF_COLD
+                ? WINDOW_MERCURY_TINT
+                : WINDOW_COLD_TINT;
           tint.push({ albedo: [base[0] * on, base[1] * on, base[2] * on], roughness: 0.05 });
         }
       }
@@ -3639,7 +3785,13 @@ export function createCity(options = {}) {
       const shutDown = bld.condition === 'neglected' ? h < 0.55 : bld.condition === 'worn' ? h < 0.24 : h < 0.06;
       const glow = shutDown ? 0.01 : 0.55 + h * 0.75;
       windows.push(at(u, glassOut, (plinth - 1.1) / 2 + 0.55, bayW * glassW, plinth - 1.7, 0.3));
-      windowTint.push({ albedo: [glow * 1.0, glow * 0.9, glow * 0.76], roughness: 0.05 });
+      /**
+       * COLD LIGHT AT PAVEMENT HEIGHT — LOOK.md §3's last bullet, and rolled
+       * per BAY because a shop is a bay. See `COLD_SHOP_SHARE`.
+       */
+      const shopCold = unitHash(bld.x * 0.53, bld.z * 0.29, i * 11.7) < COLD_SHOP_SHARE;
+      const sc = shopCold ? SHOP_COLD_TINT : SHOP_WARM_TINT;
+      windowTint.push({ albedo: [glow * sc[0], glow * sc[1], glow * sc[2]], roughness: 0.05 });
 
       // A stallriser under the glass — the low solid panel every shopfront has.
       // A punched sockel opening keeps the plinth's own face instead.

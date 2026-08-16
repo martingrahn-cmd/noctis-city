@@ -535,10 +535,43 @@ export function createBlock(options = {}) {
       /** Galvanised steel. Metalness is a material class, not a dial: 1 or 0. */
       const matMetal = surfaceMaterial(ctx, { color: 0x53525a, roughness: 0.38, metalness: 1.0 });
 
+      /**
+       * ═════════════════════════════════════════════════════════════════════
+       * THE COLD ONE WAS NOT COLD — LOOK.md §3, SESSION 32.
+       * ═════════════════════════════════════════════════════════════════════
+       *
+       * This block already had four window kinds and one of them was called
+       * `windowCold`, so on a reading of the code the origin block was 15.95%
+       * of panes and 25.8% of emitted light cold, and LOOK.md §3's complaint
+       * did not apply to it. THE FRAME SAYS OTHERWISE, and the arithmetic says
+       * why: `fluorescentCold` is [0.80, 0.92, 1.0], which normalises to
+       * [0.889, 1.022, 1.111] and carries **R−B = −0.111**. Against a 2450 K
+       * pane at **+0.938** that does not read as another colour of light. It
+       * reads as grey.
+       *
+       * And the slot it was filling was already occupied. `fluorescentDirty`
+       * at [0.86, 1.0, 0.80] is 29% of the panes and is the pale, neutral,
+       * slightly-green thing a cool office window looks like from across a
+       * street. So this block had **two near-neutral classes and no cold one**,
+       * and the name on the second one is why nobody looked.
+       *
+       * `mercuryBlue` [0.30, 0.55, 1.0] normalises to [0.567, 1.039, 1.889] —
+       * **R−B = −0.538**, five times the separation. Old mercury-vapour stair
+       * and landing lighting, still in service in 2049 in the buildings nobody
+       * has re-fitted, and the one lamp in the real world that is genuinely
+       * cyan without being a sign. `windowCold` is also the BRIGHTEST of the
+       * four at 30 nits, so the colour that arrives is the one that carries.
+       *
+       * NOT a fifth material. Five window kinds is a fifth `InstancedMesh` on
+       * a block that is in every gate frame, and the draw-call ceiling is at
+       * 430 of 440. This is a chroma swap on a material that already exists:
+       * zero meshes, zero draw calls, zero instances. `windowDirty` keeps the
+       * neutral role it was always doing.
+       */
       windowMaterials = [
         emissiveMaterial(ctx, { chroma: kelvinToLinearRGB(2450), nits: EMISSIVE.windowWarm }),
         emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.fluorescentDirty, nits: EMISSIVE.windowDirty }),
-        emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.fluorescentCold, nits: EMISSIVE.windowCold }),
+        emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.mercuryBlue, nits: EMISSIVE.windowCold }),
         emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.sodium, nits: EMISSIVE.windowDim }),
       ];
       /**
