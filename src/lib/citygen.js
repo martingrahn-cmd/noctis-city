@@ -4628,8 +4628,45 @@ export function generateChunk(rootSeed, cx, cz) {
      * urban density is heavy-tailed rather than normal: a downtown block has ten
      * times what a block a kilometre out has, not one and a half times. The cube
      * of the same field measures 0.712 and looks like a city with districts.
+     *
+     * ───────────────────────────────────────────────────────────────────────
+     * SESSION 32: 2.2 → 1.4, AND THE ARGUMENT ABOVE IS THE REASON IT IS 1.4
+     * RATHER THAN A LINEAR LAW OR A CONSTANT.
+     *
+     * LOOK.md §2 asks for a continuous street wall and says *"fill approaches
+     * 1.0 in the core"*. It did not: at the region's own p90 density of 0.700
+     * the shipped law accepted **51.9%** of candidates, and the median block
+     * delivered 16.2% of its frontage as building.
+     *
+     * Swept over `city-budget.json`'s own 10×10 region at seed 1337, delivered
+     * counts read off `generateChunk` rather than predicted:
+     *
+     *     law                       buildings   occ med   bare sides   bldg CV
+     *     0.12 + 0.88·d^2.2  was          366     0.162     179/400      0.771
+     *     0.12 + 0.88·d^1.8                418     0.204     166/400      0.712
+     *     0.12 + 0.88·d^1.4  now          480     0.244     148/400      0.698
+     *     0.20 + 0.80·d^1.2                545     0.294     139/400        —
+     *     0.40 + 0.60·d                    630     0.316     127/400        —
+     *     1.00               ceiling       797     0.490     115/400        —
+     *
+     * 1.4 is where the budget stops, not where the picture does — see the
+     * measured triangle and draw-call cost in STATE 32. It buys **+31%
+     * buildings, +51% frontage occupancy and 31 fewer block sides bare end to
+     * end**, and it keeps the district structure this comment exists to
+     * protect: the delivered buildings-per-chunk CV moves 0.771 → 0.698, and a
+     * linear law is what measured 0.471 and failed.
+     *
+     * AND THE END-OF-RUN GAP IS NOT THE LEVER IT LOOKS LIKE. STATE 31's sweep
+     * has a row where shrinking `rng.range(6, 26)` to `(0.2, 1.4)` takes the
+     * city to 921 buildings — but that row is AT `fill = 1.0`. Measured at the
+     * shipped fill, `(6, 26) → (3, 13)` delivers **374 buildings against 366**,
+     * and block sides bare end to end go UP, 179 → 185, which is the re-phase
+     * and not an effect. At this fill the walk is rejection-dominated: a
+     * rejected candidate already costs `width + 1..7` ≈ 23 m, so saving 8 m at
+     * the end of a run rarely buys room for another 19 m building. The gap is
+     * worth revisiting only if the roll ever gets near 1.
      */
-    const fill = 0.12 + 0.88 * Math.pow(density, 2.2);
+    const fill = 0.12 + 0.88 * Math.pow(density, 1.4);
 
     const sides = [
       { axis: 'x', at: island.z0, out: -1, from: island.x0, to: island.x1 },
