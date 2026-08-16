@@ -54,8 +54,44 @@ const DEFAULTS = {
   debug: '',
   /** Comma-separated `module:phase` fault injections. See injectFaults below. */
   fault: '',
-  /** 0..1 surface wetness. Session 4's weather owns this; the look gate captures both ends. */
-  wet: 0,
+  /**
+   * 0..1 surface wetness. Session 4's weather owns this; the look gate
+   * captures both ends.
+   *
+   * IT WAS `0` FOR THIRTY-TWO SESSIONS AND IT IS NOW 0.55 — SESSION 33.
+   * LOOK.md §1's mood reference is "rain-lit neon at street level, the class of
+   * image where the road is a mirror and every light counts twice", and §6
+   * records that the water to deliver it has been built since session 4 and
+   * measured by a gate for as long, while the app itself ran dry.
+   *
+   * WHERE 0.55 COMES FROM, AND IT IS THIS MODULE'S OWN DRYING LAW EVALUATED
+   * ONCE. `weather.js` relaxes wetness toward `rainfall^0.6` with
+   * `exp(-dt/tau)`, and with the rain off (`rainfall` defaults to 0) that is
+   *
+   *     wetness(t) = exp(-t / DRY_TAU_S),   DRY_TAU_S = 3000 s
+   *
+   * where `DRY_TAU_S` is the 0.05 mm wet film divided by 0.06 mm/h of
+   * night-time evaporation. So a wetness IS a time since the shower stopped,
+   * and the default is that law at **t = 30 minutes**:
+   *
+   *     exp(-1800 / 3000) = 0.5488  ->  0.55
+   *
+   * THIRTY MINUTES IS THE ARGUMENT, NOT THE 0.55. It is long enough that the
+   * shower is unambiguously over — the streak, splash and spray layers are all
+   * gated on `rainfall`, which is 0, so there is no rain in the frame and
+   * nothing to mistake for one — and short enough to sit inside the drying
+   * law's own first time constant, so what is on the road is the shower rather
+   * than a permanent state. "Not permanently soaked" was the requirement and
+   * this is the requirement written as a number.
+   *
+   * THE CONSEQUENCE, STATED RATHER THAN LEFT TO BE FOUND. Nothing pins this,
+   * so a running app keeps drying from it: 0.30 after an hour, 0.09 after two.
+   * That is the module doing exactly what it says. Every CAPTURE is unaffected
+   * — a settle is 45 frames, 0.75 s, and `weather.js` computes that drift as
+   * 2.5e-4 in its own comment — and every gate pins its own wetness anyway,
+   * which is the finding in STATE 33 §2.
+   */
+  wet: 0.55,
   /** 0 disables every indirect term, for bisecting against the session 1 look. */
   indirect: 1,
   /** 0 disables screen-space reflection, for bisecting against the session 2 look. */
