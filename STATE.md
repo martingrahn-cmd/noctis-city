@@ -5,7 +5,7 @@
 uptime. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` WAS 2.22 AT THE FIRST COMMAND AND SAT BETWEEN 1.30 AND 4.36 FOR THE WHOLE
+***`load1` WAS 2.22 AT THE FIRST COMMAND AND SAT BETWEEN 1.30 AND 3.96 FOR THE WHOLE
 SESSION***, against CONTRACT §0.2's bar of **1.6**. **SO NO MILLISECOND IN THIS FILE IS
 ADMISSIBLE AS AN ABSOLUTE**, and none is quoted as one. Everything below is a COUNT, a
 DISTANCE, an AREA or a PIXEL STATISTIC — all load-independent, CONTRACT §9 rule 6's own
