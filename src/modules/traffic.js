@@ -1131,6 +1131,73 @@ const ARCH_HALF = 0.85;
  * the change: width, hauler 0.1650 = 1.38x the 0.12 floor; roof, pod 0.3398 =
  * 1.13x the 0.30 floor.
  */
+/**
+ * SESSION 34 — EVERY `top` CURVE IS NOW MONOTONE FROM NOSE TO TAIL, AND THAT
+ * IS THE WHOLE OF WHAT CHANGED. LOOK.md §4.
+ *
+ * THE OPERATOR'S WORDS: he is not happy with the vehicles, but *angular is fine
+ * if it is futuristic*. So the target is not more detail — more detail on a box
+ * is a detailed box. It is a DECIDED FORM, and §4's own argument for which one
+ * says the rest: *"this is the only change visible at thirty metres, because at
+ * distance the silhouette is what reads"* — the same finding the train's raked
+ * nose produced in session 23.
+ *
+ * WHAT WAS WRONG WITH THE OLD CURVES. Every one of the seven rose to a peak
+ * somewhere in the middle and then FELL AWAY at the tail:
+ *
+ *     wedge   0.74 0.74 1.06 1.28 1.28 1.28 1.20 1.04     peak at 3-5, drops 0.24
+ *     pod     0.98 0.98 1.36 1.66 1.66 1.66 1.56 1.34     peak at 3-5, drops 0.32
+ *     van     1.18 1.18 1.74 2.24 2.24 2.24 2.24 2.12     drops 0.12
+ *     hauler  2.06 2.06 2.62 3.20 3.62 3.62 3.62 3.44     drops 0.18
+ *     bus     1.80 1.98 3.20 3.20 3.20 3.20 3.14 2.92     drops 0.28
+ *
+ * That is a CAR profile — a bonnet, a cabin and a boot — drawn at seven scales.
+ * It is the shape a 1990s saloon has and it is the reason seven types read as
+ * one vocabulary differing in size, which is §4's fourth device stated as a
+ * defect.
+ *
+ * A WEDGE HOLDS ITS HEIGHT TO THE TAIL. Every curve now rises and never falls,
+ * so each body ends on a chopped full-height face — a Kamm tail — instead of a
+ * drawn-in boot. Three planes on most, two steps, and the steps are LARGE on
+ * purpose: session 9's note above says *"more sections is more steps is
+ * ribbing again"*, and the answer to that is fewer and bigger, not smoother.
+ * The wedge's two steps are 0.28 m on a 1.28 m body, 22% of its own height.
+ *
+ * AND THE LANGUAGE DIFFERS BY CLASS, which is the device this fleet had least
+ * of:
+ *
+ *     wedge   three planes, low nose to a full-height chop — the spinner
+ *     pod     three planes over 3.70 m, a shell that rises and stops
+ *     van     one rake to a box that is square all the way to the back door
+ *     hauler  a low nose plate, one intermediate plate, then 3.62 m of slab
+ *     bus     ONE unbroken volume behind a single raked nose section
+ *     moto    untouched. A bike is genuinely waisted and §4 does not ask
+ *     lorry   untouched. Already a slab behind a raked nose
+ *
+ * TWO BOUNDS WERE CHECKED BEFORE ANY NUMBER MOVED AND NEITHER IS SLACK.
+ *
+ *   THE WIDTH PROBE. §7.5 stands at `latHeight` = 0.50 of the subject's height
+ *   and a section below it contributes no width reading, so the header above
+ *   requires every sampled top to clear half the body's own height. Nose
+ *   clearances after: wedge 0.72 vs 0.64 (+0.08), pod 1.10 vs 0.83 (+0.27),
+ *   van 1.18 vs 1.12 (+0.06, unchanged), hauler 2.30 vs 1.81 (+0.49), bus
+ *   2.06 vs 1.60 (+0.46). No peak moved on any type, so `min` — the §5.12
+ *   entry — does not move either.
+ *
+ *   THE ROOF SPAN. `roofSpan` has a floor of 0.30 and the pod measured 0.3398,
+ *   the tightest in the fleet. A FLAT roof is the shortest span there is, so
+ *   the first draft of this change — pod and hauler as two-level slabs — was
+ *   REVERTED before it was measured: both are three-plane monotone rakes
+ *   instead, which keeps the level variety the span is counting. Written down
+ *   because the flat version is the obvious reading of "a closed shell" and
+ *   "slab-sided" and the next session will think of it too.
+ *
+ * IT IS A TABLE EDIT AND NOTHING ELSE, which is what makes the frames a true
+ * A/B: the profiles are DATA and draw no random numbers, so the fleet's
+ * positions, types, lanes and colours are identical either side. That is not
+ * true of most changes in this project — see the re-phase caveats in STATE 33
+ * §0 and in this session's signage — and it is worth having once.
+ */
 const LOFT = [
   {
     name: 'wedge', len: 5.40, wide: 1.96, speed: 1.06, weight: 0.34, rough: 0.34,
@@ -1144,7 +1211,7 @@ const LOFT = [
     // stations, not one; the replica reads 0.1800 against the 0.12 floor).
     // Bonnet shut line after section 1, door line after section 4.
     plan: [1.00, 1.00, 0.97, 0.97, 0.97, 0.97, 0.80, 0.63],
-    top: [0.74, 0.74, 1.06, 1.28, 1.28, 1.28, 1.20, 1.04],
+    top: [0.72, 0.72, 1.00, 1.00, 1.28, 1.28, 1.28, 1.28],
     seams: [1, 4],
     floorY: 0.44, sillY: 0.16,
     // Canopy band inside the cabin-plane sections 3-4 (tops 1.28, min 1.28 >
@@ -1167,7 +1234,7 @@ const LOFT = [
     // arithmetic as the wedge; replica width span 0.1800. Rear track 0.96 m
     // against 1.32 front. Seams: bonnet line, door line.
     plan: [1.00, 1.00, 0.97, 0.97, 0.97, 0.97, 0.80, 0.63],
-    top: [0.98, 0.98, 1.36, 1.66, 1.66, 1.66, 1.56, 1.34],
+    top: [1.10, 1.10, 1.38, 1.38, 1.66, 1.66, 1.66, 1.66],
     seams: [1, 4],
     floorY: 0.42, sillY: 0.15,
     // Canopy band inside cabin sections 3-4 (tops 1.66 > glass 1.58; plans
@@ -1191,7 +1258,7 @@ const LOFT = [
     // drawn in to 0.68. Replica width span 0.1650, roof span 0.4482. Seams:
     // cab shut line after the nose deck, cargo-door line after the box.
     plan: [1.00, 1.00, 0.98, 0.95, 0.95, 0.95, 0.82, 0.68],
-    top: [1.18, 1.18, 1.74, 2.24, 2.24, 2.24, 2.24, 2.12],
+    top: [1.18, 1.18, 1.74, 2.24, 2.24, 2.24, 2.24, 2.24],
     seams: [1, 5],
     floorY: 0.50, sillY: 0.19,
     // Visor inside the rake section 2 only (top 1.74 > glass 1.70; plan 0.98,
@@ -1216,7 +1283,7 @@ const LOFT = [
     // width span 0.1610, roof span 0.4155. Seams: nose-plate line after
     // section 1, freight-door line after section 5.
     plan: [1.00, 1.00, 0.98, 0.96, 0.93, 0.90, 0.83, 0.70],
-    top: [2.06, 2.06, 2.62, 3.20, 3.62, 3.62, 3.62, 3.44],
+    top: [2.30, 2.30, 3.00, 3.00, 3.62, 3.62, 3.62, 3.62],
     seams: [1, 5],
     floorY: 0.66, sillY: 0.22,
     // Visor across the nose deck, sections 0-1 (tops 2.06, glass 1.98; plans
@@ -1372,7 +1439,7 @@ const LOFT = [
      */
     name: 'bus', len: 12.00, wide: 2.55, speed: 0.78, weight: 0.03, rough: 0.46,
     plan: [1.00, 1.00, 1.00, 1.00, 0.99, 0.95, 0.82, 0.68],
-    top: [1.80, 1.98, 3.20, 3.20, 3.20, 3.20, 3.14, 2.92],
+    top: [2.06, 3.20, 3.20, 3.20, 3.20, 3.20, 3.20, 3.20],
     seams: [1, 5],
     floorY: 0.62, sillY: 0.26,
     /**
