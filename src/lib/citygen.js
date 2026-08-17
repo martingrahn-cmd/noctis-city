@@ -689,6 +689,104 @@ export const AD_PILLAR = {
 };
 
 /**
+ * THE BLADE — A SIGN THAT IS TALLER THAN IT IS WIDE. SESSION 34, LOOK.md §3.
+ * ==========================================================================
+ *
+ * THE MEASUREMENT THAT SAYS THIS IS THE GAP, taken before anything was
+ * changed, over `citycheck`'s own 10 × 10 region at seed 1337:
+ *
+ *     692 signs in 5 mountings
+ *     taller than wide (aspect > 1)                          0 of 692
+ *     width   min 0.90   p50  5.08   p90 14.15   max 22.11 m
+ *     height  min 0.22   p50  1.73   p90  3.70   max  5.98 m
+ *     >= 3.5 m tall (about one storey)                      88 of 692
+ *     >= 12 m tall (the four storeys §3 asks for)            0 of 692
+ *
+ * **THE WIDTHS ARE NOT THE PROBLEM.** A rooftop sign already reaches 22 m
+ * across. What no sign in this city can be is TALL: `aspect` is drawn 0.24–0.62
+ * for a shop sign and 0.28–0.42 for a building-scale one, so a vertical sign is
+ * not rare here — it is unreachable, and the tallest object in the whole
+ * signage vocabulary is 5.98 m against the four storeys §3 asks for.
+ *
+ * So this is an ASPECT band and not a size band, and the numbers below are what
+ * bound it.
+ */
+export const SIGN_BLADE = {
+  /**
+   * Metres, the NARROW dimension — and for a projecting blade the narrow
+   * dimension IS the cantilever over the pavement, which is what bounds it.
+   *
+   * The pavement is `CORRIDOR − roadHalfWidth` = 11.7 − 7.5 = **4.2 m**, and
+   * `city.js`'s projecting mount already caps any blade at 2.4 m of projection
+   * with its own derivation (*"the sign plus its 0.35 m standoff is 2.75 m,
+   * leaving 1.45 m of pavement clear"*). 2.2 m sits UNDER that cap, so a blade
+   * projects its full width rather than being silently clipped by a constant in
+   * another file — which is the arrangement §9.1 is a list of.
+   *
+   * The minimum is 0.9 and it is the SHOP band's own minimum, deliberately: §3
+   * wants a continuum from *"a 0.9 m plate over a door"* upward, not a third
+   * mode sitting apart from the two the size comment already argues against.
+   */
+  widthMinM: 0.9,
+  widthMaxM: 2.2,
+  /**
+   * Height / width. THE FLOOR OF THIS BAND IS THE CEILING OF EVERYTHING
+   * SHIPPED, which is the property that makes it a checkable claim rather than
+   * a taste: the narrowest blade at the lowest aspect is 0.9 × 2.6 = **2.34 m**
+   * and the widest is 2.2 × 2.6 = **5.72 m**, against a delivered maximum sign
+   * height of 5.98 m over the whole region. So every blade is at least as tall
+   * as the tallest thing this city had, and a blade is never mistakable for a
+   * fascia.
+   *
+   * The ceiling reaches what §3 asks for: 2.2 × 7.0 = **15.4 m**, against four
+   * storeys at the shortest era's 3.05 m floor = 12.2 m. Clamped per building
+   * to what the elevation can actually carry — see `bladeHeightM`.
+   */
+  aspectMin: 2.6,
+  aspectMax: 7.0,
+  /**
+   * Metres from the pavement to the blade's LOWER edge.
+   *
+   * 3.05 m is the shortest era's storey height, i.e. the first-floor slab —
+   * which is what a blade sign is bolted to in the world, hanging down past the
+   * shopfront fascia rather than starting above it. Derived rather than picked,
+   * and it clears `HEAD_CLEAR_M` (2.10 m, the props budget's own head height)
+   * by **0.95 m**, so nothing on this street can walk into one.
+   */
+  clearM: 3.05,
+  /**
+   * Probability that a sign on a TRADING building becomes a blade, and on a
+   * building that merely stands on a retail frontage.
+   *
+   * §3 asks for *"several at different depths in one frame"*. A frame down a
+   * retail street sees six to ten frontages; `RETAIL.tradingShare` of a retail
+   * frontage actually trades, so 0.34 on those and 0.12 on the rest puts two to
+   * three blades in such a frame and none at all on a street with no trade —
+   * which is the derivation §5 asks for. A blade on a street with no shops is
+   * the genre signifier that section refuses.
+   *
+   * DELIVERED over the same region, measured after: see STATE.
+   */
+  pTrading: 0.34,
+  pFrontage: 0.12,
+};
+
+/**
+ * A blade's height on a given elevation: its own roll, clamped to what the wall
+ * can carry between `clearM` and the parapet. Returns 0 where nothing fits,
+ * which is the caller's signal to leave the sign as it was.
+ *
+ * The clamp is why there is no `minBuildingHeight` constant: the geometry
+ * decides, and a threshold beside it would be a second description of the same
+ * inequality.
+ */
+export function bladeHeightM(width, aspect, buildingHeightM) {
+  const room = buildingHeightM - ROOF_PARAPET_M - SIGN_BLADE.clearM;
+  const wanted = width * aspect;
+  return room >= width * SIGN_BLADE.aspectMin ? Math.min(wanted, room) : 0;
+}
+
+/**
  * Does this building's frontage carry an advertising pillar? Rolled in the
  * generator so it is part of the chunk's own description; WHERE it stands and
  * whether it fits are decided against the delivered occupancy in `city.js`,
@@ -5295,9 +5393,53 @@ export function generateChunk(rootSeed, cx, cz) {
              * spans a letter-height fascia and a near-square plate.
              */
             const u = signRng.next();
+            /**
+             * THE BLADE ROLL — SESSION 34, LOOK.md §3, and it is conditioned on
+             * TRADE rather than sprinkled.
+             *
+             * §5's test for anything added to this city is that it be derivable
+             * from something the city already has. What a blade is derivable
+             * from is the retail frontage roll session 28 built: a tall
+             * vertical sign is what a shop puts out over a pavement so it reads
+             * from down the street, and a street with no shops on it has no
+             * reason to carry one. `bld.retail` is "this building trades" and
+             * `bld.retailFrontage` is "this side of the block is a shopping
+             * street"; both are already decided and nothing read them here.
+             *
+             * `big` wins over `blade`: a 9–17 m building-scale sign and a
+             * vertical blade are two different objects and a building carrying
+             * one is not carrying the other.
+             */
+            const bladeRoll = signRng.next();
+            const bladeWanted = !big && (bld.retail
+              ? bladeRoll < SIGN_BLADE.pTrading
+              : bld.retailFrontage && bladeRoll < SIGN_BLADE.pFrontage);
             const width = big
               ? signRng.range(9, 17)
-              : 0.9 + 5.3 * u * u;
+              : bladeWanted
+                ? SIGN_BLADE.widthMinM + (SIGN_BLADE.widthMaxM - SIGN_BLADE.widthMinM) * u
+                : 0.9 + 5.3 * u * u;
+            /**
+             * ASPECT IS HOISTED ABOVE THE `push` — session 34 — because a
+             * blade's HEIGHT decides where its centre goes, and the object
+             * literal below evaluates `y` before `aspect`. One draw on every
+             * path, as the `width` line above has had since session 20.
+             *
+             * The stream re-phases: `signRng` now draws bladeRoll and aspect at
+             * different points than it did, so the delivered signage is a
+             * DIFFERENT population and not the old one with blades added. It is
+             * `signRng`'s own stream and nothing else reads it, so nothing
+             * outside the signage moves — the same caveat STATE 33 §0 records
+             * for the gait stream.
+             */
+            const aspect = big
+              ? signRng.range(0.28, 0.42)
+              : bladeWanted
+                ? signRng.range(SIGN_BLADE.aspectMin, SIGN_BLADE.aspectMax)
+                : signRng.range(0.24, 0.62);
+            /** 0 where the elevation cannot carry one — then it stays a fascia. */
+            const bladeH = bladeWanted ? bladeHeightM(width, aspect, height) : 0;
+            const blade = bladeH > 0;
             /**
              * A BUILDING-SCALE SIGN STAYS ON THE BASE TIER — session 20.
              *
@@ -5322,19 +5464,44 @@ export function generateChunk(rootSeed, cx, cz) {
               : height;
             signs.push({
               x: cxb,
-              // ONE DRAW EITHER WAY. The clamp is applied to the draw, not
+              // ONE DRAW ON EVERY PATH. The clamp is applied to the draw, not
               // added beside it: `big ? A(draw) : B(draw)` consumes exactly one
-              // uniform on both paths, which is what keeps this session's
-              // change to the sign stream at zero.
+              // uniform on all three paths, which is what keeps the sign
+              // stream's phase a function of the sign COUNT and nothing else.
+              //
+              // A BLADE'S CENTRE IS DECIDED BY ITS BOTTOM EDGE, not by a band.
+              // `clearM` is where it hangs from and `bladeH` is how far down it
+              // comes, so the centre is fixed and the one draw spends whatever
+              // slack the elevation has left between the blade's top and the
+              // parapet — which is zero on a building that only just carries it.
               y: big
                 ? Math.min(height * signRng.range(0.55, 0.82), bigTop)
-                : signRng.range(3.4, 7.2),
+                : blade
+                  ? SIGN_BLADE.clearM + bladeH / 2
+                    + signRng.next() * Math.max(0, height - ROOF_PARAPET_M - SIGN_BLADE.clearM - bladeH)
+                  : signRng.range(3.4, 7.2),
               z: czb,
               facing: bld.facing,
-              scale: big ? 'building' : 'shop',
+              scale: big ? 'building' : blade ? 'blade' : 'shop',
               width,
-              aspect: big ? signRng.range(0.28, 0.42) : signRng.range(0.24, 0.62),
-              mount,
+              /**
+               * THE DELIVERED ASPECT, NOT THE ROLLED ONE. `bladeHeightM`
+               * clamps a blade to the wall it hangs on, so a 15.4 m roll on a
+               * 12 m building is a 7.9 m blade — and writing the ROLL here
+               * while the height is the CLAMP is CONTRACT §9's shape exactly:
+               * `city.js` computes `height = width * aspect` and would draw the
+               * unclamped one through the parapet.
+               */
+              aspect: blade ? bladeH / width : aspect,
+              /**
+               * A BLADE IS FLUSH OR PROJECTING AND NEVER A ROOF SIGN OR A
+               * PYLON. A 12 m vertical panel on a mast above a parapet is not a
+               * roof sign and a 12 m pylon on a 4.2 m pavement is not a pylon —
+               * the same argument the `big` branch above already makes one
+               * mounting over. `projecting` is the default because a blade's
+               * whole purpose is to read ALONG the street.
+               */
+              mount: blade && (mount === 'roof' || mount === 'freestanding') ? 'projecting' : mount,
               /** The elevation's own top, so a roof mount can stand on it. */
               buildingHeight: height,
               buildingWidth: bld.width,
