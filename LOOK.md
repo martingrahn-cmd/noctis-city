@@ -60,6 +60,36 @@ It is that the street wall is broken.
   so one pool would submit **1.90 M against the 2.00 M ceiling** before the sky,
   the traffic, the people and the stalls. The per-chunk meshes are doing the
   culling work.
+- **BUILDINGS GO TO THE BACK OF THEIR LOT, AND THE CORE IS A LIGHT WELL ONE
+  STREET WIDE.** Measured over `city-budget`'s own 10 × 10 region at seed 1337
+  by `tools/depthprobe.mjs`, which is the instrument the numbers below come out
+  of. Before session 35 every building in the city drew its depth from one band,
+  `rng.range(15, 26)`, wherever it stood:
+
+  ```
+                                    s34        s35
+    median depth into the island   20.1 m     29.6 m     of a 52.3 m half-block
+    island coverage                20.8%      28.1%      over the chunks that
+                                                         carry a building
+    built past 31 m from the lot    0.05%      5.35%    of the built-chunk
+                                                        island area past 31 m
+  ```
+
+  **The core is derived and not chosen.** `CORRIDOR` is 11.7 m, building line to
+  road centre; two of them is **23.4 m, building line to building line** — the
+  section of an ordinary street in this city, and the narrowest gap it already
+  asserts two facades may face each other across. So the light well is one
+  street wide and the lot is `(104.6 − 23.4) / 2 = 40.6 m`. A full ring at 40.6 m
+  covers **95.0%** of the island against the 96.3% of the lower Manhattan block
+  STATE 33 §6 measured this against.
+
+  **AND THE OTHER KNOB IS STILL THE SHORT ONE.** Coverage is depth × frontage
+  and they multiply: depth now stands at **0.73 of the reference ring** and
+  frontage occupancy at **0.244** (STATE 32). Nothing about this bullet closes
+  the bullet above it. **From the street the deepening is nearly invisible** —
+  session 35's own frame pair says so — because a gap in a street wall is a
+  frontage fact and depth grows the other way. What it changes is the view from
+  the air and the view past a corner.
 - **Heights are lognormal, not an even comb.** Mostly six to twelve storeys,
   with occasional towers standing well clear. `citygen.js` already carries the
   argument and both measured arms: sd/mean 0.664 against today's 0.425, p99
