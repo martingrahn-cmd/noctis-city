@@ -3049,6 +3049,25 @@ export function createStreetlife(options = {}) {
     a.cz = chunk.cz;
     a.placed = true;
     a.reseated = true;
+    /**
+     * A RE-SEAT ENDS A CROSSING — session 33, and without this line the whole
+     * argument for `crossingOccupied` being rebuilt every frame is undone.
+     *
+     * `updateAgentPosition` reads `a.cross` FIRST and takes the position off
+     * the crossing path, so an agent re-seated mid-crossing would be drawn back
+     * at the junction it was teleported away from while being counted in its
+     * new chunk — and, worse, it would keep adding its old junction's key to
+     * `crossingOccupied` every frame for ever, which is a junction no vehicle
+     * may ever enter again. That is the exact deadlock the rebuild-per-frame
+     * design was chosen to make impossible, arriving through the one door the
+     * rebuild does not close: the agent is still crossing, so the set is right
+     * and the AGENT is wrong.
+     *
+     * Found by reading this function back after the crossing was built, not by
+     * a gate. `rebalance` moves whoever is furthest from the camera, so the
+     * frames that would have shown it are the ones nobody is looking at.
+     */
+    a.cross = null;
     const r2 = SIM_RADIUS_M * SIM_RADIUS_M;
     let p = 0;
     for (let t = 0; t < 12; t++) {
