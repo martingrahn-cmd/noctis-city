@@ -79,8 +79,36 @@ Light is the city's main material. Geometry is what the light lands on.
 - **Neon.** Large, and often vertical. Today's signs are small horizontal plates
   high on facades; the reference has signs four storeys tall, several at
   different depths in one frame, some spanning half a wall.
+
+  **MEASURED, session 34**, over `citycheck`'s own 10 × 10 region at seed 1337:
+  **692 signs in 5 mountings — and NOT ONE OF THEM IS TALLER THAN WIDE.**
+  `aspect` is drawn from 0.24–0.62 for a shop sign and 0.28–0.42 for a
+  building-scale one, so a vertical sign is not rare in this city, it is
+  *unreachable*. Delivered heights: median **1.73 m**, p90 **3.70 m**, max
+  **5.98 m** — the tallest sign in the world is under two storeys, and 88 of
+  692 (12.7%) reach even one. The machinery is not the gap: the mountings, the
+  size roll, the aspect roll and the lit/half/dead states all exist. **The
+  sizes and the orientation are the gap.**
 - **Holograms.** Emissive, semi-transparent, above the street and at junctions.
-  New content, not yet present in any form.
+  New content, not yet present in any form — checked, session 34: nothing in
+  `citygen.js` or `city.js` emits a transmissive or additively-blended quad
+  anywhere, so this bullet is a statement about absence and not a guess.
+
+  What makes a hologram read is that it does not obey the street: it hangs in
+  air nothing supports, it is brighter than the wall behind it, and you can see
+  through it to the wall. A hologram that reads as a lit billboard is a lit
+  billboard, and this project already has 692 of those.
+- **Haze around light.** The air is clear and every emitter stops at its own
+  edge. In the reference a sign LIGHTS THE AIR — a cone or a bloom around it,
+  denser where the air is dirtier, and it is most of what makes a street feel
+  full of light when it is nearly empty of objects.
+
+  This is the term with the least geometry and the most risk to the look
+  budget. §7's luminance bands measure whole-frame mean, and putting light into
+  the air raises exactly that — `gateaudit`'s headroom table has all four bands
+  within 0.0025 of an edge. So it is the change that most needs §7's
+  re-derivation discipline, and the one where "it cannot be done honestly
+  inside the bands" is a legitimate answer rather than a failure.
 - **Colour opposition.** This is close to free and it is the biggest unspent
   lever. NOCTIS is currently monochrome amber — nearly every emitter is warm.
   The reference works because cold cyan fights warm sodium in the same frame.
@@ -122,6 +150,32 @@ is judged from about 1.7 m.
   gets close to. Architecture can stay coarse. Session 31 measured that per-class
   vehicle shape already costs zero extra draw calls via row instancing — the box
   cars are an authoring gap, not a budget one.
+- **Vehicle silhouettes — angular on purpose.** The operator's words: he is not
+  happy with the vehicles, but *angular is fine if it is futuristic*. So the
+  target is not more detail. More detail on a box is a detailed box.
+
+  Four devices, and the first is the only one that survives distance:
+
+  - **A WEDGE.** A decided diagonal through the side elevation — low nose and
+    high tail, or one unbroken rake. At thirty metres the silhouette is the
+    whole of what reads, which is the finding the train's raked nose produced
+    in session 23.
+  - **ENCLOSE THE WHEELS.** Free wheels under a box read as an *attempt* at a
+    car. Skirts and fairings closing to the ground remove the reference, and
+    what is left is a vehicle rather than a bad car.
+  - **LIGHT AS FORM, NOT LIGHT ON FORM.** Session 33 built four light
+    signatures and they sit ON the body. The light bar should BE the leading
+    edge of the wedge — the shape and the emitter the same object.
+  - **A DIFFERENT LANGUAGE PER CLASS.** The hauler industrial and slab-sided,
+    the pod a closed shell, the bus one long unbroken volume. Today the seven
+    types share one vocabulary and differ mainly in scale.
+
+  Two gate reds already say the same thing from the other side, on
+  `highway_speed`: only 73% of vehicles have a dark gap at the ground against a
+  75% floor, and only 63% carry a non-monotone tone profile against 75%. A
+  monotone tone profile is a body with no surfaces that catch light
+  differently — a flat slab. Both move the right way under the four above,
+  which is what makes them evidence rather than a coincidence.
 
 ---
 
@@ -131,6 +185,23 @@ is judged from about 1.7 m.
 - Not a ruin or an abandoned city. It is busy.
 - Not photoreal. Flat-shaded, deliberately. The look comes from light, colour
   and density — not from polygon count or texture detail.
+
+**THE DEVICES ARE THE TARGET; THE QUOTATION IS NOT.** Session 34, because as it
+stood a reader took the three bullets above as forbidding the aesthetic
+outright, and they do not.
+
+The **devices** are wanted: a wet road that doubles every light, cold against
+warm, signs that light the air, angular vehicles, encrusted facades. Not
+because they are cyberpunk — because that is what a dense night metropolis in
+2049 looks like, and each of them is a consequence of something this city
+already has.
+
+The **quotation** is not wanted: no restaged shots, no genre signifier placed
+because it signifies. The test is the one §2 already applies to density —
+**anything here should be derivable from something the city already has**: the
+river, the viaduct, the railway, the money, the weather, the age of a wall. A
+device you can derive is content. A device you can only justify by naming the
+film it came from is set dressing, and it will read as set dressing.
 
 ---
 
@@ -191,3 +262,28 @@ name one is probably instrument work, and instrument work now needs a reason.
 
 Edit this file when the picture changes — it is the operator's document, and
 anything here he disagrees with is wrong by definition.
+
+### A DEFECT GOES IN THIS FILE ONLY AFTER IT HAS BEEN MEASURED
+
+Three claims in this document have been false and all three were written here
+as statements of fact: the 23 empty chunks, "never seen", and "crossings
+currently absent". Each cost a session — two of them cost a session that went
+looking for a defect that was not there, and one of them (§4's crossings) had
+been shipped thirteen sessions before the sentence saying it was missing.
+
+The rule that follows from that is cheap:
+
+> **A defect is written here as a STATEMENT only if a number has been printed
+> for it. Anything entered on a guess is written as a QUESTION** — *"are
+> crossings present?"*, not *"crossings are absent"* — and the session that
+> answers it converts the question into a statement with the number attached.
+
+A question in this file is not a weaker claim. It is an honest one, and it is
+work somebody can pick up: a question costs the next session ten minutes with a
+probe, where a wrong statement costs it a whole item.
+
+The same rule applies to a number this file quotes from somewhere else. Cite
+the instrument and the region — *"692 signs over `citycheck`'s 10 × 10 at seed
+1337"* — because a count with no population behind it is a number that cannot
+be checked and therefore cannot be wrong, which is the property §7 says a proxy
+must never have.
