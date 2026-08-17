@@ -1,398 +1,423 @@
 # NOCTIS — STATE
 
-*End of session 33. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB, AC power**, `node v22.22.0`. Every gate
-that reads a pixel printed `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
+*End of session 34. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 37 days of
+uptime. Every gate that reads a pixel printed
+`ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` WAS 1.78 AT THE FIRST COMMAND AND IT DID NOT FALL THIS TIME.** Session 32 quoted
-milliseconds from inside CONTRACT §0.2's bar of 1.6 because the screen-sharing that had been
-driving the load was switched off; this session ran a browser almost continuously and `load1`
-sat between **2.3 and 4.8** for its whole length. **SO NO MILLISECOND IN THIS FILE IS
+***`load1` WAS 2.45 AT THE FIRST COMMAND AND SAT BETWEEN 1.73 AND 2.45 FOR THE WHOLE
+SESSION***, against CONTRACT §0.2's bar of **1.6**. **SO NO MILLISECOND IN THIS FILE IS
 ADMISSIBLE AS AN ABSOLUTE**, and none is quoted as one. Everything below is a COUNT, a
-DISTANCE, a POPULATION or a PIXEL STATISTIC — all of which are load-independent — or a
-paired before/after measured through the same instrument on the same machine within minutes
-of itself. `memory/noctis-quiet-bar.md` says a GREEN absolute under load is still a verdict
-and a RED one is not; both kinds appear in §7 and are labelled.*
+DISTANCE, an AREA or a PIXEL STATISTIC — all load-independent, CONTRACT §9 rule 6's own
+corollary — or a paired before/after taken through the same instrument on the same machine
+within minutes of itself. `memory/noctis-quiet-bar.md` records that drift on this machine is
+one-sided: a GREEN absolute under load is still a verdict and a RED one is not. **§8.2 has a
+red absolute this session and it is NOT reported as a finding.**
 
 ---
 
 ## 0. THE FRAMES, IN ORDER, AND WHAT EACH ONE IS FOR
 
-**This table is the session's report.** The gate table is §7 and it is not the verdict.
+**This table is the session's report.** The gate table is §8 and it is not the verdict.
 
 | # | frame | LOOK.md | did the city move toward it |
 |---|---|---|---|
-| 1 | `shot-out/custom-s33-i1-dry-t0.png` → `custom-s33-i1-default-t0-wet.png` | **§1, §6** | **YES, AND IT IS NOW THE DEFAULT.** Same pose, same instant, `wet` 0 → 0.55. The road carries the red sign, the lamp columns, the headlights and the shopfront strips. `custom-s33-i1-full-t0-wet.png` is the same frame at 1.0 and it is **worse** — see §2. |
-| 2 | `shot-out/s33-i2-junction.png`, and **`s33-i2-eye.png` for item 2d** | **§4** | **YES, and it is the frame this session exists for.** A junction at midnight after 90 s of simulated time: a full-width zebra on the carriageway, a person on it, people standing at the kerb, vehicles held at a red, and the whole thing doubled in the wet road. `s33-i2-eye.png` is the same subject from the PAVEMENT at 1.74 m, which is what item 2d asked for and what LOOK.md §4 says the camera that matters is. |
-| 3 | `shot-out/custom-s33-i3-crowd-b2-t0-wet.png` → `custom-s33-i3-crowd-a2-t0-wet.png`, and `s33-i3-crowd-live.png` | **§4** | **YES.** The pavement, same pose, before and after. The before is the operator's word for it: ten figures in a single file at one spacing. The after is clustered — a group at mid-distance, two people standing apart in the near ground, and empty pavement between them. |
-| 4 | `shot-out/s33-i4-busstop.png` | **§4** | A bus stop. **PARTLY** — the bus behaviour is delivered and measured (§5), but this framing does not catch a bus at a shelter and is recorded as a frame that failed to make the case, not as one that made it. |
+| 1 | `shot-out/s34-i1-weir-air-t0_5649-wet.png` → `s34-i1-weir-air-after-t0_5649-wet.png` | **§2, §4** | **YES, AND IT IS THE FRAME THIS SESSION EXISTS FOR.** Same pose, same instant, wet. The before is the operator's own report made visible: 44 100 m² of flat brown earth with a thin white arc on it, and rows of vehicles, lamp posts, market stalls and people standing on it. The after is a 210 m sunken basin with nothing standing in it and nothing crossing it. |
+| 2 | `shot-out/s34-i1-air-before-t0_5649-wet.png` → `s34-i1-air-after-t0_5649-wet.png` | **§2** | **YES.** The same change from the reported spawn itself, 70 m up, at the district scale the complaint was made at. |
+| 3 | `shot-out/s34-i7-blades-before-t0-wet.png` → `s34-i7-blades-after-t0-wet.png` | **§3** | **YES.** Along a street at midnight, wet. A small horizontal cyan plate on the left frontage becomes a tall vertical blade running down the elevation, with a second one beyond it. **Read with §6's re-phase caveat.** |
+| 4 | `shot-out/s34-i5-veh-{before,after}-t0-wet.png` and `s34-i5-fleet-{before,after}-t0-wet.png` | **§4** | **PARTLY, AND IT IS A TRUE A/B — which almost nothing in this project can say.** The tails stop falling away. It is the smallest visible change of the four and it is recorded as such, and §5 says which two of item 5's four devices were not built. |
 
 ```
-1  node tools/lookat.mjs --pos=70,1.74,0.9  --target=-104,17.5,-1.4 --fov=50 --t=0.0 [--wet=0|1]
-2  live  --pos=145,3.4,150   --target=128,0.3,128 --fov=55 --t=0.0 --sim=90
-2d live  --pos=137.6,1.74,150 --target=137.6,1.6,40 --fov=52 --t=0.0 --sim=120
-3  node tools/lookat.mjs --pos=200,4.2,131  --target=110,1.0,138    --fov=40 --t=0.0
-3  live  --pos=200,4.2,131   --target=110,1.0,138  --fov=40 --t=0.0 --sim=120
-4  live  --pos=185,1.74,119  --target=130,1.9,137  --fov=48 --t=0.0 --sim=220
+1  node tools/lookat.mjs --pos=-158.02,69.96,250.12 --target=-300,0,150 --fov=70 --t=0.5649
+2  node tools/lookat.mjs --pos=-158.02,69.96,250.12 --target=-158,0,60  --fov=70 --t=0.5649
+3  node tools/lookat.mjs --pos=5,1.74,52    --target=5,11,190   --fov=55 --t=0.0
+4  node tools/lookat.mjs --pos=10.5,1.74,50 --target=5.6,0.9,64 --fov=40 --t=0.0
+4  node tools/lookat.mjs --pos=5,1.74,52    --target=5,4,120    --fov=48 --t=0.0
 ```
 
-**A RE-PHASE CAVEAT ON FRAME 3, said before it can be quoted as a regression.**
-`WALK_SPEED_SD` is drawn from the `gait` stream and so are `spread` and the initial gait
-phase, in that order, so changing the spread re-phases every agent's other two draws. **The
-pair at one camera is two different crowds, not one crowd with more variety in it.** The
-counts are the evidence and the frame is the sanity check — the same thing STATE 32 §4.4 had
-to say about the fill raise.
+All are `lookat` frames and therefore **frozen** — `?paused=1` stops the clock, so the traffic
+and the crowd stand where they were seeded. STATE 33 §11 recorded that and it is still true.
+Every "before" was taken by `git stash`ing the working tree and re-shooting the same pose
+minutes later, so each pair is the same instrument on the same machine.
 
-Frames 2, 2d, 3-live and 4 are **not** `lookat` frames and could not have been. `lookat` sets `?paused=1`
-and `setTimeOfDay` pauses the clock, so `time.now` never advances and nothing that integrates
-it ever moves — the pedestrians, the traffic and the weather are all frozen where they were
-seeded. **Every frame this project has ever shown of a moving system was a frame of that
-system standing still.** They were taken with a throwaway that unpauses, steps N simulated
-seconds and then settles; it is not committed, for the reason §10 gives.
+**FRAME 4 IS A TRUE A/B AND FRAME 3 IS NOT.** Item 5 is a change to a DATA TABLE that draws no
+random numbers, so the fleet's positions, types, lanes and colours are identical on both
+sides. Item 7 adds a draw to `signRng`, so its pair is two different signage populations —
+the same caveat STATE 33 §0 had to give for the gait stream.
 
 ---
 
-## 1. ITEM 0 — LOOK.md WAS WRONG THREE TIMES, AND ALL THREE WERE THE OPERATOR'S OWN TEXT
+## 1. ITEM 1 — THE TRAFFIC WAS RUNNING ON THE WEIR, AND SIX READERS HAD SIX SPELLINGS
 
-`2f26ba2`, its own commit, first, before anything was built. The brief said two. There were
-three.
+`b2ad696`. **Both of the brief's hypotheses are false and the measurement says what it is
+instead.**
 
-- **§2's "23 empty chunks are the defect"** is rewritten with session 32's answer: seventeen
-  are parks, yards, lots, car parks and building sites; six are `built` chunks under a
-  landmark or in the river; `(-3,1)` at 0.715 is 100% inside the weir. **Re-measured at HEAD
-  today: 480 buildings, 21 zero-building chunks — 17 non-`built`, 4 `built`, `(-3,1)` still
-  among them.** The fill raise moved exactly two chunks, as §4.5 of STATE 32 said it would.
-- **§2 gains the real limiter**: one 0.061 m² `sign(adpillar) × prop(planter)` overlap in the
-  occupancy registry one exponent on. Not draws, not triangles, not batching.
-- **§6's "never seen"** becomes "never *looked at*". `lookcheck` has captured wet frames at
-  all four times of day all along and asserts four bars on them.
-- **§4's "crossings currently absent"** — **THE THIRD, AND IT WAS FOUND BY COUNTING RATHER
-  THAN READING.** Session 21 put crossing markings in the road-marking path. Over
-  `citycheck`'s own 10 × 10 region the generator delivered **2 077 crossing stripes, 82 of
-  100 chunks with a full four-approach set**, and they render. §2 below is what was actually
-  wrong with them.
+### 1.1 IT IS NOT AN EMISSION FAULT AND IT IS NOT LOW-DETAIL CHUNKS
+
+The brief asked (1a) whether the registry carries `carriageway` and `pavement` claims that the
+delivered census lacks, and (1b) whether low-detail chunks skip their ground surfaces.
+
+```
+  rastered claimed-vs-delivered, 16 m grid, 768 m square about the reported spawn
+    cells with a carriageway or pavement claim                        711
+    of those NOT delivered by city.surfaceAt                            0    0.0%
+```
+
+**Zero.** And (1b) was already answered in the source before it was asked: `citygen.js`'s
+`groundRadius` comment records that *"every one of them emits pavement rectangles — all 66
+lowDetail chunks and all 74 with zero buildings included — because the `ground` block in
+`generateChunk` sits ABOVE its `if (!lowDetail)`"*. It still does.
+
+**AND THE ROAD AT THE REPORTED SPAWN IS DRAWN.** `?spawn=-158.02,69.96,250.12` reports *"on
+road at y 0.001"* and that is correct in both directions: `surfaceAt` returns `road`/0.001 and
+the merged `city:ground` mesh carries **two triangles over that exact point**. The spawn is
+about 100 m east of the hole, not in it.
+
+### 1.2 IT IS THE WEIR, AND THE WEIR IS A DISTRICT
+
+`landmarkAABB(weir)` is **210 × 210 m = 44 100 m², 2.69 chunks.** Rastered at 0.5 m, the union
+of every landmark's ground claims is **69 658 m², and the weir is 63.3% of it — 4.28× the next
+largest**, the condenser's stacked boxes at 10 302 m².
+
+The road clip does its job: two north–south avenues (x = −384 and x = −256, 84 m and 44 m from
+the basin's centre against its 105 m radius) and one east–west street (z = 128) lose 210 m
+each. Over `citycheck`'s own 1 280 m region that is **1 050 m of 28 182 m of lattice
+centreline, 3.73%, with no carriageway under it.** The fleet drove every metre of it.
+
+### 1.3 SIX READERS OF "DOES A LANDMARK STAND HERE", AND THREE COULD NOT SEE THE BASIN
+
+```
+  traffic.js seed + recycle   no landmark test of any kind
+  the street-lamp loop        river only — its own comment claims "the same predicate
+                              the generator refuses buildings and props with"
+  the bus shelter             landmarkOccluders + landmarkGroundBlockers    BOTH [] for a basin
+  the road-patch loop         no test at all
+  city.js placedClaims()      landmarkOccluders + landmarkGroundBlockers    BOTH [] for a basin
+  streetlife walkBlockers     landmarkGroundBlockers                        [] for a basin
+```
+
+`landmarkGroundBlockers` returns `landmarkOccluders` **verbatim** for anything that is not a
+viaduct, and `landmarkOccluders` returns `[]` for a `basin` — so three of the six were two
+copies of one empty list. `landmarkBlocks()`, a seventh spelling that exists and is called by
+nothing, disagrees with the registry twice over: it tests a CIRCLE where the registry claims
+the AABB (34 636 m² against 44 100, 21% apart, all of it in the corners) and it counts the
+viaduct's DECK segments, which a carriageway is explicitly allowed to sit under.
+
+`landmarkGroundClaims()` is now the one list and `generateChunk` claims FROM it rather than
+beside it. **Verified byte-identical over twelve chunks before and after the refactor** —
+same carriageway, pavement, building, prop and landmark counts, same ground-rect counts.
+
+```
+  emitted boxes inside the weir's rim, by the line that emitted them
+                                          before   after
+    street lamps (columns + bowls)          34        0
+    road patches, floating at y = 0.005      8        0
+    a bus shelter and its lit panel          8        0
+    TOTAL                                   50        0
+```
+
+**AND `placedClaims()` IS THE DELIVERED CENSUS.** The occupancy gate's second side has never
+carried the weir or session 23's two viaduct end treatments, so the two halves of this
+project's two-sided occupancy check have described two different worlds for eleven sessions.
+It reported zero anyway, and that is the part worth knowing: nothing was ever placed inside
+the weir for the census to catch **because the generator's half was right**. A two-sided check
+whose second side is blind passes exactly as long as the first side never fails. CONTRACT §9
+rule 7 says to assume both readers share an error; here they did not share it, and the
+disagreement was still silent.
+
+### 1.4 AND A PLANE ABOVE WATER HIDES WATER
+
+```
+  block:ground     mesh   y[-0.02, -0.02]   x[-4000, 4000]  z[-4000, 4000]
+  landmark:weir    mesh   y[-9.40,  0.40]   x[ -405, -195]  z[  45,  255]
+```
+
+**9.40 m of the basin's 9.80 m — 96% of it — is drawn underneath an opaque 8 km plane.** What
+a frame showed instead was flat earth with a thin white arc on it, which is the 0.42 m of
+retaining ring standing proud — **and that arc is STATE §11's "unexplained ground arc near the
+origin", carried as a known gap since session 8.** CONTRACT §9.1 already has the row (*geometry
+authored and then drawn inside something else*); this is the largest instance in the project
+by two orders of magnitude.
+
+The plane is now cut on **the lathe's own 40-gon**, not on the AABB — a rectangular hole would
+leave **9 464 m² of open void in the four corners**, which is the *"slot of nothing"*
+`block.js`'s own earth comment already refuses for the river. Cost: **2 000 → 2 154 earth
+triangles, +154.**
+
+Three things had to follow it or the repair would be the same defect wearing the other hat:
+
+- **the profile and the segment count moved to `citygen.js`**, so the cut edge and the drawn
+  rim are the same polyline and cannot crack apart. Not one vertex moved;
+- **`blockSurfaceAt` answers the basin's own floor, ledge and wall**, because that function's
+  own comment says a second copy of its branches would be §9.1 — *"the api would answer one
+  height and the geometry would stand at another"*;
+- **`worldSurface`'s maximum now defers to `block` where this module has no quad of its own.**
+  `GROUND_Y.earth` on that branch is `city.js` asserting the height of a plane `block.js`
+  owns, and a maximum keeps the borrowed description whenever the real one goes DOWN. It went
+  down by 9.4 m.
+
+Delivered census, three eyes, with the weir now in it: **0 forbidden overlaps** over 4 125 /
+4 298 / 4 254 claims.
 
 ---
 
-## 2. ITEM 1 — THE STREET IS WET, AND ONE LINE IN `main.js` WOULD HAVE DELIVERED NOTHING
+## 2. ITEM 2 — THE VEHICLES WERE PUT PAST THE BAR, NOT DRIVEN PAST IT
 
-`dff29bc`. `wet` **0 → 0.55**.
+`f298cc8`. **−14.675 m → 0, and the gate is GREEN on all four routes.**
 
-**THE NUMBER IS `weather.js`'s OWN DRYING LAW EVALUATED ONCE.** With the rain off — default
-`rainfall` is 0 — that module relaxes wetness toward `rainfall^0.6` = 0 as `exp(-t/3000 s)`,
-where 3000 s is the 0.05 mm wet film over 0.06 mm/h of night-time evaporation. **A wetness IS
-a time since the shower stopped**, and 0.55 is that law at thirty minutes:
-`exp(-1800/3000)` = 0.5488. Thirty minutes is the argument and 0.55 is its consequence — long
-enough that the streak, splash and spray layers are all off (they gate on `rainfall`, so
-there is no rain in the frame), short enough to sit inside the drying law's own first time
-constant. Confirmed in flight: a 240 s run read **0.51** against a predicted
-`0.55·exp(-240/3000)` = 0.5077.
+### 2.1 THE ARITHMETIC THE GATE ACCUSES IS CORRECT
 
-### 2.1 THE ONE-LINE CHANGE IS INERT, AND THAT IS WHY THE WATER WAS NEVER LOOKED AT
-
-**Every frame-producing path in this project pins its own wetness.** `lookcheck` pins 0 for
-the dry pass and `look-budget.json`'s 1.0 for the wet one. Each `camera.js` route carries its
-own: `downtown_dense` 0, `highway_speed` 0, `player` 0, `night_rain` 0.85. `filmshot.mjs`
-carries one per shot. And `lookat.mjs` read `Number(args.get('wet') || 0)` and then called
-`setWetness(0)` **unconditionally**.
-
-> **`main.js`'s `wet` default was read by NOTHING that makes a frame anybody looks at.**
-> Changing it alone would have delivered exactly zero frames, and session 32 could not have
-> known that because it read the default rather than the consumers.
-
-`lookat.mjs` now pins only when `--wet` is given, names its output by the wetness
-**delivered** rather than the wetness asked for, and prints it.
-
-### 2.2 NOT ONE BAND MOVED, MEASURED THREE RUNS EACH SIDE
-
-In a `git worktree` at the parent commit, three runs; then three in the working tree.
+The gate says *"the painted bar and the braking point are one number and this is the distance
+between them"*, which reads as a datum error. `toStop` is nose-to-bar, `STOP_LINE` is the
+painted bar, and `stoplineprobe`'s second column settles it over 25 920 frames:
 
 ```
-  band       before (3 runs)         after (3 runs)          threshold
-  midnight   0.0745 0.0745 0.0745    0.0745 0.0745 0.0745    [0.072, 0.112]
-  dawn       0.2974 0.2973 0.2973    0.2973 0.2974 0.2973    >= 0.299   RED
-  noon       0.4285 0.4286 0.4286    0.4286 0.4285 0.4286    >= 0.428
-  dusk       0.1396 0.1396 0.1396    0.1396 0.1396 0.1396    >= 0.140   RED
+  past junction   min -15.000   median -2.968   max -0.009 m
+  ORIGIN inside the junction box, over 18 208 settled frames:  0
 ```
 
-**The between-arm difference is smaller than the within-arm spread** — CONTRACT §0 rule 6's
-own case, so there is nothing to resolve. Same four reds both sides. **NO BAND WENT RED, SO
-NOTHING WAS RE-DERIVED AND NO BUDGET FILE CHANGED.** The brief expected this item to move
-every band at once and to owe a re-derivation; it owes none, and the reason is §2.1.
+**Not one vehicle is ever inside the box.** Every one of these bodies really is standing nine
+metres past its own bar, exactly as reported. Session 25 killed the exit reservation on this
+evidence and the brief repeats the instruction; spillback still has zero cases.
 
-### 2.3 AND 0.55 IS BETTER THAN 1.0, WHICH WAS NOT WHY IT WAS CHOSEN
+### 2.2 SO IT IS THE RECYCLER, AND THE PROBE'S OWN CLASSIFIER HID IT
 
-At the operator's own pose and instant:
+`seed()` draws `s` uniformly over the ring and sets `cleared = null`, so
+`(STOP_LINE + len/2) / 128` = **8.9% of every re-seat** lands between a stop line and the
+junction it protects, holding no permission — a vehicle that has run a red it never saw. The
+hold clamps it to zero speed and it stands there for the rest of an 18 s red, so **one bad
+seed contributes up to a thousand frames to a statistic that only ever decreases**.
+
+`stoplineprobe` calls a vehicle *"settled"* 2 s after its re-seat, and one of these is still
+standing where it was dropped sixteen seconds later. **18 208 "settled" frames, 0 spillback.**
+Its own header names the alternative in its first paragraph and its two-second cut-off argued
+against it.
+
+### 2.3 THEN TWO SMALLER THINGS, AND BOTH ARE THIS PROJECT'S OWN RECORDED FAILURE MODE
+
+**−0.00027777775946535854 m.** The hold is a SPEED limit, `sqrt(2·a·toStop)`, and a speed
+limit integrated discretely overshoots by the last step. `traffic.js` carries session 18's
+paragraph about the other end of this same profile, and STATE 33 §5.2 records session 33
+repeating it 400 lines away with `toDoor <= 0` on a bus. The **position** is now clamped, not
+the speed.
+
+**−1.8207657603852567e-13 m.** Sterbenz's lemma makes `nextJ − s` exact and `floor(s/128)·128`
+exact, so the residue is not the subtraction: **the bar sits at a real number the double
+lattice does not contain**, and the clearance at the nearest representable `s` is up to half an
+ulp — 4.5e-13 m with the camera 3.5 km down its route. Against a floor of exactly zero that is
+a RED gate at 0.18 picometres. CONTRACT §0 rule 6 says remove the noise and never widen the
+line, so `stopLineClearanceM` snaps below `EPSILON·|s|`. **NO THRESHOLD MOVED**: `minStopLineM`
+is 0 before and after.
+
+### 2.4 DELIVERED
 
 ```
-  wet    frame mean   roadway mean   roadway spread   % pixels moved > 1%
-  0.00     0.0734        15.30           0.1697              —
-  0.55     0.0769        18.82           0.2092            15.5
-  1.00     0.0788        16.37           0.1862            34.4
+                                              before      after
+  worstStopLineM                            -14.675 m     0     (raw 0, not a rounded zero)
+  frames whose worst held vehicle is past    22 893 /     0 /
+    its line                                  22 952       21 610
+  past junction, median                      -2.968 m    -11.700 m   = 9.00 + len/2, the bar
+  perfcheck minStopLineM, all four routes        RED       ABSENT FROM THE VIOLATION LIST
 ```
 
-**0.55 delivers more roadway RANGE than 1.00 does.** A full mirror reflects the dark sky
-wherever nothing is lit, and `look-budget.json`'s own wetness comment says a uniform gloss is
-the same failure as a uniform matte. The number came out of the drying law; this is why it
-survives contact with the frame.
+**ITEM 2d — THE YIELD IS NOT BROKEN.** The clamp only ever applies to a vehicle WITHOUT
+permission, and permission is never revoked from a vehicle inside its own braking distance
+(`toStop > brakeDist` guards the revoke), so nothing can be pulled backwards out of a junction
+it has entered. `stoplineprobe` stubs no `streetlife`, so the yield path is not exercised
+there; `citycheck`'s pedestrian block is what watches it and §8 has its state.
 
 ---
 
-## 3. ITEM 2 — THE PAINT EXISTED, IT WAS IN THE JUNCTION BOX, AND NOW PEOPLE WALK ON IT
+## 3. ITEM 3 — THE CONDITION IS ANCIENT ON ONE ROUTE AND NOT ON THE OTHER, AND THE BRIEF'S PREMISE IS A FROZEN STRING
 
-`b3459a5`.
+**The brief says perfcheck "says, in its own output, that this assertion HAS NEVER RUN
+BEFORE". It does say that. It says it every time it runs, and it is a fixed literal:**
 
-### 3.1 WHAT WAS WRONG WITH SESSION 21's CROSSINGS
-
-```
-                        near edge   far edge   verdict
-  carriageway ends                     7.50
-  session 21 crossing      5.40        7.40    2.10 m of every zebra INSIDE the junction box
-  session 33 crossing      7.55        8.75    clear of the box by 0.05, inside the bar by 0.05
-  stop bar near edge       8.80
+```js
+`... THIS ASSERTION HAS NEVER RUN BEFORE THIS SESSION: it read compressed PNG bytes and
+ returned ~0.49 for every frame including an all-black one. Read budget.json $meanLuminance_s16.`
 ```
 
-**The band is 1.30 m and both of its ends are numbers this city already had**: outside the
-crossing road's own carriageway (`CITY.roadHalfWidth` = 7.50) and inside the stop bar's near
-edge (`stopLineFromJunctionM` 9.00 − `BAR_W`/2). At the 0.05 m clearance the pavement budget
-uses at every join, that is a **1.20 m depth centred on 8.15**, and both numbers now live in
-`CITY.crossingDepthM` / `CITY.crossingFromJunctionM` with four readers and no copies.
+A failure message written in the present tense of the session that fixed the instrument, and
+printed unchanged ever since. It is CONTRACT §9.1's *"a comment that claims a check"* family
+with a HISTORY instead of a check — and it has now cost a session brief.
 
-**A 1.20 m crossing is shallow** — a zebra gets 2.4 m in the world. It is what 7.50, 9.00 and
-0.40 leave between them, and widening it means moving the stop line, which is `minStopLineM`'s
-own subject.
-
-They were also **half width**: six 0.45 m stripes over one approach half, so no crossing
-spanned the road it crossed. Now **14 × 0.50 m on a 1.029 m pitch across the full 15.0 m**:
-2 077 → **4 712 stripes**, 79 of 100 chunks with a full 56.
-
-### 3.2 PEOPLE CROSS, AND IT IS A ROUTING CHANGE AS THE BRIEF SAID
-
-The pedestrian model is a per-island perimeter loop and **no agent had ever left the
-pavement**. An agent arriving at a corner now crosses one of the two roads **two times in
-three** — the unbiased choice among a corner's three onward continuations — on a three-leg
-path: a 2.55 m cut to the kerb, 15.0 m of carriageway, and the mirror cut to the far island's
-corner. It waits **at the kerb**, faces the road, and steps off on a red with enough left in
-it to cross at **1.2 m/s, the speed a signal is timed on** rather than the 1.4 m/s this crowd
-averages.
-
-**Measured, 240 s of simulated time over the nine-chunk ring:**
+**AND THE FILE IT POINTS AT ANSWERS THE QUESTION.** `budget.json` → `$meanLuminance_s16`
+records the decoded readings taken when the instrument was repaired, **in session 16**:
 
 ```
-  crossings begun                     219        0.91 per second
-  on a crossing at the instant shot    30        of 360 agents
-  waiting at a kerb                    13
-  on the carriageway                    9
-  straightness                     0.9489        floor 0.55
-  arrivals per minute               1.375        floor 0.50
+  measured session 16, PNG decoded      today (session 34)     floor
+    downtown_dense   0.0707  RED          0.0638  RED          0.08
+    night_rain       0.0851  green         0.0675  RED
+    highway_speed    0.3771                0.3737
 ```
 
-### 3.3 VEHICLES YIELD, AS A PERMISSION AND NOT AS A SECOND BRAKING MODEL
+- **`downtown_dense` IS AN ANCIENT CONDITION.** It was 0.0093 under the floor at session 16
+  with the same decoded instrument, seventeen sessions before the wet default. **It is not the
+  wet street's fault and it never was.**
+- **`night_rain` CROSSED.** It was 0.0851 — GREEN, 0.0051 clear — at session 16 and is 0.0675
+  now. STATE 33 records 0.0639 at s32 and 0.0594 at s33, so **it fell between session 16 and
+  session 32 and not in session 33**, which is the session that made the street wet.
+  `night_rain` carries its own `wet: 0.85` and session 33 did not touch it.
 
-`traffic.js` already refuses to enter a junction without `veh.cleared` and already brakes
-comfortably to the line without it. So the yield is one term on the **grant** and one on the
-**revoke**: a junction is not granted while somebody is on the carriageway of the road being
-approached, and a granted vehicle that can still stop comfortably has it taken back. It costs
-one `Set` lookup and inherits a braking profile and a queue that are both already gated.
-**65 yields in 240 s.**
+**NOTHING WAS REPAIRED, WHICH IS WHAT THE BRIEF ASKED FOR.** And the statistic could not
+resolve a repair anyway: `night_rain`'s three runs today read **[0.0609 0.0701 0.0675]**, a
+spread of **0.0092 against a deficit of 0.0125** — the margin is 1.4× the spread, which is
+CONTRACT §0 rule 6's own condition. `$meanLuminance_s16` already argues the number should be
+per-route (*"one band applied to three routes whose legitimate delivered means span 5.3×"*)
+and says building that is not the agent's call. It still is not.
 
-The set is rebuilt from the agents every frame rather than edited on transitions, because a
-set edited on entry and exit leaks the first time an agent is re-seated or quarantined
-mid-crossing — and a leaked key is a junction no vehicle may ever enter again.
-
-### 3.4 AND THE SIGNAL TIMING LEAVES EXACTLY ZERO SECONDS FOR A PROTECTED PHASE
-
-This is the finding of item 2 and it is arithmetic, not an opinion:
-
-```
-  a vehicle granted at the last instant of amber is v²/2a = 36 m from its line
-  when the red begins, and must clear    36 + 9.00 + 8.15 + 0.60 + len
-  at FREE_SPEED 12 m/s                   4.9 s (car) to 5.5 s (12 m bus)
-  crossing 15.0 m at the 1.2 m/s design speed                       12.5 s
-  red                                    GREEN_S + AMBER_S =        18.0 s
-
-  18.0 − 5.5 − 12.5 = 0.0 s
-```
-
-**No arrangement of the stepping-off rule closes it**, because the conflict is between the
-amber's own dilemma-zone guarantee and the crossing's clearance time, and the two together
-consume the red exactly. The residual is counted rather than asserted away:
-`stats.pedConflictFrames` reads **1 849 vehicle-frames of ~2.3 M over 240 s, 0.08%**.
-Closing it needs a longer red or a shorter crossing, and both are the operator's.
+**A worktree at session 30 was NOT built, and the substitution is deliberate:** session 16's
+recorded decoded reading is strictly better evidence than re-running session 30 would be — it
+is further back, it is in the repository, and it was taken by the same instrument.
 
 ---
 
-## 4. ITEM 3 — TWO OF ITS THREE PREMISES WERE ALREADY BUILT, AND THE THIRD WAS THE LINE
+## 4. ITEM 4 — LOOK.md, ITS OWN COMMIT, BEFORE ANY OF PART TWO
 
-The brief said *"pedestrians walk in a single-file line along the pavement, evenly spaced, all
-at the same speed"*. **Read against the code, two thirds of that is false:**
+`52297a5`.
 
-- **(a) speed varies per person and persists.** `speed` is drawn once at agent creation from
-  a Gaussian and never redrawn. It has been that way for many sessions.
-- **(b) they stop.** `dwell` is `2 + Exponential(5)` clipped at 25 s, mean 6.9 s, against a
-  31 s walk — about 18% of the crowd is standing at any instant, at shopfronts and stalls,
-  facing what they stopped for.
-- **(c) THE LINE IS REAL.** Body centres lived in a 1.0 m band and every agent's offset was
-  fixed for its lifetime, so nobody ever passed anybody.
-
-**KEEP-RIGHT WAS REFUSED IN SESSION 14 WITH AN EXACT OBJECTION AND THE OBJECTION IS
-ANSWERABLE.** The comment says two counter-flowing streams need the offset to depend on
-heading, heading reverses at a destination, and *"a motion vector across that gap is not
-motion, it is bookkeeping"*. That is an argument against a STEP. The answer is a time
-constant: 1.2 s, which is `GAIT_CYCLE_M / WALK_SPEED_MEAN` = 1.07 s rounded up — a step and a
-half, so a lane change is a body moving diagonally at 0.58 m/s against 1.4 m/s forward.
-
-**THE THREE OFFSETS HAVE TO SUM AND THE FIRST DRAFT'S DID NOT.** The corridor is 1.60 m —
-9.30 to 10.90 — so with a 0.30 m body half-width the centres live in a 0.50 m half-range about
-10.10. A 0.40 m lane split with the old ±0.25 m jitter is 0.65 of an available 0.50 and put
-0.15 m of shoulder into the stall run on one side and the shopfront strip on the other. It is
-**0.35 + 0.15 + 0.30 = 0.80**, the corridor's own half-width, and the delivered body extents
-are `[9.300, 10.200]` kerbward and `[10.000, 10.900]` inland — the corridor exactly, at both
-ends. Caught by doing the arithmetic the corridor budget's own last line demands, not by a
-gate.
-
-**`WALK_SPEED_SD` 0.18 → 0.26.** It was the one number in that file with no derivation, sitting
-under a paragraph that derives only the mean — one of LOOK.md §7's *"76 of 189 bounds with no
-recorded derivation at all"*. 0.26 m/s is the standard spread for a mixed adult population;
-0.18 on a 1.4 m/s mean is a CV of 0.13 against a real 0.19, i.e. **the crowd was a third less
-varied than a real one**. The mean is untouched: it is `GAIT.walkSpeedMps` and `GAIT.stepM` is
-derived from it.
+- **§5 gains the sentence the operator's two instructions need between them.** The DEVICES are
+  the target — wet road, cold against warm, signs that light the air, angular vehicles,
+  encrusted facades — because that is what a dense night metropolis in 2049 looks like. The
+  QUOTATION is not. The test is §2's own: **anything here should be derivable from something
+  the city already has.**
+- **§3 gains haze**, and its neon and hologram bullets gain measurements (§6 below).
+- **§4 gains the vehicle silhouette language**, with the two `highway_speed` gate reds beside
+  it, because a target a gate already measures from the other side is evidence and not taste.
+- **§8 gains the rule this file has now needed three times**: a defect is written there as a
+  STATEMENT only if a number has been printed for it, and anything entered on a guess is
+  written as a QUESTION.
 
 ---
 
-## 5. ITEM 4 — BUSES STOP, AND TWO BUGS HAD TO BE FOUND BEFORE ONE EVER DID
+## 5. ITEM 5 — EVERY VEHICLE ROSE TO A PEAK AND THEN FELL AWAY AT THE TAIL
 
-### 5.1 BUSES WERE IN THE WRONG LANE
-
-Measured before anything: of 13.3 buses in the ring, **24.5% were in lane 1** — the kerbside
-lane the shelters stand on. `seed()` drew every vehicle's lane from one 62/38 roll regardless
-of type, so three quarters of the buses spent their routes in the overtaking lane and the stop
-rule had almost nothing to fire on: **0 berths in 40 s**. A 12 m single-decker that serves
-kerbside stops does not do that. Buses now seed into lane 1.
-
-### 5.2 THE BERTH TEST COULD NEVER FIRE, AND IT IS THIS FILE'S OWN INCIDENT ONE OBJECT OVER
-
-The approach profile is `v = sqrt(2·a·s)`. It reaches `s = 0` at `v = 0` in finite time in
-continuous arithmetic and **never in discrete steps** — each frame multiplies the remaining
-distance by a factor short of zero. The first draft tested `toDoor <= 0` and delivered **8
-approaches and 0 berths in 40 s**: every bus crept toward its shelter for ever.
-
-> **`traffic.js` carries a long comment about exactly this shape, written in session 18 about
-> `toStop > 0` at the stop line, and it did not stop the same mistake being made 400 lines
-> away.** It is now a **1.00 m berthing accuracy** — half a bus door — and that is a quantity
-> rather than an epsilon.
-
-### 5.3 WHAT A BUS DOES NOW
-
-Slows on `sqrt(2·a·s)`, halts with its doors at the shelter — the berth is `type.len / 6`
-short of the shelter's centre, because a bus is berthed when its DOORS are at the flag and not
-when its back axle is — dwells, and rejoins. No boarding animation, no passenger transfer, no
-route network.
-
-**THE DWELL IS THE BOARDING TIME OF THE PEOPLE WHO ARE ACTUALLY STANDING THERE.** 5 s of door
-cycle plus 2.5 s a boarder, and the boarder count is counted by `streetlife.waitingAt` over the
-shelter's own roof footprint rather than assumed. Items 4a and 4b are therefore one mechanism:
-a stop with nobody at it is a 5 s pause and a stop with four people at it is 15 s, and the
-reason the bus is standing there is in the same frame.
-
-**Item 4b**: shelters are now pedestrian destinations. A waiting agent stands at the **kerb**
-edge of the corridor rather than in the middle of it, so the queue is beside the shelter and
-not across the people walking past, and it **faces the road** — `+out`, where a shopfront
-dweller faces `−out`. That one sign is the difference between a queue at a stop and a queue
-with its back to the traffic.
-
-### 5.4 ITEM 4d — THE REFUSAL IS IMPLEMENTED AND ITS CONDITION HAS NO CASE ON THIS LATTICE
-
-**"Clear of the running lane" cannot mean a lay-by anywhere in this city:**
+`66c004d`. **5a and 5d delivered; 5b and 5c measured, argued and NOT BUILT.**
 
 ```
-  kerb                    CITY.roadHalfWidth          7.50 m
-  kerbside lane centre    LANE_OFFSET[1]              5.25 m
-  lane half-pitch                                     1.75 m
-  lane outer edge                                     7.00 m
-  space between the running lane and the kerb         0.50 m
-  a bus                                               2.55 m wide
+  wedge   0.74 0.74 1.06 1.28 1.28 1.28 1.20 1.04     peak mid, drops 0.24
+  pod     0.98 0.98 1.36 1.66 1.66 1.66 1.56 1.34     peak mid, drops 0.32
+  van     1.18 1.18 1.74 2.24 2.24 2.24 2.24 2.12     drops 0.12
+  hauler  2.06 2.06 2.62 3.20 3.62 3.62 3.62 3.44     drops 0.18
+  bus     1.80 1.98 3.20 3.20 3.20 3.20 3.14 2.92     drops 0.28
 ```
 
-There is nowhere to pull into. So it is delivered as **clear of the THROUGH lane**, which is
-what a kerbside stop is in the world: the bus halts in lane 1 and traffic passes in lane 0.
-The refusal is implemented and counted — a bus in the offside lane does not serve a stop
-rather than swerving across a running lane to reach a kerb — and with §5.1's fix **it now
-never fires**. It is left in because the condition is right even where the geometry never
-presents it, and `stats.busStopsRefused.offsideLane` reads 0 rather than being absent.
+A bonnet, a cabin and a boot — **a 1990s saloon profile at seven scales**, which is LOOK.md
+§4's fourth device (*"they share a vocabulary and differ only in scale"*) stated as a
+measurement. Every curve is now **monotone from nose to tail**, so each body ends on a chopped
+full-height face instead of a drawn-in boot, in three planes with two large steps. The wedge's
+steps are 0.28 m on a 1.28 m body — 22% of its own height — because session 9's own note says
+*"more sections is more steps is ribbing again"* and the answer to that is fewer and bigger.
 
-### 5.5 DELIVERED
+**THE ROOF SPAN NEARLY CAUGHT IT.** `roofSpan` has a floor of 0.30 and the pod measured
+0.3398, the tightest in the fleet. A FLAT roof is the shortest span there is, so the first
+draft — pod and hauler as two-level slabs, which is the obvious reading of *"a closed shell"*
+and *"slab-sided"* — was **reverted before it was measured**. Both are three-plane monotone
+rakes instead. Delivered: `roofline over 36: span 0.3565, levels 3` and
+`width over 15: span 0.1807`, both clear.
+
+**WHAT WAS NOT BUILT, WITH THE ARITHMETIC THAT STOPPED IT.**
+
+- **5b, ENCLOSE THE WHEELS.** `floorY` cannot simply fall. The arch crown is
+  `floorY + ARCH_RISE` and it must clear the wheel, so with `ARCH_RISE` at a global 0.24 each
+  type's floor is `wheelDiameter − 0.24`: **wedge 0.34 against a shipped 0.44, pod 0.28
+  against 0.42, van 0.40 against 0.50, and hauler 0.66 against a shipped 0.66 — already at its
+  limit.** Without making `ARCH_RISE` per-type there is 0.10–0.14 m of skirt available on
+  three types and none at all on the largest, which is not "closing to the ground". Raising
+  `ARCH_RISE` moves the sill, whose top `loftBody` derives from the highest arch crown, and
+  that is a third thing in one session on geometry two gate floors read.
+- **5c, LIGHT AS FORM.** `writeRow` puts every light row on the vehicle's CENTRELINE — the
+  hauler's marker comment in `traffic.js` carries the whole derivation and the saturation
+  measurement that goes with it — so making a light bar BE a leading edge means giving a light
+  row a lateral offset, which is a change to the instanced light path and not to this table.
+
+**AND THE TWO GATE REDS DID NOT BOTH GO THE RIGHT WAY.**
 
 ```
-  berths in 240 s                                   8
-  shelters inside SIM_RADIUS                       11
-  headway per shelter                             330 s
-  offside-lane refusals                             0
-  wrong-side refusals (per bus per frame)      29 552
+                          brief      s34        floor
+  dark gap at the ground  73% of 59  68% of 62  75%    WORSE by 5 points
+  non-monotone tone       63% of 59  66% of 62  75%    BETTER by 3 points
 ```
 
-**330 s is an artefact of there being no route network**, which item 4 forbade: 160 vehicles
-at a 3% bus share, seeded anywhere on a 380 m box of lattice and turning at random. So the
-bus-stop WAIT is not half of it — 165 s would park bodies under a shelter for the better part
-of three minutes — and is bounded by the shelter's own 4.00 m capacity instead. That is said
-in the constant rather than hidden in it.
+**NEITHER IS RESOLVED AND THE POPULATION IS NOT THE SAME POPULATION.** Items 1 and 2 both
+changed where the fleet seeds, so these 62 vehicles are not the brief's 59. STATE 33 already
+records this statistic as one that *"flaps on a re-phased population"*, and a run taken
+mid-session read **86% and 83%** on the same 62 — that run is discarded because source was
+being edited under a live dev server while it ran, which is its own finding (§11). **The
+change that would actually move `ground contrast` is 5b, and 5b is the half that was not
+built.**
 
 ---
 
-## 6. ITEM 5 — THE HYPOTHESIS IS CORRECT, AND THE BLOCK INTERIORS ARE EMPTY PAST 28 m
+## 6. ITEM 7 — NOT ONE SIGN IN THIS CITY COULD BE TALLER THAN IT WAS WIDE
 
-Measure only, as the brief required. Walked directly over `generateChunk` at HEAD, seed 1337,
-`citycheck`'s own 10 × 10 region: **79 built chunks, 480 buildings**, island 104.6 m square.
-
-```
-  building DEPTH (m)      p10 13.5   median 19.4   p90 25.3   max 27.0   mean 19.4
-  as a fraction of the island's 52.3 m half-depth   median 0.370   p90 0.484
-  far face reach from the lot line (m)   p10 15.9  median 19.7  p90 24.5  max 40.1
-  island footprint covered by buildings              20.8%
-
-  built fraction by distance from the lot line, 4 m bands
-      0–  3 m   25.1%  #############
-      4–  7 m   33.8%  #################
-      8– 11 m   36.3%  ##################
-     12– 15 m   34.6%  #################
-     16– 19 m   25.3%  #############
-     20– 23 m   11.0%  ######
-     24– 27 m    1.4%  #
-     28– 31 m    0.1%
-     32– 55 m    0.0%
-```
-
-> **PAST 28 m FROM THE LOT LINE THE CITY IS EMPTY.** 0.1% at 28–31 m and 0.0% everywhere
-> beyond. The inner **48.6 m square of every island — 21.6% of its area — has nothing in it at
-> all**, and the deepest building in the region reaches 40.1 m of a possible 52.3.
-
-**What the reference needs, from the same arithmetic:**
+`d7ccce4`. The brief said *"widen the size distribution hard"*. The measurement says the
+widths were never the problem.
 
 ```
-  ring depth   light-well   ring coverage
-     19.4 m      65.8 m         60.4%     <- today's median depth, at full frontage
-     26.0 m      52.6 m         74.7%
-     32.0 m      40.6 m         84.9%
-     42.3 m      20.0 m         96.3%     <- a lower Manhattan block
+  over citycheck's own 10 x 10 region at seed 1337, headless
+                              before     after
+    signs                        692       710
+    mountings                      5         5
+    taller than wide (aspect>1)    0        85
+    width  p50 / max          5.08 / 22.11   4.81 / 22.11 m
+    height p50                  1.73      2.08 m
+    height p90                  3.70      5.08 m
+    height p99                  5.17     12.31 m
+    height max                  5.98     14.89 m
+    >= 3.5 m tall (one storey)    88       167
+    >= 12 m tall (four storeys)    0         8
 ```
 
-Delivered coverage is **20.8%**, which is 0.344 of the 60.4% today's depth would give at full
-frontage — the rest is STATE 32's frontage occupancy of 0.244. **So both knobs are short and
-they multiply**: depth is at 0.46 of the reference and frontage at 0.244 of it.
+A rooftop sign already reached **22 m across**. What no sign could be was TALL: `aspect` is
+drawn 0.24–0.62 for a shop sign and 0.28–0.42 for a building-scale one, so a vertical sign was
+not rare here — **it was unreachable**, and the tallest object in the entire signage vocabulary
+was 5.98 m against the four storeys LOOK.md §3 asks for. So this is an ASPECT band and not a
+size band, and every bound on it is derived:
 
-**AND DEPTH IS NOT LIMITED BY WHAT STOPPED THE FILL RAISE.** Session 32's stop is a
-`sign(adpillar) × prop(planter)` overlap on the FRONTAGE. Depth grows a building INWARD, into
-land the raster above shows is empty, and the only thing it can eventually meet is the
-building on the opposite frontage — at `2 × depth > 104.6`, i.e. past 52.3 m. It is also free
-in every budget this project tracks: **a deeper box is the same box.** Same instance, same
-twelve triangles, same draw call. Only the side elevations' window rows grow.
+- **width 0.9–2.2 m** — for a projecting blade the narrow dimension IS the cantilever over the
+  pavement, and `city.js`'s projecting mount already caps projection at 2.4 m with its own
+  derivation, so 2.2 sits UNDER that cap and a blade is never silently clipped by a constant
+  in another file;
+- **aspect 2.6–7.0** — **the floor of this band is the ceiling of everything shipped**: the
+  widest blade at the lowest aspect is 5.72 m against a delivered maximum sign height of
+  5.98 m, so a blade is never mistakable for a fascia. The ceiling reaches 15.4 m against the
+  12.2 m that four storeys at the shortest era's 3.05 m floor comes to;
+- **clear 3.05 m** — the first-floor slab, which is what a blade is bolted to, clearing
+  `HEAD_CLEAR_M` 2.10 by 0.95 m;
+- **p 0.34 / 0.12** on a trading building and on one merely standing on a retail frontage —
+  LOOK.md §5's test is that a device be derivable from something the city already has, and what
+  a blade is derivable from is session 28's retail frontage roll. A street with no shops has no
+  reason to carry one.
 
-**This is a measurement and not a licence.** Nothing was changed. The next session's building
-item has its arithmetic here.
+**RE-PHASE CAVEAT.** The blade roll and the hoisted aspect draw move `signRng`, so the
+delivered signage is a DIFFERENT population and not the old one with blades added — which is
+why the count moves 692 → 710 without a sign being added anywhere. It is `signRng`'s own
+stream and nothing else reads it.
 
 ---
 
-## 7. GATE STATE — TWO REDS CLOSED, ONE OPENED, AND THE LOAD MAKES ONE GATE UNREADABLE
+## 7. WHAT WAS NOT BUILT AT ALL, AND WHY
+
+- **ITEM 6, FACADE CLUTTER. NOT STARTED.** It is the largest remaining Part Two item and it
+  needs its own registry work — item 6a asks for the projecting pieces to be declared, and this
+  session has just found that six readers of the landmark keep-out disagreed. Adding a new
+  declared category on top of that in the same session is how the seventh spelling gets
+  written.
+- **ITEM 8, HAZE. NOT STARTED, AND THE BRIEF SAID DO IT LAST.** It was last and the session
+  ended first. Its LOOK.md §3 bullet is written (§4 above) with the band arithmetic beside it,
+  so the next session starts from the target rather than from the idea.
+- **`gateaudit` was not run.** Same reason as STATE 33: it is the most expensive gate in the
+  project and it reports `lookcheck`'s state one layer up. **It is recorded as a gate that did
+  not run, not as a pass.**
+- **No new instrument was committed** beyond two lines in `stoplineprobe` (§11). Five throwaway
+  probes are in the scratchpad: the claimed-vs-delivered raster, the landmark-area union, the
+  in-basin provenance census, the sign census, and the delivered-conflict check.
+
+---
+
+## 8. GATE STATE
 
 Each gate run individually, because `npm run gates` is `&&`-joined and stops at the first red.
 
@@ -401,146 +426,104 @@ Each gate run individually, because `npm run gates` is `&&`-joined and stops at 
   faultcheck   GREEN   7 cases; quarantine surgical, frame survives all seven
   windcheck    GREEN
   inputcheck   GREEN
-
-  lookcheck    RED AT 3, DOWN FROM 4 — `band:dawn` CLOSED
-                 CLOSED: band:dawn  0.2973 -> 0.3008 / 0.3008 / 0.3009 over three runs,
-                   against a floor of 0.299. It has been red since before session 31 and
-                   STATE 32 recorded it moving 0.0008 FURTHER away under a denser city.
-                   The move is +0.0035 against a measured run-to-run spread of 0.0001,
-                   i.e. 35x the noise floor — CONTRACT §0 rule 6 satisfied in the
-                   direction that matters. Nothing was aimed at it: it is 4 712 stripes
-                   of 0.62-albedo paint on a 0.082-albedo road, at dawn.
-                 ✗ band:dusk        0.1393  (>= 0.140)   carried, 0.0003 further out
-                 ✗ facadeAlbedo     3 clusters (min 4)   carried from the station, s31
-                 ✗ facadeNeighbours 0.211   (min 0.3)    carried from the station, s31
-                 Bands, three runs: midnight 0.0745/0.0744/0.0744  dawn 0.3008/0.3008/0.3009
-                   noon 0.4289 x3  dusk 0.1393 x3
-
-  citycheck    RED AT 1, AND IT MOVED 0.27 POINTS TOWARD CLOSING
-                 ✗ saturation  5.98% of night-route pixels above 0.5 value  (min 6.00%)
-                   4.29% at s31, 5.71% at s32, 5.98% now. The deficit is 0.02 points
-                   against a statistic CONTRACT §0.1 records as having a 0.60-0.80 point
-                   run-to-run spread. IT IS NOT RESOLVED IN EITHER DIRECTION and must not
-                   be reported as nearly closed on one draw.
-                 occupancy 0 / 0 forbidden overlaps over 53 forbidden pairs, generator
-                 AND delivered, with 4 712 new crossing stripes in the scene.
-                 pedestrians 360 over 9 chunks, CV 1.0432 (min 0.7), 67% populated.
-                 clumping CV 0.632 (min 0.6). walkability 69 514 of 69 515.
-                 alignment 73.9% off-axis. street level 199 stalls, 5 kinds.
-                 negative space 17.0%, 5 kinds. landmarks 8/8/0. All green.
-
-  perfcheck    SEE §7.2. Run under load1 2.3-3.6, so its frame times are not admissible
-                 and its counts and distances are.
-
-  gateaudit    Not run to completion this session — see §10.
+  gateaudit    NOT RUN — see §7
 ```
 
-### 7.1 `minStraightness` AND `minArrivalsPerMinute` HAVE NO READER
-
-Both live in `tools/city-budget.json` → `pedestrians`, both carry long `$derivation` text, and
-**`grep` over `tools/` finds no consumer of either.** `citycheck` asserts the pedestrian
-density CV and the populated fraction and nothing else about the crowd. This session changed
-what pedestrians do more than any session since they were built, and the two thresholds that
-describe their BEHAVIOUR watched none of it.
-
-Measured by hand, from the module's own statistics over a 240 s run: **straightness 0.9489
-against a floor of 0.55, arrivals 1.375 per minute against 0.50.** Both clear comfortably, and
-crossings help straightness rather than hurting it because a crossing is a straight 19 m leg.
-
-**It was not wired up here**, and the reason is a measurement rather than a preference: the
-arrival rate is a rate over a 60-bucket minute, and `citycheck` samples routes with a
-few-frame settle, so the quantity reads near zero in the harness state that gate runs in. It
-needs a gate that RUNS the simulation, which is a new capability and not a line. It is owed and
-it is §11's first entry.
-
-### 7.2 PERFCHECK, AND WHAT OF IT IS ADMISSIBLE
-
-**RED AT 8, THE SAME COUNT AS SESSION 32, AND THE DRAW CALLS ARE IDENTICAL ON EVERY ROUTE.**
+### 8.1 THE DRAW CALLS WENT DOWN, WHICH THE BRIEF ASKED TO BE CHECKED RATHER THAN ASSUMED
 
 ```
-  route            cpu p95   wall p95   ceil   draws   tris     inst      s32 draws
-  downtown_dense    9.60      11.90     12.5    333    1.41M   152 521      333
-  highway_speed     8.40      10.90     12.5    432    1.58M   201 866      432
-  night_rain       10.50      12.80     13.0    334    1.33M   186 276      334
-  player            9.60      11.80     12.5    322    1.34M   152 521      322
-  spreads 0.1 – 0.7 ms.  load1 3.5 – 4.5 throughout.
+  route            s33 draws   s34 draws   s33 inst    s34 inst    s34 tris
+  downtown_dense       333         332      152 521     152 474      1.40M
+  highway_speed        432         431      201 866     201 761      1.58M
+  night_rain           334         333      186 276     186 258      1.33M
+  player               322         321      152 521     152 474      1.34M
 ```
 
-> **THE BRIEF ASKED THAT EVERY ITEM COST INSTANCES RATHER THAN DRAWS, AND TO SAY
-> SO RATHER THAN ASSUME IT. It is checked and it is exact: 333, 432, 334, 322 —
-> the same four numbers session 32 recorded, to the draw.** 2 635 new crossing
-> stripes, the bus behaviour and the crossing crowd cost **+2 314 to +2 603
-> instances** and **+0.01 M triangles**, all inside meshes that already existed.
-> **432 of 440 stands where session 32 left it, and the eight spare are still
-> spare.**
+**Every route is one draw call LOWER than session 33 and every instance count is slightly
+lower.** Four items of content — a 210 m basin cut into an 8 km plane, 85 vertical blades, five
+re-lofted vehicle profiles and a landmark refusal in four placement loops — cost **−1 draw**
+and **−18 to −105 instances**. `highway_speed` stands at **431 of 440, nine spare**, up from
+eight.
 
-**THE FRAME TIMES ARE ALL GREEN AND THEY ARE ADMISSIBLE IN THAT DIRECTION ONLY.**
-`load1` never came near CONTRACT §0.2's bar of 1.6; `memory/noctis-quiet-bar.md`
-records that drift on this machine is one-sided, so load can only make a frame
-SLOWER — a green absolute under load is a verdict and a red one would not have
-been. Every route cleared its ceiling with a browser and the agent both running:
-`downtown_dense` 11.90 of 12.5, `night_rain` 12.80 of 13.0. **`night_rain`'s
-0.20 ms margin is smaller than its own 0.5 ms spread and is not resolved by
-this run in either direction** — it is green, not clear.
+### 8.2 THE FRAME TIMES ARE NOT ADMISSIBLE THIS SESSION AND ARE NOT REPORTED AS A FINDING
 
-**ITEMS 2c AND 4c — `minStopLineM`, MEASURED AND NOT REPAIRED.**
+`perfcheck` is RED at 17, and **twelve of those are milliseconds** — a GPU p95, a GPU
+max and a frame interval on each of the four routes:
 
 ```
-  route            s32 (recorded)   s33      floor
-  downtown_dense                    11.27      0
-  highway_speed    10.77 to 11.99   11.25      0
-  night_rain        on all four     11.41      0
-  player                            10.83      0
+  route            cpu p95   wall p95   ceiling    gpu p95   s33 wall p95
+  downtown_dense     1.00     22.90      12.5       30.90      11.90
+  highway_speed      1.30     26.90      12.5       25.43      10.90
+  night_rain         1.10     25.50      13.0       37.72      12.80
+  player             0.90     23.70      12.5       33.11      11.80
 ```
 
-**All four sit inside the band session 32 recorded on this machine, and the
-carried red is carried unchanged.** A yielding vehicle changes queue behaviour
-and a halted bus is a queue head, which is why the brief asked; neither moved
-the statistic, because both act through `veh.cleared` and the stop-line datum is
-a property of a vehicle *held at its own line*, not of what is holding it. STATE
-25's diagnosis stands and nothing touched it.
+**CPU p95 fell by a factor of nine and wall p95 roughly doubled, at IDENTICAL triangle,
+instance and draw counts.** A scene that is the same size cannot get twice as slow from
+content, so this is the machine or the instrument and not the city — and CONTRACT §0.2 plus
+`memory/noctis-quiet-bar.md` are explicit that a RED absolute under `load1` 2.2 is **not a
+verdict**. It is recorded and it is not attributed. **The GPU timer queries retired this time**
+— `queries issued 2117 drained 2117 disjoint 0 starved 0` — which closes a STATE §11 gap
+carried since session 8, and gives the next session on a quiet machine the attribution nobody
+has ever had.
 
-**THE OTHER FOUR REDS, AND TWO MOVED THE WRONG WAY.**
-
-```
-  ✗ downtown_dense mean luminance 0.0720 (min 0.08).   CARRIED. 0.0734 at s32.
-  ✗ night_rain     mean luminance 0.0594 (min 0.08).   CARRIED. 0.0639 at s32,
-                     and the per-run set is [0.0632 0.0590 0.0594] against a
-                     gate that asserts on the LAST run rather than pooling —
-                     budget.json's own `$screenshotEntropy_s17` says so. A
-                     0.0042 spread across three runs on a 0.0206 deficit.
-  ✗ night_rain     frame entropy 4.824 (min 5).        CARRIED from s32's 4.962,
-                     0.138 worse, and s32 §7.1 already argued this one: tonal
-                     entropy falls when more of the frame is one dark value, and
-                     a denser night city has more unlit wall in it. Still the
-                     operator's to re-derive; still not touched here.
-  ✗ highway_speed  tone profile 71% of 76 vehicles (min 75%).  CARRIED, AND IT
-                     MOVED 7 POINTS THE RIGHT WAY — 64% at s32, 72% at s28–30,
-                     absent at s31. It flaps on a re-phased population and
-                     nothing this session touches vehicle tone.
-```
-
-**Nothing in this session was aimed at any of these four and none of them is
-this session's.** `night_rain` is the one route that runs wet (0.85, its own,
-unchanged by item 1), so its two reds are the same subject session 32 handed on.
-
----
-
-## 8. WHAT WENT ON THE BRANCH
-
-Session 27's branch, `claude/noctis-25-building-floors-89bqul`. **NOTHING MERGED TO MAIN.**
+### 8.3 THE CONTENT REDS
 
 ```
-  b3459a5  items 2, 3, 4 — crossings, the crowd, and buses that stop
-  dff29bc  item 1 — wet by default, and lookat stops pinning
-  2f26ba2  item 0 — LOOK.md's three false claims
-  90692cc  <- session 32's head
+  ✓ minStopLineM        ABSENT FROM THE VIOLATION LIST ON ALL FOUR ROUTES.  CLOSED. §2
+  ✗ downtown_dense mean luminance 0.0638 (min 0.08)   ANCIENT — session 16 measured 0.0707. §3
+  ✗ night_rain     mean luminance 0.0675 (min 0.08)   CROSSED between s16 and s32.        §3
+  ✗ downtown_dense frame entropy 4.862 (min 5)        carried; s32 §7.1's argument stands
+  ✓ night_rain     frame entropy 5.030 (min 5)        CLOSED, from 4.824 at s33. Nothing was
+                     aimed at it. s32 §7.1 argued that tonal entropy falls when more of the
+                     frame is one dark value; this session took 34 lamps, 8 patches and a bus
+                     shelter out of a 44 100 m2 hole and put a lit 34 636 m2 concrete floor
+                     into it, which is that argument running backwards. NOT ESTABLISHED —
+                     it is one draw, and the same run's mean luminance moved 0.008 the other
+                     way.
+  ✗ highway_speed  dark gap at the ground 68% (75%)   moved 5 points the WRONG way, on a
+                     re-phased population, and 5b is the change that addresses it.  §5
+  ✗ highway_speed  tone profile 66% (75%)             moved 3 points the RIGHT way.  §5
 ```
 
-**NO BUDGET FILE CHANGED.** `budget.json`, `look-budget.json`, `city-budget.json` and
-`input-budget.json` are byte-identical to session 32. **No threshold moved, lowered, raised or
-re-derived.** The brief reserved a re-derivation for any look band that went red under the wet
-default; none did, because §2.1.
+### 8.4 `citycheck` — RED AT 1, AND THE OCCUPANCY IS THE ONE THAT MATTERED
+
+```
+  occupancy    5 465 generator claims over the region, 4 108 delivered (min 1200)
+               0 / 0 forbidden overlaps over 53 forbidden pairs (max 0)
+```
+
+**Zero, with the weir's 44 100 m² claim newly present on BOTH sides for the first time** —
+§1.3. The headless equivalent agreed at three separate eyes before the gate ran.
+
+```
+  clumping     CV 0.632 (min 0.6), 94% populated (min 55%)
+  pedestrians  360 over 9 chunks, CV 1.0479 (min 0.7), 67% populated
+  walkability  69 514 of 69 515 free cells reached
+  crossings    3 structures over the region's crossings (min 3), above-deck spread 28.33 m
+  ✗ saturation 5.08% of night-route pixels above 0.5 value (min 6.00%)
+```
+
+**`saturation` is the one red and it moved 0.90 points the WRONG way** — 5.98% at s33 → 5.08%
+now. That is **about one run-to-run spread**: CONTRACT §0.1 records this statistic's spread as
+**0.60–0.80 points**, so it is **NOT RESOLVED IN EITHER DIRECTION**, which is the same sentence
+STATE 33 had to write when it moved 0.27 points the other way. A mechanism exists and is *not*
+established: this session removed 34 lamp instances from inside the weir and re-phased the
+whole signage population. It is one draw against a noisy statistic and it is recorded as that.
+
+### 8.5 `lookcheck` — RED AT 3, ALL THREE CARRIED, AND NOT ONE BAND MOVED
+
+```
+  ✗ band:dusk        0.1392  (band [0.14, 0.18])   0.1393 at s33 — unmoved
+  ✗ facadeAlbedo     3 clusters (min 4)            carried from the station, s31
+  ✗ facadeNeighbours 0.211   (min 0.3)             carried from the station, s31
+```
+
+`band:midnight`, `band:dawn` and `band:noon` all passed. **`band:dawn` STAYED CLOSED** — session
+33 closed it and this session's content did not reopen it. **NO LOOK BAND WENT RED THAT WAS
+NOT RED BEFORE, so nothing was owed and no budget file was touched.** The brief reserved a
+re-derivation for exactly this and the owed work is again zero — this time because the one
+item that would have moved a band (item 8, haze) was not built.
 
 ---
 
@@ -548,123 +531,114 @@ default; none did, because §2.1.
 
 | # | the brief said | measured |
 |---|---|---|
-| — | draw calls stand at **432 of 440**, eight spare | **TRUE**, and every item this session cost instances rather than draws — see §7.2 |
-| 0 | LOOK.md is wrong **twice** | **THREE TIMES.** §4's *"crossings currently absent"* is the third: 2 077 stripes shipped in session 21 |
-| 1 | the bands were derived on dry frames and **wetting will move them** | **FALSE.** `lookcheck` pins wetness itself, both passes, and every perf route carries its own. Three runs each side: not one band moved a digit |
-| 1 | where a band goes red, **re-derive it in the open** | **nothing to re-derive.** No band went red. The owed work was zero and saying so is the deliverable |
-| 2 | crossings **are simply absent** | **FALSE.** The paint shipped in session 21. What was absent is that it sat 2.10 m inside the junction box, spanned half a road, and nobody walked on it |
-| 2a | the markings cost **no new draw call** — check rather than assume | **TRUE, checked.** They are boxes in the streamed props mesh; 2 077 → 4 712 stripes is instances |
-| 2b | the pedestrian network already exists — **this is a routing change** | **TRUE**, and it was the cheapest half of the item |
-| 3 | pedestrians are **all at the same speed** and **never stop** | **FALSE on both.** Per-agent speed has persisted for many sessions; dwell is 2–25 s at an 18% standing share. **The single file is real** and is what was fixed |
-| 4 | shelters exist on both content paths, **nothing stops at them** | **TRUE**, and now something does |
-| 4d | if a bus **cannot pull clear of the lane**, it does not stop there | **its condition has no case.** 0.50 m between the running lane and the kerb against a 2.55 m bus: nothing can pull clear anywhere in this city. §5.4 |
-| 5 | buildings are **shallow boxes near the frontage** with empty block interiors | **TRUE, and quantified.** Median depth 19.4 m of a 52.3 m half-depth; **0.0% built past 31 m**; 20.8% island coverage against 96.3% for a lower Manhattan ring |
+| — | draw calls stand at **432–434 of 440**, six to eight spare | **TRUE at 432**, and every item cost instances rather than draws — it is now **431, nine spare**. §8.1 |
+| 1 | claims but no mesh is an **emission fault** | **NO FAULT.** 711 claimed cells, **0** undelivered. §1.1 |
+| 1b | **low-detail chunks skip their ground surfaces** | **FALSE**, and `citygen.js`'s own `groundRadius` comment already said so. §1.1 |
+| 1 | the road **exists logically** at the spawn but is not drawn | **IT IS DRAWN.** Two triangles over that exact point. The hole is 100 m west and it is the weir. §1.2 |
+| 1d | it is the same defect as *"the pavement just disappears"* | **NO — that one was fixed in session 31** (`groundRadius`). This is a landmark keep-out with nothing put back into it. |
+| 2 | one constant applied to **two different datums** | **FALSE. The arithmetic is correct** and the vehicles really are past their bars. The recycler puts them there. §2.1–2.2 |
+| 2b | do **not** build an exit reservation | **CONFIRMED AGAIN.** 0 of 18 208 settled frames have a body inside a junction box. |
+| 2c | this should go **to zero, not to "better"** | **ZERO.** Raw 0, and green on all four routes. §2.4 |
+| 3 | the mean-luminance assertion **has never run before** | **FALSE — it is a frozen string.** `budget.json` records the decoded values from **session 16**. §3 |
+| 3 | if it was already below 0.08, it is **not the wet street's fault** | **`downtown_dense` yes, `night_rain` no.** They are two different histories. §3 |
+| 5 | both silhouette reds **go the right way** | **ONE DID.** Tone profile +3, ground gap −5, on a population that is not the brief's. §5 |
+| 5e | per-class shape costs **zero extra draw calls** | **TRUE, and better**: −1 per route. §8.1 |
+| 7 | citycheck reports **692 signs in 5 mountings** | **EXACT.** And the sharper fact is that **0 of the 692 were taller than wide**. §6 |
 
 ---
 
-## 10. WHAT WAS NOT BUILT, AND WHY
+## 10. WHAT WENT ON THE BRANCH, AND ONE THING THAT WENT SOMEWHERE ELSE
 
-- **`gateaudit` was not run to completion.** It is the most expensive gate in the project and
-  it reports `lookcheck`'s redness one layer up; `lookcheck` is red at 3 and its control frame
-  is therefore outside one band, which is the state STATE 31 and 32 both recorded. Running it
-  would have produced the same sentence for the third time at the cost of the item-3 frames.
-  **This is a gate that did not run and it is recorded as that, not as a pass.**
-- **The bus-stop frame does not show a bus at a stop.** Two framings were tried and neither
-  caught one; at a 330 s headway per shelter and a 12.5 s dwell, a given shelter has a bus at
-  it 3.8% of the time. The behaviour is measured (§5.5) and the frame is not the evidence.
-- **No new instrument was committed.** Five throwaway probes were written and left in the
-  scratchpad: the marking census, the chunk-kind re-count, the wetness comparison, the depth
-  raster, and the live-sim shot tool. The last is the one worth having and it is the one §0
-  says every previous session lacked — but a tool that unpauses the world is a tool that
-  changes what a frame means, and committing it in the same session that used it is how a
-  gate's camera stops being the gate's.
-- **`minStopLineM` was measured, not repaired**, as items 2c and 4c required. §7.2.
-- **The 0.02-point saturation deficit was not chased.** It is 3% of that statistic's own
-  run-to-run spread.
-- **Stage 3 of the station, `walkableAt`, vehicle models, the batching** — all out of scope
-  and all untouched.
+Branch `claude/noctis-34-landmark-ground`, from `2b04ace`.
+
+```
+  66c004d  item 5 — the vehicle profiles stop falling away at the tail
+  d7ccce4  item 7 — the blade, and 0 of 692 signs could be taller than wide
+  52297a5  item 4 — LOOK.md
+  f298cc8  item 2 — the stop line
+  b2ad696  item 1 — one description of what a landmark takes
+  2b04ace  <- session 33's merge, the branch point
+```
+
+**NO BUDGET FILE CHANGED.** `budget.json`, `look-budget.json`, `city-budget.json` and
+`input-budget.json` are byte-identical to session 33. **No threshold moved, lowered, raised or
+re-derived.** No look band went red that was not red before, so nothing was owed.
+
+> ### ⚠ `b2ad696` WAS PUSHED TO `origin/main` BEFORE THE BRANCH EXISTED, AND IT IS STILL THERE.
+>
+> The brief says *"No merge to main — the operator decides that"*, and the session began on
+> `main` because that is where session 33's merge left the checkout. Item 1 was committed and
+> pushed there before the mistake was noticed. **The branch was then created at that same
+> commit and everything since is on the branch; `origin/main` still carries `b2ad696` and
+> nothing after it.** Undoing it needs a force-push to `main`, which was refused by this
+> environment and is the operator's call in any case. **The repair is one command and it is
+> his to run:**
+>
+> ```
+> git push --force-with-lease origin 2b04ace:main
+> ```
 
 ---
 
 ## 11. KNOWN GAPS CARRIED FORWARD
 
-**Unchanged from s8–s32**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert, GPU
-timer queries advertised and never retiring, `saturation-peak.png` overwritten every run,
-`$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the sky, rain streaks near-invisible wide at
-night, `rain_spray` 0 static, **right turns only**, sun shadows to ~170 m, the bake blind to
-elevated slabs, the PMREM hitch, the too-red dawn horizon, one worker at queue depth one, the
-far half of the river handing back to the night sky past ~300 m, grime authored, the
-near-field washboard on the water, the quay wall inside the walkable mask, props absent from
-the walkability mask, the 3.5°–10.4° route camera pitch, the frozen/running A/B,
-`materials.display` drawn by nothing, the hauler's marker row buried inside its own body, the
-seeding fallback's untested placement, **a bus never turns**, the origin block's absent
-occupancy registry, `facadeAlbedo` on its floor with zero spread, the station's cores reading
-as an open frame, **nobody can climb the station**, the 0.10 m margin at the core's outer
-face, `poseprobe`'s blindness to the origin block, the pavement's missing kerb,
-`tools/city-budget.json:84`'s stale `$derivation_count`, the `sign(adpillar) × prop(planter)`
-overlap that stops the fill raise, one merged building pool breaching the triangle ceiling,
-the station's platform slab hiding the train, and `traffic.js:2346`'s claimed draw-call margin
-of one where it is eight.
+**Unchanged from s8–s33**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
+`saturation-peak.png` overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at
+the sky, rain streaks near-invisible wide at night, `rain_spray` 0 static, **right turns
+only**, sun shadows to ~170 m, the bake blind to elevated slabs, the PMREM hitch, the too-red
+dawn horizon, one worker at queue depth one, the far half of the river handing back to the
+night sky past ~300 m, grime authored, the near-field washboard on the water, the quay wall
+inside the walkable mask, props absent from the walkability mask, the 3.5°–10.4° route camera
+pitch, the frozen/running A/B, `materials.display` drawn by nothing, the hauler's marker row
+buried inside its own body, the seeding fallback's untested placement, **a bus never turns**,
+the origin block's absent occupancy registry, `facadeAlbedo` on its floor with zero spread,
+the station's cores reading as an open frame, **nobody can climb the station**, the 0.10 m
+margin at the core's outer face, `poseprobe`'s blindness to the origin block, the pavement's
+missing kerb, `tools/city-budget.json:84`'s stale `$derivation_count`, the
+`sign(adpillar) × prop(planter)` overlap that stops the fill raise, one merged building pool
+breaching the triangle ceiling, the station's platform slab hiding the train,
+`traffic.js:2346`'s claimed draw-call margin of one where it is eight, `minStraightness` and
+`minArrivalsPerMinute` having no gate reader, the zero-second protected pedestrian phase, and
+**buildings 19.4 m deep into a 52.3 m half-block with nothing built past 31 m** (STATE 33 §6 —
+still the largest single change left, and still free in draws, triangles and instances).
 
-**New this session:**
+**CLOSED THIS SESSION:**
 
-- **`minStraightness` AND `minArrivalsPerMinute` HAVE NO GATE READER.** §7.1. Both clear by
-  large margins when measured by hand; neither is watched. Wiring them up needs a gate that
-  runs the simulation, which this project does not have.
-- **EVERY FRAME THIS PROJECT HAS EVER SHOWN OF A MOVING SYSTEM WAS FROZEN.** `lookat` sets
-  `?paused=1` and `setTimeOfDay` pauses the clock, so pedestrians, traffic and weather stand
-  where they were seeded. Every judgement about the crowd in every STATE was made on frame
-  zero of the simulation.
-- **THE SIGNAL TIMING LEAVES ZERO SECONDS FOR A PROTECTED PEDESTRIAN PHASE.** §3.4, with the
-  arithmetic. 0.08% of vehicle-frames are the residual and it cannot be closed by rules.
-- **BUILDINGS ARE 19.4 m DEEP INTO A 52.3 m HALF-BLOCK AND NOTHING IS BUILT PAST 31 m.** §6.
-  Depth is free in draws, triangles and instances, and is not limited by what stopped the fill
-  raise.
-- **A BUS COULD NOT PULL CLEAR OF A RUNNING LANE ANYWHERE IN THIS CITY** — 0.50 m of space for
-  a 2.55 m vehicle. §5.4.
-- **`traffic.js` REPEATED ITS OWN SESSION-18 INCIDENT 400 LINES AWAY**: `toDoor <= 0` against a
-  `sqrt(2as)` profile. §5.2.
-- **THE THREE PAVEMENT OFFSETS DID NOT SUM IN THE FIRST DRAFT** of the keep-right change, by
-  0.15 m on each side. §4. Caught by arithmetic, not by a gate — nothing gates a pedestrian's
-  lateral position against the corridor budget.
-- **`band:dawn` IS CLOSED** and `citycheck`'s saturation is 0.02 points out with a 0.60-point
-  spread. §7.
+- **"the unexplained ground arc near the origin"** — it is the weir's retaining ring, the
+  0.42 m of a 9.80 m basin that stood above the earth plane. §1.4.
+- **"GPU timer queries advertised and never retiring"** — they retired 2 117 of 2 117 with 0
+  disjoint and 0 starved. §8.2.
 
----
+**NEW THIS SESSION:**
 
-## 12. OFFERED FOR CONTRACT §9's TABLE
-
-Offered rather than added, because `parsecheck`'s `contractDocCheck` counts the rows and the
-count is a gate — sessions 24 through 32 left rows on the same terms.
-
-- **A DEFAULT WITH NO CONSUMER, MISTAKEN FOR A SETTING.** `main.js` → `wet` was read by
-  nothing that produces a frame: `lookcheck` pins both ends, every `camera.js` route carries
-  its own, `filmshot.mjs` carries one per shot, and `lookat.mjs` pinned 0 unconditionally.
-  Three documents and a session brief treated changing it as the thing that would make the
-  city wet, and changing it alone delivers zero frames. **The question a default answers is
-  "what happens when nobody says", and the answer here was "everybody says";**
-- **A GEOMETRY REPEATED IN THREE FILES AND WRONG IN THE ONE THAT DREW IT.** Session 21's
-  crossing sat at `stopLineFromJunctionM − 2.6`, an expression that reads like a derivation and
-  puts 2.10 m of a 2.0 m zebra inside the junction box. The two constraints that actually bound
-  it — outside `roadHalfWidth`, inside the stop bar — were both already in the file;
-- **A TERMINATION TEST ON A DISTANCE THAT SHRINKS GEOMETRICALLY.** `toDoor <= 0` against
-  `v = sqrt(2·a·s)` never fires: 8 bus approaches, 0 berths. `traffic.js` carries a
-  session-18 comment about `toStop > 0` doing exactly this at the stop line, 400 lines away in
-  the same file, and the comment did not prevent it. **A written-up failure mode is not a
-  guard;**
-- **A VEHICLE CLASS DRAWING A PROPERTY FROM THE FLEET'S ROLL.** `seed()` gave every type the
-  same 62/38 lane draw, so 75% of buses ran in the overtaking lane. The stop-serving rule was
-  correct and fired on nothing, and a rule that never fires is indistinguishable from one that
-  is not wired up — which is why the refusal counters exist;
-- **THREE OFFSETS THAT HAVE TO SUM, SUMMED WRONG.** The pavement budget's own closing line is
-  *"change one and another has to give"*. A 0.40 m lane split added to a ±0.25 m jitter and a
-  0.30 m body is 0.95 against an available 0.80, and it put shoulders in the stall run. The
-  budget is a paragraph of prose and nothing checks it;
-- **A THRESHOLD WITH A DERIVATION AND NO READER.** `minStraightness` and
-  `minArrivalsPerMinute` carry hundreds of words of derivation in `city-budget.json` and no
-  tool reads either. The derivation is the part that looks like rigour and the reader is the
-  part that is one;
-- **A SPREAD TYPED BESIDE A DERIVED MEAN.** `WALK_SPEED_SD = 0.18` sat under a paragraph
-  deriving `WALK_SPEED_MEAN` from `gait.js` and explaining why the mean must not be duplicated.
-  The reader's eye stops at the derived number and the undefended one beside it inherits its
-  authority.
+- **A GATE MESSAGE FROZEN IN THE PRESENT TENSE OF THE SESSION THAT WROTE IT.** *"THIS
+  ASSERTION HAS NEVER RUN BEFORE THIS SESSION"* has printed on every run since session 16 and
+  it put a false premise into this session's brief. §3.
+- **SEVEN SPELLINGS OF "DOES A LANDMARK STAND HERE", AND `landmarkBlocks()` IS AN EIGHTH WITH
+  NO CALLERS.** Six are now one function; `landmarkBlocks` is still exported and still
+  disagrees with the registry two ways. §1.3.
+- **THE DELIVERED OCCUPANCY CENSUS HAD NEVER CARRIED THE WEIR OR THE VIADUCT'S END
+  TREATMENTS**, and reported zero anyway for eleven sessions. §1.3.
+- **A DOUBLE-PRECISION FLOOR OF EXACTLY ZERO IS UNSATISFIABLE AT KILOMETRE COORDINATES.** The
+  bar is not representable; the clearance at the nearest representable position is half an ulp.
+  Every other exact-zero bound in `budget.json` has the same exposure and none has been looked
+  at. §2.3.
+- **A BROWSER GATE RUN WHILE SOURCE IS BEING EDITED IS A DISCARDED RUN.** Vite's full reload
+  destroys the execution context mid-route; the run dies with *"Execution context was
+  destroyed"* and the routes that completed before it report numbers from a mixed tree. One
+  perfcheck run was lost this way and its silhouette figures (86% / 83%) differ from the clean
+  run's (68% / 66%) by more than any content change in this session. **Do not edit while a
+  browser gate runs.**
+- **THE BASIN IS WALKABLE IN THE MASK AND UNWALKABLE IN THE GEOMETRY.** `city.js` says *"the
+  basin is a hole, not a wall: you walk down into it"* and skips it in the walkability mask —
+  but the profile has a **7.8 m vertical drop** at r = 102. Nothing can walk down into it. Now
+  that the hole is visible, that disagreement is reachable.
+- **44 100 m² OF THE CITY IS AN EMPTY CONCRETE BOWL.** The weir now reads as a structure
+  rather than as a bug, and it is still 2.69 chunks of nothing in a document whose §1 asks for
+  lower Manhattan. Its own `LANDMARKS` comment calls it *"a stormwater basin and sunken
+  park"*; there is no park in it. That is content, and it is the cheapest large frame in the
+  city to improve now that you can see into it.
+- **THE WEIR'S CLAIM IS THE AABB AND ITS GEOMETRY IS THE INSCRIBED CIRCLE**, so **9 464 m² —
+  21% of the claim — is corner land that refuses buildings, roads and props for no reason
+  anything draws. No lattice road is recoverable (both avenues pass inside the 105 m radius),
+  but the frontage might be.
