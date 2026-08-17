@@ -302,6 +302,95 @@ const BRAKE_A = 2.0;
 const STOP_LINE = CITY.stopLineFromJunctionM;
 
 /**
+ * THE NEXT JUNCTION AHEAD OF `s`, AND THE CLEARANCE FROM A NOSE TO ITS BAR.
+ * =========================================================================
+ * SESSION 34, AND THE MEASUREMENT CAME FIRST — `tools/stoplineprobe.mjs`,
+ * 25 920 frames, 432 simulated seconds, twelve signal cycles.
+ *
+ * WHAT THE GATE SAYS AND WHY IT IS NOT WHAT IS WRONG. `perfcheck` reports
+ * *"a held vehicle's front stood 11.55 m PAST its own stop line (floor 0) — the painted
+ * bar and the braking point are one number and this is the distance between
+ * them"*, which reads as a datum error in the arithmetic. **The arithmetic is
+ * correct.** `toStop` is nose-to-bar, `STOP_LINE` is the painted bar, and the
+ * probe's own second column settles it:
+ *
+ *     past junction   min −15.000   median −2.968   max −0.009 m
+ *     ORIGIN inside the junction box, over 18 208 settled frames:  0
+ *
+ * Not one vehicle in the run is ever inside the box. `past` is the origin's
+ * distance beyond the junction CENTRE and its maximum is −0.009 m, so every
+ * one of these bodies is standing just SHORT of the centre — nine metres past
+ * its own bar, exactly as reported, and genuinely there. Session 25 killed the
+ * exit reservation for the same reason and the brief repeats the instruction:
+ * spillback has zero cases.
+ *
+ * SO HOW DOES A BODY GET NINE METRES PAST A BAR IT NEVER PASSED? IT IS PUT
+ * THERE. `seed()` draws `s` uniformly over ±`SIM_RADIUS` and sets
+ * `cleared = null`, so **8.9% of every re-seat — `(STOP_LINE + len/2) / 128` —
+ * lands in the band between a stop line and the junction it protects, holding
+ * no permission**: a vehicle that has run a red it never saw. The hold then
+ * clamps it (`sqrt(max(0, toStop))` = 0) and it stands there for the rest of
+ * the red, which is up to 18 s, so ONE bad seed contributes up to a thousand
+ * frames to a statistic that only ever decreases.
+ *
+ * `stoplineprobe`'s own classifier hid this: it calls a vehicle *"settled"*
+ * once 2 s have passed since its re-seat, and one of these is still standing
+ * exactly where it was dropped 16 s later. 18 208 "settled" frames, 0 of them
+ * spillback, and the header of that probe names the alternative in the first
+ * paragraph — *"a teleport, and its distance to 'its own' stop line then
+ * describes where the recycler dropped it"*. It was right and its own
+ * two-second cut-off argued against it.
+ *
+ * THE FIX IS AT THE PLACEMENT, WHICH IS WHERE THIS FILE'S OTHER THREE
+ * IMPOSSIBLE-POSITION RULES ALREADY ARE — the river, the camera clearance and
+ * the body spacing are all hard rejections in the same candidate loop. This is
+ * the fourth: **the recycler may not put a body where a body could only have
+ * arrived by running a red.**
+ *
+ * ONE EXPRESSION, TWO READERS. `seed()` tests a candidate and `update()` holds
+ * a vehicle, and they have to be the same line or the seeder refuses a band
+ * that is not the band the hold measures — which is CONTRACT §9 rule 7 with
+ * the two ends written by the same hand in the same session, the case that
+ * rule says to assume is shared.
+ */
+const nextJunctionAhead = (s, dir) => (dir > 0
+  ? (Math.floor(s / CITY.chunkSize) + 1) * CITY.chunkSize
+  : Math.ceil(s / CITY.chunkSize) * CITY.chunkSize - CITY.chunkSize);
+
+/**
+ * Metres from a body's NOSE to the stop line ahead of it. Negative is past it.
+ *
+ * SNAPPED TO ZERO BELOW THE RESOLUTION OF ITS OWN ARITHMETIC, AND THE BOUND IS
+ * DERIVED. This is an ESTIMATOR, not a threshold — CONTRACT §0 rule 6's own
+ * distinction, and `trafficLights.minStopLineM` is 0 before and after.
+ *
+ * WHERE THE RESIDUE COMES FROM, TERM BY TERM. `nextJunctionAhead` is
+ * `floor(s/128)·128`; 128 is a power of two, so the divide and the multiply are
+ * both exact. `nextJ − s` is then exact too, by Sterbenz's lemma: the two
+ * differ by at most 128 while both are of order |s|, so they are within a
+ * factor of two of each other and the subtraction has no rounding at all.
+ *
+ * **What is not representable is the bar itself.** Holding a vehicle at
+ * clearance zero means putting `s` at `nextJ − dir·(STOP_LINE + len/2)`, and
+ * that point is a real number the double lattice does not contain. `s` lands on
+ * the nearest double to it, and the true clearance at that double is up to half
+ * an ulp of `s`. Measured, with the camera 3.5 km down its route:
+ * **−1.8207657603852567e-13 m against a half-ulp of 4.5e-13** — 0.18
+ * picometres, three orders of magnitude under a hydrogen atom, and a RED gate
+ * against a floor of exactly zero.
+ *
+ * So the bound is `EPSILON · |s|`, which is one ulp at `s` and therefore twice
+ * the worst case above. It is a statement about the double lattice at the world
+ * coordinates this simulation runs at, not a tolerance chosen to make anything
+ * pass: at `s` = 0 it is zero, and it grows with the distance the route has
+ * travelled because that is where the precision goes.
+ */
+const stopLineClearanceM = (s, dir, type) => {
+  const d = (nextJunctionAhead(s, dir) - s) * dir - STOP_LINE - type.len * 0.5;
+  return Math.abs(d) < Number.EPSILON * Math.abs(s) ? 0 : d;
+};
+
+/**
  * TRAFFIC SIGNALS — THE GEOMETRY FOR A PHASE THAT ALREADY EXISTS.
  * ===============================================================
  *
@@ -2686,6 +2775,27 @@ export function createTraffic(options = {}) {
            */
           if (landmarkOccupies(pos.x, pos.z)) continue;
           /**
+           * NOR PAST A STOP LINE IT HAS NO PERMISSION TO HAVE PASSED —
+           * SESSION 34. See `stopLineClearanceM` at the top of this file for
+           * the 25 920-frame measurement that says this, and not an exit
+           * reservation, is what `worstStopLineM` has been reporting since
+           * session 21.
+           *
+           * `seed()` sets `veh.cleared = null` twenty lines below, so every
+           * candidate here is a vehicle WITHOUT permission. A vehicle without
+           * permission belongs at or before its bar; the 11.4 m between the bar
+           * and the junction is ground it can only occupy by having been waved
+           * through, and this loop cannot wave anybody through.
+           *
+           * HARD, not scored, like the three tests around it. It removes
+           * `(9.00 + len/2) / 128` = **8.9%** of each lane from the seeding
+           * distribution — a periodic gap immediately ahead of every junction,
+           * which fills within a second because vehicles DRIVE into it
+           * constantly. What it cannot occupy is the standing population, and
+           * that is the whole point.
+           */
+          if (stopLineClearanceM(s, dir, BODY_TYPES[veh.type]) < 0) continue;
+          /**
            * HARD, not scored. See CAMERA_CLEARANCE.
            *
            * MEASURED FROM THE BODY, NOT FROM THE ORIGIN — SESSION 29, AND THE
@@ -2797,6 +2907,20 @@ export function createTraffic(options = {}) {
           // number below claims.
           seedFallbacks++;
           best = { axis: 0, line: cj, dir: 1, lane: 1, s: cam.x + SIM_RADIUS * 0.8 };
+          /**
+           * AND THE FALLBACK OBEYS THE STOP-LINE RULE TOO — session 34.
+           *
+           * `cam.x + SIM_RADIUS · 0.8` is an arbitrary point on a lattice that
+           * has a junction every 128 m, so it lands in the 11.4 m band ahead of
+           * one about 8.9% of the times it fires. `seedFallbacks` has measured
+           * 0 since session 29 and a rule that holds 91% of the time on a path
+           * nobody takes is not a guarantee — it is the same probabilistic
+           * gap, moved somewhere harder to see. Backed off to the bar rather
+           * than redrawn, because this branch exists precisely to place a body
+           * without further draws.
+           */
+          const clearance = stopLineClearanceM(best.s, best.dir, BODY_TYPES[veh.type]);
+          if (clearance < 0) best.s += clearance * best.dir;
         }
         veh.axis = best.axis;
         veh.line = best.line;
@@ -3456,9 +3580,7 @@ export function createTraffic(options = {}) {
              * released by the sign of its own position.
              */
             const along = veh.s;
-            const nextJ = veh.dir > 0
-              ? (Math.floor(along / CITY.chunkSize) + 1) * CITY.chunkSize
-              : Math.ceil(along / CITY.chunkSize) * CITY.chunkSize - CITY.chunkSize;
+            const nextJ = nextJunctionAhead(along, veh.dir);
             /**
              * THE NOSE, NOT THE ORIGIN — session 19, item 7, and it is CONTRACT
              * §9's shape with two points on the same vehicle.
@@ -3499,7 +3621,9 @@ export function createTraffic(options = {}) {
              * plus 4.8 m of overhang against 48 m of amber, margin 7.2 m.
              */
             const frontM = type.len * 0.5;
-            const toStop = (nextJ - along) * veh.dir - STOP_LINE - frontM;
+            // `stopLineClearanceM` is the same expression, shared with `seed()`
+            // so the band the recycler refuses is the band this hold measures.
+            const toStop = stopLineClearanceM(along, veh.dir, type);
             const phase = signal(veh.axis, now);
             const brakeDist = (veh.v * veh.v) / (2 * BRAKE_A);
 
@@ -3739,6 +3863,54 @@ export function createTraffic(options = {}) {
             }
 
             veh.s += veh.dir * veh.v * dt;
+            /**
+             * AND A VEHICLE WITHOUT PERMISSION DOES NOT CROSS ITS BAR, EVEN BY
+             * A FRACTION OF THE LAST STEP — SESSION 34.
+             *
+             * The hold above is a SPEED limit, `sqrt(2·a·max(0, toStop))`, and
+             * a speed limit integrated in discrete steps overshoots by whatever
+             * the last step was worth. Measured over 25 920 frames after the
+             * seeding fix closed everything else: **`worstStopLineM` =
+             * −0.00027777775946535854 m**, which is 0.28 mm and is a RED gate,
+             * because the floor is zero and `-0.000` printed at three decimals
+             * cannot be told from zero.
+             *
+             * `traffic.js` HAS THIS EXACT PARAGRAPH ALREADY, ABOUT THE OTHER
+             * END OF THE SAME PROFILE. Session 18 wrote it about `toStop > 0`
+             * never firing because `v = sqrt(2·a·s)` reaches `s = 0` only in the
+             * limit, and STATE 33 §5.2 records session 33 making the same
+             * mistake 400 lines away with `toDoor <= 0` on a bus. Both are the
+             * same statement: **the profile is asymptotic in continuous time and
+             * neither exact nor monotone in discrete time**, so the arrival has
+             * to be asserted positionally and not waited for.
+             *
+             * So the position is clamped to the bar rather than the speed being
+             * nudged. It moves a body by at most one frame of travel at a speed
+             * already under 0.05 m/s — 0.8 mm — and it makes the guarantee
+             * EXACT rather than asymptotic, which is what a floor of zero
+             * requires. `toStop` is this frame's value, before the step, so the
+             * clamp is `s` put back to where the clearance is zero.
+             *
+             * ITERATED, AND THE REASON IS ARITHMETIC RATHER THAN PHYSICS. One
+             * pass leaves **−1.82e-13 m** — six ulps of a double at 128 m, the
+             * cancellation residue of `(nextJ − s)·dir − STOP_LINE − len/2`
+             * recomputed after `s` moved. The floor is exactly zero, so six
+             * ulps is a RED gate, and CONTRACT §0 rule 6 is the reason this is
+             * closed at the source instead of by a tolerance: the honest move
+             * when a decision falls inside an instrument's noise is to remove
+             * the noise, never to widen the line. Clamping through the SAME
+             * function that measures it is what makes the guarantee the
+             * measured quantity rather than a second description of it — the
+             * residue is driven to zero in two passes and the third is a
+             * backstop, not an expectation.
+             */
+            if (veh.cleared !== nextJ) {
+              for (let k = 0; k < 3; k++) {
+                const over = stopLineClearanceM(veh.s, veh.dir, type);
+                if (over >= 0) break;
+                veh.s += over * veh.dir;
+              }
+            }
           }
         }
 

@@ -110,7 +110,17 @@ for (let f = 0; f < FRAMES; f++) {
 const s = api.stats();
 console.log(`${FRAMES} frames = ${(FRAMES * DT).toFixed(0)} simulated seconds = ${CYCLES} signal cycles at ${CYCLE_S} s`);
 console.log(`${s.vehicles} vehicles, ${recycles} recycles over the run, ${framesWithHold} frames with someone held at a red (worst ${held} at once)`);
-console.log(`\nworstStopLineM = ${worst === Infinity ? 'Infinity — NOBODY WAS EVER HELD (unrun, not a pass)' : `${worst.toFixed(3)} m`}` +
+/**
+ * PRINTED RAW AS WELL AS ROUNDED — SESSION 34.
+ *
+ * The gate's test is `worstStopLineM < 0` and three decimals cannot tell
+ * `-0.0000` from `-0.0004`: one passes and one fails, and both print as
+ * `-0.000 m against a floor of 0`. That is CONTRACT §9's shape with a
+ * FORMATTER — a number displayed at a precision that cannot resolve the
+ * comparison being made of it. The raw value decides the gate, so the raw
+ * value is what this line has to show.
+ */
+console.log(`\nworstStopLineM = ${worst === Infinity ? 'Infinity — NOBODY WAS EVER HELD (unrun, not a pass)' : `${worst.toFixed(3)} m   raw ${worst}   ${worst < 0 ? 'RED' : 'GREEN'}`}` +
   `   against the floor of 0 in budget.json → trafficLights.minStopLineM`);
 
 if (!witnesses.length) {
