@@ -2828,6 +2828,263 @@ export function landmarkGroundBlockers(l) {
 }
 
 /**
+ * EVERY BOX A LANDMARK TAKES OFF THE ROAD NETWORK, AS ONE LIST — SESSION 34.
+ * =========================================================================
+ *
+ * WHAT THIS IS FOR. `generateChunk` clips the carriageway and the pavement
+ * against the `landmark` claims it lays down, so the delivered road network
+ * already has holes in it wherever a landmark stands. Nothing that MOVES knew
+ * that. `traffic.js` refuses a lattice line the river took (`riverNoRoad`) and
+ * has never had the equivalent sentence about a landmark, so the fleet drives
+ * across every one of them.
+ *
+ * THE ONE THAT MATTERS IS THE WEIR AND IT IS A DISTRICT. `landmarkAABB(weir)`
+ * is **210 × 210 m = 44 100 m²** — 2.69 chunks. Rastered at 0.5 m, the union
+ * of every landmark's ground claims is **69 658 m² and the weir is 63.3% of
+ * it, 4.28× the next largest** (the condenser's stacked boxes, 10 302 m²).
+ *
+ * Measured at seed 1337: the road lattice loses two whole north–south avenues
+ * (x = −384 and x = −256, 84 m and 44 m from the basin's centre against its
+ * 105 m radius) and one east–west street (z = 128) for 210 m each, and the
+ * fleet ran along all three. Over `citycheck`'s own 1 280 m region that is
+ * **1 050 m of the 28 182 m of lattice centreline — 3.73% — with no
+ * carriageway under it**, and the fleet drove every metre.
+ *
+ * WHY IT IS A FUNCTION AND NOT A SECOND PREDICATE. `landmarkBlocks()` already
+ * exists and looks like the answer. It is not, and both of its disagreements
+ * with the registry are CONTRACT §9 rule 7's own shape:
+ *
+ *   - for a `basin` it falls back to a CIRCLE at `landmarkFootprint/2`, where
+ *     the registry claims the AABB — 34 636 m² against 44 100, a 21%
+ *     disagreement all of it in the four corners;
+ *   - for the viaduct it tests `landmarkOccluders`, which INCLUDES the deck
+ *     segments, where the registry claims those as `deck` — a category a
+ *     carriageway is explicitly allowed to sit under, because an elevated
+ *     railway over a street is the thing the split was written for.
+ *
+ * So this returns exactly the boxes `generateChunk` claims as `landmark`, and
+ * `generateChunk` now claims FROM IT rather than beside it. One description,
+ * three readers: the claim, the road clip that reads the claim, and
+ * `landmarkOccupies` below.
+ *
+ * MEMOISED PER LANDMARK. `viaductArc` → `viaductLegs` → `viaductEnds` is a few
+ * hundred trig calls and `landmarkOccupies` is called once per vehicle per frame.
+ * The landmarks are authored data and never change, so the cache is keyed on
+ * the object itself and never invalidated.
+ */
+const landmarkGroundClaimCache = new Map();
+
+export function landmarkGroundClaims(l) {
+  const hit = landmarkGroundClaimCache.get(l);
+  if (hit) return hit;
+  const out = [];
+  for (const o of landmarkOccluders(l)) {
+    // A deck flies over the street rather than standing in it, and a viaduct's
+    // ground contact is its legs — both handled below.
+    if (o.deck || l.kind === 'viaduct') continue;
+    out.push({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top, owner: l.name });
+  }
+  if (l.kind === 'viaduct') {
+    for (const g of landmarkGroundBlockers(l)) {
+      out.push({ x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: 0, y1: g.top, owner: `${l.name}:leg` });
+    }
+    for (const e of viaductEnds(viaductArc(l), l)) {
+      /**
+       * `tested: true` carries session 23's `if (reg.conflict(box)) continue`
+       * to the one reader that can honour it. The other two cannot — they have
+       * no registry — and that is stated rather than hidden: an end treatment
+       * refused by a chunk's registry is a box `landmarkOccupies` still calls
+       * blocked. Today that difference is EMPTY, because the comment at the
+       * claim site records the test as inert (nothing forbidden to `landmark`
+       * has been claimed by that point), and it is the conservative direction
+       * for a vehicle either way.
+       */
+      out.push({
+        x0: e.claim.x0, x1: e.claim.x1, z0: e.claim.z0, z1: e.claim.z1,
+        y0: 0, y1: e.claim.top, owner: `${l.name}:end`, tested: true,
+      });
+    }
+  }
+  if (l.kind === 'basin') {
+    /**
+     * A basin occludes nothing above grade, so `landmarkOccluders` returns []
+     * for it and the loop above contributes nothing. It is still 210 m of
+     * ground, and `y0` is BELOW the datum rather than at it: the thing is a
+     * hole, and the claim has to say so or a future reader asking "what is
+     * under this" gets a box that starts where the floor ends.
+     */
+    const a = landmarkAABB(l);
+    out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: a.z1, y0: -l.depth, y1: l.height, owner: l.name });
+  }
+  landmarkGroundClaimCache.set(l, out);
+  return out;
+}
+
+/**
+ * DOES A LANDMARK STAND ON THE GROUND AT (x, z)?
+ *
+ * ONE NAME, BECAUSE THE RIVER'S TWO ARE A REAL DISTINCTION AND A LANDMARK'S
+ * WOULD NOT BE. The river needs both `riverImpassable` and `riverNoRoad`: an
+ * east–west road LINE inside the channel is refused whole even at the 13% of
+ * stations where the meander leaves it on dry land, so what stops a vehicle
+ * and what stops a walker are genuinely different questions. A landmark's
+ * footprint is one solid and stops both, so a second name would be two names
+ * for one answer — which is the thing this function exists to end. Six readers
+ * had six spellings of it before session 34 and three of them could not see
+ * the largest landmark on the map.
+ *
+ * A POINT TEST, AND THE DATUM IS THE CALLER'S OWN ORIGIN. Said rather than
+ * assumed (CONTRACT §9 rule 7): a 12 m bus whose origin is 1 m outside the
+ * weir's claim has 5 m of itself inside it. `traffic.js`'s recycle pass runs
+ * every frame, so a body crossing the boundary is recycled within
+ * `len/2 / v` ≈ 0.5 s of its nose entering — the same tolerance the river
+ * case has carried since session 15. Callers with a body pass `pad`.
+ *
+ * IT IS LOCAL IN BOTH AXES AND `riverNoRoad` IS NOT, which is why this refuses
+ * a POINT rather than a lattice line: a landmark takes 210 m of an avenue and
+ * refusing the line would empty the kilometre either side of it.
+ */
+export function landmarkOccupies(x, z, pad = 0) {
+  for (const l of LANDMARKS) {
+    // The AABB rejects seven of the eight landmarks in four comparisons. It is
+    // computed from `landmarkOccluders`, which for the viaduct is WIDER than
+    // the ground claims below — conservative in the direction that only costs
+    // a few more box tests.
+    const a = landmarkAABB(l);
+    if (x < a.x0 - pad || x > a.x1 + pad || z < a.z0 - pad || z > a.z1 + pad) continue;
+    for (const g of landmarkGroundClaims(l)) {
+      if (x > g.x0 - pad && x < g.x1 + pad && z > g.z0 - pad && z < g.z1 + pad) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * THE BASIN'S SECTION, AND THE REASON IT IS IN THIS FILE — SESSION 34.
+ * ====================================================================
+ *
+ * WHAT WAS WRONG, MEASURED BEFORE ANYTHING WAS CHANGED. `city.js` builds the
+ * weir as a lathe reaching from **+0.40 m down to −9.40 m**. `block.js` builds
+ * ONE 8 km × 8 km opaque earth plane at **−0.02 m** with a hole cut for the
+ * river and for nothing else. So **9.40 m of the basin's 9.80 m — 96% of it —
+ * is drawn underneath an opaque plane**, and what a frame shows where a 210 m
+ * sunken park is supposed to be is flat brown earth with a thin white arc on
+ * it: the 0.42 m of retaining ring that stands proud of the plane.
+ *
+ * That arc is STATE §11's *"the unexplained ground arc near the origin"*,
+ * carried as a known gap since session 8. It is the top of this wall.
+ *
+ * CONTRACT §9.1 already carries the row — *"Geometry authored and then drawn
+ * inside something else"* — and this is the largest instance of it in the
+ * project by two orders of magnitude: 34 636 m² of basin inside 64 km² of
+ * plane.
+ *
+ * WHY THE PROFILE MOVED HERE. Cutting the plane needs the rim's polyline, and
+ * the rim's polyline is a property of the lathe `city.js` draws. Two
+ * descriptions of one circle is the arrangement `block.js`'s own earth comment
+ * argues against for the river — *"the earth is emitted as a quad strip on the
+ * SAME station lattice `river.js` builds the water from, so the three edges are
+ * the same polyline and cannot crack apart"*. This is that sentence with a
+ * basin instead of a bank: the profile and the segment count are declared once,
+ * here, beside the landmark; `city.js` lathes them and `block.js` cuts on them.
+ */
+export const BASIN_LATHE_SEGMENTS = 40;
+
+/**
+ * The section, as `[radius, y]` pairs from the rim inward. Unchanged from the
+ * literals `city.js` carried since session 4 — this is a move, not a redesign,
+ * and the geometry it produces is identical.
+ *
+ *     r = radius       y = +0.40   retaining ring, the only part above grade
+ *     r = radius       y = −0.60   its inner face
+ *     r = radius − 3   y = −1.20   the ledge
+ *     r = radius − 3   y = −depth  a 7.80 m vertical drop
+ *     r = 0.02         y = −depth − 0.40   the floor, falling to the outlet
+ */
+export function basinProfile(l) {
+  return [
+    [l.radius, 0.4], [l.radius, -0.6],
+    [l.radius - 3, -1.2], [l.radius - 3, -l.depth],
+    [0.02, -l.depth - 0.4],
+  ];
+}
+
+/**
+ * The rim, as the same `{ x, north, south }` stations `riverBankStations`
+ * returns — one entry per distinct x, `north` the smaller z.
+ *
+ * THE VERTICES ARE THE LATHE'S OWN. `THREE.LatheGeometry` places vertex k at
+ * `(r·sin θ, y, r·cos θ)` for `θ = 2πk/segments`, so this walks the same
+ * angles at the same count. A cut computed from `sqrt(r² − dx²)` on a uniform
+ * x lattice would be a DIFFERENT polygon inscribed in the same circle, and at
+ * the two extremes — where the arc's slope in x is infinite — a 16 m station
+ * spacing puts the chord **8.0 m** inside the rim, i.e. an 8 m tongue of earth
+ * lying over the bowl at each end. Walking the lathe's angles instead makes
+ * the spacing dense exactly where the arc is steep, which is what a lathe's
+ * uniform angular step is for.
+ */
+export function basinRimStations(l) {
+  const n = BASIN_LATHE_SEGMENTS;
+  const by = new Map();
+  for (let k = 0; k < n; k++) {
+    const th = (k / n) * Math.PI * 2;
+    const x = l.x + l.radius * Math.sin(th);
+    const z = l.z + l.radius * Math.cos(th);
+    // Keyed to a micrometre: θ and π − θ give the same x to within an ulp and
+    // have to land in the same station or the polygon gains a 1e-16 m sliver.
+    const key = x.toFixed(6);
+    const e = by.get(key);
+    if (!e) by.set(key, { x, north: z, south: z });
+    else { e.north = Math.min(e.north, z); e.south = Math.max(e.south, z); }
+  }
+  return [...by.values()].sort((a, b) => a.x - b.x);
+}
+
+/** Every landmark that is a hole in the ground rather than a mass on it. */
+export function sunkenLandmarks() {
+  return LANDMARKS.filter((l) => l.kind === 'basin');
+}
+
+/**
+ * WHAT A PERSON STANDING AT (x, z) INSIDE A BASIN IS STANDING ON, or null.
+ *
+ * The section above, read as a function of radius — so it cannot disagree with
+ * the lathe, which is the whole reason the profile is one array. `block.js`'s
+ * `blockSurfaceAt` consults this before it answers `earth`, because the earth
+ * is no longer there: a query that went on answering −0.02 m over a hole its
+ * own module had just cut is §9.1's two-descriptions defect introduced by the
+ * repair for §9.1's two-descriptions defect.
+ *
+ * IT USES THE CIRCLE AND `basinRimStations` USES THE 40-GON, AND THAT
+ * DISAGREEMENT IS NAMED RATHER THAN LEFT. The polygon is inscribed, so between
+ * two rim vertices the drawn edge is up to `r(1 − cos(π/40))` = **0.32 m**
+ * inside the circle this function tests. A foot in that 0.32 m band is told it
+ * is on the ledge when the drawn ledge stops just short of it. It is under the
+ * 0.20 m `PLAYER.stepUpM` in height terms and a third of a metre in plan; it
+ * is recorded here so the next reader does not have to re-derive it.
+ */
+export function basinSurfaceAt(x, z) {
+  for (const l of sunkenLandmarks()) {
+    const d = Math.hypot(x - l.x, z - l.z);
+    if (d >= l.radius) continue;
+    const prof = basinProfile(l);
+    // The profile runs outward-in, so walk it and take the first band the
+    // radius falls in. Linear between the two points that bracket it, which is
+    // exactly what the lathe's own triangles interpolate.
+    for (let i = 0; i < prof.length - 1; i++) {
+      const [ra, ya] = prof[i];
+      const [rb, yb] = prof[i + 1];
+      if (d > ra || d < rb) continue;
+      const t = ra === rb ? 0 : (ra - d) / (ra - rb);
+      return { y: ya + (yb - ya) * t, kind: 'basin', known: true };
+    }
+    // Inside the innermost profile radius (0.02 m): the outlet.
+    return { y: prof[prof.length - 1][1], kind: 'basin', known: true };
+  }
+  return null;
+}
+
+/**
  * The underside of the viaduct's deck, in metres above the ground datum.
  *
  * ONE EXPRESSION, AND SESSION 31 COUNTED ITS READERS RATHER THAN TRUSTING
@@ -4447,21 +4704,28 @@ export function generateChunk(rootSeed, cx, cz) {
    * viaduct leg is `landmark` from 0 to 21 m and the deck it holds up is `deck`
    * from 14.2 to 21 m, and a carriageway conflicts with the first and not the
    * second — which is what an elevated railway over a street IS.
+   *
+   * SESSION 34 — THE GROUND HALF MOVED OUT OF THIS LOOP AND INTO
+   * `landmarkGroundClaims`, AND NOTHING ABOUT WHAT IS CLAIMED CHANGED. The
+   * boxes, their y extents and their owner strings are the same ones session 23
+   * and session 31 put here; what is different is that `traffic.js` can now
+   * read the same list. It had no way to, so the fleet drove across every
+   * landmark in the city — 44 100 m² of it across the weir alone. The deck
+   * half stays here because it is the one claim that is NOT a ground claim.
    */
   for (const l of nearLandmarks) {
     for (const o of landmarkOccluders(l)) {
       if (o.deck) {
         reg.claim(claimBox('deck', o.x0, o.z0, o.x1, o.z1, { y0: o.base, y1: o.top, owner: l.name }));
-      } else if (l.kind === 'viaduct') {
-        /* handled below — a viaduct's ground contact is its legs, not its deck. */
-      } else {
-        reg.claim(claimBox('landmark', o.x0, o.z0, o.x1, o.z1, { y0: 0, y1: o.top, owner: l.name }));
       }
     }
+    for (const g of landmarkGroundClaims(l)) {
+      const box = claimBox('landmark', g.x0, g.z0, g.x1, g.z1, { y0: g.y0, y1: g.y1, owner: g.owner });
+      // `tested` is the viaduct end treatment's own refusal — see below.
+      if (g.tested && reg.conflict(box)) continue;
+      reg.claim(box);
+    }
     if (l.kind === 'viaduct') {
-      for (const g of landmarkGroundBlockers(l)) {
-        reg.claim(claimBox('landmark', g.x0, g.z0, g.x1, g.z1, { y0: 0, y1: g.top, owner: `${l.name}:leg` }));
-      }
       /**
        * THE END TREATMENT, CLAIMED — SESSION 23, item 2, and it is a claim that
        * did not exist rather than one that was wrong.
@@ -4510,24 +4774,24 @@ export function generateChunk(rootSeed, cx, cz) {
        * box is 6.0 x 13.7 m, so it clears by 2 m of depth and 0.3 m of width.
        * END B is free to 20 m and 18 m; its nearest forbidden claim is a
        * planter at 13.01 m.
+       *
+       * SESSION 34: the boxes and the `conflict()` test both moved to
+       * `landmarkGroundClaims` and to the `g.tested` line above. Nothing about
+       * either changed; this paragraph is the derivation and stays with the
+       * subject it derives.
        */
-      for (const e of viaductEnds(viaductArc(l), l)) {
-        const box = claimBox('landmark', e.claim.x0, e.claim.z0, e.claim.x1, e.claim.z1,
-          { y0: 0, y1: e.claim.top, owner: `${l.name}:end` });
-        if (reg.conflict(box)) continue;
-        reg.claim(box);
-      }
     }
     /**
      * A BASIN OCCLUDES NOTHING AND STILL TAKES 210 m OF GROUND. `landmarkOccluders`
      * returns [] for it and says so in a comment; `landmarkAABB` already has the
      * fallback and this is the third place that needs it, which is exactly the
      * argument for the registry holding the answer rather than each caller.
+     *
+     * SESSION 34 — AND THE FOURTH PLACE THAT NEEDED IT WAS `traffic.js`, WHICH
+     * NEVER ASKED. The claim moved into `landmarkGroundClaims` above, which is
+     * the registry-holds-the-answer arrangement this paragraph asked for,
+     * arriving nine sessions later than the paragraph.
      */
-    if (l.kind === 'basin') {
-      const a = landmarkAABB(l);
-      reg.claim(claimBox('landmark', a.x0, a.z0, a.x1, a.z1, { y0: -l.depth, y1: l.height, owner: l.name }));
-    }
   }
 
   /**

@@ -25,7 +25,10 @@ import * as THREE from 'three';
 import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
-import { riverBankStations, BUS_STOP } from '../lib/citygen.js';
+import {
+  riverBankStations, BUS_STOP, riverEdges,
+  sunkenLandmarks, basinRimStations, basinSurfaceAt,
+} from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
 const DEG = Math.PI / 180;
@@ -690,19 +693,93 @@ export function createBlock(options = {}) {
           pos.push(xa, EY, za0, xb, EY, zb1, xb, EY, zb0);
           pos.push(xa, EY, za0, xa, EY, za1, xb, EY, zb1);
         };
-        if (riverEnabled) {
-          const st = riverBankStations(-E, E);
+
+        /**
+         * AND THE SUNKEN LANDMARKS GET THE SAME TREATMENT AS THE RIVER —
+         * SESSION 34, AND IT IS THIS COMMENT'S OWN ARGUMENT ARRIVING NINETEEN
+         * SESSIONS LATE.
+         *
+         * *"A plane above water hides water"* is the sentence above. A plane
+         * above a **9 m stormwater basin** hides the basin, and it has:
+         * `city.js` lathes the weir from +0.40 m to −9.40 m and this plane sits
+         * across it at −0.02, so **9.40 m of 9.80 — 96% — has never reached a
+         * frame**. What the frame shows instead is 44 100 m² of flat earth with
+         * a thin white arc on it, which is the 0.42 m of retaining ring that
+         * stands proud, and that arc is STATE §11's *"unexplained ground arc
+         * near the origin"* carried as a known gap since session 8.
+         *
+         * CUT ON THE RIM AND NOT ON THE AABB, for exactly the reason the river
+         * is cut on the bank: a 210 × 210 m rectangular hole around a 105 m
+         * circle leaves **9 464 m² of open void in the four corners** — 21% of
+         * the claim — which is the *"slot of nothing"* this comment already
+         * refuses for the river, in four triangles instead of two strips.
+         *
+         * The stations are the LATHE'S OWN vertices (`basinRimStations`), so
+         * the cut edge and the drawn rim are the same polyline and cannot crack
+         * apart. `?river=0` still gets the river's plane back; the basin's hole
+         * is in both arms, because it is not the river's cost.
+         */
+        const basins = sunkenLandmarks();
+        const rims = basins.map((l) => basinRimStations(l));
+        /** The removed z-interval of basin `k` at x, or null outside its span. */
+        const rimBandAt = (k, x) => {
+          const st = rims[k];
+          if (x < st[0].x || x > st[st.length - 1].x) return null;
           for (let i = 0; i < st.length - 1; i++) {
+            if (x < st[i].x || x > st[i + 1].x) continue;
             const a = st[i];
             const b = st[i + 1];
-            if (a.x >= E || b.x <= -E) continue;
-            // North of the river, then south of it. The earth stops at the
-            // water line; the quay wall stands on the last 1.3 m of it.
-            quad(a.x, -E, a.north, b.x, -E, b.north);
-            quad(a.x, a.south, E, b.x, b.south, E);
+            const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+            return { north: a.north + (b.north - a.north) * t, south: a.south + (b.south - a.south) * t };
           }
-        } else {
-          quad(-E, -E, E, E, -E, E);
+          return null;
+        };
+
+        /**
+         * One station list for both cuts. The river's stations are anchored at
+         * `i · RIVER.bankStationM` and a basin's are at its own lathe angles, so
+         * the union is what a trapezoid strip needs: every vertex of every cut
+         * edge is a station, and between two stations both edges are straight.
+         */
+        const xs = new Set();
+        if (riverEnabled) for (const s of riverBankStations(-E, E)) xs.add(s.x);
+        xs.add(-E);
+        xs.add(E);
+        for (const st of rims) for (const s of st) xs.add(s.x);
+        const stations = [...xs].filter((x) => x >= -E && x <= E).sort((a, b) => a - b);
+
+        for (let i = 0; i < stations.length - 1; i++) {
+          const xa = stations[i];
+          const xb = stations[i + 1];
+          /**
+           * The intervals removed at each end, PAIRED and in the same order at
+           * both. A cut present at one end and absent at the other would pair a
+           * trapezoid against nothing; a basin's own extreme station is in the
+           * list, and there its band is a single point, so the pairing is
+           * always well formed and the end trapezoid degenerates to zero width.
+           */
+          const cuts = [];
+          if (riverEnabled) {
+            const ea = riverEdges(xa);
+            const eb = riverEdges(xb);
+            cuts.push([{ north: ea.north, south: ea.south }, { north: eb.north, south: eb.south }]);
+          }
+          for (let k = 0; k < basins.length; k++) {
+            const ba = rimBandAt(k, xa);
+            const bb = rimBandAt(k, xb);
+            if (!ba && !bb) continue;
+            const pt = (b) => b || { north: basins[k].z, south: basins[k].z };
+            cuts.push([pt(ba), pt(bb)]);
+          }
+          cuts.sort((p, q) => p[0].north - q[0].north);
+          let za = -E;
+          let zb = -E;
+          for (const [ca, cb] of cuts) {
+            quad(xa, za, ca.north, xb, zb, cb.north);
+            za = ca.south;
+            zb = cb.south;
+          }
+          quad(xa, za, E, xb, zb, E);
         }
         const arr = new Float32Array(pos);
         groundGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
@@ -833,6 +910,23 @@ export function createBlock(options = {}) {
         if (az <= halfStreet && ax <= cfg.groundExtent) {
           return { y: GROUND.carriageway, kind: 'road', known: true };
         }
+        /**
+         * AND WHERE THE EARTH HAS A HOLE IN IT, THIS SAYS SO — SESSION 34.
+         *
+         * The comment over this function is emphatic that a second copy of its
+         * branches would be §9.1: *"the api would answer one height and the
+         * geometry would stand at another"*. Cutting the basin out of the earth
+         * plane above and leaving this line returning −0.02 m is that failure
+         * committed by the repair — a walker standing at the old earth height
+         * over a hole the same module has just opened.
+         *
+         * `basinSurfaceAt` reads the lathe's own profile, so this answers the
+         * drawn floor, the drawn ledge and the drawn wall rather than a second
+         * description of them. Consulted BEFORE `earth` and not after, because
+         * inside the rim there is no earth left to be the fallback.
+         */
+        const basin = basinSurfaceAt(x, z);
+        if (basin) return basin;
         return { y: GROUND.earth, kind: 'earth', known: true };
       };
 

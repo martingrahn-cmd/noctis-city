@@ -18,10 +18,14 @@
  * `chunk.occluders` carries the SKY answer: it contains the viaduct's whole
  * 480 m deck at 21 m, because that deck blocks every ray upward. A person
  * walks under it perfectly well. So every walking and standing test here uses
- * `landmarkGroundBlockers` (the piers, and nothing else) for landmarks, and
- * filters `chunk.occluders` down to the entries with no `landmark` key, which
- * is exactly the set of building footprints. That distinction is CONTRACT §9
- * row 13, already paid for once.
+ * `landmarkGroundClaims` (the piers, the end treatments and the basin — never
+ * the deck) for landmarks, and filters `chunk.occluders` down to the entries
+ * with no `landmark` key, which is exactly the set of building footprints.
+ * That distinction is CONTRACT §9 row 13, already paid for once.
+ *
+ * It said `landmarkGroundBlockers` until session 34, which is the same list
+ * minus the weir's 210 m basin and the viaduct's two end blocks — see
+ * `walkBlockers`.
  *
  * THE PAVEMENT IS A LOOP, WHICH IS THE WHOLE REASON THE MOVEMENT IS CHEAP
  *
@@ -52,7 +56,8 @@ import {
   densityAt,
   generateChunk,
   landmarksTouching,
-  landmarkGroundBlockers,
+  landmarkGroundClaims,
+  landmarkOccupies,
   riverImpassable,
   occupied,
   busStopAt,
@@ -2394,11 +2399,22 @@ export function createStreetlife(options = {}) {
    * What actually stands in the way of somebody on foot in this chunk.
    *
    * Building footprints, from `occluders` with the landmark boxes filtered
-   * out, plus `landmarkGroundBlockers` for every landmark that touches the
+   * out, plus the landmark ground claims for every landmark that touches the
    * chunk. NOT `landmarkOccluders`, which is the sky answer and contains the
    * viaduct's whole 480 m deck at 21 m — a person walks under that. One list
    * standing for two questions is CONTRACT §9 row 13 and it cost session 5 a
    * walkability mask.
+   *
+   * SESSION 34 — `landmarkGroundBlockers` → `landmarkGroundClaims`, AND IT IS
+   * THE SIXTH READER OF THIS QUESTION FOUND SPELLING IT ITS OWN WAY.
+   * `landmarkGroundBlockers` returns `landmarkOccluders` verbatim for anything
+   * that is not a viaduct, and `landmarkOccluders` returns `[]` for a `basin`
+   * — so the weir's 210 m hole in the ground was not in this list, and the
+   * crowd walked across it. Measured before the change, at the eye the
+   * operator reported: **people and market stalls on the basin floor at
+   * −9.4 m**, in the frame beside the vehicles. `landmarkGroundClaims` is the
+   * list the generator's registry claims from, so the six readers now agree by
+   * construction rather than by six people getting it right.
    *
    * The origin block's own buildings come from `block.occluders` when that
    * module is live. The generator places nothing inside `BLOCK_KEEPOUT`, so
@@ -2416,7 +2432,7 @@ export function createStreetlife(options = {}) {
         list.push(o);
       }
       for (const l of landmarksTouching(cx, cz)) {
-        for (const b of landmarkGroundBlockers(l)) list.push(b);
+        for (const b of landmarkGroundClaims(l)) list.push(b);
       }
       const b = chunkBounds(cx, cz);
       const touchesBlock =
@@ -2887,6 +2903,24 @@ export function createStreetlife(options = {}) {
   // -------------------------------------------------------------------------
 
   /**
+   * GROUND A PERSON CANNOT STAND ON, THAT NO BOX EXPRESSES — SESSION 34.
+   *
+   * Six calls at four sites asked `riverImpassable` and not one of them asked
+   * anything about landmarks, because `walkBlockers` was supposed to carry
+   * them and two of the four sites do not consult it. The river's own comment
+   * further down says the water *"is occupancy of a kind no box can express"*;
+   * the weir is the opposite case — it IS a box, and the accessor those sites
+   * would have used returns `[]` for it (see `walkBlockers`).
+   *
+   * One predicate, four readers, so the next thing added to it reaches all
+   * four. `BODY_HALF_WIDTH_M` is the pad at every site already.
+   */
+  const notPavement = (x, z) => (
+    riverImpassable(rootSeed, x, z, BODY_HALF_WIDTH_M) ||
+    landmarkOccupies(x, z, BODY_HALF_WIDTH_M)
+  );
+
+  /**
    * How much of an island's loop lies inside the simulated disc. Sixty-four
    * samples over 435.2 m is one every 6.8 m, which resolves the disc edge to
    * better than a body length.
@@ -2905,7 +2939,7 @@ export function createStreetlife(options = {}) {
        * on the WATER rather than on the envelope keeps the promenade, which is
        * outside `inRiver` and is where a riverside chunk's people belong.
        */
-      if (riverImpassable(rootSeed, scratchPoint.x, scratchPoint.z, BODY_HALF_WIDTH_M)) continue;
+      if (notPavement(scratchPoint.x, scratchPoint.z)) continue;
       const dx = scratchPoint.x - camx;
       const dz = scratchPoint.z - camz;
       if (dx * dx + dz * dz <= r2) hit++;
@@ -3077,7 +3111,7 @@ export function createStreetlife(options = {}) {
       // gave, which is the existing contract of this loop — a chunk whose
       // whole loop is river gets a coverage of 0 in `loopCoverage` and is
       // therefore never allocated anybody to seat.
-      if (riverImpassable(rootSeed, scratchPoint.x, scratchPoint.z, BODY_HALF_WIDTH_M)) continue;
+      if (notPavement(scratchPoint.x, scratchPoint.z)) continue;
       const dx = scratchPoint.x - camera.position.x;
       const dz = scratchPoint.z - camera.position.z;
       if (dx * dx + dz * dz <= r2) break;
@@ -3147,7 +3181,7 @@ export function createStreetlife(options = {}) {
       // mask and the traffic lattice use, beside the box test rather than
       // inside it.
       if (occupied(boxes, scratchPoint.x, scratchPoint.z, BODY_HALF_WIDTH_M) ||
-          riverImpassable(rootSeed, scratchPoint.x, scratchPoint.z, BODY_HALF_WIDTH_M)) {
+          notPavement(scratchPoint.x, scratchPoint.z)) {
         arc = Math.max(0, d - PATH_PROBE_M);
         best.kind = 'corner';
         break;
@@ -3259,9 +3293,9 @@ export function createStreetlife(options = {}) {
     const boxes = walkBlockers(ctx, cx2, cz2);
     const land = pt[3];
     if (occupied(boxes, land[0], land[1], BODY_HALF_WIDTH_M)) return null;
-    if (riverImpassable(rootSeed, land[0], land[1], BODY_HALF_WIDTH_M)) return null;
-    if (riverImpassable(rootSeed, pt[1][0], pt[1][1], BODY_HALF_WIDTH_M)) return null;
-    if (riverImpassable(rootSeed, pt[2][0], pt[2][1], BODY_HALF_WIDTH_M)) return null;
+    if (notPavement(land[0], land[1])) return null;
+    if (notPavement(pt[1][0], pt[1][1])) return null;
+    if (notPavement(pt[2][0], pt[2][1])) return null;
 
     const seg = [];
     let total = 0;

@@ -54,8 +54,12 @@ import {
   LANDMARKS,
   landmarkOccluders,
   landmarkGroundBlockers,
+  landmarkGroundClaims,
+  landmarkOccupies,
   landmarkFootprint,
   landmarkAABB,
+  basinProfile,
+  BASIN_LATHE_SEGMENTS,
   riverEnvelope,
   riverEdges,
   riverBlocks,
@@ -920,7 +924,30 @@ export function createCity(options = {}) {
     const blockApi = ctx.get('block');
     if (blockApi && blockApi.surfaceAt) {
       const b = blockApi.surfaceAt(x, z);
-      if (b && b.y > worldOut.y) {
+      /**
+       * A MAXIMUM OVER SURFACES, EXCEPT WHERE THIS MODULE HAS NO SURFACE TO
+       * OFFER — SESSION 34, AND THE LINE ABOVE IS WHY IT WAS NEEDED.
+       *
+       * `GROUND_Y.earth` on the `!r.best` branch is not a surface `buildGround`
+       * emitted. It is THIS module asserting the height of a plane BLOCK.JS
+       * OWNS — one plane, two descriptions, and the argument for a maximum
+       * ("the topmost surface is the one you stand on") silently makes the
+       * borrowed description win whenever the real one goes DOWN.
+       *
+       * It went down in session 34. `block.js` now cuts the weir's 210 m bowl
+       * out of the earth plane and answers the basin's own floor, ledge and
+       * wall — as low as −9.40 m — and the max compared that against a −0.02 m
+       * plane this module believes is still there and kept the plane. The
+       * result reads exactly like the defect the cut was made to fix: a walker
+       * standing on nothing, at the height of a surface that is no longer
+       * drawn.
+       *
+       * So: where this module HAS a quad, the maximum stands unchanged and the
+       * bridge deck still wins over the corridor beneath it, which is what the
+       * paragraph above is about. Where it has none, `block` is not a competing
+       * opinion — it is the only one, and it is taken.
+       */
+      if (b && (!r.best || b.y > worldOut.y)) {
         worldOut.y = b.y;
         worldOut.kind = b.kind;
         worldOut.known = b.known;
@@ -1425,18 +1452,37 @@ export function createCity(options = {}) {
      * chunk actually drew on the roof and does not exist yet up here. Every
      * placement routine below already tests `chunk.occluders`, which is where a
      * building's box is.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * SESSION 34 — AND THIS LIST IS THE DELIVERED CENSUS, WHICH HAD NEVER
+     * CARRIED THE WEIR OR THE VIADUCT'S END TREATMENTS.
+     *
+     * `placed` becomes `chunkClaims`, which becomes `placedClaims()`, which is
+     * what `harness.occupancyCensus()` hands `citycheck`. The generator's
+     * registry claims a `basin`'s 210 m AABB and both of session 23's viaduct
+     * end blocks; the three lines this replaced claimed neither. So the two
+     * halves of the project's two-sided occupancy check have been describing
+     * two different worlds — the generator refusing a frontage the census did
+     * not know was reserved — for eleven sessions.
+     *
+     * It reported zero anyway, which is the part worth knowing: nothing was
+     * ever placed inside the weir for the census to catch, BECAUSE the
+     * generator's half was right. A two-sided check whose second side is blind
+     * passes exactly as long as the first side never fails. CONTRACT §9 rule 7
+     * says to assume both readers share an error; here they did not share it,
+     * and the disagreement was still silent.
+     *
+     * `landmarkGroundClaims` is the generator's own list. The decks stay
+     * separate for the reason the comment two paragraphs up gives.
      */
     for (const name of chunk.landmarks) {
       const l = LANDMARKS.find((q) => q.name === name);
       if (!l) continue;
       for (const o of landmarkOccluders(l)) {
         if (o.deck) placed.push({ kind: 'deck', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: o.base, y1: o.top });
-        else if (l.kind !== 'viaduct') placed.push({ kind: 'landmark', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top });
       }
-      if (l.kind === 'viaduct') {
-        for (const g of landmarkGroundBlockers(l)) {
-          placed.push({ kind: 'landmark', owner: `${l.name}:leg`, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: 0, y1: g.top });
-        }
+      for (const g of landmarkGroundClaims(l)) {
+        placed.push({ kind: 'landmark', owner: g.owner, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: g.y0, y1: g.y1 });
       }
     }
 
@@ -2414,11 +2460,40 @@ export function createCity(options = {}) {
        */
       const PATCH_THICKNESS_M = 0.01;
       const patchCount = chunk.roadMaterials.includes('patched') ? 3 + (chunk.objectCount % 4) : 0;
+      /**
+       * A REINSTATEMENT NEEDS A CARRIAGEWAY TO BE CUT INTO — SESSION 34.
+       *
+       * This loop walked the chunk's west corridor at a fixed 30 m rhythm and
+       * emitted three to six patches whatever was there. `chunk.ground` is the
+       * road network AFTER the clip against the landmarks, the river and the
+       * origin block, so on a chunk whose road a landmark has taken the patches
+       * were the only thing left on that line: **8 slabs floating at y = 0.005
+       * over the weir's basin**, in chunk (−3,1), whose carriageway ends 44 m
+       * short of them.
+       *
+       * Read off the DELIVERED rectangles rather than re-derived, which is the
+       * arrangement `citygen.js`'s crossing markings already use — *"emitted
+       * only where a `carriageway` claim actually covers it, so a road the
+       * river or a landmark took carries no paint"*. Here the same sentence
+       * with a patch instead of a stripe, and read from `chunk.ground`, which
+       * IS what `buildGround` turns into triangles.
+       *
+       * THE CENTRE, NOT THE FOOTPRINT, AND THAT IS STATED RATHER THAN IMPLIED:
+       * a 3–5 m by 5–12.5 m slab rotated up to 2° whose centre is on the
+       * carriageway can still overhang its edge. The defect this closes is a
+       * patch with no road under it at all, and the overhang is the same
+       * decimetre-scale question the kerb line already carries.
+       */
+      const onCarriageway = (px, pz) => (chunk.ground || []).some(
+        (g) => g.kind === 'road' && px >= g.x0 && px <= g.x1 && pz >= g.z0 && pz <= g.z1
+      );
       for (let i = 0; i < patchCount; i++) {
         const t = ((i * 37) % 100) / 100;
         const along = b.z0 + t * CITY.chunkSize;
+        const px = b.x0 + (i % 2 ? 3.2 : -3.4);
+        if (!onCarriageway(px, along)) continue;
         patches.push(setMatrix(
-          b.x0 + (i % 2 ? 3.2 : -3.4),
+          px,
           GROUND.carriageway + PATCH_THICKNESS_M / 2,
           along,
           3 + (i % 3), PATCH_THICKNESS_M, 5 + (i % 4) * 2.5, ((i * 13) % 5) - 2
@@ -2787,14 +2862,29 @@ export function createCity(options = {}) {
        * test is simply all of them. It is not folded into `placed` because
        * `placedClaims()` is the DELIVERED census for THIS chunk, and a
        * neighbour's landmark recorded here would be counted twice.
+       *
+       * ─────────────────────────────────────────────────────────────────────
+       * SESSION 34 — AND IT WAS BLIND TO THE LARGEST LANDMARK IN THE WORLD.
+       *
+       * The two loops this replaced were `landmarkOccluders(l)` and
+       * `landmarkGroundBlockers(l)`. **Both return `[]` for a `basin`**, and
+       * `landmarkGroundBlockers` returns `landmarkOccluders` verbatim for
+       * anything that is not a viaduct — so the two loops are one loop twice
+       * over for seven landmarks and are EMPTY for the eighth. The weir is
+       * 44 100 m², **63.3% of all the ground the eight landmarks claim and
+       * 4.28× the next largest**, and this test could not see a square metre
+       * of it.
+       *
+       * That is the fourth hand-rolled spelling of "does a landmark stand
+       * here" found in one session: this one, the road clip, `landmarkBlocks`
+       * and the lamp loop, each written from a different pair of accessors and
+       * each wrong about a different landmark. `landmarkGroundClaims` is the
+       * list the REGISTRY claims from, so this test now asks the same question
+       * the ground was clipped by. Same boxes for the seven; the basin's AABB
+       * appears where there was nothing.
        */
       const hitsLandmarkS = LANDMARKS.some((l) => {
-        for (const o of landmarkOccluders(l)) {
-          if (o.deck) continue;
-          if (l.kind === 'viaduct') continue;
-          if (cxS + hxS > o.x0 && cxS - hxS < o.x1 && czS + hzS > o.z0 && czS - hzS < o.z1) return true;
-        }
-        for (const g of landmarkGroundBlockers(l)) {
+        for (const g of landmarkGroundClaims(l)) {
           if (cxS + hxS > g.x0 && cxS - hxS < g.x1 && czS + hzS > g.z0 && czS - hzS < g.z1) return true;
         }
         return false;
@@ -3016,6 +3106,18 @@ export function createCity(options = {}) {
            * with, so the three cannot disagree (§9.1).
            */
           if (riverBlocks(spot.x, spot.z, 0.6)) continue;
+          /**
+           * AND A LAMP ON A ROAD A LANDMARK TOOK IS THE SAME LAMP — SESSION 34.
+           *
+           * The paragraph above says the river test uses *"the same predicate
+           * the generator refuses buildings and props with, so the three cannot
+           * disagree"*. There was no such sentence about landmarks, and the
+           * consequence is what the operator reported from the air: **17 street
+           * lamps standing inside the weir's 210 m basin**, on ground the road
+           * clip had already taken the carriageway out of. Same pad as the
+           * river test, same list the registry claims from.
+           */
+          if (landmarkOccupies(spot.x, spot.z, 0.6)) continue;
           const yawJitter = (((spot.x * 31 + spot.z * 17) % 100) / 100 - 0.5) * 1.6;
           const rot = spot.axis === 'x' ? 0 : 90;
           /**
@@ -4683,13 +4785,17 @@ export function createCity(options = {}) {
         break;
       }
       case 'basin': {
-        // A hole in the ground: a retaining ring and a floor, nothing above grade.
-        const prof = [
-          [l.radius, 0.4], [l.radius, -0.6],
-          [l.radius - 3, -1.2], [l.radius - 3, -l.depth],
-          [0.02, -l.depth - 0.4],
-        ];
-        bytes += lathe(prof, 40);
+        /**
+         * A hole in the ground: a retaining ring and a floor, nothing above
+         * grade.
+         *
+         * SESSION 34 — THE PROFILE AND THE SEGMENT COUNT MOVED TO `citygen.js`
+         * AND NOT ONE VERTEX MOVED WITH THEM. They were literals here, and
+         * `block.js` has to cut its 8 km earth plane on the rim they produce or
+         * 96% of this lathe is drawn underneath it — which is what every frame
+         * in this project has shown. See `basinProfile` for the measurement.
+         */
+        bytes += lathe(basinProfile(l), BASIN_LATHE_SEGMENTS);
         break;
       }
       case 'mast': {

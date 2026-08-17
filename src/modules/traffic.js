@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY, riverNoRoad, busStopAt, BUS_STOP } from '../lib/citygen.js';
+import { CITY, riverNoRoad, landmarkOccupies, busStopAt, BUS_STOP } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
@@ -2669,6 +2669,23 @@ export function createTraffic(options = {}) {
            */
           if (riverNoRoad(rootSeed, pos.x, pos.z, axis === 0)) continue;
           /**
+           * NOR ONTO A ROAD A LANDMARK TOOK — SESSION 34, AND IT IS THE SAME
+           * SENTENCE AS THE LINE ABOVE, NINETEEN SESSIONS LATE.
+           *
+           * `generateChunk` clips the carriageway against every `landmark`
+           * claim, so the road network delivered to a frame already has holes
+           * in it. This module knew about exactly one of the two things that
+           * make a hole. The weir alone is **210 × 210 m**, and the operator
+           * reported it from the air as *"vehicles, buses, pedestrians, lamp
+           * posts and market stalls arranged in neat lanes on BARE GROUND"* —
+           * which is what a fleet does when its lattice is arithmetic and the
+           * road under it is not.
+           *
+           * HARD rather than scored, for the reason the two tests either side
+           * of it are: a scored candidate still wins when every draw is bad.
+           */
+          if (landmarkOccupies(pos.x, pos.z)) continue;
+          /**
            * HARD, not scored. See CAMERA_CLEARANCE.
            *
            * MEASURED FROM THE BODY, NOT FROM THE ORIGIN — SESSION 29, AND THE
@@ -2944,6 +2961,18 @@ export function createTraffic(options = {}) {
         bodyTypes: BODY_TYPES.length,
         suppressedByThreshold: 0,
         recycledThisFrame: 0,
+        /**
+         * SESSION 34. Run-cumulative: how many of those recycles happened
+         * because the vehicle had driven onto ground with no road on it —
+         * the river's channel or a landmark's footprint.
+         *
+         * An instrument and not a threshold, and it exists because a rule that
+         * never fires is indistinguishable from one that is not wired up. That
+         * sentence is STATE 33 §5.4's, about a bus refusal whose condition has
+         * no case on this lattice; this one's condition has 44 100 m² of case
+         * and the count says how much of it the fleet actually reaches.
+         */
+        recycledOffRoad: 0,
         /**
          * SESSION 29. Run-cumulative counts of the spawn spacing test above:
          * how many candidate placements it refused, and how many times all
@@ -3755,11 +3784,16 @@ export function createTraffic(options = {}) {
           lanePosition(veh.axis, veh.line, veh.dir, veh.lane, veh.s, pos);
           const dx = pos.x - cam.position.x;
           const dz = pos.z - cam.position.z;
-          if (dx * dx + dz * dz > SIM_RADIUS * SIM_RADIUS ||
-              riverNoRoad(rootSeed, pos.x, pos.z, veh.axis === 0)) {
+          const offRoad = riverNoRoad(rootSeed, pos.x, pos.z, veh.axis === 0)
+            || landmarkOccupies(pos.x, pos.z);
+          if (dx * dx + dz * dz > SIM_RADIUS * SIM_RADIUS || offRoad) {
             /**
-             * Out of the ring, OR driven onto a road the river took. The
-             * second case is a vehicle that was seeded on a legitimate
+             * Out of the ring, OR driven onto a road the river took, OR onto
+             * one a landmark took — session 34 added the third, and the second
+             * and third are one statement about the delivered road network
+             * rather than two rules. See `landmarkOccupies` in `citygen.js`.
+             *
+             * The river case is a vehicle that was seeded on a legitimate
              * north–south line and has reached the bank of a crossing with no
              * bridge; recycling it is what the ring already does to anything
              * whose position has stopped being somewhere a vehicle can be, and
@@ -3768,6 +3802,7 @@ export function createTraffic(options = {}) {
              */
             seed(veh, cam.position, fwd, false);
             stats.recycledThisFrame++;
+            if (offRoad) stats.recycledOffRoad++;
           }
         }
 
