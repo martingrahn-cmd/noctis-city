@@ -52,7 +52,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, RENDER, GROUND } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, RENDER, GROUND } from '../core/constants.js';
 import { pixelAngle } from '../core/instmotion.js';
 import { ATM } from '../lib/atmosphere.js';
 import { CITY, CORRIDOR } from '../lib/citygen.js';
@@ -375,7 +375,7 @@ const WATER_FRESNEL_0 = Math.pow((1.333 - 1) / (1.333 + 1), 2);
  *
  * THE GLINT ANSWER, WHICH IS WHAT IS DRAWN. A drop is a convex mirror, and a
  * mirror preserves radiance: the specular image of a sodium bowl at
- * LIGHT.streetlampNits = 9000 cd/m^2 is 0.02037 * 9000 = 183.4 cd/m^2. Diluted
+ * LAMP_BOWL.streamedNits = 9000 cd/m^2 is 0.02037 * 9000 = 183.4 cd/m^2. Diluted
  * by the motion-blur duty along the streak, D/length = 3.28/139.63 = 0.02349,
  * and by the fraction of the quad's width the drop's core actually occupies,
  * D/width = 3.28/7.480 = 0.4385, that is 183.4 * 0.02349 * 0.4385 =
@@ -390,7 +390,7 @@ const WATER_FRESNEL_0 = Math.pow((1.333 - 1) / (1.333 + 1), 2);
  * scintillation term, and says so rather than quietly picking one.
  */
 const STREAK_NITS =
-  WATER_FRESNEL_0 * LIGHT.streetlampNits *
+  WATER_FRESNEL_0 * LAMP_BOWL.streamedNits *
   (DROP_MM / (STREAK_LENGTH_M * 1000)) *
   (DROP_MM / (STREAK_WIDTH_M * 1000));
 

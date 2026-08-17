@@ -136,7 +136,25 @@ if (args.has('pos')) {
 if (args.has('fov')) for (const s of shots) s.fov = Number(args.get('fov'));
 
 const times = (args.get('t') || '0.5').split(',').map(Number);
-const wet = Number(args.get('wet') || 0);
+/**
+ * `--wet` PINS the surface wetness. ABSENT, IT NO LONGER PINS AT ALL — session 33.
+ *
+ * IT USED TO READ `Number(args.get('wet') || 0)` AND THEN CALL `setWetness(0)`
+ * UNCONDITIONALLY, and that one line is why session 32 could report that the
+ * wet street was "already built, never looked at" and still not fix it by
+ * moving the app's default. Every frame-producing path in this project pins its
+ * own wetness — `lookcheck` pins 0 then `look-budget.json`'s 1.0, each
+ * `camera.js` route carries its own `wet`, `filmshot.mjs` carries one per shot,
+ * and this tool pinned 0 — so `main.js`'s default was read by NOTHING that
+ * makes a frame anybody looks at. Changing it alone would have delivered
+ * exactly zero frames.
+ *
+ * `null` means "do not pin": the page keeps whatever `main.js` configured, and
+ * `--paused=1` (which this tool always sets) freezes `time.now`, so the drying
+ * law never advances and the delivered value is the configured one exactly.
+ * `--wet=0` still gives the dry arm, which is what an A/B needs.
+ */
+const wetArg = args.has('wet') ? Number(args.get('wet')) : null;
 const tag = args.get('tag') || '';
 
 await mkdir(OUT, { recursive: true });
@@ -162,7 +180,7 @@ try {
   await page.evaluate(() => window.__NOCTIS_HARNESS__.ready);
   await page.evaluate(() => window.__NOCTIS_HARNESS__.takeOver());
   console.log(`GPU: ${await readRendererString(page)}`);
-  await page.evaluate((w) => window.__NOCTIS_HARNESS__.setWetness(w), wet);
+  if (wetArg != null) await page.evaluate((w) => window.__NOCTIS_HARNESS__.setWetness(w), wetArg);
 
   for (const shot of shots) {
     await page.evaluate(
@@ -202,12 +220,16 @@ try {
       const info = await page.evaluate(() => window.__NOCTIS_HARNESS__.info());
       const file = path.join(
         OUT,
-        `${shot.name}${tag ? `-${tag}` : ''}-t${String(t).replace('.', '_')}${wet ? '-wet' : ''}.png`
+        // The suffix names WHAT WAS DELIVERED, not what was asked for, so a
+        // default frame carries it too. That is the whole change: `-wet` used
+        // to mean "somebody passed --wet" and now means "the road was wet".
+        `${shot.name}${tag ? `-${tag}` : ''}-t${String(t).replace('.', '_')}${info.wetness > 0 ? '-wet' : ''}.png`
       );
       await writeFile(file, await page.screenshot({ type: 'png' }));
       console.log(
         `  ${path.basename(file).padEnd(38)} [${shot.pos.map((v) => v.toFixed(1)).join(',')}] → ` +
           `[${shot.target.map((v) => v.toFixed(1)).join(',')}]  fov ${shot.fov}  ` +
+          `wet ${Number(info.wetness).toFixed(2)}${wetArg == null ? '' : ' (pinned)'}  ` +
           `${info.drawCalls} draws  ${info.city ? `${info.city.resident} chunks` : ''}  ` +
           `${arrival.field ? `${arrival.field.ready}/${arrival.field.slots} field in ${waits} wait${waits === 1 ? '' : 's'}` : ''}`
       );

@@ -85,3 +85,61 @@ function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0 || 1e-6)));
   return t * t * (3 - 2 * t);
 }
+
+/**
+ * The EMITTING AREA of the frosted bowl, from the sphere-zone parameters the
+ * geometry is actually built with.
+ *
+ * THE ANGLES ARE THETA AND THEY ARE NAMED THETA, because three.js has two
+ * pairs and they are one letter apart. `SphereGeometry(R, wSeg, hSeg,
+ * phiStart, phiLength, thetaStart, thetaLength)` sweeps PHI around the
+ * equator — the full 2π for a bowl — and THETA from pole to pole. The zone
+ * this integrates is the theta one, and the area of a full-revolution zone is
+ * `2πR²(cos θ0 − cos θ1)`. For the streetlamp's 0.35π → π bowl that is
+ * 2π·0.42²·(0.4540 + 1) = 1.6115 m².
+ *
+ * SESSION 28 GOT THIS WRONG ON THE FIRST WRITE AND THE GATE IT WAS WRITTEN FOR
+ * CAUGHT IT IN THE SAME HOUR. `LAMP_BOWL` called the polar sweep `phiStart`,
+ * the geometry was built correctly (the values went into the theta slots), and
+ * the census then read `geometry.parameters.phiStart` — three's AZIMUTHAL 0
+ * and 2π — and compared them with the polar 0.35π and 0.65π. Two angles, the
+ * same name, one letter apart: CONTRACT §9 rule 7, inside the instrument
+ * written to detect §9 rule 7 (§7.7).
+ *
+ * THE FULL REVOLUTION IS AN ASSUMPTION OF THE FORMULA, so callers must check
+ * it rather than trust it — a partial phi sweep scales the area by
+ * `phiLength/2π` and nothing here would say so.
+ *
+ * It takes the parameters rather than reading them from a constant so that the
+ * caller must hand it the numbers the GEOMETRY was built from.
+ */
+export function bowlZoneAreaM2(radiusM, thetaStart, thetaLength) {
+  return 2 * Math.PI * radiusM * radiusM
+    * (Math.cos(thetaStart) - Math.cos(thetaStart + thetaLength));
+}
+
+/**
+ * THE ONE DERIVATION OF THE LAMP BOWL'S RADIANCE — CONTRACT §9's row 18,
+ * closed as arithmetic and left open as a value (see `LAMP_BOWL` in
+ * constants.js for what each path actually ships and why).
+ *
+ * THE RADIANCE OF AN EMITTING SURFACE IS ITS FLUX OVER ITS OWN AREA, not its
+ * peak intensity over its own shadow:
+ *
+ *     Φ = luminaireFlux(peakCandela, optic)     the fixture's lumens
+ *     A = bowlZoneAreaM2(...)                   the zone that emits them
+ *     L = Φ / (π·A)                             Lambertian, into one hemisphere
+ *
+ * At the shipped fixture — 6800 cd through LUMINAIRE, a 0.42 m bowl swept
+ * 0.35π → π — that is 9883.5 / (π · 1.6115) = **1952.2 cd/m²**.
+ *
+ * The π is the whole of the difference between this and the number the project
+ * shipped for eighteen sessions. `peakCandela / (πR²)` is an INTENSITY OVER A
+ * PROJECTION and has the same units, the same order of magnitude, and renders.
+ * That is CONTRACT §9's shape exactly.
+ */
+export function bowlRadianceNits(peakCandela, optic, radiusM, thetaStart, thetaLength) {
+  const flux = luminaireFlux(peakCandela, optic);
+  const area = bowlZoneAreaM2(radiusM, thetaStart, thetaLength);
+  return flux / (Math.PI * area);
+}

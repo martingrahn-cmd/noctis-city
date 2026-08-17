@@ -22,10 +22,10 @@
  */
 
 import * as THREE from 'three';
-import { BLOCK, LIGHT, LUMINAIRE, GROUND } from '../core/constants.js';
+import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
-import { riverBankStations } from '../lib/citygen.js';
+import { riverBankStations, BUS_STOP } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
 const DEG = Math.PI / 180;
@@ -47,7 +47,21 @@ const EMISSIVE = {
   shopWarm: 9,
   shopCold: 17,
   shopDim: 4.5,
-  lampBowl: 210,
+  /**
+   * `lampBowl: 210` LIVED HERE FOR TWENTY-FIVE SESSIONS AND IS NOW IN
+   * `constants.js` → `LAMP_BOWL.originNits` — session 28.
+   *
+   * It was the origin block's half of a 42.86× split: the same frosted bowl on
+   * the same column carrying the same 6800 cd lantern was 210 cd/m² here and
+   * 9000 cd/m² in `city.js`, with nothing in the project comparing the two and
+   * neither of them equal to the Φ/(πA) = 1952.2 that both describe. CONTRACT
+   * §9's own class — one quantity, two values, two files.
+   *
+   * It belongs in `constants.js` rather than in this table because this table's
+   * own comment is the reason it went wrong: "these are authored, not
+   * measured". That is the right sentence for a lit window behind a curtain and
+   * the wrong one for a luminaire whose flux this project integrates.
+   */
   /**
    * The tube clips to white and blooms; the plate behind it is what carries the
    * colour. Sign colour that lives only in a clipped emitter is sign colour ACES
@@ -204,6 +218,193 @@ const ERAS = [
   },
 ];
 
+/**
+ * RETAIL IS A PROPERTY OF THE STREET, NOT OF THE DECADE — session 28 for the
+ * streamed city, session 30 for this block, and the block is where the operator
+ * has been standing the whole time.
+ *
+ * `era.ground` decided both what a ground floor LOOKS like and whether it is
+ * LIT. Those are independent facts: the architecture is when the building went
+ * up, the commerce is which street it stands on. Session 28 separated them in
+ * `citygen.js`; this is the same separation here, and it had to be made twice
+ * because the two files are two content paths and always have been.
+ *
+ * THE BRIEF SAID TO CHECK WHETHER THE ERA TABLES EVEN MATCH BEFORE ASSUMING THE
+ * SAME CHANGE APPLIES. **They do**, and more than the brief expected: this
+ * file's `ERAS` carries prewar/shopfront, postwar/blankPlinth,
+ * corporate/colonnade and infill/recessed — the same four ids against the same
+ * four treatments `CITY_ERAS` uses. What is NOT the same is how much was
+ * already lit. `glazedRun` is called by THREE of the four treatments here, and
+ * the fourth already gets a lit service door, so the origin block was at
+ * **60% lit ground floors** where the streamed city was at 50.5%. The lever is
+ * real and it is smaller than it was in `city.js`.
+ *
+ * THE UNIT IS A RUN, NOT A SIDE, AND THAT IS THIS FILE'S OWN CORRECTION.
+ * Session 28 rolls once per SIDE of each island because an island has four of
+ * them. This block has TWO sides, so a per-side roll is a coin flip on the
+ * operator's own street — all-or-nothing, which is the mirror of the salt-and-
+ * pepper failure session 28 rejected a per-building roll for. But `placeRun`
+ * has recorded `b.run` since session 3, and the block has FOUR runs: three
+ * buildings west of the cross street and two east of it, per side. A run is
+ * bounded by the cross street, which is exactly where a real shopping frontage
+ * ends, so it is the right unit for a reason rather than for a count.
+ *
+ * AND THE ROLL IS A CHOOSE-k, NOT FOUR COIN FLIPS, WHICH IS THE SECOND PLACE
+ * SESSION 28'S DESIGN DOES NOT SURVIVE A SAMPLE OF FOUR. This shipped as a
+ * per-run Bernoulli at p = 0.55 first, and the delivered street was **5 lit
+ * ground floors of 10 against the 6 the model it replaced delivered** — one
+ * run of the four traded. The expectation was 7.3 and the draw was 5, which is
+ * not a bad seed, it is the estimator: over four runs a Bernoulli count has
+ * standard deviation 0.99 on a mean of 2.2, so **one street in eleven has every
+ * frontage trading (0.55⁴ = 0.092) and one in twenty-four has none
+ * (0.45⁴ = 0.041)**, and the operator has exactly one street.
+ *
+ * A choose-k draw has the same mean and **zero variance in the count**, and it
+ * turns the floor from an expectation into a construction. **k = 2 of 4** is
+ * half, which is what *"a shopping street and, round the corner, a terrace with
+ * nothing at street level"* means.
+ *
+ * WHAT SURVIVES ON A RUN THAT DOES NOT TRADE IS THE SHOPFRONT ERA, AND THAT IS
+ * THIS FILE'S SECOND CORRECTION TO SESSION 28'S RULE. Session 28 keeps the
+ * CORNER unit — *"at the end of the run where the cross street is"* — and that
+ * shipped here first. The count it delivered was fine and the FRAME was not:
+ * at this seed the two runs that traded were both west of the crossing, so the
+ * operator's own pose at x = 70 looking west LOST the lit shopfront nearest him
+ * (b9, 20.6 m from the camera) and GAINED two frontages 100–160 m away. The
+ * before/after pair at his own pose is a street that got darker where he stands
+ * — 8 of 10 lit by count, and a regression in the picture. CONTRACT §7.2 with a
+ * retail roll instead of a body type: **a count of lit frontages is not a
+ * measurement of the light in front of the camera.**
+ *
+ * So the exception is a statement about the architecture instead of about the
+ * geometry: **a prewar SHOPFRONT is a shop.** Its ground floor is a shop unit,
+ * tall glazed bays between slender piers with a stallriser, and it has no other
+ * use — a run of them with the lights off is a dead high street rather than a
+ * terrace. A blank plinth, a colonnade and a recessed front are all buildings
+ * whose ground floor MAY be let, and those are the three the roll decides. Over
+ * runs of 3, 2, 3 and 2 carrying three shopfronts:
+ *
+ *     lit  =  (the two trading runs)  +  (the shopfronts on the other two)
+ *
+ * ENUMERATED OVER ALL SIX PAIRINGS RATHER THAN ARGUED, because the first
+ * version of this paragraph argued it and was wrong. Runs are R0={b0,b1,b2},
+ * R1={b3,b4}, R2={b5,b6,b7}, R3={b8,b9}; the three shopfronts are b2 in R0, b3
+ * in R1 and b9 in R3, so **R2 has none**:
+ *
+ *     {R0,R1} 6    {R0,R2} 8    {R0,R3} 6
+ *     {R1,R2} 7    {R1,R3} 5    {R2,R3} 7
+ *
+ * **FLOOR 5, CEILING 8.** The floor is FIVE and not six, and the reason the
+ * first draft said six is instructive: it wrote *"2+2+1 = 5 cannot occur,
+ * because the three shopfronts sit in three different runs"*, which is not
+ * sufficient — three shopfronts in three runs only guarantees at least ONE in
+ * the dark pair. What decides the bound is WHICH run has none, and here it is
+ * a three-building run, so both two-building runs carry a shopfront and
+ * trading exactly those two leaves 2+2+1. Had the empty run been a
+ * two-building one every pairing would give 6 or 7. **The floor is therefore a
+ * property of this seed's era draw and not of the construction**, and saying
+ * otherwise was a bound asserted in prose with no check behind it — CONTRACT
+ * §9.1's own class, twice recorded. The ceiling of 8 is right, so a dark
+ * stretch exists in every draw and the uniformly-interesting street
+ * `docs/authored-city.md` §5 names is unreachable rather than merely unlikely.
+ * The delivered draw at seed 1337 is {R0,R2} = **8**.
+ *
+ * IT RE-PHASES NOTHING, AND THAT IS A CONSTRUCTION RATHER THAN A HOPE. The roll
+ * is on its own named stream (CONTRACT §6). The lit/unlit decision does NOT
+ * change how many numbers `block:windows` draws: a bay that does not trade is
+ * still GLAZED and still consumes the same two draws, and what changes is which
+ * material its panes are pushed into. An untraded shopfront is glass with
+ * nothing on behind it, which is what an empty shop looks like anyway — and it
+ * means the upper facade of every building in this block is bit-identical
+ * whatever the frontages roll.
+ */
+const BLOCK_RETAIL = {
+  /**
+   * How many of the block's four runs trade. A COUNT, not a probability —
+   * bounded above and below in the header, and the bound is a construction
+   * rather than an expectation because four is too small a sample to have one.
+   */
+  tradingRuns: 2,
+  /**
+   * CLUSTERED LIGHT SLOTS THIS FILE MAY SPEND ON SHOPFRONTS, and it is an
+   * arithmetic rather than a budget: `tools/budget.json` → `lightRoles
+   * .ceilings.block` is **60**, this file delivers **32** lamp beams and **5**
+   * sign lights, and 60 − 32 − 5 = **23**. A module may not import a gate's
+   * contract (CONTRACT §2.2), so this is the `HUD.budgets` arrangement — a copy
+   * that is CHECKED rather than trusted, and what checks it is `perfcheck`'s
+   * own role census going red and naming the role if any of the three numbers
+   * drifts.
+   *
+   * It binds for the first time this session: before the decoupling the block
+   * delivered 15 shop lights against 23, and a street where all four frontages
+   * trade wants more than that.
+   */
+  shopLightSlots: 23,
+  /**
+   * A punched sockel opening: width, height, and metres of frontage per
+   * opening. A blank plinth that trades does not become a shopfront — it gets
+   * HOLES CUT IN ITS BASE, which is session 28's own word for the blankPlinth
+   * variant and is what a 1960s slab looks like when the ground floor is let.
+   * 4.6 m of pitch over a 16.7–23.3 m elevation gives three to five of them.
+   */
+  punchW: 1.15,
+  punchH: 2.05,
+  punchPitchM: 4.6,
+};
+
+/**
+ * ITEM 3c — THE ADVERTISING PILLARS, ON THE BLOCK'S OWN PAVEMENT.
+ *
+ * SHIPPED, AND ITEM 0 SAID IT COULD NOT BE. That estimate is the session's own
+ * largest error and it is recorded rather than quietly corrected, because it is
+ * CONTRACT §9's failure mode committed inside the instrument written to avoid
+ * it (§7.7). `blockprobe.mjs` reports every emitter as an AREA times a
+ * RADIANCE; item 0 calibrated four slopes of that product against
+ * `band:midnight` by zeroing known emitters, and predicted that nine pillars
+ * at 29 993 m2*cd/m2 would cost **+0.0066** of a 0.0027 headroom — over by
+ * 2.4x on the most generous of the four and by 6x on the tightest.
+ *
+ * MEASURED: **+0.0004**. The estimate was 16x high.
+ *
+ * WHY, AND THE INSTRUMENT'S OWN HEADER SAYS IT: *"that product is NOT a
+ * luminance and does not predict a mean on its own"*. The quantity a frame mean
+ * responds to is PROJECTED SOLID ANGLE, and the four calibration points were
+ * all emitters that are either numerous and spread across the whole frame (558
+ * lit windows) or bright, large in the image and close (sixteen lamp bowls at
+ * 8.4 m). A 0.87 x 2.55 m panel standing against a building 40 to 160 m down
+ * the street, seen nearly edge-on from a camera on the crown of the road, is
+ * neither. Area times radiance was computed correctly and used as a different
+ * quantity.
+ *
+ * WHAT IT DELIVERS. Nine pillars of ten candidate stations — one refused
+ * against a lamp column — spaced by the streamed city's own rule
+ * (`round(faceWidth / perFrontageM)` at 19 m) over 214.0 m of frontage across
+ * ten buildings of 16.72 to 27.32 m. Two emissive faces each at the streamed
+ * city's own `PILLAR_FACE_NITS`, so the two content paths cannot end up
+ * describing one object with two radiances the way the lamp bowl did for
+ * twenty-five sessions.
+ *
+ * THERE IS NO `conflict()` HERE AND THAT IS A FACT ABOUT THIS FILE RATHER THAN
+ * AN OMISSION: **the origin block has no occupancy registry.** It owns
+ * everything inside `BLOCK_KEEPOUT` — the streamed city refuses to place
+ * anything there — so what a pillar must miss is this file's own `occluders`
+ * list and its sixteen lamp columns, and that is what it is tested against,
+ * before it is drawn, and refused rather than moved.
+ */
+const AD_PILLAR_BLOCK = {
+  /** Session 30's bisecting switch for this content, in the `?quayLamps` shape. */
+  enabled: true,
+  standoff: 2.6,
+  baseAlong: 1.40, baseDeep: 0.74, baseH: 0.18,
+  colAlong: 1.04, colDeep: 0.44, colH: 3.40,
+  browH: 0.14,
+  faceH: 2.55, faceFrac: 0.84,
+  /** cd/m², the streamed city's own `PILLAR_FACE_NITS`. */
+  faceNits: 748,
+  /** Metres of frontage per pillar — `AD_PILLAR.perFrontageM`. */
+  perFrontageM: 19.0,
+};
+
 export function createBlock(options = {}) {
   const cfg = { ...BLOCK, ...options };
 
@@ -334,10 +535,43 @@ export function createBlock(options = {}) {
       /** Galvanised steel. Metalness is a material class, not a dial: 1 or 0. */
       const matMetal = surfaceMaterial(ctx, { color: 0x53525a, roughness: 0.38, metalness: 1.0 });
 
+      /**
+       * ═════════════════════════════════════════════════════════════════════
+       * THE COLD ONE WAS NOT COLD — LOOK.md §3, SESSION 32.
+       * ═════════════════════════════════════════════════════════════════════
+       *
+       * This block already had four window kinds and one of them was called
+       * `windowCold`, so on a reading of the code the origin block was 15.95%
+       * of panes and 25.8% of emitted light cold, and LOOK.md §3's complaint
+       * did not apply to it. THE FRAME SAYS OTHERWISE, and the arithmetic says
+       * why: `fluorescentCold` is [0.80, 0.92, 1.0], which normalises to
+       * [0.889, 1.022, 1.111] and carries **R−B = −0.111**. Against a 2450 K
+       * pane at **+0.938** that does not read as another colour of light. It
+       * reads as grey.
+       *
+       * And the slot it was filling was already occupied. `fluorescentDirty`
+       * at [0.86, 1.0, 0.80] is 29% of the panes and is the pale, neutral,
+       * slightly-green thing a cool office window looks like from across a
+       * street. So this block had **two near-neutral classes and no cold one**,
+       * and the name on the second one is why nobody looked.
+       *
+       * `mercuryBlue` [0.30, 0.55, 1.0] normalises to [0.567, 1.039, 1.889] —
+       * **R−B = −0.538**, five times the separation. Old mercury-vapour stair
+       * and landing lighting, still in service in 2049 in the buildings nobody
+       * has re-fitted, and the one lamp in the real world that is genuinely
+       * cyan without being a sign. `windowCold` is also the BRIGHTEST of the
+       * four at 30 nits, so the colour that arrives is the one that carries.
+       *
+       * NOT a fifth material. Five window kinds is a fifth `InstancedMesh` on
+       * a block that is in every gate frame, and the draw-call ceiling is at
+       * 430 of 440. This is a chroma swap on a material that already exists:
+       * zero meshes, zero draw calls, zero instances. `windowDirty` keeps the
+       * neutral role it was always doing.
+       */
       windowMaterials = [
         emissiveMaterial(ctx, { chroma: kelvinToLinearRGB(2450), nits: EMISSIVE.windowWarm }),
         emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.fluorescentDirty, nits: EMISSIVE.windowDirty }),
-        emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.fluorescentCold, nits: EMISSIVE.windowCold }),
+        emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.mercuryBlue, nits: EMISSIVE.windowCold }),
         emissiveMaterial(ctx, { chroma: EMITTER_CHROMA.sodium, nits: EMISSIVE.windowDim }),
       ];
       /**
@@ -367,14 +601,40 @@ export function createBlock(options = {}) {
         emissiveMaterial(ctx, { chroma: SHOP_CHROMA[3], nits: EMISSIVE.shopDim }),
       ];
       const matShutter = surfaceMaterial(ctx, { color: 0x6a6660, roughness: 0.58, metalness: 0.2 });
+      /**
+       * Item 3c's arm. A DISPLAY PANEL at the streamed city's own
+       * `PILLAR_FACE_NITS`, so the two paths cannot describe the same object
+       * with two radiances the way the lamp bowl did for twenty-five sessions.
+       */
+      const matPillarFace = emissiveMaterial(ctx, {
+        chroma: SHOP_CHROMA[2],
+        nits: AD_PILLAR_BLOCK.faceNits,
+        color: 0x16181c,
+        roughness: 0.05,
+      });
+      /**
+       * ITEM 4. The backlit timetable case, at `BUS_STOP.panelNits` — the
+       * STREAMED CITY'S OWN NUMBER, imported rather than authored here, for the
+       * reason `LAMP_BOWL` exists at all: one object described in two files
+       * with two radiances is CONTRACT §9's own class and this project carried
+       * one for twenty-five sessions.
+       */
+      const matTimetable = emissiveMaterial(ctx, {
+        chroma: EMITTER_CHROMA.fluorescentCold,
+        nits: BUS_STOP.panelNits,
+        color: 0x1a1d22,
+        roughness: 0.08,
+      });
       const matShopFrame = surfaceMaterial(ctx, { color: 0x35322e, roughness: 0.55, metalness: 0.25 });
       lampMaterial = emissiveMaterial(ctx, {
         chroma: EMITTER_CHROMA.sodium,
-        nits: EMISSIVE.lampBowl,
+        nits: LAMP_BOWL.originNits,
         color: 0x121212,
         roughness: 0.5,
         metalness: 0,
       });
+      /** Tagged for `harness.lampBowlCensus()` — session 28. See city.js. */
+      lampMaterial.userData.noctisLampPath = 'origin';
 
       // ---- ground, road, sidewalk ----------------------------------------
 
@@ -585,7 +845,24 @@ export function createBlock(options = {}) {
       const spandrelInstances = [];
       const canopyInstances = [];
       const shopBayInstances = [[], [], [], []];
+      /**
+       * GLAZED AND UNLIT — session 30. A bay on a frontage that does not trade
+       * is not shuttered and it is not a hole: it is the same glass with
+       * nothing on behind it, which is both what an empty shop looks like and
+       * the reason the lit/unlit decision costs `block:windows` no draw.
+       * `matWindowOff`'s own comment already says why "unlit" is not "black".
+       */
+      const shopBayOffInstances = [];
       const shutterInstances = [];
+      /** Openings cut in a trading blank plinth. Counted for `harness.info()`. */
+      let plinthOpenings = 0;
+      /**
+       * REFUSED SHOPFRONT LIGHTS. `BLOCK_RETAIL.shopLightSlots` is this file's
+       * share of `lightRoles.ceilings.block`, and a budget that silently drops
+       * the light nobody asked about is the failure `lights.js` writes down
+       * about its own cap. Counted here and printed in `info()`.
+       */
+      let shopLightsRefused = 0;
       const shopFrameInstances = [];
       /** Session 3 ground floors: a solid plinth, a colonnade pier, a soffit. */
       const plinthInstances = [];
@@ -699,6 +976,49 @@ export function createBlock(options = {}) {
       }
 
       /**
+       * DOES THIS FRONTAGE TRADE? A choose-k over the RUNS, on its own named
+       * stream. See `BLOCK_RETAIL` for the unit, the count and both bounds.
+       *
+       * On a run that does not trade, what survives is the SHOPFRONT ERA —
+       * a ground floor that is a shop unit and has no other use. That is this
+       * file's correction to session 28's corner rule, and the header says what
+       * the corner rule delivered when it was measured in the frame rather than
+       * in the count.
+       */
+      /**
+       * One place that claims a clustered slot for a shopfront, so the cap is
+       * enforced once rather than at each of the three call sites. Over budget
+       * it REFUSES and counts, never truncates silently — the same discipline
+       * `lights.js` applies to `maxClusterLights`.
+       */
+      const addShopLight = (spec) => {
+        if (shopLights.length >= BLOCK_RETAIL.shopLightSlots) { shopLightsRefused++; return; }
+        shopLights.push(lights.add({ role: 'block', type: 'point', ...spec }));
+      };
+
+      const retailRng = ctx.rng('block:retail');
+      const runCount = runIndex;
+      /**
+       * WHICH runs trade is a shuffle-and-take, so the COUNT is exact and only
+       * the identity is random. Fisher-Yates on the run indices; the first
+       * `tradingRuns` of them trade.
+       */
+      const runOrder = [];
+      for (let r = 0; r < runCount; r++) runOrder.push(r);
+      for (let i = runOrder.length - 1; i > 0; i--) {
+        const j = retailRng.int(0, i);
+        const t = runOrder[i]; runOrder[i] = runOrder[j]; runOrder[j] = t;
+      }
+      const trading = new Set(runOrder.slice(0, Math.min(BLOCK_RETAIL.tradingRuns, runCount)));
+      const runTrades = [];
+      for (let r = 0; r < runCount; r++) runTrades.push(trading.has(r));
+      /**
+       * `b.era` is not assigned until the era walk below, so the shopfront
+       * exception is applied there rather than here; this records the run's own
+       * decision and the walk reads it. Two statements, one place each.
+       */
+
+      /**
        * WHERE THE FACADE SPILL WENT
        *
        * Session 1 put four point lights per building out in the roadway, forty
@@ -804,6 +1124,15 @@ export function createBlock(options = {}) {
         b.eraIndex = eraOf.eras[i];
         b.baseMaterial = FACADE_MATERIALS[eraOf.mats[i]];
         b.baseMaterialIndex = eraOf.mats[i];
+
+        /**
+         * DOES THIS GROUND FLOOR TRADE — session 30. The run's own decision,
+         * OR the architecture overriding it: a prewar shopfront is a shop unit
+         * and has no other use, so it lights whatever its run rolled. See
+         * `BLOCK_RETAIL` for why that exception replaced session 28's corner
+         * one and what the corner one delivered in the frame.
+         */
+        b.retail = runTrades[b.run] || b.era.ground === 'shopfront';
 
         /**
          * Condition: 1 is a building somebody looks after, 0.35 is one nobody
@@ -1187,6 +1516,15 @@ export function createBlock(options = {}) {
                   continue;
                 }
 
+                /**
+                 * SESSION 30: DOES THIS FRONTAGE TRADE? Both draws above have
+                 * already been made and both are unconditional, so a run going
+                 * dark cannot move a window three storeys up — see
+                 * `BLOCK_RETAIL`. What changes below is which material the
+                 * panes are pushed into and whether the bay gets a light.
+                 */
+                const lit = b.retail;
+
                 // Glazed in panes with mullions between them. One plane the
                 // width of the whole bay reads as a backlit panel; three panes
                 // with dark frames between them read as a shop.
@@ -1200,7 +1538,8 @@ export function createBlock(options = {}) {
                   pp.add(n.clone().multiplyScalar(-setBack));
                   pp.y = glassTop / 2 + 0.75;
                   s3.set(paneW, glassTop, 1);
-                  shopBayInstances[kind].push(m4.clone().compose(pp, q, s3));
+                  (lit ? shopBayInstances[kind] : shopBayOffInstances)
+                    .push(m4.clone().compose(pp, q, s3));
                 }
 
                 // A sill under the glazing rather than a frame around it: a
@@ -1215,24 +1554,23 @@ export function createBlock(options = {}) {
                 shopFrameInstances.push(m4.clone().compose(fp, q, s3));
 
                 // Interior spill onto the pavement. This is most of why a night
-                // street has a floor at all.
+                // street has a floor at all — and a bay with nothing on behind
+                // it throws none, which is the whole of what an unlit frontage
+                // costs the pavement in front of it.
+                if (!lit) continue;
                 const lp = centre.clone().add(along.clone().multiplyScalar(u));
                 lp.add(n.clone().multiplyScalar(1.9 - setBack));
                 lp.y = glassTop * 0.8;
-                shopLights.push(
-                  lights.add({
-                    role: 'block',
-                    position: lp,
-                    color: SHOP_CHROMA[kind],
-                    intensity: 165,
-                    radius: 14,
-                    type: 'point',
-                    // A lit shopfront is a wall of glass, not a bulb. Its
-                    // reflection in a wet pavement is a broad soft band, and at
-                    // zero radius it would be a pinprick.
-                    sourceRadius: 1.3,
-                  })
-                );
+                addShopLight({
+                  position: lp,
+                  color: SHOP_CHROMA[kind],
+                  intensity: 165,
+                  radius: 14,
+                  // A lit shopfront is a wall of glass, not a bulb. Its
+                  // reflection in a wet pavement is a broad soft band, and at
+                  // zero radius it would be a pinprick.
+                  sourceRadius: 1.3,
+                });
               }
             };
 
@@ -1311,18 +1649,251 @@ export function createBlock(options = {}) {
               const dl = centre.clone().add(along.clone().multiplyScalar(du));
               dl.add(n.clone().multiplyScalar(1.1));
               dl.y = 2.8;
-              shopLights.push(
-                lights.add({
-                  role: 'block',
-                  position: dl,
-                  color: SHOP_CHROMA[3],
-                  intensity: 42,
-                  radius: 9,
-                  type: 'point',
-                  sourceRadius: 0.5,
-                })
-              );
+              addShopLight({
+                position: dl,
+                color: SHOP_CHROMA[3],
+                intensity: 42,
+                radius: 9,
+                sourceRadius: 0.5,
+              });
+
+              /**
+               * AND IF THIS FRONTAGE TRADES, THE SOCKEL IS PUNCHED — session
+               * 30, and this is the whole of the decoupling for the treatment
+               * the operator was actually looking at.
+               *
+               * STATE 28 §0.2 measured his frame and named the near-left mass:
+               * *"the block's building 4, a `blankPlinth`"*. A blank plinth
+               * that lets its ground floor does not become a shopfront — it
+               * gets openings CUT IN ITS BASE, no pilasters, no canopy, the
+               * solid base still reading as a solid base between them. That is
+               * session 28's own blankPlinth variant, here.
+               *
+               * THE GEOMETRY IS DRAWN FROM `retailRng` AND FROM NOTHING ELSE,
+               * so adding it consumes no `block:windows` number and the upper
+               * facade of every building in this block is unmoved (§6, and the
+               * determinism control is in STATE 30 §3).
+               */
+              if (b.retail) {
+                const runW = half * 2 - 1.6;
+                const nOpen = Math.max(2, Math.round(runW / BLOCK_RETAIL.punchPitchM));
+                const pitch = runW / nOpen;
+                for (let oi = 0; oi < nOpen; oi++) {
+                  const ou = -runW / 2 + pitch * (oi + 0.5) + retailRng.range(-0.18, 0.18);
+                  const op = centre.clone().add(along.clone().multiplyScalar(ou));
+                  op.add(n.clone().multiplyScalar(0.10));
+                  op.y = 0.95 + BLOCK_RETAIL.punchH / 2;
+                  s3.set(BLOCK_RETAIL.punchW, BLOCK_RETAIL.punchH, 1);
+                  shopBayInstances[retailRng.int(0, shopMaterials.length - 1)]
+                    .push(m4.clone().compose(op, q, s3));
+                  plinthOpenings++;
+                }
+                /**
+                 * TWO LIGHTS FOR THE WHOLE FRONTAGE, not one per opening, and
+                 * the reason is a measured bound rather than taste: the block
+                 * delivers 32 lamp beams and 5 sign lights against a role
+                 * ceiling of 60, so there are 23 slots for shopfronts and a
+                 * street where all four runs trade wants more than that if
+                 * every punched opening claims one. A 1.15 m hole in a plinth
+                 * is a window, not a shopfront, and session 20's own argument
+                 * about navigation lamps applies: what makes it read is the
+                 * emitter, not the pool it throws.
+                 */
+                for (const k of [-1, 1]) {
+                  const wl = centre.clone().add(along.clone().multiplyScalar(k * runW * 0.26));
+                  wl.add(n.clone().multiplyScalar(1.4));
+                  wl.y = 2.2;
+                  addShopLight({
+                    position: wl,
+                    color: SHOP_CHROMA[1],
+                    intensity: 74,
+                    radius: 11,
+                    sourceRadius: 0.8,
+                  });
+                }
+              }
             }
+          }
+        }
+      }
+
+      /**
+       * WHERE THE SIXTEEN LAMP COLUMNS STAND — [x, z, side, aimAxis].
+       *
+       * Hoisted out of the lamp run below in session 30, because item 3c's
+       * pillar arm has to test against them and it runs first. ONE list, read
+       * twice: a second copy of these stations is exactly the arrangement
+       * `pierEvery: 34` sat in (CONTRACT §9.1).
+       */
+      const LAMP_STATIONS = [];
+      for (let i = 0; i < 7; i++) {
+        LAMP_STATIONS.push([-108 + i * 30, halfStreet + 1.3, 1, 'z']);
+        LAMP_STATIONS.push([-93 + i * 30, -(halfStreet + 1.3), -1, 'z']);
+      }
+      LAMP_STATIONS.push([halfCross + 1.3, -34, 1, 'x']);
+      LAMP_STATIONS.push([-(halfCross + 1.3), 30, -1, 'x']);
+
+      /**
+       * ITEM 4 — THE ORIGIN BLOCK'S OWN BUS STOPS.
+       *
+       * BOTH CONTENT PATHS, WHICH IS THE HALF OF THIS ITEM THE BRIEF SAID WAS
+       * MOST LIKELY TO BE MISSED, and session 28 is why it said so: it built a
+       * whole session of content into `city.js` while the operator was standing
+       * in `block.js`. Every dimension and the panel's radiance come from
+       * `BUS_STOP` in `citygen.js` — IMPORTED, not re-authored — so a shelter
+       * here and a shelter three chunks away cannot become two different
+       * objects the way one lamp bowl became 210 and 9000.
+       *
+       * THE PLACEMENT RULE, and it is the streamed city's rule with this
+       * street's own geometry substituted rather than a second rule:
+       *
+       *   ON THE PAVEMENT.   z = side * (halfStreet + kerbGap + roofDeep/2) =
+       *                      +/-8.575 m, inside a footway that runs 7.5 to 11.7.
+       *   NEAR SIDE OF THE JUNCTION.  This block has exactly one junction — the
+       *                      cross street at x = 0 — and `beforeJunctionM` = 22
+       *                      is the same 22 m. Which SIDE of it depends on which
+       *                      way the near lane runs: with right-hand traffic the
+       *                      kerbside lane on the south pavement runs east, so
+       *                      its stop is 22 m WEST of the crossing; the north
+       *                      pavement's runs west, so its stop is 22 m EAST.
+       *                      One per direction, mirrored through the junction,
+       *                      which is what a real pair of stops is.
+       *   AT INTERVALS.      TWO on 214 m of frontage. There is no roll here and
+       *                      there should not be: ten hand-placed buildings on
+       *                      one street is not a population, and session 30
+       *                      has already paid twice for transplanting a
+       *                      streamed-city roll onto a sample of four
+       *                      (`BLOCK_RETAIL`).
+       *
+       * DECLARED BEFORE DRAWN AND REFUSED RATHER THAN MOVED, against the only
+       * registry this file has: its own `occluders` and its sixteen
+       * `LAMP_STATIONS`. The claim is recorded in `counts` and its footprint is
+       * THE ROOF — 4.00 x 1.35 m — and not the 0.09 m posts, which is the
+       * brief's own requirement and session 24's finding.
+       */
+      const timetablePanels = [];
+      let busStops = 0;
+      let busStopsRefused = 0;
+      {
+        const A = BUS_STOP;
+        const half = A.roofAlongM / 2;
+        for (const side of [1, -1]) {
+          /** South pavement's near lane runs east, so its stop is west of the
+           *  crossing; the north pavement's is the mirror. */
+          const sx = side > 0 ? -A.beforeJunctionM : A.beforeJunctionM;
+          const sz = side * (halfStreet + A.kerbGapM + A.roofDeepM / 2);
+          const hx = half;
+          const hz = A.roofDeepM / 2;
+          const hitsBuilding = occluders.some((o) =>
+            sx + hx > o.x0 && sx - hx < o.x1 && sz + hz > o.z0 && sz - hz < o.z1);
+          const hitsLamp = LAMP_STATIONS.some((l) =>
+            Math.abs(l[0] - sx) < hx + 0.4 && Math.abs(l[1] - sz) < hz + 0.4);
+          if (hitsBuilding || hitsLamp) { busStopsRefused++; continue; }
+
+          const baseS = blockSurfaceAt(sx, sz).y;
+          /**
+           * `side` TAKES YOU AWAY FROM THE ROAD CENTRE, which is the same
+           * convention `citygen`'s `kerbBands` uses and the opposite of what
+           * this first read as. The shelter's back is therefore at `sz + side *
+           * delta` and the carriageway is at `-side`. `city.js` carries the
+           * same correction and the same comment — CONTRACT §9 rule 7, and the
+           * delivered frame is what caught it: a shelter with its back to the
+           * pavement and its lit timetable facing a wall.
+           */
+          const yawS = side > 0 ? 0 : Math.PI;
+          const qs = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yawS, 0));
+          const grey = { albedo: [0.088, 0.090, 0.096], roughness: 0.44 };
+          const glass = { albedo: [0.052, 0.056, 0.061], roughness: 0.10 };
+          const put = (x, y, z, sxx, syy, szz, skin) => {
+            s3.set(sxx, syy, szz);
+            plinthInstances.push(
+              m4.clone().compose(new THREE.Vector3(x, y, z), qs, s3));
+            plinthSkin.push(skin);
+          };
+          /** roof — the claimed footprint */
+          put(sx, baseS + A.roofY + A.roofThickM / 2, sz,
+            A.roofAlongM, A.roofThickM, A.roofDeepM, grey);
+          /** two posts at the BACK corners, inside the roof's own footprint */
+          for (const k of [-1, 1]) {
+            put(sx + k * (half - 0.22), baseS + A.roofY / 2,
+              sz + side * (A.roofDeepM / 2 - 0.14), A.postM, A.roofY, A.postM, grey);
+          }
+          /** the glazed back panel, on the building side */
+          put(sx, baseS + (A.backBottomY + A.backTopY) / 2,
+            sz + side * (A.roofDeepM / 2 - A.backThickM / 2),
+            A.roofAlongM - 0.18, A.backTopY - A.backBottomY, A.backThickM, glass);
+          /** the bench against it, facing the road */
+          put(sx, baseS + A.benchY,
+            sz + side * (A.roofDeepM / 2 - A.backThickM - A.benchDeepM / 2 - 0.04),
+            A.benchAlongM, 0.07, A.benchDeepM, grey);
+          /** the pole and its flag, a metre past the downstream end */
+          const px2 = sx + (side > 0 ? half + 1.0 : -(half + 1.0));
+          const baseP = blockSurfaceAt(px2, sz).y;
+          put(px2, baseP + A.flagY / 2, sz, A.poleM, A.flagY, A.poleM, grey);
+          put(px2, baseP + A.flagY, sz, A.flagAlongM, 0.34, A.flagDeepM, grey);
+
+          /**
+           * The lit timetable case, on the back panel and FACING THE ROAD —
+           * which is where a person waiting stands and where the light has to
+           * land. `PlaneGeometry` faces +z, so it wants yaw PI on the pavement
+           * at +z and yaw 0 on the one at -z.
+           */
+          s3.set(A.panelAlongM, A.panelH, 1);
+          timetablePanels.push(m4.clone().compose(
+            new THREE.Vector3(
+              sx + (side > 0 ? half - A.panelAlongM / 2 - 0.12 : -(half - A.panelAlongM / 2 - 0.12)),
+              baseS + A.panelY,
+              sz + side * (A.roofDeepM / 2 - A.backThickM - 0.05)
+            ),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(0, side > 0 ? Math.PI : 0, 0)),
+            s3));
+
+          addOccluder(sx, sz, A.roofAlongM, A.roofDeepM, baseS + A.roofY + A.roofThickM);
+          busStops++;
+        }
+      }
+
+      /** ITEM 3c. The whole argument is over `AD_PILLAR_BLOCK`; this is the wiring. */
+      const pillarInstances = [];
+      const pillarSkin = [];
+      const pillarFaces = [];
+      let pillarsRefused = 0;
+      if (AD_PILLAR_BLOCK.enabled) {
+        const P = AD_PILLAR_BLOCK;
+        for (const b of buildings) {
+          const zFace = b.z - b.side * (b.depth / 2);
+          const nP = Math.max(1, Math.round(b.width / P.perFrontageM));
+          for (let k = 0; k < nP; k++) {
+            const px = b.x + (-b.width / 2) + (b.width * (k + 0.5)) / nP;
+            const pz = zFace - b.side * P.standoff;
+            const pad = 0.85;
+            const hitsBuilding = occluders.some((o) =>
+              px + pad > o.x0 && px - pad < o.x1 && pz + pad > o.z0 && pz - pad < o.z1);
+            const hitsLamp = LAMP_STATIONS.some((l) =>
+              Math.abs(l[0] - px) < pad + 0.3 && Math.abs(l[1] - pz) < pad + 0.3);
+            if (hitsBuilding || hitsLamp) { pillarsRefused++; continue; }
+
+            const baseY = blockSurfaceAt(px, pz).y;
+            const yaw = b.side > 0 ? 0 : Math.PI;
+            q.setFromEuler(new THREE.Euler(0, yaw, 0));
+            const put = (y, sx, sy, sz) => {
+              s3.set(sx, sy, sz);
+              pillarInstances.push(m4.clone().compose(new THREE.Vector3(px, baseY + y, pz), q, s3));
+              pillarSkin.push({ albedo: [0.055, 0.056, 0.062], roughness: 0.42 });
+            };
+            put(P.baseH / 2, P.baseAlong, P.baseH, P.baseDeep);
+            put(P.baseH + P.colH / 2, P.colAlong, P.colH, P.colDeep);
+            put(P.baseH + P.colH + P.browH / 2, P.baseAlong * 0.86, P.browH, P.baseDeep * 0.80);
+
+            const faceY = baseY + P.baseH + 0.42 + P.faceH / 2;
+            for (const sgn of [1, -1]) {
+              const fq = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(0, sgn > 0 ? yaw : yaw + Math.PI, 0));
+              s3.set(P.colAlong * P.faceFrac, P.faceH, 1);
+              pillarFaces.push(m4.clone().compose(
+                new THREE.Vector3(px, faceY, pz - b.side * sgn * (P.colDeep / 2 + 0.03)), fq, s3));
+            }
+            addOccluder(px, pz, P.baseAlong, P.baseDeep, baseY + P.baseH + P.colH + P.browH);
           }
         }
       }
@@ -1423,19 +1994,56 @@ export function createBlock(options = {}) {
       shopBayInstances.forEach((list, i) =>
         addInstanced(planeGeo, shopMaterials[i], list, `block:shopbay:${i}`)
       );
+      addInstanced(planeGeo, matWindowOff, shopBayOffInstances, 'block:shopbay:off');
       addInstanced(planeGeo, matShutter, shutterInstances, 'block:shutters');
       addInstanced(boxGeo, matShopFrame, shopFrameInstances, 'block:shopframes', true);
       addInstanced(boxGeo, matFacade, pilasterInstances, 'block:pilasters', true, pilasterSkin);
       addInstanced(boxGeo, matFacade, spandrelInstances, 'block:spandrels', true, spandrelSkin);
       addInstanced(boxGeo, matFacade, canopyInstances, 'block:canopies', true, canopySkin);
-      addInstanced(boxGeo, matFacade, plinthInstances, 'block:plinths', true, plinthSkin);
       addInstanced(boxGeo, matFacade, pierInstances, 'block:piers', true, pierSkin);
       addInstanced(boxGeo, matFacade, soffitInstances, 'block:soffits', true, soffitSkin);
+      /**
+       * ITEM 3c'S DARK BOXES RIDE IN THE PLINTH MESH — same geometry, same
+       * material, same per-instance skin, same shadow flag — so nine pillars
+       * cost ONE draw call and not two. `counts.adPillars` is written BEFORE
+       * the merge, which is `city.js`'s own arrangement and the reason it is
+       * written down there: after a merge there is one mesh and no categories,
+       * and a refactor that erases a category erases the check on it
+       * (CONTRACT §9.1).
+       *
+       * The FACES cannot join anything. A window is 21–30 cd/m² and a sign
+       * plate 38; this is 748, and one material carries one radiance.
+       */
+      for (let i = 0; i < pillarInstances.length; i++) {
+        plinthInstances.push(pillarInstances[i]);
+        plinthSkin.push(pillarSkin[i]);
+      }
+      addInstanced(boxGeo, matFacade, plinthInstances, 'block:plinths', true, plinthSkin);
+      addInstanced(planeGeo, matPillarFace, pillarFaces, 'block:adpillar:faces');
+      /**
+       * ITEM 4'S SHELTERS. The seven opaque boxes of each stop ride in
+       * `block:plinths` above — same geometry, material, skin and shadow flag —
+       * so a stop costs ZERO new box draws here exactly as it does in the
+       * streamed city. The lit timetable panel cannot join anything: this
+       * file's brightest window is 30 cd/m2 and its sign plate 38, against
+       * `BUS_STOP.panelNits` = 420, and one material carries one radiance.
+       */
+      addInstanced(planeGeo, matTimetable, timetablePanels, 'block:busstop:panels');
 
       // ---- streetlights ---------------------------------------------------
 
       const poleGeo = track(new THREE.CylinderGeometry(0.11, 0.15, 1, 8));
-      const bowlGeo = track(new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65));
+      /**
+       * THE SHAPE COMES FROM `LAMP_BOWL`, THE TESSELLATION DOES NOT — s28.
+       * The radius and the zone angles are what the radiance is divided by
+       * (`LAMP_BOWL.areaM2`), so a literal here would be a second copy of the
+       * derivation's denominator. 12x8 is this path's own business: sixteen
+       * bowls at 30 m, against the streamed city's 790 at up to a kilometre.
+       */
+      const bowlGeo = track(new THREE.SphereGeometry(
+        LAMP_BOWL.radiusM, 12, 8,
+        LAMP_BOWL.phiStart, LAMP_BOWL.phiLength, LAMP_BOWL.thetaStart, LAMP_BOWL.thetaLength
+      ));
       const armGeo = track(new THREE.BoxGeometry(1, 0.12, 0.12));
 
       const lampHeight = 8.4;
@@ -1565,12 +2173,10 @@ export function createBlock(options = {}) {
       // The run has to cover the whole visible corridor including the ground in
       // front of the camera. Lighting only the far half leaves the foreground —
       // a third of the frame — black, which is what the first pass did.
-      for (let i = 0; i < 7; i++) {
-        addLamp(-108 + i * 30, halfStreet + 1.3, 1);
-        addLamp(-93 + i * 30, -(halfStreet + 1.3), -1);
-      }
-      addLamp(halfCross + 1.3, -34, 1, 'x');
-      addLamp(-(halfCross + 1.3), 30, -1, 'x');
+      // `LAMP_STATIONS` is built above rather than here, because item 3c's
+      // pillar arm has to miss these columns and two copies of a station list
+      // is CONTRACT §9.1's config-the-code-does-not-read with a position.
+      for (const st of LAMP_STATIONS) addLamp(st[0], st[1], st[2], st[3]);
 
       // ---- signage --------------------------------------------------------
 
@@ -1784,6 +2390,8 @@ export function createBlock(options = {}) {
       const shopNits = [EMISSIVE.shopBright, EMISSIVE.shopWarm, EMISSIVE.shopCold, EMISSIVE.shopDim];
       windowInstances.forEach((list, i) => accumulate(list, windowChroma[i], windowNits[i]));
       accumulate(windowOffInstances, kelvinToLinearRGB(2900), 1.1);
+      /** Session 30. Same material, same radiance, so the same row. */
+      accumulate(shopBayOffInstances, kelvinToLinearRGB(2900), 1.1);
       shopBayInstances.forEach((list, i) => accumulate(list, SHOP_CHROMA[i], shopNits[i]));
 
       let facadeArea = 0;
@@ -1941,7 +2549,27 @@ export function createBlock(options = {}) {
           windowsLit: windowInstances.reduce((a, l) => a + l.length, 0),
           windowsOff: windowOffInstances.length,
           shopBays: shopBayInstances.reduce((a, l) => a + l.length, 0),
+          /** Session 30. Glazed on a frontage that does not trade. */
+          shopBaysUnlit: shopBayOffInstances.length,
           shopsClosed: shutterInstances.length,
+          /**
+           * Session 30, and it is the pair CONTRACT §7.2 asks for: `retailRuns`
+           * is a COUNT of frontages that trade and `retailBuildings` is how many
+           * ground floors that actually lit, which is the quantity the count
+           * stands for and is not derivable from it — a run carries two or three
+           * buildings, and a run that does not trade still lights whichever of
+           * them is a shopfront era. (The corner-shop exception this comment
+           * used to name was replaced; see `BLOCK_RETAIL`.)
+           */
+          retailRuns: runTrades.filter(Boolean).length,
+          retailRunsTotal: runTrades.length,
+          retailBuildings: buildings.filter((b) => b.retail).length,
+          plinthOpenings,
+          shopLightsRefused,
+          adPillars: pillarInstances.length / 3,
+          adPillarsRefused: pillarsRefused,
+          busStops,
+          busStopsRefused,
           streetlights: lampLights.length,
           signs: signLights.length,
           shopLights: shopLights.length,
@@ -1965,7 +2593,7 @@ export function createBlock(options = {}) {
       // cannot see them against 100 000 lux, which is the exposure system's job
       // to express, not the emitter's.
       for (const l of lampLights) l.intensity = on ? l.userData.candela : 0;
-      lampMaterial.emissiveIntensity = on ? EMISSIVE.lampBowl : 0.5;
+      lampMaterial.emissiveIntensity = on ? LAMP_BOWL.originNits : 0.5;
     },
 
     dispose(ctx) {

@@ -51,6 +51,37 @@ export LC_ALL=C
 
 cd "$(dirname "$0")/.." || exit 2
 
+# --- WHICH MACHINE THIS IS, stamped into every log this script writes ---------
+#
+# SESSION 22, and it is one line against a whole-computer instance of CONTRACT
+# §9. This script measures the machine it runs on. `budget.json` → `machine`
+# names the machine every ceiling in that file was derived on, and NOTHING IN
+# THE PROJECT READS THAT FIELD — so a floor measured somewhere else is a number
+# with no label, and a labelled number is what stops it being filed under the
+# wrong computer.
+#
+# It is not hypothetical. Sessions 21 and 22 both ran in a Linux container on an
+# Intel Xeon with no GPU while their briefs described an Apple laptop; both
+# refused to derive a machine baseline there, and both refused BY DISCIPLINE
+# rather than by anything the instrument said. `idle-floor-*.log` carried no
+# hint of which computer produced it, so a `min 0.24` from a virtual machine and
+# a `min 1.32` from the operator's laptop are indistinguishable a session later
+# — and 0.24 is the more attractive of the two, because it is lower.
+#
+# This does NOT refuse. Refusing would need a declared identity to compare
+# against, which is the assertion `budget.json` → `machine` records as the next
+# session's decision. It labels, which is the cheap half and the half that
+# cannot be wrong.
+machine_stamp() {
+  printf '  machine %s %s | %s cores | %s\n' \
+    "$(uname -s 2>/dev/null || echo '?')" \
+    "$(uname -m 2>/dev/null || echo '?')" \
+    "$( (sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo '?') )" \
+    "$( (sysctl -n machdep.cpu.brand_string 2>/dev/null \
+        || awk -F': ' '/model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null \
+        || echo 'unknown cpu') )"
+}
+
 # --- the two thresholds, both derived, and the derivation is CONTRACT §0.2 ----
 #
 # BAR   1.6 — the load1 at or under which this project has an ATTESTED quiet
@@ -91,6 +122,7 @@ if [ "${1:-}" = "--measure-floor" ]; then
   FLOORLOG="tools/perf-out/idle-floor-${STAMP}.log"
   mkdir -p tools/perf-out
   echo "idle-floor ${STAMP} — ${MINUTES} min, ${SAMPLES} samples at 10 s" | tee "$FLOORLOG"
+  machine_stamp | tee -a "$FLOORLOG"
   echo "close the app and leave the machine alone; this measures what it cannot go below" | tee -a "$FLOORLOG"
   i=0
   while [ "$i" -lt "$SAMPLES" ]; do
@@ -115,6 +147,7 @@ LOG="tools/perf-out/quiet-gates-${STAMP}.log"
 mkdir -p tools/perf-out
 
 echo "quiet-gates ${STAMP}" | tee "$LOG"
+machine_stamp | tee -a "$LOG"
 echo "  bar load1 ≤ ${BAR}   idle floor ${FLOOR}   cpu bar ${CPU_BAR}%   (CONTRACT §0.2)" | tee -a "$LOG"
 
 # --- FIX 3: the bar is floor-checked before the machine is even read ----------

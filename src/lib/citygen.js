@@ -31,6 +31,7 @@
  */
 
 import { hashString, mulberry32, rngHelpers, weightedIndex } from './rng.js';
+import { createRegistry, claimBox, claimAt, SURFACE_TOP_M } from './occupancy.js';
 
 /**
  * The streaming city — session 4. CONTRACT §11.
@@ -87,6 +88,33 @@ export const CITY = {
   stopLineFromJunctionM: 7.5 + 1.5,
 
   /**
+   * THE CROSSING, AND IT HAS FOUR READERS — session 33, LOOK.md §4. It is here
+   * for the same reason `stopLineFromJunctionM` is: `citygen.js` paints it,
+   * `streetlife.js` walks people down it, `traffic.js` measures conflicts
+   * against it, and none of the three may import either of the others.
+   *
+   * BOTH NUMBERS ARE FORCED, NOT CHOSEN. A crossing has to be clear of the
+   * carriageway it does NOT cross, or it is painted in the junction box where
+   * the green axis is driving; and it has to be inside the line the vehicles
+   * stop at, or the vehicles it protects people from are entitled to stand on
+   * it. That is
+   *
+   *     near edge >= roadHalfWidth           = 7.50
+   *     far edge  <= stopLine - stopBarW / 2 = 9.00 - 0.20 = 8.80
+   *
+   * — a band of exactly 1.30 m. At the 0.05 m clearance this project's pavement
+   * budget uses at every join, the depth is 1.20 m and the centreline is
+   * 7.50 + 0.05 + 0.60 = 8.15.
+   *
+   * IT IS SHALLOW AND THAT IS A CONSEQUENCE RATHER THAN A PREFERENCE. A zebra
+   * gets 2.4 m in the world. 1.20 m is what 7.50, 9.00 and 0.40 leave between
+   * them, and the only way to widen it is to move the stop line — which is
+   * `minStopLineM`'s own subject and not something to move in passing.
+   */
+  crossingDepthM: 1.20,
+  crossingFromJunctionM: 7.5 + 0.05 + 1.20 / 2,
+
+  /**
    * Chebyshev radius, in chunks, of each residency ring.
    *
    *   detail    full geometry: facades, windows, signage, street furniture, lights
@@ -105,17 +133,78 @@ export const CITY = {
   geometryRadius: 5,
   fieldRadius: 2,
   /**
-   * Chunks whose ROAD SURFACE is drawn — the carriageway, the pavement and, on
-   * a park block, the grass. Two rings rather than four, because a road at
-   * 400 m is a slightly darker strip on a dark plane and it was costing a draw
-   * call a chunk across a hundred and twenty of them.
+   * Chunks whose STREET LAMPS are built. Two rings, and the number is now
+   * about the lamps alone — see `groundRadius` below, which took the road
+   * surface off it in session 31.
    *
-   * It is here, beside the other three radii, because `city.js` needs it in TWO
+   * The bound that holds it at 2 is a DRAW CALL one and it is still live: a
+   * lamp chunk emits two `InstancedMesh`es (`:lamps` and `:bowls`), so ring 2
+   * is 25 chunks paying 50 draws and ring 4 would be 81 chunks paying 162 —
+   * **+112 against a `ceilings.drawCalls` of 440 that `highway_speed` measures
+   * 434 of.** That is the reason this number cannot simply be raised, and it
+   * is why the ground got its own.
+   *
+   * It is here, beside the other radii, because `city.js` needs it in TWO
    * places — once to decide what to build and once to decide whether what was
    * built is still right — and a threshold that lived in only the first of
    * those is why the city had no roads. See `city.js` → `update()`.
    */
   nearRadius: 2,
+
+  /**
+   * Chunks whose ROAD SURFACE is drawn — the carriageway, the pavement and, on
+   * a park block, the grass. SESSION 31, AND IT IS A SPLIT RATHER THAN A NEW
+   * IDEA: this was `nearRadius` until the operator reported that "the pavement
+   * runs along a block and then simply stops against raw ground".
+   *
+   * IT IS NOT THE BUILDINGS. Measured over 289 chunks, every one of them emits
+   * pavement rectangles — all 66 lowDetail chunks and all 74 with zero
+   * buildings included — because the `ground` block in `generateChunk` sits
+   * ABOVE its `if (!lowDetail)`. What ends the pavement is residency, and at
+   * `nearRadius` = 2 it ended **256.0 to 395.7 m** from the camera, on a box
+   * that moves with it. Walked along one street: pavement from x = 264 to
+   * 383.9, then earth from x = 384.0 = (2+1)·128, for ever.
+   *
+   * THE OLD JUSTIFICATION WAS TRUE AND IS NOT ANY MORE, WHICH IS WHY IT MOVED.
+   * The comment here read *"it was costing a draw call a chunk across a hundred
+   * and twenty of them"*. That was the arrangement when each chunk carried its
+   * own ground mesh; `rebuildGroundMesh` now concatenates every resident
+   * chunk's ground into ONE `city:ground` mesh with one material, so the whole
+   * ring is **one draw call at any radius**. CONTRACT §9's shape with a
+   * justification instead of a value — a number derived correctly for an
+   * arrangement that was later replaced, still load-bearing afterwards.
+   *
+   * SO WHAT DOES IT COST? Triangles and bytes, both measured by walking the
+   * generator over the annuli rather than by scaling a per-chunk mean (which
+   * over-stated by 18%, because the near ring at the origin contains
+   * `BLOCK_KEEPOUT` and is not a typical chunk):
+   *
+   *     ring <= 2   25 chunks    185 rects    370 tris    39 960 B
+   *     ring <= 4   81 chunks    536 rects   1072 tris   115 776 B
+   *     delta                   +351 rects   +702 tris   +75 816 B
+   *
+   * +702 triangles against `ceilings.triangles` 2 000 000 with `highway_speed`
+   * at 1.40M, and +0.076 MB against `ceilings.chunkMemoryMB` 96. Both are
+   * noise; the draw call, which is the only tight budget in this project, does
+   * not move at all.
+   *
+   * WHY 4 AND NOT MORE. `detailRadius` is 4 and the predicate is
+   * `detail && ring <= groundRadius`, so 4 is where this stops binding — a
+   * larger value here would be a number the code cannot read, which is §9.1's
+   * own subject. It moves the pavement's end from 256–395.7 m to
+   * **512.0–651.7 m**.
+   *
+   * WHAT IT DOES NOT FIX, STATED SO NOBODY READS MORE INTO IT: the pavement
+   * still ENDS, 256 m further out, and it still ends as a zero-thickness slab.
+   * `buildGround` emits horizontal quads only — one `quad()` per rectangle, six
+   * vertices at one y with normal (0,1,0) — so the streamed city contains no
+   * vertical ground face anywhere, not at the termination and not along any
+   * kerb line. The only real kerb geometry in this world is `block.js`'s, inside
+   * `BLOCK_KEEPOUT`. The step at the termination is `GROUND.pavement` 0.160 −
+   * `GROUND.earth` (−0.020) = **0.180 m**, which is under `PLAYER.stepUpM` 0.20
+   * so it is a visual defect and not a collision one.
+   */
+  groundRadius: 4,
 
   /**
    * The canyon field, per chunk.
@@ -391,6 +480,251 @@ export const CITY_ERAS = {
 export const ERA_NAMES = Object.keys(CITY_ERAS);
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * GROUND-FLOOR RETAIL — A PROPERTY OF THE STREET, NOT OF THE DECADE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 28. THE MODELLING ERROR IT CORRECTS: `CITY_ERAS[*].ground` decides
+ * both what a ground floor LOOKS like and whether it is LIT, and those are two
+ * independent facts. The architecture is a property of when the building went
+ * up; the commerce is a property of the street it stands on. A postwar block on
+ * a shopping street has shops in its plinth — that is how cities work — and
+ * this generator could not express it.
+ *
+ * WHAT THE MEASUREMENT SAID BEFORE ANYTHING WAS BUILT, and it corrects the
+ * brief in both directions. Over the gate's own 10x10 region, 366 buildings:
+ *
+ *     era           share    ground        lit?
+ *     postwar       30.6%    blankPlinth   no
+ *     infill+contemp 27.6%    recessed      YES
+ *     prewar        23.0%    shopfront     YES
+ *     corporate     18.9%    colonnade     no
+ *
+ * TWO of the four treatments are lit, not one: `buildGroundFloor`'s `recessed`
+ * case falls through to the glazed-bay branch and emits the same emissive bays
+ * the shopfront does, then puts a soffit over them. So **50.5% of buildings
+ * already present a lit ground floor**, not the one-in-five the brief expected.
+ * The lever is real and it is half the size it was thought to be.
+ *
+ * THE ROLL IS PER FRONTAGE AND NOT PER BUILDING, AND THAT IS THE WHOLE DESIGN.
+ * A per-building roll delivers salt and pepper: every street half-lit, no
+ * street dark, no street bright. Real cities have SHOPPING STREETS — a run of
+ * frontage given over to trade, and around the corner a residential terrace
+ * with nothing at street level. The operator's complaint is literally that
+ * shape: *"a whole street frontage with almost nothing lit on it"*. A model
+ * that cannot produce a dark frontage also cannot produce a bright one.
+ *
+ * So each SIDE of each chunk's island rolls once, and the buildings on it
+ * inherit it. What survives outside a retail frontage is the CORNER SHOP,
+ * which is the one retail use a quiet street really does carry.
+ */
+export const RETAIL = {
+  /**
+   * Probability that a frontage is a retail frontage at all, as
+   * `base + density * slope`, and BOTH NUMBERS ARE BOUNDED RATHER THAN CHOSEN.
+   *
+   * The density weighting is the same shape `displayFacade` uses twenty lines
+   * from here (`0.03 + density * 0.09`) and the shopfront signage roll uses
+   * (`0.32 + density * 0.40`): trade clusters where people are, so a downtown
+   * frontage is far more likely to be shops than one a kilometre out.
+   *
+   * THE FLOOR IS "DO NOT DELIVER LESS LIGHT THAN THE MODEL BEING REPLACED".
+   * The era-coupled version lit `shopfront` and `recessed`, which is **50.5%**
+   * of the 366 buildings over the gate's region. A decoupling that delivered
+   * fewer lit ground floors would be a content reduction wearing a modelling
+   * repair's clothes, which is CONTRACT §0 rule 5's shape. Delivered here:
+   * **62.8%**.
+   *
+   * THE CEILING IS NOT THE LIGHT BUDGET, AND THAT IS MEASURED RATHER THAN
+   * ASSUMED. An arm at ~73% moved `citycheck`'s bright reserve 4.95% -> 5.00%
+   * and `lookcheck`'s band:midnight 0.1091 -> 0.1091 — both inside their own
+   * run-to-run spread. Ground-floor bays are 192 instances against 40 386
+   * delivered windows and they are mid-tone rather than bright, so this roll
+   * cannot reach either bound in any setting. The ceiling is therefore
+   * ARCHITECTURAL: a city in which every frontage trades has no quiet streets,
+   * and a model that cannot produce a dark frontage cannot produce a bright
+   * one either. At these numbers the quietest frontage in the region (density
+   * 0.30) is dark 42% of the time and the busiest (0.72) always trades, which
+   * is what a real core does.
+   *
+   * The density over the delivered buildings runs 0.300 to 0.722, median
+   * 0.584 — so `base` is the probability at the region's QUIETEST frontage and
+   * `base + slope` saturates a little before its busiest.
+   */
+  frontageBase: 0.35,
+  frontageDensity: 0.75,
+  /**
+   * Within a retail frontage, the share of buildings that actually trade. Not
+   * 1.0: a shopping street still has a bank, a stair to the flats above and an
+   * office entrance, and a solid run of identical glazing reads as one long
+   * lit ribbon rather than as separate businesses — which is the same finding
+   * `block.js`'s four shop materials were authored against.
+   */
+  inFrontage: 0.82,
+  /**
+   * Outside one, the corner shop. Applied only to a building at the END of a
+   * frontage run, where the cross street is — the classic retail position and
+   * the reason a corner site is worth more than the plot next to it.
+   */
+  corner: 0.30,
+  /**
+   * Metres from the end of a side within which a building counts as a corner.
+   * The lattice's own carriageway half-width plus a pavement — i.e. a building
+   * whose frontage actually reaches the junction rather than one merely near it.
+   */
+  cornerM: 14.0,
+  /**
+   * The quayside terrace. Lower than a street frontage and deliberately so: a
+   * promenade carries cafés and chandlers rather than a shopping parade, and
+   * the quay walk is already the most-lit edge in the city.
+   */
+  quay: 0.22,
+};
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ADVERTISING PILLARS — SESSION 28, item 3, and the first new prop kind in
+ * several sessions.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * A freestanding emissive column on the pavement. The brief asked for
+ * "futuristic", and futuristic here means THE LIGHT DOES THE WORK: this city is
+ * flat-shaded boxes and the vocabulary holds. Five boxes — a base wider than
+ * the column, the column, two emissive faces and a brow — and the emission
+ * carries it.
+ *
+ * IT IS AWARE OF THE RETAIL ROLL RATHER THAN FIRING BLINDLY, which is the
+ * brief's own requirement and is also what makes it read: a dark postwar sockel
+ * with a lit pillar in front of it is better than the same sockel wearing
+ * shopfronts it should not have. So a frontage with NO trade is where a pillar
+ * most wants to stand, and one WITH trade still gets some — an advertising
+ * column stands on any busy pavement, and a street of shops is the busiest
+ * there is.
+ */
+/**
+ * SESSION 30, ITEM 4 — THE BUS STOP.
+ *
+ * A SHELTER, A POLE WITH A FLAG, A BENCH AND A LIT TIMETABLE PANEL, and the
+ * dimensions are a real one: a 4.0 x 1.35 m cantilever shelter is the common
+ * UK/EU footprint, its roof is at 2.45 m so it clears `HEAD_CLEAR_M` = 2.10 by
+ * 0.35 m, and the flag sits at 2.90 m where it is read from a moving bus.
+ *
+ * THE CLAIM IS THE ROOF AND NOT THE POSTS, which is the brief's own
+ * requirement and session 24's finding is the reason: a claim taken off the
+ * thing that touches the ground recorded a 2.4 x 0.06 m hoarding panel as a
+ * 2.4 x 2.4 m square. A shelter roof OVERHANGS its posts — that is what a
+ * cantilever shelter is — so what a person cannot walk through is the roof's
+ * footprint, and the roof is what is claimed. Both numbers are here so the two
+ * cannot drift.
+ */
+export const BUS_STOP = {
+  /** p(this chunk has one). See `busStop` in the chunk return for the interval. */
+  perChunkP: 0.5,
+  /** Metres along the kerb from the chunk's own junction. Derived there. */
+  beforeJunctionM: 22.0,
+  /** The roof: along the kerb, and out from the building line. WHAT IS CLAIMED. */
+  roofAlongM: 4.00,
+  roofDeepM: 1.35,
+  roofThickM: 0.12,
+  roofY: 2.45,
+  /** The posts, which are NOT what is claimed. */
+  postM: 0.09,
+  /** The back panel — glazed, and the thing the timetable is lit against. */
+  backThickM: 0.06,
+  backTopY: 2.30,
+  backBottomY: 0.35,
+  /** The bench inside it. */
+  benchAlongM: 2.20,
+  benchDeepM: 0.42,
+  benchY: 0.46,
+  /** The pole and its flag, at the downstream end of the shelter. */
+  poleM: 0.08,
+  flagY: 2.90,
+  flagAlongM: 0.62,
+  flagDeepM: 0.05,
+  /** The lit timetable panel, inside the back, at reading height. */
+  panelAlongM: 0.72,
+  panelH: 1.05,
+  panelY: 1.42,
+  /**
+   * cd/m². A backlit timetable case is a fluorescent box behind diffusing
+   * acrylic — brighter than a domestic window and far below a neon tube. It
+   * rides in the chunk's EXISTING window mesh at a tint of
+   * `BUS_STOP.panelNits / LIGHT.windowNits`, exactly as the advertising
+   * pillar's face does, so it costs no draw call and the delivered radiance is
+   * named in the expression (§9 rule 1) rather than hidden in a multiplier.
+   */
+  panelNits: 420,
+  /** The gap between the shelter's road-side face and the kerb line. */
+  kerbGapM: 0.40,
+};
+
+export const AD_PILLAR = {
+  /**
+   * p(pillar) at a frontage with NO shops, before the density term — and it is
+   * 1.0 at any density this generator produces, which is the brief's own
+   * instruction taken literally: *put them where a blank plinth is*. A dark
+   * sockel is precisely the frontage that wants one.
+   */
+  baseNoRetail: 0.85,
+  /** And where the ground floor already trades. Lower, not zero. */
+  baseRetail: 0.34,
+  /** Both are lifted by `density * this`, the same shape every other roll here uses. */
+  density: 0.35,
+  /**
+   * Metres of frontage per pillar. AN ADVERTISING COLUMN IS SPACED ALONG A
+   * PAVEMENT, not issued one per landlord — the first version rolled once per
+   * building and delivered **1.1 pillars per 128 m chunk**, which over a chunk's
+   * roughly 500 m of frontage is one every 450 m. Nobody would see two.
+   *
+   * 19 m is the generator's own median building width (the walk draws
+   * `rng.range(11, 27)`), so a typical frontage carries one and a wide one
+   * carries two, at the ends of its elevation rather than stacked at the
+   * middle. It is a SPACING and it is measured along the elevation, which is
+   * the datum CONTRACT §9 rule 7 asks for.
+   */
+  perFrontageM: 19.0,
+  /** No frontage carries more than this, whatever its width. */
+  maxPerBuilding: 2,
+};
+
+/**
+ * Does this building's frontage carry an advertising pillar? Rolled in the
+ * generator so it is part of the chunk's own description; WHERE it stands and
+ * whether it fits are decided against the delivered occupancy in `city.js`,
+ * which is where the pylon's own placement test lives.
+ */
+export function adPillarWanted(pillarRng, retail, density) {
+  const base = retail ? AD_PILLAR.baseRetail : AD_PILLAR.baseNoRetail;
+  return pillarRng.next() < base + density * AD_PILLAR.density;
+}
+
+/**
+ * Does this frontage trade? One roll per SIDE, consumed in a fixed order so the
+ * answer is deterministic in (seed, chunk, side index) and independent of how
+ * many buildings the side ends up carrying.
+ */
+export function retailFrontage(retailRng, density) {
+  return retailRng.next() < RETAIL.frontageBase + density * RETAIL.frontageDensity;
+}
+
+/**
+ * Does THIS building trade, given its frontage's answer and where it sits on it?
+ *
+ * `distToEndM` is measured from the building's own frontage span to the nearer
+ * end of the side — CONTRACT §9 rule 7, and the datum is named because "near
+ * the corner" is a distance and this project has twice measured one from the
+ * wrong place. A building 2 m from the end of a run is at the junction; one
+ * 40 m along it is in the middle of the block.
+ */
+export function retailBuilding(retailRng, onRetailFrontage, distToEndM) {
+  const p = onRetailFrontage ? RETAIL.inFrontage
+    : distToEndM <= RETAIL.cornerM ? RETAIL.corner
+      : 0;
+  return retailRng.next() < p;
+}
+
+/**
  * HOW TALL A BUILDING IS — session 20, item 4, and the change is entirely in
  * the SHAPE of the distribution.
  *
@@ -407,11 +741,24 @@ export const ERA_NAMES = Object.keys(CITY_ERAS);
  * times what a block a kilometre out has, not one and a half times". Height is
  * the same quantity one axis over and had a uniform roll.
  *
- * DELIVERED, BOTH ARMS THROUGH THE SAME GENERATOR (`heightprobe`, seed 1337,
- * 432 buildings):
+ * DELIVERED, BOTH ARMS THROUGH THE SAME GENERATOR (`heightprobe`, seed 1337).
+ * THE FIGURES BELOW ARE SESSION 20's, AND THEY WERE EXACT WHEN WRITTEN — a
+ * session-31 pass re-ran THIS COMMIT'S OWN heightprobe out of `git archive` and
+ * reproduced every one of them to the digit, including "nine of 432". What
+ * moved is the POPULATION, not the distribution: session 21's occupancy
+ * registry refused 65 buildings and the region has held 366 ever since, while
+ * p99 and max are byte-identical at every commit from ca0169f to HEAD. Both
+ * columns are kept, because the RATIO is the claim and it survives:
  *
+ *     session 20, 432 buildings
  *     uniform 12–64        mean 36.13   median 34.8   p99  65   max  66   sd/mean 0.425
  *     lognormal 34, σ 0.62 mean 38.43   median 31.1   p99 134   max 154   sd/mean 0.664
+ *
+ *     TODAY, 366 buildings (session 31, same probe, same seed, same region)
+ *     uniform 12–64        mean 36.71   median 36.0   p99  65   max  66   sd/mean 0.416
+ *     lognormal 34, σ 0.62 mean 38.90   median 32.7   p99 134   max 154   sd/mean 0.645
+ *
+ *     the ratio then 0.664/0.425 = 1.562×, now 0.645/0.416 = 1.550×
  *
  * **sd/mean 0.664 against 0.425 — a 1.56× wider spread**, which is the whole
  * change; and a p99 at 134 m against 65, which is the part you can see. σ = 0.62
@@ -452,7 +799,12 @@ export const ERA_NAMES = Object.keys(CITY_ERAS);
  * than no tower. 150 leaves 20 m of margin, and the delivered maximum is 154 m
  * because `floors · (era.floor + jitter)` is applied AFTER the clamp: the clamp
  * bounds the ROLL and the era's own storey height carries it a little past.
- * Nine of 432 buildings clear 34 storeys.
+ * **Seven of 366** buildings clear 34 storeys, measured by `heightprobe` at
+ * HEAD. The "nine of 432" this line carried is session 20's figure, quoted
+ * correctly 55 lines above as a REPRODUCED session-20 measurement and left
+ * standing here as a bare present-tense fact — the population fell to 366 when
+ * session 21's occupancy registry began refusing buildings. The ratio is the
+ * claim and it survives: 9/432 = 2.08%, 7/366 = 1.91%.
  *
  * FLOOR 9 m, because `floors = max(3, ...)` already imposes three storeys and a
  * log-normal's lower tail otherwise spends draws below it that all land on the
@@ -726,6 +1078,75 @@ export const ROOF_SIGN = {
 export const ROOF_PARAPET_M = 1.05;
 
 /**
+ * THE TALLEST THING THAT CAN STAND ON A ROOF — SESSION 25, AND IT IS HERE FOR
+ * THE SAME REASON `ROOF_PARAPET_M` IS.
+ *
+ * A building's claim is `y0: 0, y1: height`, and `height` is the top of the
+ * WALL. Everything on the roof stands above it, so `deck × building` — the one
+ * pair `occupancy.js` decides on the vertical extent rather than on the
+ * footprint — has been asking whether a viaduct passes through a building using
+ * a box that stops at the eaves. Measured over the 11 × 11 ring
+ * (`tools/claimprobe.mjs`): 1 436 plant boxes on 357 of 419 buildings, the
+ * median roof standing **16.50 m** above its own claimed top and the worst
+ * **18.72 m**.
+ *
+ * THE ARITHMETIC, which is city.js's `buildRoofscape` read as a bound rather
+ * than as a roll. A plant unit is `ph = (1.8 + h·3.4) · kind.tall` with
+ * `h ∈ [0, 1)`, so the size term maxes at 1.8 + 3.4 = 5.2 m; the tallest
+ * `kind.tall` is the aerial's 3.60. 5.2 × 3.60 = **18.72 m**.
+ *
+ * A BOUND AND NOT THE DELIVERED VALUE, DELIBERATELY. The generator cannot know
+ * what a roof rolled — the hash lives in `city.js` — and it must not draw a
+ * uniform to find out, because the claim is made BEFORE the era's crown is
+ * rolled and consuming a value early would move every stream after it
+ * (CONTRACT §6). So the generator claims the envelope and `city.js` claims what
+ * it actually drew. The generator is therefore conservative and the delivered
+ * census is exact, which is the right way round: the registry says what was
+ * TESTED and the census says what ARRIVED (CONTRACT §9.1). `claimprobe`
+ * measures that the bound contains the delivered top on 419 of 419.
+ *
+ * ITS COST IS ZERO AND THAT IS WHY IT SHIPPED. Measured on both halves of the
+ * two-sided check — the delivered census and the generator's own registry, the
+ * second of which is the only one holding `water`, `path` and `block` — raising
+ * `y1` to this bound produces **0 new forbidden pairs and refuses 0 placements**.
+ * The planar half of the same defect costs 78 buildings and is written up in
+ * STATE 25 §1 rather than built.
+ *
+ * `city.js` recomputes 18.72 from its own `ROOF_KINDS` table at module load and
+ * says so beside this number, so a kind added with a taller aspect is a printed
+ * disagreement rather than a claim that quietly stopped containing its roof.
+ */
+export const ROOF_PLANT_MAX_M = (1.8 + 3.4) * 3.60;
+
+/**
+ * THE HIGHEST POINT OF A BUILDING, from the generator's own fields.
+ *
+ * One expression, called by both building walks and by `city.js`'s consistency
+ * print, because a roof height computed in two places is `pierEvery: 34` beside
+ * `i % 3 === 0` with an elevation instead of a spacing (CONTRACT §9.1).
+ *
+ * THE CROWN IS BOUNDED RATHER THAN READ, and the bound is not a shrug: the
+ * claim is laid before `crown` is rolled, and `crown` is `rng.range(0.15, 0.45)`
+ * on the contemporary era and 0 on every other. So the crown reaches at most
+ * `era.cornice + 0.45` on contemporary (whose `cornice` is 0.0, giving 0.45) and
+ * `era.cornice` elsewhere, whose largest is prewar's 0.9. BOTH ARE UNDER
+ * `ROOF_PARAPET_M` = 1.05, so on any building that gets a roofscape the crown
+ * cannot be the binding term — and on one that does not, it is the only term.
+ * Measured: the 62 buildings with no plant stand at most 0.900 m over their
+ * claim, which is exactly prewar's cornice.
+ */
+export function buildingTopM(era, eraName, height, floors) {
+  const crownMax = era.cornice + (eraName === 'contemporary' ? 0.45 : 0);
+  /** `buildRoofscape` returns before the top parapet and the plant unless this holds. */
+  const roofscape = floors > 4;
+  return height + Math.max(
+    crownMax,
+    roofscape ? ROOF_PARAPET_M : 0,
+    roofscape ? ROOF_PLANT_MAX_M : 0
+  );
+}
+
+/**
  * Roll one building's roof sign, if it gets one, and push it into the chunk's
  * sign list. Always draws the SAME NUMBER OF UNIFORMS whatever it decides, so
  * the stream position after the call does not depend on the answer.
@@ -866,7 +1287,142 @@ export const ROAD_MATERIALS = ['asphalt', 'patched', 'concrete'];
 // ---------------------------------------------------------------------------
 // dead zones — docs/authored-city.md §5
 
-export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park'];
+export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction'];
+
+/**
+ * A PARK, AS THE SIX THINGS A PARK HAS — session 21.
+ *
+ * `park` has been in the list above since session 4 and session 19 gave it
+ * grass and two crossing paths. What it still read as from the pavement was a
+ * green rectangle with a cross on it, which is a pitch rather than a place —
+ * the same distinction as density versus variation, one level up: **a lot has
+ * to look like a lot.**
+ *
+ * Every number here is a length off something that already exists, because a
+ * park's dimensions are not free — they are what fits in the 104.6 m island a
+ * chunk leaves between its corridors.
+ */
+export const PARK = {
+  /**
+   * Metres. Half-width of a path. 1.4 is session 19's, kept: a 2.8 m path is
+   * two people passing plus a pram, and it is 2/3 of the 4.2 m pavement it
+   * joins — which is the right relation, because a park path carries less than
+   * a street and looks wrong when it carries the same.
+   */
+  pathHalf: 1.4,
+  /**
+   * Metres the perimeter path loop stands in from the island edge. 7.0 leaves
+   * a planting strip between the loop and the park's own edge treatment that
+   * is wide enough for a tree — `PROP_HALF_WIDTH.tree` is about 1.9 m at
+   * scale 1.25, so 7.0 fits a tree and its clearance on both sides of the
+   * strip. A loop hard against the railing is a fence with a path against it.
+   */
+  loopInset: 7.0,
+  /**
+   * Metres. Half-size of the central paved circus the two cross paths run
+   * into. 9.0 is three path widths, which is the smallest square that reads as
+   * a place to stand rather than as a wide bit of path.
+   */
+  circusHalf: 9.0,
+  /** Metres. Half-size of the thing in the middle of the circus. */
+  centreHalf: 5.0,
+  /**
+   * Metres between park lamp columns. THE STREET'S IS 32 (`CITY.lampEvery`).
+   * Half of it, because a park lamp is half the height and the pool a luminaire
+   * throws scales with its mounting height — so 16 m keeps the same overlap
+   * between pools that the street has, which is what stops a path being a
+   * chain of separate discs. It is also the number that gives the night
+   * something it does not have: light that is not in a straight line down a
+   * street.
+   */
+  lampEvery: 16,
+  /**
+   * Metres. Mounting height of a park lamp's optic. 4.20 m against the
+   * street's 8.08: BS 5489 puts a footpath column at 4 to 5 m where a traffic
+   * route is 8 to 10, for the reason that matters here — a 4 m column lights
+   * the path and the people on it, and an 8 m one lights the whole field.
+   */
+  lampHeight: 4.2,
+  /** Metres. Length of one edge-treatment segment, and the gap left at an entrance. */
+  edgeSegment: 2.4,
+  edgeGapHalf: 4.5,
+  /** The three edge treatments. A park that simply becomes street has no identity. */
+  edgeKinds: ['railing', 'hedge', 'wall'],
+  /**
+   * Metres. Half-thickness of an edge treatment. 0.22 spans a hedge clipped to
+   * 0.44 m, a 0.44 m low wall (one and a half bricks on flat) and a railing
+   * with its standards — one number for three treatments, because what the
+   * registry needs is the room it takes and all three take about the same.
+   */
+  edgeHalfT: 0.22,
+  /** What is in the middle. Parks have a reason to walk to them. */
+  centreKinds: ['pond', 'pavilion', 'monument', 'square'],
+  /**
+   * Tree clumps per park, and the metres a tree is scattered about its clump
+   * centre. `docs/authored-city.md` §1's clumping rule applied to planting:
+   * evenly spread trees read as an orchard, and the thing that makes a park
+   * look planted rather than gridded is that the gaps between the groups are
+   * bigger than the gaps inside them. 4 clumps over a 104.6 m island at a 9 m
+   * spread puts the within-clump spacing at about 6 m and the between-clump
+   * spacing at about 40 m — a factor of 7.
+   */
+  clumps: 4,
+  clumpSpreadM: 9.0,
+};
+
+/**
+ * A CONSTRUCTION SITE, AS A BLOCK TYPE — session 21, and it is legitimate
+ * low-detail rather than an excuse for it.
+ *
+ * The addendum asks for 8% of blocks to be low-detail and the delivered figure
+ * is 17%; what those blocks were was four kinds of empty. A site gives the city
+ * three things nothing else in it has:
+ *
+ *   VERTICAL ASYMMETRY. A tower crane is tall, thin and off-balance — the
+ *   opposite of the blocks' prisms — and it breaks the skyline in a way no
+ *   building does, because every building here is a mass and this is a line.
+ *
+ *   MOTION ABOVE EYE LEVEL. Nothing moves above the street but the aircraft.
+ *   A crane slewing its jib and raising a load is slow, repeating and legible
+ *   at distance, which is the opposite of traffic and is why it reads from
+ *   further away.
+ *
+ *   WORK LIGHTING. Flood masts pointing DOWN into an excavation are a light
+ *   type this city does not have: hard, directional and downward, against a
+ *   street lamp's pool and a sign's emission.
+ */
+export const SITE = {
+  /** Metres. Hoarding height — 2.4 m is the standard plywood sheet on edge. */
+  hoardingHeight: 2.4,
+  hoardingSegment: 2.4,
+  /** Metres the hoarding stands in from the island edge, leaving the pavement clear. */
+  hoardingInset: 1.0,
+  /**
+   * Metres. The tower crane's mast height above the ground.
+   *
+   * A tower crane clears the building it is putting up by about 15 m of hook
+   * height plus the jib. The generator's log-normal has a median of 34 m and a
+   * p99 of 134 (`HEIGHT_DISTRIBUTION`), so a crane on an ordinary block is
+   * building something around the median: 34 + 15 = 49, and the band below
+   * spans that. 78 m at the top is the tallest and is still under the p99, so
+   * a crane never out-tops the skyline it stands in — which is the point of
+   * having it, since what reads is the CONTRAST between a line and a mass.
+   */
+  mastMinM: 42,
+  mastMaxM: 78,
+  /** Metres. Jib length. A 55 m jib on a 60 m mast is the ordinary proportion. */
+  jibMinM: 38,
+  jibMaxM: 62,
+  /** Metres. The counter-jib, which is what makes the silhouette asymmetric. */
+  counterJibFrac: 0.32,
+  /** Seconds for one full slew. 240 s is 1.5°/s, which is a crane's own speed. */
+  slewPeriodS: 240,
+  /** Seconds for one hoist cycle, up and down. */
+  hoistPeriodS: 46,
+  /** Metres. Flood mast height, and how many a site gets. */
+  floodHeightM: 9.0,
+  floodPerSite: 3,
+};
 
 // ---------------------------------------------------------------------------
 // landmarks — docs/authored-city.md §6
@@ -992,6 +1548,54 @@ export const LANDMARKS = [
     deck: 9.5,
     /** Metres between piers. Read as metres — see `viaductArc`. */
     pierEvery: 22,
+    /**
+     * PORTAL FRAMES RATHER THAN COLUMNS — SESSION 21, AND IT IS THE REPAIR FOR
+     * THE FINDING SESSION 5's ARGUMENT COULD NOT REACH.
+     *
+     * Session 5 re-aimed the arc so its piers would stand on ground you can
+     * see, and it reasoned entirely about the origin block's EAST–WEST street.
+     * It never asked what the arc does to the streamed lattice, and the answer
+     * measured this session is: **8 of 23 piers stood in a carriageway and 2 on
+     * a pavement**, because a 1.7 m column on the centreline of a road is a
+     * column on the centreline of a road whichever street it crosses.
+     *
+     * A column cannot be made to fit. A 15.0 m carriageway leaves 7.5 m either
+     * side of its centreline and the deck has to be held up somewhere, so the
+     * support has to STRADDLE the road rather than stand in it — which is what
+     * an elevated railway over a street is built as, everywhere it exists.
+     *
+     * THE OFFSET IS DERIVED AND EVERY CLEARANCE IS WRITTEN DOWN:
+     *
+     *   leg centre  = CITY.roadHalfWidth + pierLegHalf = 7.5 + 0.8 = 8.3 m
+     *   inner face  = 7.50 m   exactly the kerb line: the carriageway is clear
+     *   outer face  = 9.10 m
+     *   vs the pedestrian lane centre (roadHalfWidth+CORRIDOR)/2 = 9.60 m
+     *                                                     clear by 0.50 m
+     *   vs the origin block's clear cross-street band |x| <= 10.5 m
+     *                                                     clear by 1.40 m
+     *   vs the island edge (the building line) at CORRIDOR = 11.7 m
+     *                                                     clear by 2.60 m
+     *
+     * So a portal stands with one leg hard against each kerb, the carriageway
+     * passes between them, 2.6 m of pavement stays walkable outside each leg,
+     * and the whole frame fits inside the band session 5 measured the origin
+     * block as leaving clear. `citycheck` asserts the last of those as a
+     * number rather than trusting this paragraph.
+     *
+     * WHERE THE DECK DOES NOT CROSS A ROAD SQUARE ON, the two legs are not
+     * symmetric about the carriageway and the offset alone cannot save them —
+     * so the pier's STATION is nudged along the deck as well. See
+     * `viaductPiers`.
+     */
+    pierLegOffset: 8.3,
+    pierLegHalf: 0.8,
+    /**
+     * Metres a pier may be moved along the deck to get both legs off a
+     * carriageway. Half a bay: beyond that a pier is closer to its neighbour's
+     * joint than to its own, and the span it is supposed to be dividing stops
+     * being divided.
+     */
+    pierNudgeMaxM: 10.9,
     material: 'concrete',
   },
   {
@@ -1678,6 +2282,44 @@ export function riverBudget() {
 }
 
 /**
+ * THE IDEAL ROAD LATTICE, AS A PREDICATE — session 21.
+ *
+ * Roads run along every chunk boundary, so "is this point in a carriageway" is
+ * a function of position and nothing else: the distance to the nearest multiple
+ * of `CITY.chunkSize` on either axis, against `CITY.roadHalfWidth`.
+ *
+ * IT IS THE **IDEAL** LATTICE AND NOT THE DELIVERED ONE, DELIBERATELY, AND THE
+ * REASON IS A CYCLE. The delivered carriageway is the ideal one clipped against
+ * the river, the origin block and — as of this session — the keep-out registry,
+ * which contains the viaduct's own legs. A pier placed against the DELIVERED
+ * road would be placed against a road that is waiting to be clipped around the
+ * pier, and neither could be computed first. Against the ideal lattice there is
+ * no cycle, and the error is one-sided in the safe direction: a pier avoids a
+ * carriageway that the river or the block may have taken away anyway, which
+ * costs a nudge nobody needed and can never leave a leg in a live traffic lane.
+ */
+export function latticeCarriageway(x, z, pad = 0) {
+  const s = CITY.chunkSize;
+  const nx = Math.abs(x - Math.round(x / s) * s);
+  const nz = Math.abs(z - Math.round(z / s) * s);
+  const r = CITY.roadHalfWidth + pad;
+  // STRICT, for `occupancy.overlaps`' reason: a leg whose inner face lands
+  // exactly on the kerb line shares a line with the carriageway and not an
+  // area. Non-strict here rejected the derived 8.3 m offset — 8.3 ≤ 7.5 + 0.8 —
+  // and the search then walked past the answer it was given.
+  return nx < r || nz < r;
+}
+
+/** The same question about the whole corridor — carriageway plus both pavements. */
+export function latticeCorridor(x, z, pad = 0) {
+  const s = CITY.chunkSize;
+  const nx = Math.abs(x - Math.round(x / s) * s);
+  const nz = Math.abs(z - Math.round(z / s) * s);
+  const w = CORRIDOR + pad;
+  return nx <= w || nz <= w;
+}
+
+/**
  * The viaduct's curve, sampled once, for everybody who needs it.
  *
  * THREE CONSUMERS HAD THREE CURVES. `landmarkOccluders` sampled the arc at 14
@@ -1743,6 +2385,10 @@ export function viaductArc(l) {
   return {
     stations,
     centre: [cx, cz],
+    /** The circle the stations are on, so `arcStationAt` can land between two. */
+    radius: R,
+    a0,
+    curveSign: l.curveSign,
     arcLength,
     bays,
     segsPerBay,
@@ -1751,8 +2397,13 @@ export function viaductArc(l) {
     /** What the piers ACTUALLY come out at, next to what was asked for. */
     pierSpacing: arcLength / bays,
     pierSpacingAsked: l.pierEvery,
-    /** Half-width of a pier shaft, metres. Used by the geometry and the blockers. */
-    pierHalf: 1.7,
+    /**
+     * Half-width of ONE PORTAL LEG, metres — session 21. It was `pierHalf: 1.7`,
+     * the half-width of a single shaft on the deck's own centreline, and that
+     * shaft stood in a carriageway 8 times in 23. See `LANDMARKS` → viaduct.
+     */
+    legHalf: l.pierLegHalf,
+    legOffset: l.pierLegOffset,
   };
 }
 
@@ -1846,21 +2497,75 @@ export function landmarkOccluders(l) {
       // describing the one nobody could see.
       const out = [];
       const arc = viaductArc(l);
-      for (const p of viaductPiers(arc)) {
-        out.push(box(p.x, p.z, arc.pierHalf + 0.5, arc.pierHalf + 0.5, l.height));
+      for (const leg of viaductLegs(arc, l)) {
+        out.push(box(leg.x, leg.z, arc.legHalf + 0.3, arc.legHalf + 0.3, l.height));
       }
+      /**
+       * SESSION 31. The station widens the deck and rises past it, and BOTH
+       * halves of that have to reach this list or the widened part is mass
+       * standing in the world that nothing was told about — CONTRACT §9.1's
+       * placement rule, and session 23's viaduct abutment is the same object
+       * making the same mistake. `city.js` draws the platform from
+       * `viaductStations`; this claims the same span from the same function.
+       */
+      const stations = viaductStations(arc, l);
       for (let i = 0; i < arc.stations.length - 1; i++) {
         const a = arc.stations[i];
         const b = arc.stations[i + 1];
+        const st = viaductStationSegment(stations, i);
         // Axis-aligned cover of one rotated deck segment: the chord's own
         // extent plus the deck's half-width. Conservative at the corners, which
         // for a sky-occlusion march at 2.79 m voxels is below a texel.
-        out.push(box(
-          (a.x + b.x) / 2, (a.z + b.z) / 2,
-          Math.abs(b.x - a.x) / 2 + l.deck / 2,
-          Math.abs(b.z - a.z) / 2 + l.deck / 2,
-          l.height
-        ));
+        //
+        // `base` IS NEW AND THE BAKE STILL IGNORES IT — session 21. The canyon
+        // march treats every occluder as solid to the ground, which for a deck
+        // is conservative in the direction that darkens rather than brightens,
+        // and changing that is a lighting decision this session is not making.
+        // The KEEP-OUT REGISTRY reads it, and that is the whole point of
+        // writing it down: "what blocks a ray to the sky" and "what a building
+        // may not grow through" are the two questions session 5 answered with
+        // one list, and a vertical extent answers both from one entry.
+        /**
+         * A station segment reaches `halfAcrossM` = 7.55 m instead of the
+         * deck's 4.75, and tops out at the canopy rather than at the slab. The
+         * `top` is the one that matters to the registry: `deck` conflicts with
+         * `building` alone and the test is on `[y0, y1]`, so a canopy at 25.50
+         * asks a taller question of the same buildings than a slab at 21.00.
+         */
+        const halfAcross = st ? st.halfAcrossM : l.deck / 2;
+        const top = st ? st.topY : l.height;
+        out.push({
+          ...box(
+            (a.x + b.x) / 2, (a.z + b.z) / 2,
+            Math.abs(b.x - a.x) / 2 + halfAcross,
+            Math.abs(b.z - a.z) / 2 + halfAcross,
+            top
+          ),
+          base: viaductSoffitY(l) - VIADUCT_DECK_CLEARANCE_M,
+          deck: true,
+        });
+      }
+      /**
+       * THE CORES ARE `landmark`, NOT `deck`, AND THE SPLIT IS THE WHOLE POINT
+       * OF `occupancy.js` CARRYING A VERTICAL EXTENT. A platform is an elevated
+       * structure with clear space under it and a stair core is a solid
+       * standing on the ground — `deck` conflicts only with `building` and
+       * `landmark` conflicts with the carriageway and the pavement it would be
+       * standing in. One claim kind for both would be right about one of them.
+       */
+      for (const st of stations) {
+        for (const core of st.cores) {
+          const h = Math.max(
+            VIADUCT_STATION.landingM + VIADUCT_STATION.goingM * VIADUCT_STATION.risersPerFlight,
+            VIADUCT_STATION.liftSideM,
+          ) / 2;
+          const w = (VIADUCT_STATION.flightWidthM * 2 + VIADUCT_STATION.wellM
+            + VIADUCT_STATION.liftSideM) / 2;
+          // Axis-aligned cover of a core turned to the deck's own yaw.
+          const c = Math.abs(Math.cos((core.yawDeg * Math.PI) / -180));
+          const s = Math.abs(Math.sin((core.yawDeg * Math.PI) / -180));
+          out.push(box(core.x, core.z, h * c + w * s, h * s + w * c, st.platformTopY));
+        }
       }
       return out;
     }
@@ -1879,10 +2584,220 @@ export function landmarkOccluders(l) {
   }
 }
 
-/** Stations that carry a pier. One list, so the geometry and the blockers agree. */
-export function viaductPiers(arc) {
-  return arc.stations.filter((s) => s.pier);
+/**
+ * Where the piers actually stand, AFTER being moved off the carriageway.
+ *
+ * One list, so the geometry, the ground blockers, the occluders and the gate
+ * all agree — `pierEvery: 34` beside `i % 3 === 0` is what this file's own
+ * header is about, and a second copy of the nudge would be that arrangement
+ * with a search instead of a spacing.
+ *
+ * THE SEARCH, AND WHY IT IS A SEARCH RATHER THAN AN OFFSET. `pierLegOffset` is
+ * derived so that a portal STRADDLING a road square-on clears both kerbs. Where
+ * the deck crosses at an angle θ the two legs are no longer symmetric about the
+ * carriageway, and the transverse offset resolved onto the road's own axis is
+ * `8.3·|sin θ|` — which vanishes as the deck turns to run ALONG the road. No
+ * fixed offset can be right at every crossing angle, so the free parameter is
+ * the one a bridge actually has: where along its own length the pier sits.
+ *
+ * Nearest-first, ±`pierNudgeMaxM` (half a bay) in 0.5 m steps, and the FIRST
+ * clear position wins so the answer is deterministic and the smallest move. A
+ * station that cannot be cleared keeps its authored position and is flagged —
+ * `blocked: true` — rather than dropped: a bridge with a missing pier is worse
+ * than one with a pier in the road, and a flag is something a gate can fail on
+ * while a silent omission is not.
+ */
+export function viaductPiers(arc, l) {
+  const authored = arc.stations.filter((s) => s.pier);
+  if (!l || l.pierLegOffset === undefined) return authored;
+  const maxNudge = l.pierNudgeMaxM;
+
+  /**
+   * TWO FREE PARAMETERS, SEARCHED NEAREST-FIRST, AND THE SECOND ONE IS WHY THE
+   * FIRST WAS NOT ENOUGH.
+   *
+   * Nudging the station alone cleared 3 of the 8 blocked piers and left 9
+   * blocked, because for 140 m either side of the crown the deck runs INSIDE
+   * the x = 0 corridor rather than across it — there is no position along that
+   * stretch where a symmetric portal fits, so moving along the deck moves the
+   * problem rather than solving it. What varies down that stretch is the deck's
+   * own drift off the road centreline: `x` runs 0.00 → −0.79 → −3.17 over three
+   * bays as the arc turns away, so a portal centred on the DECK is up to 3.2 m
+   * off centre on the ROAD and one leg is in a running lane while the other is
+   * at the building line.
+   *
+   * So each leg gets its own offset. A portal whose legs are at 6.6 m and
+   * 10.4 m is still a portal — the crosshead spans whatever it spans — and it
+   * is what a real structure does when the street under it is not symmetric
+   * about the track.
+   */
+  const oneLeg = (st, side) => {
+    for (let d = 0; d <= VIADUCT_LEG_OFFSET_SPAN_M + 1e-9; d += 0.25) {
+      for (const sign of d === 0 ? [1] : [1, -1]) {
+        const off = l.pierLegOffset + sign * d;
+        if (off < VIADUCT_LEG_OFFSET_MIN_M || off > VIADUCT_LEG_OFFSET_MAX_M) continue;
+        const leg = legAt(st, off, side);
+        if (legIsClear(leg, l.pierLegHalf)) return leg;
+      }
+    }
+    return null;
+  };
+  const place = (st) => {
+    const a = oneLeg(st, -1);
+    const b = oneLeg(st, +1);
+    if (a && b) return [a, b];
+    return null;
+  };
+
+  const out = [];
+  for (const st of authored) {
+    let legs = place(st);
+    let station = st;
+    let nudge = 0;
+    for (let d = 0.5; d <= maxNudge + 1e-9 && !legs; d += 0.5) {
+      for (const sign of [-1, 1]) {
+        const cand = arcStationAt(arc, st.s + sign * d);
+        const got = place(cand);
+        if (got) { legs = got; station = cand; nudge = sign * d; break; }
+      }
+    }
+    /**
+     * A HAMMERHEAD WHERE A PORTAL WILL NOT FIT, AND IT IS A REAL STRUCTURE
+     * RATHER THAN A CLIMBDOWN.
+     *
+     * Two stations — s = ±65.5, deck centre at x = −7.11, i.e. 0.39 m inside
+     * the x = 0 carriageway's own kerb — have no portal solution at any
+     * station nudge or leg offset in the band: reaching the far kerb from
+     * there needs an offset of 15.8 m against a maximum of 10.9, and the deck
+     * stays inside that corridor for 47 m either way, which is more than half
+     * a bay. What DOES fit is one leg on the clear side with the deck
+     * cantilevered out to it — a hammerhead bent, which is what is built
+     * wherever a road cannot be straddled.
+     *
+     * Tried LAST rather than as an equal option, because a portal is the
+     * better structure where there is room for one and a search that treated
+     * them as equivalent would build hammerheads for convenience.
+     */
+    if (!legs) {
+      const solo = oneLeg(st, -1) || oneLeg(st, +1);
+      if (solo) legs = [solo];
+    }
+    out.push(legs
+      ? { ...station, nudgeM: nudge, blocked: false, hammerhead: legs.length === 1, legs }
+      : { ...st, nudgeM: 0, blocked: true, hammerhead: false, legs: legsAt(st, l.pierLegOffset) });
+  }
+  return out;
 }
+
+/**
+ * Metres. The band a portal leg's transverse offset may be searched over.
+ *
+ *   MAX 10.9 = CORRIDOR (11.70) − pierLegHalf (0.80). The leg's outer face
+ *   lands exactly on the island edge, which is the building line: one step
+ *   further and the leg is inside a building, which is the defect this whole
+ *   change is about.
+ *
+ *   MIN 5.0. A portal 10 m wide cannot straddle a 15.0 m carriageway at all,
+ *   so below this there is no configuration in which both legs are clear and
+ *   searching further is searching for something that is not there. It is
+ *   reached only where the deck is well away from the lattice, and there the
+ *   first offset tried already succeeds.
+ *
+ *   SPAN 5.9 = the larger of (8.3 − 5.0) and (10.9 − 8.3), so the nearest-first
+ *   sweep reaches both ends of the band. Writing it as a derived span rather
+ *   than as a third number is what stops it going stale when either end moves.
+ */
+export const VIADUCT_LEG_OFFSET_MIN_M = 5.0;
+export const VIADUCT_LEG_OFFSET_MAX_M = 10.9;
+export const VIADUCT_LEG_OFFSET_SPAN_M = 5.9;
+
+/**
+ * Half-width, metres, of the band the origin block leaves clear at every `z`.
+ *
+ * SESSION 5's OWN NUMBER, PROMOTED OUT OF A COMMENT. `LANDMARKS` → viaduct says
+ * *"The block leaves x ∈ [−10.5, 10.5] clear at every z"*, and that sentence is
+ * the entire reason the viaduct crosses where it does. It was prose, so nothing
+ * could check it and nothing did — and this session's measurement found a leg
+ * reaching |x| = 12.18 m, 1.68 m past the band the placement was justified by.
+ * CONTRACT §9.1: a value in a comment that the code does not read.
+ */
+export const BLOCK_CROSS_CLEAR_HALF_M = 10.5;
+
+/** May a leg stand here? The one predicate, so the search and the gate agree. */
+function legIsClear(leg, half) {
+  if (latticeCarriageway(leg.x, leg.z, half)) return false;
+  if (insideKeepout(leg.x, leg.z, 0) && Math.abs(leg.x) + half > BLOCK_CROSS_CLEAR_HALF_M) return false;
+  if (riverBlocks(leg.x, leg.z, half)) return false;
+  return true;
+}
+
+/**
+ * A station at an arbitrary arc distance, interpolated on the CIRCLE rather
+ * than between two chords.
+ *
+ * `viaductArc` builds its stations from the exact circle; a nudged pier taken
+ * by lerping two of them would sit up to one sagitta inside the curve — 0.05 m,
+ * which is nothing — but it would also carry a tangent that is the CHORD's and
+ * not the curve's, and the tangent is what the legs are offset along. Same
+ * expressions as the loop in `viaductArc`, and they are here rather than
+ * duplicated there because a second copy of a curve is what CONTRACT §9's
+ * viaduct row is made of.
+ */
+function arcStationAt(arc, s) {
+  const [cx, cz] = arc.centre;
+  const a = arc.a0 + (arc.curveSign * s) / arc.radius;
+  const x = cx + Math.cos(a) * arc.radius;
+  const z = cz + Math.sin(a) * arc.radius;
+  const dx = -Math.sin(a) * arc.curveSign;
+  const dz = Math.cos(a) * arc.curveSign;
+  return { s, x, z, yawDeg: (-Math.atan2(dz, dx) * 180) / Math.PI, tangent: [dx, dz], pier: true };
+}
+
+/**
+ * The two legs of one portal, in world XZ.
+ *
+ * The transverse direction is the tangent turned a quarter turn in the ground
+ * plane — `(dx, dz) → (−dz, dx)` — so a leg is offset ACROSS the deck whatever
+ * the deck's heading. Writing it as a rotation of the tangent rather than as a
+ * yaw and a trig pair is the version that cannot pick up the sign error that
+ * CONTRACT §9's table records for the quayside terrace.
+ */
+export function legAt(station, offset, side) {
+  const [dx, dz] = station.tangent;
+  return {
+    x: station.x + side * -dz * offset,
+    z: station.z + side * dx * offset,
+    side,
+    offset,
+    station,
+  };
+}
+
+export function legsAt(station, offset) {
+  return [-1, 1].map((side) => legAt(station, offset, side));
+}
+
+/** Every leg of every portal — the ground the viaduct actually stands on. */
+export function viaductLegs(arc, l) {
+  const out = [];
+  for (const p of viaductPiers(arc, l)) {
+    for (const leg of p.legs) out.push({ ...leg, blocked: p.blocked });
+  }
+  return out;
+}
+
+/**
+ * Metres of clearance under the deck that a building must fit inside.
+ *
+ * The soffit is `height − slabThick − boxDepth` = 21 − 0.9 − 1.9 = **18.20 m**
+ * (`city.js`'s viaduct case owns those three numbers and this is the one place
+ * that reads their sum). 4.00 m below it is 14.20 m, and `buildRoofscape` puts
+ * up to 3.40 m of plant on a roof — so a 14.20 m building with a full roofscape
+ * reaches 17.60 m and clears the soffit by 0.60 m. That is what a building is
+ * allowed to be under an elevated railway, and it is four storeys, which is
+ * what is under one in every city that has one.
+ */
+export const VIADUCT_DECK_CLEARANCE_M = 4.0;
 
 /**
  * What a landmark puts on the ground, as opposed to what it puts in the sky.
@@ -1905,11 +2820,507 @@ export function viaductPiers(arc) {
 export function landmarkGroundBlockers(l) {
   if (l.kind !== 'viaduct') return landmarkOccluders(l);
   const arc = viaductArc(l);
-  const half = arc.pierHalf + 0.5;
-  return viaductPiers(arc).map((p) => ({
+  const half = arc.legHalf + 0.3;
+  return viaductLegs(arc, l).map((p) => ({
     x0: p.x - half, x1: p.x + half, z0: p.z - half, z1: p.z + half,
     top: l.height, landmark: l.name,
   }));
+}
+
+/**
+ * The underside of the viaduct's deck, in metres above the ground datum.
+ *
+ * ONE EXPRESSION, AND SESSION 31 COUNTED ITS READERS RATHER THAN TRUSTING
+ * THIS PARAGRAPH. What it used to say was that the number is read by three
+ * things, naming `city.js` first. `city.js` DOES NOT IMPORT EITHER CONSTANT:
+ * it declares its own `const slabThick = 0.9` and `const boxDepth = 1.9` and
+ * computes its own soffit from them, so the module that DRAWS the section is
+ * the one place that does not read the number. `viaductSoffitY` is read by
+ * `moving.js` and by `portalprobe`; `VIADUCT_SLAB_THICK_M` and
+ * `VIADUCT_BOX_DEPTH_M` are read by nothing outside this file except through
+ * it. That is the roof parapet's own shape — `1.05` written twice under a
+ * comment claiming one read the other — still standing in the sentence written
+ * to retire it. The literals agree today (`tools/stationprobe.mjs --check`
+ * prints both columns and both say 0.9000 and 1.9000); what does not exist is
+ * the link.
+ */
+export const VIADUCT_SLAB_THICK_M = 0.9;
+export const VIADUCT_BOX_DEPTH_M = 1.9;
+export function viaductSoffitY(l) {
+  return l.height - VIADUCT_SLAB_THICK_M - VIADUCT_BOX_DEPTH_M;
+}
+
+/**
+ * Metres of ballast and rail above the deck slab.
+ *
+ * `city.js` lays the trough at `slabTop + 0.22` half-depth 0.22 and the rail at
+ * `slabTop + 0.53` half-depth 0.09, so rail level is `0.53 + 0.09` = 0.62 above
+ * the slab. `moving.js` carried the same 0.62 as its own literal under the
+ * comment *"`city.js`'s ballast + rail"* — a comment claiming a link with no
+ * link, which is CONTRACT §9.1's variant and is what `ROOF_PARAPET_M` was two
+ * sessions ago. It is one number here now and three things read it.
+ */
+export const VIADUCT_RAIL_RISE_M = 0.62;
+
+/**
+ * THE STRUCTURE GAUGE: metres above RAIL LEVEL that must stay clear of
+ * structure, so that anything running on this deck passes anything built over
+ * it. Session 23.
+ *
+ * §9 rule 5 forbids a number without a derivation, and this one is a BUDGET
+ * rather than a measurement, so here is what the world has to be like for it to
+ * be right. The tallest thing on this deck is `moving.js`'s train: a 3.40 m car
+ * with a 0.18 m roof cap whose upper face sits 0.09 m proud, i.e. **3.58 m
+ * above rail level**. 4.20 leaves **0.62 m** over it — which is exactly one
+ * `VIADUCT_RAIL_RISE_M`, i.e. this deck could be re-ballasted from bare slab to
+ * its present rail level a second time and the same train would still pass
+ * under the same portal. A gauge that only just clears today's vehicle is a
+ * gauge that has to be rebuilt when the vehicle changes.
+ *
+ * `moving.js` prints its own car against this at init (§9 rule 4: when a number
+ * is derived from another, print both) so a train grown past it says so in the
+ * boot log rather than intersecting a portal in silence.
+ */
+export const VIADUCT_LOADING_GAUGE_M = 4.2;
+
+/**
+ * THE END TREATMENT — WHERE THE LINE STOPS, AND WHAT IT STOPS AGAINST.
+ * SESSION 23, item 2. One pure function, so `city.js` DRAWS what this DECIDES
+ * and `generateChunk` CLAIMS the same boxes — the arrangement `viaductPiers`
+ * already has, for the reason session 5's three-copies-of-one-curve gave.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT WAS THERE, MEASURED BEFORE ANYTHING WAS ADDED (`tools/portalprobe.mjs`).
+ *
+ * Session 21 put an abutment at each end and the operator still reads the ends
+ * as *"a line that has been cut rather than a line that goes somewhere"*. The
+ * brief called them unbuilt; they are not, and the real defect is sharper than
+ * that. **The abutment tops out at `viaductSoffitY` = 18.20 m, which is exactly
+ * the soffit** — it is a BEARING, the thing the deck sits on, and nothing rises
+ * past the deck to close it. The section above it:
+ *
+ *     18.20 -> 20.10   box girder        cut off in mid air
+ *     20.10 -> 21.00   slab              cut off in mid air
+ *     21.00 -> 21.62   ballast and rail  cut off in mid air
+ *     21.00 -> 22.20   parapet RETURNS   0.40 m thick, at +/-4.50 m across,
+ *                                        FLOATING 2.80 m over the abutment
+ *
+ * So 8.60 m of the deck's 9.50 m width ends in nothing, framed by two thin
+ * walls with a 2.80 m air gap under them. That is the cross-section the
+ * operator is looking at.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT IS ADDED: A PORTAL HEAD ON THE ABUTMENT ALREADY THERE, AND EVERY
+ * DIMENSION COMES FROM SOMETHING THAT WAS ALREADY DECIDED.
+ *
+ *   opening half-width  `l.deck / 2` = 4.75 — THE DECK'S OWN HALF-WIDTH, so
+ *       everything on the deck passes through by construction. The widest thing
+ *       on it is the parapet, outer face `l.deck/2 - 0.25 + 0.2` = 4.70, which
+ *       clears the jamb by **0.05 m**. That is a structure gauge and it is how
+ *       a real portal is set out.
+ *   opening top         `l.height + VIADUCT_RAIL_RISE_M + VIADUCT_LOADING_GAUGE_M`
+ *       = 21.00 + 0.62 + 4.20 = **25.82 m**.
+ *   head top            **27.20 m**, which is `l.height + 3.1 + 6.2/2` — THE TOP
+ *       OF THE CATENARY MASTS ALREADY STANDING ON THIS DECK. So the portal adds
+ *       exactly zero new height to the viaduct's silhouette, and the lintel is
+ *       whatever that leaves over the gauge: 27.20 - 25.82 = **1.38 m**.
+ *   footprint           the abutment's own, unchanged: 6.0 m along the deck,
+ *       11.1 m across. The head CLAIMS NO GROUND THE MASS UNDER IT WAS NOT
+ *       ALREADY STANDING ON.
+ *
+ * THE PARAPET RETURNS ARE REMOVED RATHER THAN KEPT. Their own comment says they
+ * exist *"so the deck edge does not simply stop in the air"* and a portal is the
+ * thing that actually achieves that; kept, they would float inside the opening
+ * and break the recess. Burying them inside the jambs instead was the other
+ * option and it is the failure CONTRACT §9.1 records under *"geometry authored
+ * and then drawn inside something else"* — five vehicle skirts, invisible,
+ * counted by every gate. Net: **-2 boxes and +4 boxes per end.**
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * AND THE CLAIM, WHICH IS THE HALF THAT DID NOT EXIST AT ALL.
+ *
+ * `landmarkOccluders` returns the viaduct's LEGS and its DECK segments. The
+ * abutment and the wing walls are in neither, so an 18.2 m solid 6.0 x 11.1 m
+ * has stood at each end since session 21 **on ground the registry has never
+ * been told about** — CONTRACT §9.1's placement rule, with the landmark's own
+ * geometry instead of a prop's. `generateChunk` now claims this box before the
+ * roads and the buildings are laid, so both are refused against it rather than
+ * drawn through it.
+ */
+export function viaductEnds(arc, l) {
+  const soffitY = viaductSoffitY(l);
+  const halfDeck = l.deck / 2;
+  /** Session 21's abutment, unchanged. Its inner face is the deck's last station. */
+  const abutDepth = 6.0;
+  const abutHalfAcross = halfDeck + 0.8;
+  /** Session 21's wing walls, unchanged. They reach furthest across, so they set the claim. */
+  const wingHalfAcross = halfDeck + 1.6;
+  const wingHalfT = 0.5;
+
+  const openHalfAcross = halfDeck;
+  const openTop = l.height + VIADUCT_RAIL_RISE_M + VIADUCT_LOADING_GAUGE_M;
+  /** The catenary mast's own top, so the portal adds no new silhouette height. */
+  const headTop = l.height + 3.1 + 6.2 / 2;
+  /** A reveal, so the jamb and lintel edges catch light and the hole sits behind them. */
+  const reveal = 0.30;
+
+  const out = [];
+  for (const station of [arc.stations[0], arc.stations[arc.stations.length - 1]]) {
+    const c = Math.cos((station.yawDeg * Math.PI) / -180);
+    const sn = Math.sin((station.yawDeg * Math.PI) / -180);
+    /** Outward along the deck, away from the crown. */
+    const sgn = station.s < 0 ? -1 : 1;
+    const ox = c * sgn;
+    const oz = sn * sgn;
+    const cx = station.x + ox * (abutDepth / 2);
+    const cz = station.z + oz * (abutDepth / 2);
+    /**
+     * The claim is the WORLD AABB of the whole end treatment — abutment, wings
+     * and head — and it is deliberately the conservative shape. The registry is
+     * axis-aligned, so a rotated box has to be covered by one; over-claiming
+     * shows up as a spurious conflict a reader can see and under-claiming shows
+     * up as nothing at all, which is `occupancy.js`'s own argument for why a
+     * missing height defaults to a surface.
+     */
+    const ha = abutDepth / 2;
+    const hc = wingHalfAcross + wingHalfT;
+    const hx = ha * Math.abs(ox) + hc * Math.abs(oz);
+    const hz = ha * Math.abs(oz) + hc * Math.abs(ox);
+    out.push({
+      station, sgn, yawDeg: station.yawDeg,
+      /** Unit vector along the deck, pointing away from the crown. */
+      outward: [ox, oz],
+      /** Centre of the whole end treatment, on the deck's own centreline. */
+      x: cx, z: cz,
+      abutDepth, abutHalfAcross, abutTop: soffitY,
+      wingHalfAcross, wingHalfT, wingTop: soffitY * 0.72, wingDepth: 5.2,
+      openHalfAcross, openTop, headTop, reveal,
+      /** Jamb: from the opening's edge out to the abutment's, one each side. */
+      jambHalfAcross: (abutHalfAcross - openHalfAcross) / 2,
+      jambCentreAcross: (abutHalfAcross + openHalfAcross) / 2,
+      /** The AABB the registry is given. */
+      claim: { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, top: headTop },
+    });
+  }
+  return out;
+}
+
+/**
+ * THE STATION — SESSION 31, STAGES 1 AND 2 OF THE FIVE STATE 27 §8.1 DESIGNED.
+ * ===========================================================================
+ *
+ * The operator's words, carried through four sessions that each listed this
+ * last and each ran out of room: *stairs and lifts up to the deck, people
+ * riding them, good lighting, at both ends and spread along the line.* Stage 1
+ * is the platform, stage 2 is the vertical circulation. Stage 3 —
+ * `walkableAt` leaving the ground plane, which is what lets people ride it —
+ * is deliberately NOT started; it is a subsystem and STATE 27 says so.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE DESIGN SAID "TWO SIDE PLATFORMS ON THE DECK, 3.0 m WIDE" AND THE DECK HAS
+ * 1.36 m. Measured before anything was built, by `tools/stationprobe.mjs`,
+ * which reads the DELIVERED instance matrices rather than these constants:
+ *
+ *     what                          transverse t, metres from the deck centreline
+ *     ballast trough        0.68 .. 3.78   (two of them, at +/- 2.2325 +/- 1.55)
+ *     walkway kerb          3.20 .. 4.20
+ *     catenary mast         3.85 .. 4.15   (0.30 square, y 21.00 .. 27.20)
+ *     parapet               4.30 .. 4.70   (y 21.00 .. 22.20)
+ *     deck edge                     4.75
+ *
+ *     the gaps inside the deck edges:  0.150 / 0.100 / 1.364 / 0.100 m
+ *
+ * The widest clear run on this deck is **1.364 m and it is the six-foot** —
+ * the space BETWEEN the two running lines, where a platform would serve no
+ * door and could not be reached. The two edge gaps are 0.150 and 0.100 m.
+ * STATE 27's 3.0 m is short by 1.636 m against the best of them and by 2.9 m
+ * against the ones in the right place. That design was written by a session
+ * with the code in front of it and the number was never checked against the
+ * section; this is CONTRACT §9 rule 7 — a dimension correct in itself, taken
+ * from a datum nobody confirmed.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * SO THE STRUCTURE WIDENS AT THE STATION, WHICH IS WHAT AN ELEVATED STATION IS.
+ *
+ * Every elevated railway that has ever had a station does this: the running
+ * viaduct is as narrow as two tracks need, and it swells where people stand.
+ * The platforms are carried OUTSIDE the deck on the station's own edge walls.
+ *
+ * AND IT IS PURELY ADDITIVE — NOT ONE EXISTING BOX MOVES OR DISAPPEARS. That
+ * is not a happy accident, it is what the offsets below were chosen for, and
+ * each clearance is a subtraction anybody can check:
+ *
+ *   platform inner edge  4.30   vs the catenary mast's outer face 4.15
+ *                               clear by 0.15 m, so no mast is suppressed
+ *   platform underside  22.37   vs the parapet's top 22.20
+ *                               clear by 0.17 m, so no parapet is suppressed
+ *   canopy inner edge    4.60   vs the same mast at 4.15, clear by 0.45 m
+ *   canopy top          25.50   vs the catenary ARM at 26.90, clear by 1.40 m
+ *   edge wall outer      7.55   vs the origin block's clear cross-street band
+ *                               |x| <= 10.5 (LANDMARKS → viaduct, session 5),
+ *                               clear by 2.95 m
+ *   edge wall outer      7.55   vs the pier legs' outer face 11.60 — and the
+ *                               legs stop at the soffit 18.20 m anyway, which
+ *                               is 4.17 m below the platform
+ *
+ * A revert of this station therefore restores the previous viaduct exactly,
+ * which is the property CONTRACT asks a commit to have and the reason the
+ * platform is threaded between the mast and the parapet rather than replacing
+ * either of them.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE PLATFORM'S HEIGHT IS STATE 27's AND IT IS THE ONE NUMBER THAT SURVIVED.
+ * Rail level is `l.height + VIADUCT_RAIL_RISE_M` = 21.62 m, and 1.10 m over it
+ * is 22.72 m — inside the 0.90–1.15 m a high-floor metro platform is built at,
+ * and 0.20 m over the train's own floor.
+ *
+ * THE STEPPING GAP IS 0.62 m AND IT IS A CONSEQUENCE, NOT A CHOICE. A car is
+ * `TRAIN.carWidthM` 2.9 m on a track at 2.2325, so its side is at 3.6825; the
+ * platform edge is at 4.30 because the mast is at 4.15. A real station would
+ * move the mast; moving it would mean suppressing existing geometry over the
+ * station length, and a first delivery that is purely additive is worth more
+ * than 0.5 m of realism nobody can see from the street. Written down here
+ * rather than discovered, and it is what stage 4 will have to close.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * STAGE 2, AND STATE 27's PLAN FIGURE IS ALSO WRONG — IN THE OTHER DIRECTION.
+ *
+ * It says a switchback with a landing every ~12 risers *"occupies about 8 x 12 m
+ * in plan"*. It does not. A flight of 12 risers at 0.28 m going is 3.36 m of
+ * run; a switchback cycle is one flight, one landing, and the return flight
+ * folded back over it, so the plan is `flightRun + landing` = 4.76 m long by
+ * `2 * flightWidth + well` = 3.80 m wide, and the HEIGHT is what accumulates:
+ * 24 risers a cycle at 0.17 m is 4.08 m. 8 x 12 m is a stair drawn end to end
+ * instead of folded, which is the thing a switchback is defined by not being.
+ *
+ * The rise is measured from the pavement, not from the datum: the core stands
+ * on `BLOCK.kerbHeight` 0.16 m and climbs to the platform at 22.72, so 22.56 m
+ * / 0.17 = **133 risers**, 12 flights, six cycles at 4.08 m = 24.48 m of
+ * available rise with the top flight part-used. 0.17 m is inside
+ * `PLAYER.stepUpM` = 0.20 by construction, which is why STATE 27 chose it and
+ * why stage 3 will not have to change it.
+ */
+export const VIADUCT_STATION = {
+  /**
+   * Where the stations are, as signed arc distance from the crown, in metres.
+   *
+   * ONE ENTRY, AND IT IS THE CROSSING. STATE 27 established with
+   * `tools/portalprobe.mjs` that no gate camera in this project sees either end
+   * of this viaduct, and the operator has been waiting four sessions to SEE a
+   * station — so the first one goes where he is standing. It is a list rather
+   * than a scalar because *"spread along the line"* is his own phrasing and the
+   * next station is then data rather than code.
+   */
+  atS: [0],
+  /**
+   * Half the platform length. 40 m either side takes the eight deck segments
+   * whose midpoints fall inside it — `arc.chord` is 10.909 m, so the delivered
+   * platform is **87.27 m**, against the 80 m STATE 27 asked for. It is a
+   * segment count rather than a length because the platform rides the deck's
+   * own stations and a platform that ended mid-segment would need a box the
+   * deck does not have.
+   */
+  halfLengthM: 40,
+
+  /** Transverse inner edge of the platform. Clears the catenary mast by 0.15 m. */
+  innerT: 4.30,
+  /** Metres of walking surface. STATE 27's number, delivered as written. */
+  widthM: 3.00,
+  /** Platform top above RAIL level, not above the slab. STATE 27's number. */
+  topAboveRailM: 1.10,
+  /** Slab depth. Clears the parapet's 22.20 m top by 0.17 m at 22.37. */
+  thickM: 0.35,
+
+  /** The edge wall: the station's outer skin, and what the street sees. */
+  wallThickM: 0.25,
+  /**
+   * Metres the balustrade stands above the platform surface, and SESSION 32
+   * MADE THE PART ABOVE THE PLATFORM OPEN. It was a solid screen and it hid
+   * the train from the street; the skirt below the platform is still solid.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * THE NUMBER SESSION 32's BRIEF CARRIED WAS 2.87 m ABOVE THE PLATFORM. IT
+   * IS 1.15, AND 2.87 IS ITS HEIGHT ABOVE THE DECK SLAB.
+   *
+   * `stationprobe` reads the delivered box as t 7.20..7.45, y 21.00..23.870,
+   * height 2.870. The platform's walking surface is at 22.720, so 1.720 m of
+   * that box is BELOW the surface — it is the skirt that closes the widened
+   * structure's side elevation — and only 1.150 m of it is parapet. The
+   * constant said 1.15 the whole time. A height measured from the wrong datum
+   * is CONTRACT §9's own subject, and this is the second time this station has
+   * produced one (STATE 31 §0.3, the 3.0 m platform on a 1.364 m deck).
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * AND THE CORRECTED NUMBER DOES NOT SAVE THE SOLID WALL — IT CONDEMNS IT.
+   *
+   * From the operator's own pose [70, 1.74, 0.9], against the DELIVERED train
+   * (`trainprobe`: rail 21.62, lit window strip 23.25..24.20, roof cap top
+   * 25.20 — not the 25.82 loading gauge, which is a bound and not a roof), the
+   * lowest train height an occluder lets through is
+   * `1.74 + (top - 1.74)·(70 - 3.7115)/(70 - x)`, where 3.7115 is the near
+   * car's window face:
+   *
+   *     occluder                              lets through   of the 0.95 m strip
+   *     edge wall      x 7.45  top 23.87        25.19 m          0.00 m
+   *     skirt alone    x 7.45  top 22.72        23.97 m          0.23 m
+   *     platform slab  x 7.30  top 22.72        23.92 m          0.28 m
+   *     the OLD parapet x 4.60 top 22.20        22.48 m          0.95 m  <- all of it
+   *
+   * The wall lets through everything above 25.19 m against a roof at 25.20:
+   * **one centimetre of a 3.58 m train.** And a SOLID parapet cannot be lowered
+   * out of the way either — to show any window at all it must top out below
+   * 22.93 m, which is **0.21 m above the platform**, a kerb rather than a
+   * railing. So the repair is not a shorter wall. It is an OPEN one, and the
+   * brief's word *railing* is exactly right for a reason its own number missed.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * WHAT THE REPAIR CANNOT REACH, STATED SO NOBODY RE-DERIVES IT.
+   *
+   * Once the balustrade is air, the binding occluder is the platform slab's own
+   * outer top corner at (7.30, 22.72) — 23.92 m, the **top 0.28 m of the window
+   * strip and 1.28 m of the 3.58 m train**. That ceiling is set by a 3.0 m
+   * platform standing at 22.72 m outboard of the deck, not by this wall, and
+   * closing it would mean narrowing or lowering the platform. The rake of
+   * windows the street had before the station is 0.95 m, and it is not coming
+   * back at 70 m without moving the platform. It comes back with distance: the
+   * same arithmetic clears the whole strip past about 150 m.
+   */
+  wallAboveM: 1.15,
+
+  /**
+   * THE BALUSTRADE — posts, a mid rail and a top rail, all inside the old
+   * wall's own 0.25 m envelope so nothing claims ground the wall did not.
+   *
+   * Six posts to an 11.13 m segment is 1.855 m centres, which is a balustrade
+   * bay. The top rail keeps the wall's own 23.87 m top so the station's
+   * parapet LINE is unchanged and only its opacity moves — the silhouette a
+   * reader compares against STATE 31's frames is the same silhouette.
+   *
+   * There is deliberately NO toe board. A 0.06 m lip at x 7.45 raises the
+   * lowest visible train height from 23.92 to 24.04 m and costs 0.12 m of a
+   * 0.28 m window sliver — 43% of what this repair recovers, for a detail
+   * nobody resolves at 70 m.
+   */
+  railPostSideM: 0.10,
+  railPostsPerSeg: 6,
+  railTopThickM: 0.14,
+  railTopDeepM: 0.09,
+  railMidThickM: 0.08,
+  railMidDeepM: 0.06,
+  railMidAboveM: 0.55,
+
+  /** The tactile edge strip, in a lighter concrete. What makes it read as a platform. */
+  copingWidthM: 0.55,
+  copingProudM: 0.06,
+
+  /** Canopy, on a column line. STATE 27's 25.5 m top. */
+  canopyTopM: 25.50,
+  canopyThickM: 0.30,
+  /** Canopy inner edge. Clears the catenary mast by 0.45 m. */
+  canopyInnerT: 4.60,
+  /** The downstand at the canopy's inner edge — what catches light from below. */
+  fasciaDropM: 0.30,
+  columnSideM: 0.30,
+
+  /**
+   * STAGE 2. A switchback stair and a lift shaft, per platform.
+   *
+   * `alongM` 4.76 = flight run 3.36 + landing 1.40. `acrossM` 3.80 = two 1.80 m
+   * flights either side of a 0.20 m well. Both derived above rather than
+   * chosen.
+   */
+  riserM: 0.17,
+  goingM: 0.28,
+  risersPerFlight: 12,
+  flightWidthM: 1.80,
+  wellM: 0.20,
+  landingM: 1.40,
+  /** Lift shaft, STATE 27's 2.4 x 2.4 m, with a head over-run for the motor. */
+  liftSideM: 2.40,
+  liftHeadM: 1.80,
+  /**
+   * Where a core stands, as (transverse t, along-deck s) from the station
+   * centre. The cores go NORTH of the crossing because the origin block's main
+   * street occupies |z| <= 7.5 with its pavements out to 11.7, and a stair core
+   * in a carriageway is the defect this project has recorded seven times.
+   * `t` is the pier line's own 8.3 m, so the core stands where the structure
+   * already comes down.
+   */
+  coreT: 8.30,
+  coreS: 14.0,
+};
+
+/**
+ * THE STATIONS ON A VIADUCT, DECIDED HERE AND DRAWN BY `city.js`.
+ *
+ * The `viaductPiers` / `viaductEnds` arrangement, for the reason `viaductArc`
+ * gives: three consumers had three copies of one curve once, and the field was
+ * describing a bridge nobody could see. `city.js` draws what this decides,
+ * `landmarkOccluders` claims the same span, and `citycheck` reads the delivered
+ * result — three readers, one description.
+ *
+ * A station is returned as its centre station, the SEGMENT INDEX RANGE it
+ * covers, and its cores. Segments rather than metres because the platform is
+ * emitted per deck segment and shares its stations.
+ */
+export function viaductStations(arc, l) {
+  const out = [];
+  for (const atS of VIADUCT_STATION.atS) {
+    /** The deck station nearest this arc distance — the platform's mid-point. */
+    const centre = arc.stations.reduce((a, b) => (Math.abs(b.s - atS) < Math.abs(a.s - atS) ? b : a));
+    /**
+     * Every segment whose MIDPOINT falls inside the half-length. A segment is
+     * `stations[i] .. stations[i+1]`, so its midpoint is the mean of the two
+     * arc distances — the same quantity `city.js` positions the segment box at.
+     */
+    const segs = [];
+    for (let i = 0; i < arc.stations.length - 1; i++) {
+      const mid = (arc.stations[i].s + arc.stations[i + 1].s) / 2;
+      if (Math.abs(mid - atS) <= VIADUCT_STATION.halfLengthM) segs.push(i);
+    }
+    if (!segs.length) continue;
+
+    /**
+     * The cores, one per platform side. Placed from the CENTRE STATION's own
+     * frame — `city.js`'s `across` expression inverted — so a station on a part
+     * of the arc that has turned puts its cores square to the deck rather than
+     * square to the world.
+     */
+    const c = Math.cos((centre.yawDeg * Math.PI) / -180);
+    const sn = Math.sin((centre.yawDeg * Math.PI) / -180);
+    const cores = [];
+    for (const side of [-1, 1]) {
+      const t = side * VIADUCT_STATION.coreT;
+      const s = VIADUCT_STATION.coreS;
+      cores.push({
+        side,
+        /** `across(t)` displaced by `s` along the deck: the two are orthogonal. */
+        x: centre.x - sn * t + c * s,
+        z: centre.z + c * t + sn * s,
+        yawDeg: centre.yawDeg,
+        t, s,
+      });
+    }
+
+    out.push({
+      atS, centre, segs,
+      segFrom: segs[0], segTo: segs[segs.length - 1],
+      lengthM: segs.length * arc.chord,
+      cores,
+      /** Platform surface, in metres above the ground datum. */
+      platformTopY: l.height + VIADUCT_RAIL_RISE_M + VIADUCT_STATION.topAboveRailM,
+      /** How far across the widened structure reaches, for the claim. */
+      halfAcrossM: VIADUCT_STATION.innerT + VIADUCT_STATION.widthM + VIADUCT_STATION.wallThickM,
+      topY: VIADUCT_STATION.canopyTopM,
+    });
+  }
+  return out;
+}
+
+/** Is deck segment `i` inside a station? Read by `city.js` and by the occluders. */
+export function viaductStationSegment(stations, i) {
+  for (const st of stations) if (i >= st.segFrom && i <= st.segTo) return st;
+  return null;
 }
 
 /** Which chunk a landmark's centre falls in. */
@@ -1959,11 +3370,11 @@ export function landmarkBlocks(l, x, z, pad = 0) {
 }
 
 /** Landmarks whose real extent touches this chunk, so a chunk builds its share. */
-export function landmarksTouching(cx, cz) {
+export function landmarksTouching(cx, cz, margin = 4) {
   const b = chunkBounds(cx, cz);
   return LANDMARKS.filter((l) => {
     const a = landmarkAABB(l);
-    return a.x1 + 4 > b.x0 && a.x0 - 4 < b.x1 && a.z1 + 4 > b.z0 && a.z0 - 4 < b.z1;
+    return a.x1 + margin > b.x0 && a.x0 - margin < b.x1 && a.z1 + margin > b.z0 && a.z0 - margin < b.z1;
   });
 }
 
@@ -2051,6 +3462,21 @@ const FOLIAGE_C = [0.058, 0.092, 0.055];
 const HYDRANT = [0.24, 0.045, 0.035];
 
 const bx = (x, y, z, w, h, d, albedo, rough = 0.8) => ({ x, y, z, w, h, d, albedo, rough });
+
+/**
+ * The same, TILTED about a horizontal axis through its own centre — session 21.
+ *
+ * `tilt` is degrees and `tiltAz` is the bearing of the axis, both in the
+ * MODEL's frame, so a tilted box turns with the model's yaw and leans with the
+ * model's lean like everything else. It exists for one reason: **a canopy made
+ * of axis-aligned boxes is a stack of slabs, and tilting a slab is what made
+ * session 12's lean read as broken rather than as natural.** Three masses at
+ * three angles read as foliage; the same three square-on read as crates.
+ *
+ * It is available to every kind and used by the trees and the spoil heaps,
+ * which are the two things in this city that are not made by anybody.
+ */
+const bxt = (x, y, z, w, h, d, albedo, rough, tilt, tiltAz) => ({ x, y, z, w, h, d, albedo, rough, tilt, tiltAz });
 
 export const PROP_MODELS = {
   bollard: [
@@ -2254,37 +3680,121 @@ export const PROP_MODELS = {
    * `leanRange` is degrees about a seeded azimuth, applied to the whole model
    * about its own base, so a leaning tree's crown moves with its trunk.
    *
-   * EVERY CROWN CLEARS `HEAD_CLEAR_M`, and that is a placement constraint
+   * EVERY CROWN CLEARS `HEAD_CLEAR_M` **AS DELIVERED**, and the two words are
+   * the whole of session 22's second finding. It is a placement constraint
    * rather than an aesthetic one: `derivePropHalfAcross` counts only what is
-   * below head height, so a tree whose lowest foliage hangs at 1.6 m would
-   * measure 1.4 m across and be refused the pavement it belongs on. A street
-   * tree is lifted clear of the footway in exactly the same way and for
-   * exactly the same reason.
+   * below head height, so a tree whose lowest foliage hangs at 1.6 m measures
+   * 1.4 m across and is refused the pavement it belongs on. A street tree is
+   * lifted clear of the footway in exactly the same way and for exactly the
+   * same reason.
+   *
+   * THIS SENTENCE WAS HERE AND WAS FALSE. Session 21 authored the clearances
+   * at scale 1 — broad 83 mm of margin, columnar 126 mm — and no delivered
+   * tree is at scale 1: the scatter draws `PROP_SCALE` = 0.85..1.25 and the
+   * variant leans by up to `leanRange`. Delivered, the broad tree's lowest
+   * foliage hung at **1.68 m**. Both crowns are lifted above, and the test in
+   * `derivePropHalfAcross` now evaluates the clearance in the space the
+   * geometry is delivered in rather than the space it is authored in, so this
+   * sentence is checkable instead of aspirational — `citycheck` → `occupancy`
+   * is where it is checked, off the delivered instance matrices.
    */
   tree: [
+    /**
+     * BROAD. A short trunk under a wide crown in THREE overlapping masses at
+     * three heights, none of them square to the others.
+     *
+     * WHAT WAS HERE, AND WHY IT WAS THE WHOLE PROBLEM. Two flat boxes on a
+     * pole: `bx(0, 3.20, 0, 2.70, 1.80, 2.50)` with a second slab above it.
+     * A canopy is not a box and no number of boxes ARRANGED AS A STACK becomes
+     * one — it is the vehicles' lesson at pavement level, and the vehicles took
+     * three sessions to learn it. What reads as a crown is an outline that is
+     * neither flat on top nor straight down the sides, and what makes that from
+     * boxes is overlap plus tilt plus a spread of heights.
+     *
+     * THE SILHOUETTE'S OWN HEIGHT SPREAD IS THE POINT. Same argument as the
+     * roofline (CONTRACT §7.4): one height along a contour reads as a SHAPE and
+     * several read as a tree. These three masses top out at 4.10, 4.86 and
+     * 5.34 m — a 1.24 m spread over a 5.3 m tree, which is 23% of its own
+     * height.
+     */
+    /**
+     * THE CROWN IS 0.50 m HIGHER THAN SESSION 21 AUTHORED IT, AND THE TRUNK IS
+     * 0.50 m LONGER — session 22. The crown's own internal spread is untouched:
+     * every mass moved by the same amount, so the 4.62 / 5.01 / 5.45 → 5.12 /
+     * 5.51 / 5.95 stagger is the same 0.83 m over a taller tree.
+     *
+     * WHY. The lowest mass's underside sat at **2.183 m** against
+     * `HEAD_CLEAR_M` = 2.10, a clearance of 83 mm — AT SCALE 1, which is a size
+     * no delivered tree is. `scale` is `PROP_SCALE.min`..`max` = 0.85..1.25, so
+     * the delivered underside is 1.856 m before the lean and **1.681 m** at the
+     * variant's own 5°. Measured on the delivered census: six kerbside trees
+     * with a foliage mass in the GROUND band, every one at scale 0.863–0.933,
+     * the worst overlapping its own carriageway by 1.264 m². 1.68 m is under a
+     * person and 1.4 m under a hauler's roof.
+     */
     {
       leanRange: 5,
       boxes: [
-        bx(0, 1.10, 0, 0.34, 2.20, 0.34, BARK, 0.92),
-        bx(0, 3.20, 0, 2.70, 1.80, 2.50, FOLIAGE_A, 0.95),
-        bx(0.25, 4.40, -0.15, 2.05, 1.05, 1.90, FOLIAGE_C, 0.95),
+        bx(0, 1.30, 0, 0.36, 2.60, 0.36, BARK, 0.92),
+        bx(0.06, 2.40, -0.04, 0.30, 0.70, 0.28, BARK, 0.92),
+        bxt(-0.42, 3.90, 0.28, 2.30, 2.10, 2.05, FOLIAGE_A, 0.95, 9, 24),
+        bxt(0.62, 4.45, -0.35, 1.95, 1.75, 1.80, FOLIAGE_C, 0.95, -12, 108),
+        bxt(0.05, 5.22, 0.42, 1.45, 1.30, 1.35, FOLIAGE_B, 0.95, 7, 200),
       ],
     },
+    /**
+     * COLUMNAR. A tall narrow crown starting near the ground — a hornbeam or a
+     * fastigiate oak — as FOUR masses of falling width rather than one box and
+     * a cap. Tapered, which is the second of the three shapes the brief asks
+     * for, and the taper is what makes it read as a spire rather than as a
+     * pillar.
+     */
+    /**
+     * SAME LIFT, 0.35 m, AND FOR THE SAME READING. Its lowest mass's underside
+     * was 2.226 m at scale 1 — a 126 mm clearance — and 1.831 m as delivered at
+     * scale 0.85 with the variant's 3° lean. The taper is untouched.
+     */
     {
       leanRange: 3,
       boxes: [
-        bx(0, 1.15, 0, 0.26, 2.30, 0.26, BARK, 0.92),
-        bx(0, 4.20, 0, 1.35, 3.60, 1.30, FOLIAGE_C, 0.95),
-        bx(0, 6.20, 0, 0.85, 0.90, 0.82, FOLIAGE_B, 0.95),
+        bx(0, 1.275, 0, 0.28, 2.55, 0.28, BARK, 0.92),
+        bxt(-0.10, 3.69, 0.08, 1.55, 2.10, 1.45, FOLIAGE_C, 0.95, 5, 60),
+        bxt(0.12, 4.90, -0.06, 1.35, 1.90, 1.30, FOLIAGE_A, 0.95, -6, 152),
+        bxt(-0.06, 6.15, 0.10, 1.00, 1.55, 0.98, FOLIAGE_C, 0.95, 8, 245),
+        bxt(0.04, 7.07, -0.05, 0.62, 1.05, 0.60, FOLIAGE_B, 0.95, -5, 330),
       ],
     },
+    /**
+     * OPEN. A tall clear trunk, a low limb, and a small high crown — a plane or
+     * a lime pollarded up for a street. The limb is what says the crown has
+     * something holding it up, which a floating slab never did.
+     */
     {
       leanRange: 8,
       boxes: [
-        bx(0, 1.65, 0, 0.28, 3.30, 0.28, BARK, 0.92),
-        bx(-0.55, 2.85, 0.15, 1.10, 0.16, 0.35, BARK, 0.92),
-        bx(0, 4.40, 0, 2.15, 1.90, 2.05, FOLIAGE_B, 0.95),
-        bx(-0.30, 5.50, 0.20, 1.35, 0.85, 1.30, FOLIAGE_A, 0.95),
+        bx(0, 1.60, 0, 0.30, 3.20, 0.30, BARK, 0.92),
+        bxt(-0.55, 3.05, 0.15, 1.20, 0.17, 0.30, BARK, 0.92, -14, 90),
+        bxt(0.48, 3.55, -0.22, 0.95, 0.15, 0.26, BARK, 0.92, 12, 250),
+        bxt(-0.30, 4.45, 0.20, 1.85, 1.85, 1.70, FOLIAGE_B, 0.95, 11, 40),
+        bxt(0.55, 4.95, -0.18, 1.55, 1.50, 1.45, FOLIAGE_A, 0.95, -9, 165),
+        bxt(-0.05, 5.62, 0.30, 1.10, 1.10, 1.05, FOLIAGE_C, 0.95, 6, 285),
+      ],
+    },
+    /**
+     * A FOURTH SPECIES — SMALL AND MULTI-STEMMED. Every tree in the city was
+     * 5 to 7 m tall, so the planting had no small end at all: a park with only
+     * mature specimens is an arboretum. Two leaning stems from one root collar
+     * under a low irregular crown, topping out at 3.6 m — which is under the
+     * others' TRUNKS and is what breaks a row of them into a group.
+     */
+    {
+      leanRange: 6,
+      boxes: [
+        bxt(-0.14, 0.85, 0.05, 0.20, 1.75, 0.20, BARK, 0.92, 9, 20),
+        bxt(0.16, 0.75, -0.08, 0.17, 1.55, 0.17, BARK, 0.92, -11, 190),
+        bxt(-0.28, 2.15, 0.18, 1.50, 1.35, 1.40, FOLIAGE_C, 0.95, 13, 70),
+        bxt(0.42, 2.55, -0.20, 1.25, 1.15, 1.20, FOLIAGE_B, 0.95, -8, 220),
+        bxt(0.02, 3.05, 0.24, 0.85, 0.85, 0.82, FOLIAGE_A, 0.95, 10, 310),
       ],
     },
   ],
@@ -2310,23 +3820,38 @@ export const PROP_MODELS = {
  * A tree is the one that matters: the gate's own test is centre-only, so a pad
  * of zero would pass `citycheck` with two metres of canopy inside a wall.
  */
-function derivePropHalfWidth() {
+function derivePropHalfWidth(perVariant = false) {
   const out = {};
   for (const [kind, variants] of Object.entries(PROP_MODELS)) {
     let r = 0;
+    const each = [];
     for (const v of variants) {
       let top = 0;
       let flat = 0;
       for (const b of v.boxes) {
-        flat = Math.max(flat, Math.abs(b.x) + b.w / 2, Math.abs(b.z) + b.d / 2);
-        top = Math.max(top, b.y + b.h / 2);
+        /**
+         * A TILTED BOX REACHES FURTHER, and the bound is exact rather than
+         * generous: rotating a box of half-extents (w/2, h/2) about a
+         * horizontal axis by θ puts its farthest point at
+         * `(w/2)·cos θ + (h/2)·sin θ` in the tilt's own plane. A 2.3 x 2.1 m
+         * canopy mass at 9° reaches 1.30 m instead of 1.15 — 13% more — and a
+         * pad that ignored it would put that much of the crown inside a wall,
+         * which is the same failure the LEAN term below was added for one
+         * session earlier.
+         */
+        const th = b.tilt ? Math.abs(b.tilt * Math.PI / 180) : 0;
+        const gw = (b.w / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        const gd = (b.d / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        flat = Math.max(flat, Math.abs(b.x) + gw, Math.abs(b.z) + gd);
+        top = Math.max(top, b.y + b.h / 2 * Math.cos(th) + b.w / 2 * Math.sin(th));
       }
       const lean = v.leanRange ? Math.sin((v.leanRange * Math.PI) / 180) * top : 0;
+      each.push(+(flat + lean).toFixed(3));
       r = Math.max(r, flat + lean);
     }
-    out[kind] = +r.toFixed(3);
+    out[kind] = perVariant ? each : +r.toFixed(3);
   }
-  out.default = 0.3;
+  if (!perVariant) out.default = 0.3;
   return out;
 }
 
@@ -2346,36 +3871,115 @@ function derivePropHalfWidth() {
  * 2.10 clears a tall person with a hand up. Boxes whose UNDERSIDE is above it
  * are not counted.
  */
-const HEAD_CLEAR_M = 2.10;
+/**
+ * EXPORTED SINCE SESSION 22, and it is one number with one owner rather than
+ * two literals. `city.js`'s band split reads it to decide which of a prop's two
+ * claims a delivered box belongs in, and `derivePropHalfAcross` below reads it
+ * to decide which boxes count toward the across-pad. THOSE ARE THE TWO HALVES
+ * OF ONE COMPARISON — see STATE 22 §2 for what happens when they disagree —
+ * and the second literal carried a comment claiming `citycheck` printed both
+ * when they differed, which nothing did (CONTRACT §9.1).
+ */
+export const HEAD_CLEAR_M = 2.10;
 
-function derivePropHalfAcross() {
+/**
+ * THE SCALE EVERY PROP IS DRAWN AT, and it is here rather than as a literal in
+ * the scatter because two places now read it: the scatter draws it, and
+ * `derivePropHalfAcross` below needs its MINIMUM to know what a model-space
+ * height becomes in the world. Two literals in two places is CONTRACT §9.1's
+ * first variant and this file has supplied several of them.
+ */
+const PROP_SCALE = { min: 0.85, max: 1.25 };
+
+function derivePropHalfAcross(perVariant = false) {
   const out = {};
   for (const [kind, variants] of Object.entries(PROP_MODELS)) {
     let r = 0;
+    const each = [];
     for (const v of variants) {
       let across = 0;
+      const phi = ((v.leanRange || 0) * Math.PI) / 180;
       for (const b of v.boxes) {
-        if (b.y - b.h / 2 >= HEAD_CLEAR_M) continue;
-        across = Math.max(across, Math.abs(b.z) + b.d / 2);
+        const th = b.tilt ? Math.abs(b.tilt * Math.PI / 180) : 0;
+        /**
+         * THE UNDERSIDE, AS DELIVERED — session 22, and it was a MODEL-SPACE
+         * height used as a WORLD-SPACE one (CONTRACT §9's table).
+         *
+         * This test decides whether a box is overhead or underfoot, and
+         * `city.js` decides the same thing off the delivered instance matrix:
+         * `lo = e[13] − hy − baseY` against the same 2.10. The two were asking
+         * the same question in two different spaces, because the model is
+         * drawn at `p.scale` and tipped by `leanDeg` and this test knew about
+         * neither. Measured: the broad tree's lowest foliage cleared 2.10 by
+         * 83 mm at scale 1 and hung at **1.68 m** as delivered at scale 0.85
+         * with 5° of lean — so the generator claimed a trunk's worth of ground
+         * and `city.js` delivered a crown's, and `citycheck` → `occupancy`
+         * reported the difference as six trees overlapping their carriageways.
+         *
+         *   underside, model      u  = b.y − (h/2·cos θ + w/2·sin θ)
+         *   worst lean about the base, at the worst azimuth:
+         *                         u·cos φ − R·sin φ,  R = the box's own
+         *                         horizontal reach from the model axis
+         *   worst scale           × PROP_SCALE.min
+         *
+         * `R` is the circumscribing horizontal radius rather than the exact
+         * lowest corner's, so the bound is CONSERVATIVE — it can call a box
+         * underfoot that is marginally overhead, never the reverse. That is
+         * the safe direction: an over-claim shows up as a spurious conflict a
+         * reader can see, and an under-claim shows up as nothing at all
+         * (`occupancy.js`, on why a missing height defaults to a surface).
+         */
+        const gw = (b.w / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        const gd = (b.d / 2) * Math.cos(th) + (b.h / 2) * Math.sin(th);
+        const u = b.y - ((b.h / 2) * Math.cos(th) + (b.w / 2) * Math.sin(th));
+        const R = Math.hypot(Math.abs(b.x) + gw, Math.abs(b.z) + gd);
+        if ((u * Math.cos(phi) - R * Math.sin(phi)) * PROP_SCALE.min >= HEAD_CLEAR_M) continue;
+        across = Math.max(across, Math.abs(b.z) + gd);
       }
       const lean = v.leanRange ? Math.sin((v.leanRange * Math.PI) / 180) * HEAD_CLEAR_M : 0;
+      each.push(+(across + lean).toFixed(3));
       r = Math.max(r, across + lean);
     }
-    out[kind] = +r.toFixed(3);
+    out[kind] = perVariant ? each : +r.toFixed(3);
   }
-  out.default = 0.3;
+  if (!perVariant) out.default = 0.3;
   return out;
 }
 
 export const PROP_HALF_WIDTH = derivePropHalfWidth();
 export const PROP_HALF_ACROSS = derivePropHalfAcross();
+/**
+ * THE SAME TWO PADS, PER VARIANT — session 21, and the reason is a content
+ * loss the max over variants would have caused silently.
+ *
+ * `PROP_HALF_ACROSS` is the maximum over a kind's variants, which is the right
+ * answer for a caller that does not yet know which variant it will draw and the
+ * WRONG one for the kerb walk, which does. This session added a fourth tree —
+ * a small multi-stemmed one whose low crown is genuinely 1.64 m across at head
+ * height — and the max took the kind's `across` from 0.35 m to 1.64, which
+ * fails `fitsKerb` (`7.85 + 2 × 1.64 = 11.13` against 9.15 m of kerbside strip)
+ * and would have removed **every street tree in the city** because one park
+ * species does not fit a pavement. A pad that is the worst member of a category
+ * bans the whole category for it, which is CONTRACT §7.2's shape with a
+ * clearance instead of a floor.
+ */
+export const PROP_HALF_WIDTH_VARIANT = derivePropHalfWidth(true);
+export const PROP_HALF_ACROSS_VARIANT = derivePropHalfAcross(true);
 
-export function propHalfAcross(kind) {
+export function propHalfAcross(kind, variant) {
+  if (variant !== undefined && PROP_HALF_ACROSS_VARIANT[kind]) {
+    const list = PROP_HALF_ACROSS_VARIANT[kind];
+    return list[Math.min(list.length - 1, variant)];
+  }
   const v = PROP_HALF_ACROSS[kind];
   return v === undefined ? PROP_HALF_ACROSS.default : v;
 }
 
-export function propHalfWidth(kind) {
+export function propHalfWidth(kind, variant) {
+  if (variant !== undefined && PROP_HALF_WIDTH_VARIANT[kind]) {
+    const list = PROP_HALF_WIDTH_VARIANT[kind];
+    return list[Math.min(list.length - 1, variant)];
+  }
   const v = PROP_HALF_WIDTH[kind];
   return v === undefined ? PROP_HALF_WIDTH.default : v;
 }
@@ -2441,6 +4045,106 @@ const MIN_RIVER_DEPTH = 9;
 export const CORRIDOR = CITY.roadHalfWidth + CITY.sidewalkWidth;
 
 /**
+ * Metres of clear ground a BUILDING keeps from each category, over and above
+ * not overlapping it.
+ *
+ * `landmark: 4.2` REPLACES SESSION 4's `10`, AND IT IS STRICTLY STRICTER
+ * DESPITE BEING A SMALLER NUMBER. The old test was
+ * `landmarkBlocks(l, cxb, czb, 10)` — the building's CENTRE against the
+ * landmark's box — so what it actually guaranteed was `10 − halfDepth` of
+ * clear ground, which for the generator's 15–26 m depths is **−3.0 to +2.5 m**:
+ * negative over most of the range, i.e. buildings standing INSIDE landmarks
+ * with their centres politely outside. Measured face-to-face, 4.2 m is
+ * `CITY.sidewalkWidth` — clear ground at least one pavement wide the whole way
+ * round, so a landmark can be walked around rather than pressed against.
+ *
+ * The two, compared on the quantity that matters (CONTRACT §9 rule 2 — the
+ * same thing derived two ways, printed): old rejects at centre distance
+ * < 10.0 m; new rejects at centre distance < halfDepth + 4.2 = **11.7 to
+ * 17.2 m**. Stricter at every depth the generator can draw. Carrying the 10 as
+ * a face setback instead cost **65 building refusals over the gate's own
+ * region** for a plaza nobody asked for.
+ * `building: 0` — A TERRACE IS A TERRACE. The perimeter walk advances
+ * `t += width + rng.range(0.2, 1.4)` inside a run, so consecutive buildings in
+ * a terrace stand 0.2 to 1.4 m apart on purpose. Measured with the quayside
+ * walk's 1 m margin applied here by mistake: **303 buildings over the gate's
+ * own region against 432**, a 30% content loss that `floors.visibleInstances`
+ * would have caught — a setback correct for one walk applied to another, which
+ * is CONTRACT §9's shape with a margin. The quay keeps its 1 m as its own
+ * (`QUAY_SETBACKS`), because there the two walks genuinely lay one terrace on
+ * top of another.
+ *
+ * Everything else is zero: a building's own footprint is the whole of what it
+ * claims, and a mass standing hard against a pavement edge is what a street
+ * wall IS.
+ */
+const BUILDING_SETBACKS = { landmark: CITY.sidewalkWidth, building: 0 };
+
+/** The quayside terrace's own, session 15's 1 m margin against the island's frontage. */
+const QUAY_SETBACKS = { landmark: CITY.sidewalkWidth, building: 1 };
+
+/**
+ * The same, for a prop. `landmark: 3` is the scatter's own pad from session 4b.
+ * A bollard may stand a metre from a wall; it may not stand a metre inside a
+ * landmark's plinth.
+ */
+const PROP_SETBACKS = { landmark: 3 };
+
+/**
+ * Metres. The smallest ground rectangle worth emitting after a clip.
+ *
+ * A road clipped around a portal leg or a dome leaves slivers, and a 4 cm strip
+ * of carriageway is two triangles nobody can see costing the same as two
+ * triangles somebody can. 0.35 m is a third of a kerbstone: below it the
+ * missing surface is inside what `surfaceAt` already answers as bare earth, and
+ * above it a person could stand on the piece.
+ */
+const MIN_GROUND_PIECE_M = 0.35;
+
+/**
+ * One rectangle minus one box, as up to four rectangles.
+ *
+ * A GUILLOTINE AND NOT A POLYGON CLIP, deliberately: every surface in this city
+ * is axis-aligned and every keep-out is an AABB, so the difference of two of
+ * them is exactly four strips — west, east, and the north and south remainders
+ * of the middle band. A general polygon clipper would be correct and would also
+ * be a second geometry kernel to be wrong in.
+ *
+ * The order matters for the RESULT'S SHAPE and not for its area: taking the
+ * full-height west and east strips first and then splitting only the middle
+ * band gives long strips along the road rather than a pinwheel, which is what
+ * keeps a clipped carriageway reading as a carriageway.
+ */
+function subtractBox(r, b) {
+  if (!(r.x1 > b.x0 && r.x0 < b.x1 && r.z1 > b.z0 && r.z0 < b.z1)) return [r];
+  const out = [];
+  const push = (x0, z0, x1, z1) => {
+    if (x1 - x0 >= MIN_GROUND_PIECE_M && z1 - z0 >= MIN_GROUND_PIECE_M) out.push({ ...r, x0, z0, x1, z1 });
+  };
+  if (b.x0 > r.x0) push(r.x0, r.z0, Math.min(r.x1, b.x0), r.z1);
+  if (b.x1 < r.x1) push(Math.max(r.x0, b.x1), r.z0, r.x1, r.z1);
+  const mx0 = Math.max(r.x0, b.x0);
+  const mx1 = Math.min(r.x1, b.x1);
+  if (mx1 > mx0) {
+    if (b.z0 > r.z0) push(mx0, r.z0, mx1, Math.min(r.z1, b.z0));
+    if (b.z1 < r.z1) push(mx0, Math.max(r.z0, b.z1), mx1, r.z1);
+  }
+  return out;
+}
+
+/** The same, over a list of rectangles and a list of boxes. */
+function subtractBoxes(rects, boxes) {
+  let cur = rects;
+  for (const b of boxes) {
+    const next = [];
+    for (const r of cur) for (const piece of subtractBox(r, b)) next.push(piece);
+    cur = next;
+    if (!cur.length) break;
+  }
+  return cur;
+}
+
+/**
  * Generate one chunk. Deterministic in (rootSeed, cx, cz) and nothing else.
  *
  * @returns {{
@@ -2449,6 +4153,109 @@ export const CORRIDOR = CITY.roadHalfWidth + CITY.sidewalkWidth;
  *   occluders:object[], landmarks:object[], objectCount:number
  * }}
  */
+/**
+ * SESSION 30, ITEM 4 — WHERE A CHUNK WANTS A BUS STOP, OR NULL.
+ *
+ * A DECLARATION AND NOT A PLACEMENT. What is decided here is *which kerb, how
+ * far from the junction, and facing which way*; whether that ground is free is
+ * `city.js`'s question, because the answer depends on the DELIVERED claims
+ * (CONTRACT §9.1: the registry says what was tested and the census says what
+ * arrived, and this side is neither — it is the intent).
+ *
+ * IT IS PURE IN (rootSeed, cx, cz) AND EXPORTED FOR THAT REASON, which is not
+ * tidiness — it is the fix for a defect the delivered census found. `city.js`'s
+ * `placed` list is the CHUNK'S OWN, so an advertising pillar in one chunk could
+ * not see a shelter declared by the chunk next door, and `citycheck` →
+ * `occupancy` reported **0.733 m² of pillar standing in a bus stop** across a
+ * seam. Asking `generateChunk` for eight neighbours to find that out would cost
+ * eight full generations per stop; this costs one hash and a bounds call, so
+ * the pillar loop can sweep the 3×3 neighbourhood for nothing.
+ *
+ * THE PLACEMENT RULE, because the brief asked for a rule and not a scatter:
+ *
+ *   ON THE PAVEMENT.   `kerbBands` names the four pavement lines a chunk draws,
+ *                      as (fixed axis, its value, outward sign). The four
+ *                      lattice bands are reproduced here from `chunkBounds`
+ *                      alone — the river's two curved bands are excluded, and
+ *                      a bank is a promenade rather than a bus route.
+ *   NEAR SIDE OF A JUNCTION.  The junction is the chunk's own corner
+ *                      (b.x0, b.z0) where its two road lines cross. The stop
+ *                      stands `beforeJunctionM` = 22 m along the band from it,
+ *                      which is inside the band's own `t0` (CORRIDOR + 3 =
+ *                      14.7 m, where the cross-road's corridor stops) with
+ *                      7.3 m to spare, so the shelter is clear of the crossing
+ *                      rather than on it. 22.0 m is derived and the first
+ *                      version of this sentence was not: it said "a bus length
+ *                      plus half of one", which is 12.00 + 6.00 = **18.00**,
+ *                      and the constant is 22.0. The number that IS 22.0 is
+ *                      the one the placement actually has to clear —
+ *                      `CORRIDOR` = 11.7 m of cross-road corridor, plus half a
+ *                      bus (6.00 m) so a halted 12 m body's tail is clear of
+ *                      it, plus the shelter's own half-length (2.00 m) and the
+ *                      0.30 m the flag pole reaches past it: 11.7 + 6.0 + 2.0
+ *                      + 0.3 = **20.0**, rounded up to 22.0 for the 2 m of
+ *                      slack a kerb build needs. It clears the band's own `t0`
+ *                      (CORRIDOR + 3 = 14.7) by 7.3 m.
+ *   AT INTERVALS.      ONE PER CHUNK AT MOST, at `perChunkP` = 0.5, AND THE
+ *                      DELIVERED SPACING IS NOT 1/p CHUNKS. The first version
+ *                      of this comment said "a stop every 256 m of route",
+ *                      which is `chunkSize / perChunkP` — a per-CHUNK rate used
+ *                      as a per-ROUTE spacing, and the two differ by how many
+ *                      road lines a chunk owns. A chunk owns TWO (one N–S, one
+ *                      E–W) and each carries two pavements, so a chunk holds
+ *                      **4 × 128 = 512 m of kerb** and half a stop: the
+ *                      delivered spacing is about **1 000 m of kerb per stop**
+ *                      before refusals, i.e. one stop per direction of travel
+ *                      every ~500 m of route. That is at the LOOSE end of the
+ *                      real 250–400 m range rather than the tight one, and it
+ *                      is stated that way round rather than flattered. Four a
+ *                      chunk, one per band, would be one every 128 m on every
+ *                      road line in the city, which nobody builds.
+ *
+ * `lowDetail` chunks get none, for the reason they get no kerbside props:
+ * there is no pavement mesh out there to stand on.
+ */
+export function busStopAt(rootSeed, cx, cz) {
+  const b = chunkBounds(cx, cz);
+  const density = densityAt(rootSeed, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+  const lowDetail = landmarksTouching(cx, cz).length === 0 && density < CITY.lowDetailThreshold;
+  if (lowDetail) return null;
+  const rng = chunkRng(rootSeed, cx, cz, 'busstop');
+  if (rng.next() >= BUS_STOP.perChunkP) return null;
+  /**
+   * The four lattice kerb bands, from the chunk's own bounds. The river's two
+   * curved promenade bands are deliberately absent — a bank is a promenade and
+   * not a bus route — which is why the guard that used to test `band.bank`
+   * below was a guard that could not fire and has been removed rather than
+   * left to read as a check.
+   */
+  const bands = [
+    { axis: 'x', at: b.x0, side: +1 },
+    { axis: 'x', at: b.x0, side: -1 },
+    { axis: 'z', at: b.z0, side: +1 },
+    { axis: 'z', at: b.z0, side: -1 },
+  ];
+  const band = bands[rng.int(0, bands.length - 1)];
+  /**
+   * WHICH junction, and this is the half that was wrong in the first draft.
+   *
+   * `along` was `corner + beforeJunctionM` for every band, so **78 of 155
+   * declared stops stood on the FAR side of the junction** against a rule
+   * written as *"near side of a junction"*. A chunk has a junction at each end
+   * of the band; which one is NEAR depends on which way the lane beside that
+   * pavement runs, and `side` is exactly that fact — it is the outward sign,
+   * so with right-hand traffic the lane adjacent to the `+side` pavement runs
+   * toward the chunk's LOW corner and the lane adjacent to `-side` runs toward
+   * its HIGH one. The stop therefore sits `beforeJunctionM` INSIDE the corner
+   * the near lane is heading for, which is inside the band's own `[t0, t1]`
+   * either way (`t0` = CORRIDOR + 3 = 14.7, `t1` = size − 3 = 125).
+   */
+  const lo = band.axis === 'x' ? b.z0 : b.x0;
+  const hi = band.axis === 'x' ? b.z1 : b.x1;
+  const along = band.side > 0 ? lo + BUS_STOP.beforeJunctionM : hi - BUS_STOP.beforeJunctionM;
+  return { axis: band.axis, at: band.at, side: band.side, along };
+}
+
 export function generateChunk(rootSeed, cx, cz) {
   const b = chunkBounds(cx, cz);
   const cxWorld = (b.x0 + b.x1) / 2;
@@ -2470,9 +4277,36 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const setbackRng = chunkRng(rootSeed, cx, cz, 'setback');
   const roofSignRng = chunkRng(rootSeed, cx, cz, 'roofsign');
+  /**
+   * SESSION 28 — GROUND-FLOOR RETAIL, AND IT IS ON ITS OWN STREAM FOR THE
+   * REASON THE TWO ABOVE ARE.
+   *
+   * The brief warned that a new roll "will move the city — everything
+   * downstream shifts". It does not, and CONTRACT §6 is why: streams are
+   * independent, so a roll drawn from `retailRng` cannot displace one drawn
+   * from `rng`, `eraRng` or `signRng`. The determinism control measured it —
+   * same seed, byte-identical placement, before and after. A new roll shifts
+   * the city only when it is taken from a stream something else is already
+   * reading, which is exactly what a named stream is for.
+   */
+  const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
+  /** SESSION 28, item 3. The advertising pillars, on their own stream too. */
+  const pillarRng = chunkRng(rootSeed, cx, cz, 'pillar');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
+  /**
+   * THE LANDMARKS THE REGISTRY MUST KNOW ABOUT ARE NOT THE ONES THE CHUNK
+   * BUILDS.
+   *
+   * `landmarksTouching` answers "whose geometry is mine to draw" and pads by
+   * 4 m. A chunk's road strips reach `CORRIDOR` = 11.7 m PAST its own edges, so
+   * a landmark sitting 8 m outside the chunk is invisible to that list and its
+   * road is not clipped around it: measured, **8 road pieces overlapping the
+   * stack, the condenser and the dish, up to 195 m2 each.** One list answering
+   * two questions, for the fourth time in this file.
+   */
+  const nearLandmarks = landmarksTouching(cx, cz, CORRIDOR);
 
   const lowDetail = !hasLandmark && density < CITY.lowDetailThreshold;
   const kind = lowDetail
@@ -2508,6 +4342,18 @@ export function generateChunk(rootSeed, cx, cz) {
   const props = [];
   const signs = [];
   const occluders = [];
+  /**
+   * WHAT THE REGISTRY REFUSED, BY THE CATEGORY THAT REFUSED IT.
+   *
+   * `propsGaveUp` exists for exactly this reason and its comment says it: *"a
+   * bounded retry is a cap, and a cap nobody prints reads as everything
+   * fitted"*. A registry is a much larger cap — it can refuse a whole frontage
+   * — and a session that changes a setback needs to see what the change cost
+   * before it argues about whether the cost was worth paying. `citycheck`
+   * sums these over the region and prints them.
+   */
+  const refused = {};
+  const refuse = (hit) => { if (hit) refused[hit.kind] = (refused[hit.kind] || 0) + 1; return hit; };
 
   // --- the buildable island ------------------------------------------------
   // Roads run along every chunk boundary, so the interior is the chunk inset by
@@ -2516,6 +4362,285 @@ export function generateChunk(rootSeed, cx, cz) {
   // perimeter blocks work and why they have courtyards.
   const inset = CORRIDOR;
   const island = { x0: b.x0 + inset, x1: b.x1 - inset, z0: b.z0 + inset, z1: b.z1 - inset };
+
+  // --- the keep-out registry ------------------------------------------------
+  //
+  // ONE OCCUPANCY, WRITTEN AND READ BY EVERYTHING BELOW. See
+  // `src/lib/occupancy.js` for why this exists and what the seven violations
+  // were. The order of the claims below is the order of AUTHORITY: what is
+  // authored claims before what is generated, and what is generated claims in
+  // the order a city is built — ground, then structures, then furniture.
+  //
+  // IT IS BUILT PER CHUNK AND IT KNOWS ABOUT ITS NEIGHBOURS' EDGES, because a
+  // chunk owns the corridors on its west and north sides and a building on its
+  // own island can reach neither. What it deliberately does NOT do is generate
+  // the eight neighbouring chunks to learn their buildings: `generateChunk` is
+  // called for every resident chunk every time the ring moves, and a
+  // nine-times-the-work registry would put the whole neighbourhood inside
+  // `CITY.generateBudget`. The one cross-chunk overlap that matters — two
+  // island frontages meeting at a corner — is a property of the LATTICE rather
+  // than of a pair, and it is closed below by clamping each side's run to its
+  // own island rather than by consulting the neighbour.
+  const reg = createRegistry();
+
+  /** The origin block. `block.js` authors this ground; the generator does not. */
+  reg.claim(claimBox('block', BLOCK_KEEPOUT.x0, BLOCK_KEEPOUT.z0, BLOCK_KEEPOUT.x1, BLOCK_KEEPOUT.z1,
+    { owner: 'origin-block' }));
+
+  /**
+   * THE WATER, AS STRIPS ACROSS THE CHUNK, AND NOT WHERE A BRIDGE CROSSES IT.
+   *
+   * The channel is a curve and a claim is an AABB, so it is sampled every 4 m
+   * of x — 32 strips on a river chunk, each the exact `riverEdges` band at its
+   * own station. Sampling rather than one envelope box because the envelope is
+   * 147.6 m wide and the water is 104.6, and a claim 43 m too wide would refuse
+   * the embankment road that is the whole point of a quay.
+   *
+   * A BRIDGE CROSSING CLAIMS NOTHING, because `river.js` lays a carriageway
+   * across it at street grade and a `water` claim under that road would be a
+   * conflict the world is supposed to have. The deck is the exception the
+   * category exists to express.
+   */
+  if (riverTouchesChunk(cx, cz)) {
+    const STEP = 4;
+    /**
+     * PAST THE CHUNK'S OWN EDGES BY ONE CORRIDOR, because a chunk's west road
+     * strip spans `[x0 − 7.5, x0 + 7.5]` and half of it is over ground the
+     * neighbour's coordinates own. Water claimed only inside `[x0, x1]` would
+     * leave the western half of every north–south crossing uncut. Over-claiming
+     * a neighbour's water is free: `water × water` is not a conflict, and the
+     * river is the same river on both sides of a chunk line.
+     */
+    /**
+     * ALIGNED TO A GLOBAL 4 m LATTICE, not to the chunk's own edge.
+     *
+     * Every chunk that can see a stretch of bank must claim the SAME boxes for
+     * it, or two chunks cut the same road to two slightly different lines and
+     * the difference turns up as a carriageway 1e-13 m inside the channel —
+     * which is what the first version delivered, twice, and it is CONTRACT
+     * §9.1's two-descriptions-of-one-thing at the resolution of a rounding
+     * error. `b.x0` is a multiple of 128 and therefore of 4, so flooring the
+     * start to the lattice makes every chunk's strips identical where they
+     * overlap.
+     */
+    const start = Math.floor((b.x0 - CORRIDOR) / STEP) * STEP;
+    for (let x = start; x < b.x1 + CORRIDOR; x += STEP) {
+      if (onBridgeDeck(rootSeed, x + STEP / 2, RIVER.z0, CORRIDOR)) continue;
+      let north = Infinity;
+      let south = -Infinity;
+      for (let k = 0; k <= 2; k++) {
+        const e = riverEdges(x + (STEP * k) / 2);
+        north = Math.min(north, e.north);
+        south = Math.max(south, e.south);
+      }
+      if (south <= north) continue;
+      reg.claim(claimBox('water', x, north, x + STEP, south,
+        { y0: -RIVER.depth, y1: SURFACE_TOP_M, owner: 'river' }));
+    }
+  }
+
+  /**
+   * THE LANDMARKS, SPLIT INTO WHAT STANDS ON THE GROUND AND WHAT FLIES OVER IT.
+   *
+   * Session 5 wrote this distinction down as two functions and then had a third
+   * question with no answer. Here it is one list with a vertical extent: a
+   * viaduct leg is `landmark` from 0 to 21 m and the deck it holds up is `deck`
+   * from 14.2 to 21 m, and a carriageway conflicts with the first and not the
+   * second — which is what an elevated railway over a street IS.
+   */
+  for (const l of nearLandmarks) {
+    for (const o of landmarkOccluders(l)) {
+      if (o.deck) {
+        reg.claim(claimBox('deck', o.x0, o.z0, o.x1, o.z1, { y0: o.base, y1: o.top, owner: l.name }));
+      } else if (l.kind === 'viaduct') {
+        /* handled below — a viaduct's ground contact is its legs, not its deck. */
+      } else {
+        reg.claim(claimBox('landmark', o.x0, o.z0, o.x1, o.z1, { y0: 0, y1: o.top, owner: l.name }));
+      }
+    }
+    if (l.kind === 'viaduct') {
+      for (const g of landmarkGroundBlockers(l)) {
+        reg.claim(claimBox('landmark', g.x0, g.z0, g.x1, g.z1, { y0: 0, y1: g.top, owner: `${l.name}:leg` }));
+      }
+      /**
+       * THE END TREATMENT, CLAIMED — SESSION 23, item 2, and it is a claim that
+       * did not exist rather than one that was wrong.
+       *
+       * `landmarkOccluders` returns a viaduct's legs and its deck segments.
+       * Session 21's abutment and wing walls are in neither list, so an 18.2 m
+       * solid 6.0 x 11.1 m has stood at each end on ground nothing tested —
+       * CONTRACT §9.1's *"anything placed procedurally is tested against the
+       * existing occupancy, or it is not placed"* with a landmark's own geometry.
+       *
+       * TESTED BEFORE IT IS CLAIMED, AND REFUSED RATHER THAN MOVED, which is
+       * the park railings' pattern (`if (reg.conflict(box)) continue`). Moving
+       * it is not available: an end treatment's whole job is to be where the
+       * deck stops, and a portal 8 m along the arc from the last station is a
+       * shed in a field. So the honest failure is to build nothing there and
+       * leave the cut end visible, which a reader can see, rather than to
+       * quietly slide a 27 m mass into a building.
+       *
+       * IT IS CLAIMED HERE, BEFORE THE ROADS AND THE BUILDINGS. That ordering
+       * is what does the work: `landmark` conflicts with `building`,
+       * `carriageway`, `pavement`, `prop` and five more, so laying it down
+       * first makes every one of those refuse ITSELF against the portal.
+       * Claimed afterwards it could only ever report a collision somebody else
+       * had already committed. Measured: it refuses exactly one building of
+       * 367, standing 1.73 m from session 21's abutment against the 4.2 m
+       * face-to-face setback the pair carries.
+       *
+       * **AND THE `conflict()` CALL ITSELF IS INERT TODAY, WHICH IS SAID HERE
+       * RATHER THAN LEFT FOR A READER TO DISCOVER.** At this point in
+       * `generateChunk` the registry holds only `block`, `water` and the
+       * landmarks and decks already walked, and the table permits `landmark`
+       * against **all four** — so there is no claim in existence that this test
+       * could reject. It is a guard that cannot currently fire, which is
+       * CONTRACT §7.1's own subject, and it is kept for two reasons that are
+       * both about a future rather than about now: the day one of those four
+       * pairs becomes forbidden, and the day an end moves somewhere a `water`
+       * or `block` claim reaches. **The measurement that actually decided this
+       * placement is `tools/portalprobe.mjs`**, which sweeps candidate
+       * footprints against the FULL region registry — buildings included — and
+       * is where END A's refusal at 10 m of depth comes from.
+       *
+       * Measured at seed 1337 over the gate's own region before it was built
+       * (`tools/portalprobe.mjs`): free at both ends, and the binding
+       * constraint at END A is a 46.4 m building 10.44 m away — free to 8 m of
+       * depth and 14.0 m of width, refused at 10 m and 16.0 m. The delivered
+       * box is 6.0 x 13.7 m, so it clears by 2 m of depth and 0.3 m of width.
+       * END B is free to 20 m and 18 m; its nearest forbidden claim is a
+       * planter at 13.01 m.
+       */
+      for (const e of viaductEnds(viaductArc(l), l)) {
+        const box = claimBox('landmark', e.claim.x0, e.claim.z0, e.claim.x1, e.claim.z1,
+          { y0: 0, y1: e.claim.top, owner: `${l.name}:end` });
+        if (reg.conflict(box)) continue;
+        reg.claim(box);
+      }
+    }
+    /**
+     * A BASIN OCCLUDES NOTHING AND STILL TAKES 210 m OF GROUND. `landmarkOccluders`
+     * returns [] for it and says so in a comment; `landmarkAABB` already has the
+     * fallback and this is the third place that needs it, which is exactly the
+     * argument for the registry holding the answer rather than each caller.
+     */
+    if (l.kind === 'basin') {
+      const a = landmarkAABB(l);
+      reg.claim(claimBox('landmark', a.x0, a.z0, a.x1, a.z1, { y0: -l.depth, y1: l.height, owner: l.name }));
+    }
+  }
+
+  /**
+   * THE ROADS — CLIPPED TO WHAT IS ALREADY CLAIMED, AND THIS IS THE HALF THAT
+   * WAS MISSING.
+   *
+   * `city.js` has emitted these rectangles since session 4 and clipped them
+   * against exactly two things it knew about by name: the origin block and the
+   * river. Nothing told it about the landmarks, so the delivered city has
+   * carried, measured this session over the eight landmarks:
+   *
+   *     exchange   2906 m2 of carriageway    condenser  2113 m2
+   *     dish       1201 m2                   stack       384 m2
+   *     arch        300 m2                   viaduct     135 m2
+   *
+   * — the dome the operator walked into being the 2906. The rectangles are
+   * computed HERE now, beside the registry they are clipped against, and
+   * `city.js` emits what it is given. One description of the road network
+   * instead of two.
+   */
+  const ground = [];
+  {
+    const r = CITY.roadHalfWidth;
+    const w = CORRIDOR;
+    /** The blockers a ground surface is cut around: solid, at grade, not a deck. */
+    const solid = () => reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+    /**
+     * ALL FOUR EDGES ARE CLAIMED; ONLY TWO ARE EMITTED.
+     *
+     * A chunk owns the roads on its west and north sides, so those are the ones
+     * it draws — that is session 4's arrangement and it is why no road is built
+     * twice. It is ALSO why the quayside terrace, which is the one walk that
+     * runs the full width of a chunk rather than around its island, could not
+     * see the road on its own east or south edge: measured, **two quayside
+     * buildings standing in a carriageway and one across a pavement, 36 to
+     * 44 m2 each**, tested against every road their chunk happened to own and
+     * against neither of the two it did not.
+     *
+     * The lattice is a pure function of position, so the other two edges cost
+     * nothing to compute and are claimed with `own: false`. `ground` gets the
+     * two this chunk draws; the registry gets all four, and a building is
+     * tested against the road network rather than against this chunk's share
+     * of it.
+     */
+    const strips = [
+      { own: true, kind: 'road', yKey: 'roadNS', x0: b.x0 - r, z0: b.z0 - w, x1: b.x0 + r, z1: b.z1 + w, axis: 'NS' },
+      { own: true, kind: 'road', yKey: 'roadEW', x0: b.x0 - w, z0: b.z0 - r, x1: b.x1 + w, z1: b.z0 + r, axis: 'EW' },
+      { own: true, kind: 'walk', yKey: 'walkNS', x0: b.x0 + r, z0: b.z0 + r, x1: b.x0 + w, z1: b.z1, axis: 'NS' },
+      { own: true, kind: 'walk', yKey: 'walkNS', x0: b.x0 - w, z0: b.z0 + r, x1: b.x0 - r, z1: b.z1, axis: 'NS' },
+      { own: true, kind: 'walk', yKey: 'walkEW', x0: b.x0 + w, z0: b.z0 + r, x1: b.x1, z1: b.z0 + w, axis: 'EW' },
+      { own: true, kind: 'walk', yKey: 'walkEW', x0: b.x0 + w, z0: b.z0 - w, x1: b.x1, z1: b.z0 - r, axis: 'EW' },
+      { own: false, kind: 'road', yKey: 'roadNS', x0: b.x1 - r, z0: b.z0 - w, x1: b.x1 + r, z1: b.z1 + w, axis: 'NS' },
+      { own: false, kind: 'road', yKey: 'roadEW', x0: b.x0 - w, z0: b.z1 - r, x1: b.x1 + w, z1: b.z1 + r, axis: 'EW' },
+      { own: false, kind: 'walk', yKey: 'walkNS', x0: b.x1 - w, z0: b.z0, x1: b.x1 - r, z1: b.z1, axis: 'NS' },
+      { own: false, kind: 'walk', yKey: 'walkEW', x0: b.x0, z0: b.z1 - w, x1: b.x1, z1: b.z1 - r, axis: 'EW' },
+    ];
+    const blockers = solid();
+    for (const s of strips) {
+      /**
+       * THE RIVER'S TWO ANSWERS, KEPT — they are not a clip against a box and
+       * the registry cannot express them. An east–west road LINE inside the
+       * channel is not a road, it is the river, and is refused whole on the
+       * ENVELOPE rather than sampled (`city.js` has the derivation). A
+       * north–south road CROSSES, and off a bridge it is cut back to the bank
+       * at the worst station across its own width.
+       */
+      const env = riverEnvelope();
+      let pieces = [s];
+      if (s.z1 > env.z0 && s.z0 < env.z1) {
+        if (s.axis === 'EW') continue;
+        if (!onBridgeDeck(rootSeed, (s.x0 + s.x1) / 2, (env.z0 + env.z1) / 2)) {
+          /**
+           * THE CUT IS TAKEN FROM THE WATER'S OWN CLAIMS, NOT FROM A SECOND
+           * SAMPLING OF THE BANK.
+           *
+           * `city.js` sampled `riverEdges` at 11 stations here and the registry
+           * samples it every 4 m, and two samplings of one curve disagree by
+           * whatever falls between their stations: measured, **three overlaps
+           * of 0.03 to 0.09 m2 between a carriageway and the channel it is
+           * supposed to stop short of.** Sub-decimetre, invisible, and exactly
+           * CONTRACT §9.1's two-descriptions-of-one-thing. Reading the claims
+           * makes the road end at or beyond every claimed edge BY
+           * CONSTRUCTION, which is a different kind of correct from a tighter
+           * tolerance.
+           *
+           * A straight cut across the whole strip rather than a stepped one:
+           * the road stops at the worst station over its own width, which is
+           * `city.js`'s original argument and is what keeps the kerb straight.
+           */
+          let north = Infinity;
+          let south = -Infinity;
+          for (const c of reg.hits({ x0: s.x0, x1: s.x1, z0: env.z0, z1: env.z1, y0: 0, y1: SURFACE_TOP_M }, 0, ['water'])) {
+            north = Math.min(north, c.z0);
+            south = Math.max(south, c.z1);
+          }
+          if (north === Infinity) {
+            // No claimed water under this strip — the whole crossing is a
+            // bridge, or the channel has wandered out of the chunk. Left whole.
+            north = s.z1;
+            south = s.z0;
+          }
+          pieces = [];
+          if (north > s.z0) pieces.push({ ...s, z1: Math.min(s.z1, north) });
+          if (south < s.z1) pieces.push({ ...s, z0: Math.max(s.z0, south) });
+        }
+      }
+      for (const piece of subtractBoxes(pieces, blockers)) {
+        if (s.own) ground.push(piece);
+        reg.claim(claimBox(piece.kind === 'road' ? 'carriageway' : 'pavement',
+          piece.x0, piece.z0, piece.x1, piece.z1, { owner: `road:${piece.yKey}` }));
+      }
+    }
+  }
 
   if (!lowDetail) {
     /**
@@ -2530,8 +4655,45 @@ export function generateChunk(rootSeed, cx, cz) {
      * urban density is heavy-tailed rather than normal: a downtown block has ten
      * times what a block a kilometre out has, not one and a half times. The cube
      * of the same field measures 0.712 and looks like a city with districts.
+     *
+     * ───────────────────────────────────────────────────────────────────────
+     * SESSION 32: 2.2 → 1.4, AND THE ARGUMENT ABOVE IS THE REASON IT IS 1.4
+     * RATHER THAN A LINEAR LAW OR A CONSTANT.
+     *
+     * LOOK.md §2 asks for a continuous street wall and says *"fill approaches
+     * 1.0 in the core"*. It did not: at the region's own p90 density of 0.700
+     * the shipped law accepted **51.9%** of candidates, and the median block
+     * delivered 16.2% of its frontage as building.
+     *
+     * Swept over `city-budget.json`'s own 10×10 region at seed 1337, delivered
+     * counts read off `generateChunk` rather than predicted:
+     *
+     *     law                       buildings   occ med   bare sides   bldg CV
+     *     0.12 + 0.88·d^2.2  was          366     0.162     179/400      0.771
+     *     0.12 + 0.88·d^1.8                418     0.204     166/400      0.712
+     *     0.12 + 0.88·d^1.4  now          480     0.244     148/400      0.698
+     *     0.20 + 0.80·d^1.2                545     0.294     139/400        —
+     *     0.40 + 0.60·d                    630     0.316     127/400        —
+     *     1.00               ceiling       797     0.490     115/400        —
+     *
+     * 1.4 is where the budget stops, not where the picture does — see the
+     * measured triangle and draw-call cost in STATE 32. It buys **+31%
+     * buildings, +51% frontage occupancy and 31 fewer block sides bare end to
+     * end**, and it keeps the district structure this comment exists to
+     * protect: the delivered buildings-per-chunk CV moves 0.771 → 0.698, and a
+     * linear law is what measured 0.471 and failed.
+     *
+     * AND THE END-OF-RUN GAP IS NOT THE LEVER IT LOOKS LIKE. STATE 31's sweep
+     * has a row where shrinking `rng.range(6, 26)` to `(0.2, 1.4)` takes the
+     * city to 921 buildings — but that row is AT `fill = 1.0`. Measured at the
+     * shipped fill, `(6, 26) → (3, 13)` delivers **374 buildings against 366**,
+     * and block sides bare end to end go UP, 179 → 185, which is the re-phase
+     * and not an effect. At this fill the walk is rejection-dominated: a
+     * rejected candidate already costs `width + 1..7` ≈ 23 m, so saving 8 m at
+     * the end of a run rarely buys room for another 19 m building. The gap is
+     * worth revisiting only if the roll ever gets near 1.
      */
-    const fill = 0.12 + 0.88 * Math.pow(density, 2.2);
+    const fill = 0.12 + 0.88 * Math.pow(density, 1.4);
 
     const sides = [
       { axis: 'x', at: island.z0, out: -1, from: island.x0, to: island.x1 },
@@ -2541,6 +4703,13 @@ export function generateChunk(rootSeed, cx, cz) {
     ];
 
     for (const side of sides) {
+      /**
+       * ONE RETAIL ROLL FOR THE WHOLE FRONTAGE — session 28. Taken here, before
+       * the run loop, so it is a property of the SIDE and every building on it
+       * inherits it. That is what makes a shopping street a street rather than
+       * a scatter. See `RETAIL`.
+       */
+      const retailSide = retailFrontage(retailRng, density);
       let t = side.from + rng.range(0, 9);
       // A run of touching buildings, then a gap, then another run. The gaps are
       // where the side alleys, the yards and the blank end walls live, and they
@@ -2655,48 +4824,45 @@ export function generateChunk(rootSeed, cx, cz) {
           const cxb = side.axis === 'x' ? t + width / 2 : side.at - (side.out * depth) / 2;
           const czb = side.axis === 'x' ? side.at - (side.out * depth) / 2 : t + width / 2;
 
-          if (insideKeepout(cxb, czb, 6)) {
-            t += width + rng.range(0, 3);
-            continue;
-          }
-          // A building that would stand where a landmark stands loses.
-          if (touching.some((l) => landmarkBlocks(l, cxb, czb, 10))) {
-            t += width + rng.range(0, 3);
-            continue;
-          }
           /**
-           * A BUILDING THAT WOULD STAND IN THE RIVER LOSES, AND A SIDE RUNNING
-           * ALONG Z IS TESTED AT ITS FOUR CORNERS RATHER THAN AT ITS CENTRE.
+           * ONE TEST, AGAINST EVERYTHING — session 21.
            *
-           * The landmark test above is centre-only and gets away with it
-           * because a landmark keep-out is padded by 10 m against a building
-           * whose half-depth is 7.5 to 13. The river's bank is a CURVE and a
-           * building is up to 27 m long, so a centre test on the bank leaves a
-           * corner in the water at every station where the bank is not
-           * parallel to the frontage — which is every station, because the
-           * meander's slope is 6.4° at its steepest. The four corners of the
-           * axis-aligned footprint bound the yawed one: `maxYawDeg` is 2.4, so
-           * the yaw adds at most `sin(2.4°)·27/2` = 0.57 m, which is inside
-           * `riverBlocks`' own 7.7 m of wall-plus-promenade.
+           * WHAT THIS REPLACED, AND WHY THREE TESTS WERE NEVER GOING TO BE
+           * ENOUGH. There were three here: a padded CENTRE test against the
+           * origin block, a padded CENTRE test against the landmarks, and a
+           * four-CORNER test against the river with a paragraph explaining why
+           * the first two could get away with centres and this one could not.
+           * Three predicates, three geometries, three sets of pad arithmetic —
+           * and no test at all against the other buildings, which is why 38
+           * pairs of them overlapped across the gate's own region with a worst
+           * overlap of 504.8 m2, and none against the viaduct deck.
            *
-           * The x-axis sides were handled above, before `depth` was fixed,
-           * because for them the river takes the DEPTH rather than the site.
+           * The box is the FOOTPRINT and the height is the building's own, so
+           * the vertical extent decides the deck: a mass taller than the deck's
+           * clearance band conflicts with it and a shorter one stands under it,
+           * which is what is under an elevated railway everywhere there is one.
+           *
+           * `landmark: 10` is session 4's own setback, kept — a building is
+           * refused within 10 m of a landmark so that a landmark has a plaza.
+           * `water: 0` because `riverBlocks`' 7.7 m of wall-and-promenade is
+           * already inside the claim.
            */
-          if (side.axis !== 'x') {
-            const hw = depth / 2;
-            const hd = width / 2;
-            let wet = false;
-            for (const sx of [-1, 1]) {
-              for (const sz of [-1, 1]) {
-                if (riverBlocks(cxb + sx * hw, czb + sz * hd)) { wet = true; break; }
-              }
-              if (wet) break;
-            }
-            if (wet) {
-              t += width + rng.range(0, 3);
-              continue;
-            }
+          const bw = side.axis === 'x' ? width : depth;
+          const bd = side.axis === 'x' ? depth : width;
+          /**
+           * `y1` IS THE TOP OF THE BUILDING AND NOT THE TOP OF THE WALL —
+           * session 25. It was `height`, which is where the masonry stops and
+           * not where the building does: parapet, cornice and plant all stand
+           * above it, the worst by 18.72 m. See `buildingTopM`.
+           */
+          const site = claimBox('building',
+            cxb - bw / 2, czb - bd / 2, cxb + bw / 2, czb + bd / 2,
+            { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `bld:${cx},${cz}` });
+          if (refuse(reg.conflict(site, 0, BUILDING_SETBACKS))) {
+            t += width + rng.range(0, 3);
+            continue;
           }
+          reg.claim(site);
 
           const conditionIx = weightedIndex(eraRng.next, [0.42, 0.4, 0.18]);
           const material = MATERIAL_NAMES[weightedIndex(eraRng.next,
@@ -2711,6 +4877,16 @@ export function generateChunk(rootSeed, cx, cz) {
            */
           const displayFacade = signRng.next() < 0.03 + density * 0.09;
 
+          /**
+           * Distance from this building's own frontage to the nearer END of the
+           * side, in metres — i.e. to the cross street. Measured from the
+           * building's SPAN (`t` to `t + width`) rather than from its centre,
+           * because a 27 m building whose centre is 20 m from the junction has
+           * its shopfront 6.5 m from it. CONTRACT §9 rule 7.
+           */
+          const distToEndM = Math.min(t - side.from, side.to - (t + width));
+          const retail = retailBuilding(retailRng, retailSide, distToEndM);
+
           const bld = {
             x: cxb, z: czb,
             width: side.axis === 'x' ? width : depth,
@@ -2720,6 +4896,16 @@ export function generateChunk(rootSeed, cx, cz) {
             era: eraName,
             material,
             condition: CONDITIONS[conditionIx],
+            /**
+             * SESSION 28. Whether the ground floor TRADES. `era.ground` still
+             * decides what it LOOKS like; this decides whether it is glazed and
+             * lit. The two were one field and they are two facts.
+             */
+            retail,
+            /** Kept so a probe can ask why — the frontage's answer, not this building's. */
+            retailFrontage: retailSide,
+            /** SESSION 28. Wants an advertising pillar; `city.js` decides if it fits. */
+            adPillar: adPillarWanted(pillarRng, retail, density),
             /** Which way the front faces: outward, toward the road. */
             facing: side.axis === 'x' ? (side.out < 0 ? 'z-' : 'z+') : (side.out < 0 ? 'x-' : 'x+'),
             yawDeg: yaw(),
@@ -2986,7 +5172,8 @@ export function generateChunk(rootSeed, cx, cz) {
         const cxb = t + width / 2;
         const czb = face + bank * (depth / 2);
         /**
-         * A BOX-AGAINST-BOX TEST, NOT A PADDED CENTRE.
+         * A BOX-AGAINST-BOX TEST, NOT A PADDED CENTRE — and since session 21 it
+         * is THE box-against-box test rather than a fourth private copy of one.
          *
          * `occupied` asks whether a POINT padded by a radius is inside a
          * footprint, which is the right question for a bollard and the wrong
@@ -2994,21 +5181,9 @@ export function generateChunk(rootSeed, cx, cz) {
          * inside the other. The first version used it and delivered three
          * overlapping pairs on the south bank, where the island's own north
          * frontage already faces the water and the terrace was laid on top of
-         * it.
+         * it. The 1 m margin it grew to close that is now the registry's own
+         * `building` setback, so the two walks cannot disagree about it.
          */
-        const bx0 = cxb - width / 2;
-        const bx1 = cxb + width / 2;
-        const bz0 = czb - depth / 2;
-        const bz1 = czb + depth / 2;
-        let clash = false;
-        for (const o of occluders) {
-          if (bx1 > o.x0 - 1 && bx0 < o.x1 + 1 && bz1 > o.z0 - 1 && bz0 < o.z1 + 1) { clash = true; break; }
-        }
-        if (clash || insideKeepout(cxb, czb, 6) ||
-            touching.some((l) => landmarkBlocks(l, cxb, czb, 10))) {
-          t += width + rng.range(2, 12);
-          continue;
-        }
         const eraName = ERA_NAMES[weightedIndex(eraRng.next, ERA_NAMES.map((n) => CITY_ERAS[n].weight))];
         const era = CITY_ERAS[eraName];
         /**
@@ -3020,6 +5195,15 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         const floors = Math.max(3, Math.round(rng.range(8, 34) / era.floor));
         const height = floors * (era.floor + eraRng.gauss() * 0.05);
+        /** Session 25, and the same reason as the perimeter walk's — `buildingTopM`. */
+        const site = claimBox('building',
+          cxb - width / 2, czb - depth / 2, cxb + width / 2, czb + depth / 2,
+          { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `quay:${cx},${cz}` });
+        if (refuse(reg.conflict(site, 0, QUAY_SETBACKS))) {
+          t += width + rng.range(2, 12);
+          continue;
+        }
+        reg.claim(site);
         const material = MATERIAL_NAMES[weightedIndex(eraRng.next,
           eraName === 'contemporary' ? [0.05, 0.2, 0.65, 0.1] : [0.32, 0.28, 0.14, 0.26])];
         const bld = {
@@ -3030,6 +5214,15 @@ export function generateChunk(rootSeed, cx, cz) {
           /** It faces the water: +z on the north bank, −z on the south. */
           facing: bank < 0 ? 'z+' : 'z-',
           yawDeg: yaw(),
+          /**
+           * SESSION 28. The quay is one frontage and it rolls per building at
+           * `RETAIL.quay` rather than per side: a promenade terrace is cafés
+           * and chandlers scattered along it, not a shopping parade, and the
+           * quay walk has no side to roll for.
+           */
+          retail: retailRng.next() < RETAIL.quay,
+          retailFrontage: false,
+          adPillar: adPillarWanted(pillarRng, false, density),
           displayFacade: signRng.next() < 0.03 + density * 0.09,
           displayFrom: 0.30,
           displayTo: 0.72,
@@ -3088,6 +5281,474 @@ export function generateChunk(rootSeed, cx, cz) {
     }
   }
 
+  // --- road markings --------------------------------------------------------
+  //
+  // THE PAINTED LINE AND THE TRAFFIC'S BRAKING POINT ARE ONE NUMBER, AND THIS
+  // IS THE CONSUMER THAT DID NOT EXIST. `CITY.stopLineFromJunctionM` has said
+  // since session 19 that it has three readers — the braking constraint, the
+  // signal head and the markings — and there were no markings anywhere in the
+  // project, so the third reader was a promise. `traffic.js` reads the same
+  // constant for `STOP_LINE`; neither imports the other (CONTRACT §2.2) and
+  // neither copies it (§9.1).
+  //
+  // THEY CLIP TO THE DELIVERED CARRIAGEWAY, not to the lattice. A stop bar is
+  // emitted only where a `carriageway` claim actually covers it, so a road the
+  // river took, the block took or a dome took has no lines painted in the air
+  // over where it used to be. That is the registry doing the same job for paint
+  // that it does for piers, and it is why this is here rather than in
+  // `city.js`.
+  const markings = [];
+  {
+    const r = CITY.roadHalfWidth;
+    const S = CITY.chunkSize;
+    /** Only where a carriageway was actually emitted. */
+    const onRoad = (x, z, halfX, halfZ) =>
+      reg.hits({ x0: x - halfX, x1: x + halfX, z0: z - halfZ, z1: z + halfZ, y0: 0, y1: SURFACE_TOP_M }, 0, ['carriageway']).length > 0;
+    /**
+     * `length` is the box's own local X and `width` its local Z; `yawDeg` is
+     * 0 or 90 and takes local X onto world X or world Z. The world half-extents
+     * are therefore |cos|·L/2 + |sin|·W/2 and its mirror — NOT L/2 + W/2 on
+     * both axes, which is the first thing this function did and which reported
+     * a 0.40 x 7.20 m stop bar as 3.8 m deep along the road it lies across.
+     * That is a bounding box of a rotated box computed as though it were
+     * unrotated, and it is CONTRACT §9's shape with two extents.
+     */
+    const paint = (x, z, length, width, yawDeg, mkind) => {
+      const ca = Math.abs(Math.cos((yawDeg * Math.PI) / 180));
+      const sa = Math.abs(Math.sin((yawDeg * Math.PI) / 180));
+      const halfX = (ca * length + sa * width) / 2;
+      const halfZ = (sa * length + ca * width) / 2;
+      if (!onRoad(x, z, halfX * 0.5, halfZ * 0.5)) return;
+      markings.push({ x, z, length, width, yawDeg, kind: mkind });
+    };
+    /**
+     * THE DASH CYCLE. UK/EU centre-line practice on a 50 km/h urban road is a
+     * 2 m mark in a 6 m cycle (1:3); a lane line is 3 m in a 9 m cycle. Both
+     * are here rather than one number twice, because the RATIO is what tells a
+     * driver which line they are looking at and a single cycle would erase the
+     * distinction.
+     */
+    const CENTRE_MARK = 2.0;
+    const CENTRE_CYCLE = 6.0;
+    const LANE_MARK = 3.0;
+    const LANE_CYCLE = 9.0;
+    /** Metres. 0.10 m is a standard urban line; a stop bar is 0.40 m. */
+    const LINE_W = 0.10;
+    const BAR_W = 0.40;
+    /**
+     * The crossing. Depth is what the band between the junction mouth and the
+     * stop bar leaves (see the junction block below); the stripe count and
+     * width are the 1:1 stripe-to-gap a zebra has, over the 14.4 m of
+     * carriageway left inside a 0.30 m edge margin: 14 x 0.50 m on a 1.029 m
+     * pitch.
+     */
+    const CROSSING_DEPTH = CITY.crossingDepthM;
+    const CROSSING_STRIPES = 14;
+    const CROSSING_STRIPE_W = 0.50;
+
+    for (const axis of ['NS', 'EW']) {
+      const at = axis === 'NS' ? b.x0 : b.z0;
+      const from = axis === 'NS' ? b.z0 : b.x0;
+      const put = (along, off, len, w, mkind) => {
+        const x = axis === 'NS' ? at + off : along;
+        const z = axis === 'NS' ? along : at + off;
+        paint(x, z, len, w, axis === 'NS' ? 90 : 0, mkind);
+      };
+      // Centre line, dashed, on the road's own centreline.
+      for (let t = from + CENTRE_CYCLE / 2; t < from + S; t += CENTRE_CYCLE) {
+        put(t, 0, CENTRE_MARK, LINE_W, 'centre');
+      }
+      // Lane lines between the two lanes each way — LANE_OFFSET's own midpoint,
+      // (1.75 + 5.25) / 2 = 3.50 m, which `traffic.js` puts the two running
+      // lanes either side of.
+      for (const side of [-1, 1]) {
+        for (let t = from + LANE_CYCLE / 2; t < from + S; t += LANE_CYCLE) {
+          put(t, side * 3.5, LANE_MARK, LINE_W, 'lane');
+        }
+        // Edge line, solid, 0.30 m inside the kerb.
+        for (let t = from; t < from + S; t += 16) {
+          put(t + 8, side * (r - 0.3), 16, LINE_W, 'edge');
+        }
+      }
+    }
+
+    /**
+     * THE STOP BARS AND THE CROSSINGS, AT THE JUNCTION THIS CHUNK OWNS.
+     *
+     * A junction is where the two corridors this chunk draws meet: `(b.x0,
+     * b.z0)`. Four approaches, and each gets a bar at exactly
+     * `CITY.stopLineFromJunctionM` from the junction centre — the same 9.0 m
+     * the vehicle's NOSE brakes to. A vehicle stopped at its own line therefore
+     * has its front bumper ON the paint, which is what `worstStopLineM >= 0`
+     * asserts and what a person walking up to the junction can see.
+     */
+    const jx = b.x0;
+    const jz = b.z0;
+    for (const [ax, sgn] of [['NS', -1], ['NS', 1], ['EW', -1], ['EW', 1]]) {
+      const d = CITY.stopLineFromJunctionM;
+      /**
+       * The approach half. `traffic.js`'s `lanePosition` puts an x-running
+       * vehicle's lanes at `dir · LANE_OFFSET` in z and a z-running vehicle's
+       * at `−dir · LANE_OFFSET` in x, so the half a vehicle APPROACHING the
+       * junction from `sgn` occupies is `−sgn` on an EW road and `+sgn` on an
+       * NS one. Getting this backwards paints every bar on the far side of the
+       * road, which is the same class of mistake as `−out` in the building
+       * walk and is why the convention is written out rather than tried.
+       */
+      const half = ax === 'EW' ? -sgn : sgn;
+      const barOff = half * (r / 2 + 0.15);
+      const barLen = r - 0.3;
+      /**
+       * THE CROSSING, AND SESSION 21's WAS IN THE WRONG PLACE AND HALF THE
+       * WIDTH IT NEEDED TO BE. Session 33, LOOK.md §4.
+       *
+       * IT WAS AT `d - 2.6` = 6.40 m FROM THE JUNCTION CENTRE, spanning 2.0 m
+       * of depth, i.e. 5.40 to 7.40 — and the crossing road's own carriageway
+       * runs to `r` = 7.50. So the whole zebra lay INSIDE THE JUNCTION BOX,
+       * across the path of whichever axis had green. It was also painted over
+       * one approach half at a time (`half * (0.4 + u * (r - 0.8))`), so no
+       * single crossing spanned the road it crossed and nobody could have
+       * walked one end to end.
+       *
+       * THE BAND IS 1.30 m WIDE AND THE CITY'S OWN NUMBERS FIX BOTH ENDS OF IT:
+       *
+       *   near edge >= r = 7.50            outside the crossing carriageway
+       *   far edge  <= d - BAR_W/2 = 8.80  inside the line vehicles stop at
+       *
+       * At the 0.05 m clearance the pavement budget uses at every join, that is
+       * a 1.20 m depth centred on 8.15. `streetlife.js` → `CROSSING_OFFSET_M`
+       * carries the same 8.15 and walks people down it; the two are one
+       * quantity and they are derived from `r`, `d` and `BAR_W`, which is why
+       * neither file copies the other's number.
+       *
+       * A 1.20 m crossing is shallow — a zebra gets 2.4 m in the world. That is
+       * what 7.50, 9.00 and 0.40 leave between them, and widening it means
+       * moving `CITY.stopLineFromJunctionM`, which is `minStopLineM`'s subject
+       * and not a thing to move in passing.
+       *
+       * FULL WIDTH, 14 STRIPES. The carriageway is 2r = 15.0 m; 0.30 m of edge
+       * margin each side leaves 14.4 m, and 14 stripes on a 1.029 m pitch at
+       * 0.50 m wide is the 1:1 stripe-to-gap a zebra actually has. Session 21's
+       * six 0.45 m stripes over half a road was a hatch, not a crossing.
+       */
+      const cOff = CITY.crossingFromJunctionM;
+      const cSpan = r - 0.3;
+      if (ax === 'NS') {
+        paint(jx + barOff, jz + sgn * d, BAR_W, barLen, 90, 'stopbar');
+        for (let k = 0; k < CROSSING_STRIPES; k++) {
+          const u = (k + 0.5) / CROSSING_STRIPES;
+          paint(jx + (2 * u - 1) * cSpan, jz + sgn * cOff, CROSSING_DEPTH, CROSSING_STRIPE_W, 90, 'crossing');
+        }
+      } else {
+        paint(jx + sgn * d, jz + barOff, BAR_W, barLen, 0, 'stopbar');
+        for (let k = 0; k < CROSSING_STRIPES; k++) {
+          const u = (k + 0.5) / CROSSING_STRIPES;
+          paint(jx + sgn * cOff, jz + (2 * u - 1) * cSpan, CROSSING_DEPTH, CROSSING_STRIPE_W, 0, 'crossing');
+        }
+      }
+    }
+  }
+
+  // --- parks and construction sites ----------------------------------------
+  //
+  // BOTH ARE LOW-DETAIL BLOCKS WITH CONTENT, and they are built HERE — in the
+  // pure generator, beside the registry — rather than in `city.js`, for the
+  // reason the ground rectangles moved here in the same session: a park path
+  // is a surface that props must not stand on and a hoarding is a solid that
+  // roads must not run through, and a placement decided in the module that
+  // draws it is a decision the registry never sees.
+  //
+  // `features` is everything a low-detail block builds that is not a prop and
+  // not ground: an edge segment, a centre piece, a lamp column, a hoarding
+  // panel, a crane, a flood mast. `city.js` reads the list and draws it; it
+  // decides nothing.
+  const features = [];
+  if (kind === 'park' || kind === 'construction') {
+    const featRng = chunkRng(rootSeed, cx, cz, 'feature');
+    const isl = island;
+    const mx = (isl.x0 + isl.x1) / 2;
+    const mz = (isl.z0 + isl.z1) / 2;
+
+    if (kind === 'park') {
+      /**
+       * THE PATH NETWORK, AND IT IS THE SINGLE MOST IMPORTANT OF THE SIX.
+       *
+       * A green field without paths reads as a pitch; with them it reads as a
+       * park. Session 19 drew two crossing strips, which is a cross on a
+       * rectangle — what makes it a network is that the paths go SOMEWHERE and
+       * that they meet: a perimeter loop, two cross paths that run from the
+       * pavement into a central circus, and eight junctions where those meet.
+       */
+      /**
+       * A LOW-DETAIL BLOCK IS CLIPPED LIKE EVERY OTHER SURFACE. A park chunk
+       * that meets the river had its grass clipped and its PATHS not, because
+       * the paths were added after the clip: 71 path rectangles and 128 edge
+       * segments over the water, found by the registry in the first run after
+       * they existed. Everything a park emits goes through one clip now.
+       */
+      const solidHere = reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+      const grass = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
+      for (const g of subtractBoxes([grass], solidHere)) ground.push(g);
+
+      const h = PARK.pathHalf;
+      const li = PARK.loopInset;
+      const lx0 = isl.x0 + li;
+      const lx1 = isl.x1 - li;
+      const lz0 = isl.z0 + li;
+      const lz1 = isl.z1 - li;
+      const paths = [
+        // The loop, as four strips that overlap at the corners. Overlapping is
+        // correct: a corner IS both strips, and `path x path` is not a conflict.
+        { x0: lx0 - h, z0: lz0 - h, x1: lx1 + h, z1: lz0 + h },
+        { x0: lx0 - h, z0: lz1 - h, x1: lx1 + h, z1: lz1 + h },
+        { x0: lx0 - h, z0: lz0 - h, x1: lx0 + h, z1: lz1 + h },
+        { x0: lx1 - h, z0: lz0 - h, x1: lx1 + h, z1: lz1 + h },
+        /**
+         * The two cross paths, from the pavement at the island edge to the
+         * circus — and they STOP at the circus rather than crossing it,
+         * because what is in the middle is in the middle. Running them through
+         * put every cross path straight over the pond: measured as 3
+         * `feature x path` conflicts the moment the registry could see them,
+         * which is one per park.
+         */
+        { x0: isl.x0, z0: mz - h, x1: mx - PARK.circusHalf, z1: mz + h },
+        { x0: mx + PARK.circusHalf, z0: mz - h, x1: isl.x1, z1: mz + h },
+        { x0: mx - h, z0: isl.z0, x1: mx + h, z1: mz - PARK.circusHalf },
+        { x0: mx - h, z0: mz + PARK.circusHalf, x1: mx + h, z1: isl.z1 },
+        // The circus.
+        { x0: mx - PARK.circusHalf, z0: mz - PARK.circusHalf, x1: mx + PARK.circusHalf, z1: mz + PARK.circusHalf },
+      ];
+
+      /**
+       * SOMETHING IN THE MIDDLE. This is the part that makes a park an
+       * ORIENTATION FEATURE rather than a green patch — a reason to walk to it,
+       * and a thing you can say you are near.
+       *
+       * It is decided BEFORE the paving is emitted, because the circus is what
+       * SURROUNDS it: paving under a pond is paving nobody will ever see and a
+       * conflict the registry is right to report.
+       */
+      const centre = PARK.centreKinds[featRng.int(0, PARK.centreKinds.length - 1)];
+      const ch = PARK.centreHalf;
+      const centreBox = claimBox('feature', mx - ch, mz - ch, mx + ch, mz + ch,
+        { y0: 0, y1: centre === 'pavilion' ? 4.4 : centre === 'monument' ? 7.0 : 0.6, owner: `park:${centre}` });
+      const hasCentre = !reg.conflict(centreBox);
+      if (hasCentre) {
+        features.push({ kind: 'centre', centre, x: mx, z: mz, half: ch, yawDeg: yaw() });
+        reg.claim(centreBox);
+      }
+
+      for (const p of subtractBoxes(
+        paths.map((q) => ({ ...q, kind: 'path', yKey: 'pathEW' })),
+        hasCentre ? [...solidHere, centreBox] : solidHere
+      )) {
+        ground.push(p);
+        reg.claim(claimBox('path', p.x0, p.z0, p.x1, p.z1, { owner: 'park:path' }));
+      }
+
+      /**
+       * AN EDGE AGAINST THE PAVEMENT. A park that simply becomes street has no
+       * identity — the boundary is what tells you you have arrived. Segments
+       * rather than one long box so the run can be broken at every entrance,
+       * and the entrance is wherever a cross path meets the edge.
+       */
+      const edge = PARK.edgeKinds[featRng.int(0, PARK.edgeKinds.length - 1)];
+      const seg = PARK.edgeSegment;
+      const gap = PARK.edgeGapHalf;
+      const edgeH = edge === 'railing' ? 1.15 : edge === 'hedge' ? 1.05 : 0.62;
+      const EDGE_HALF_T = PARK.edgeHalfT;
+      const runs = [
+        { axis: 'x', at: isl.z0, from: isl.x0, to: isl.x1 },
+        { axis: 'x', at: isl.z1, from: isl.x0, to: isl.x1 },
+        { axis: 'z', at: isl.x0, from: isl.z0, to: isl.z1 },
+        { axis: 'z', at: isl.x1, from: isl.z0, to: isl.z1 },
+      ];
+      for (const run of runs) {
+        for (let t = run.from; t + seg <= run.to; t += seg) {
+          const c = t + seg / 2;
+          // The entrance gap, where the cross path crosses this run.
+          if (run.axis === 'x' ? Math.abs(c - mx) < gap : Math.abs(c - mz) < gap) continue;
+          /**
+           * SET IN BY ITS OWN HALF-THICKNESS. A railing whose centreline is the
+           * island edge is a railing half of which is on the pavement, and the
+           * registry said so 197 times: the island edge IS the pavement's inner
+           * boundary, so there is no room for a boundary object ON it.
+           *
+           * SESSION 31 — AND BY ITS ROTATION'S BULGE AS WELL, BECAUSE THE
+           * CLAIM WAS THE UNROTATED BOX AND THE DELIVERY IS THE ROTATED ONE.
+           *
+           * `features.push` below carries `yawDeg: ... + yaw()`, and a 6 m
+           * segment turned even a degree projects `(seg/2)·sin θ` past the face
+           * its centre was set back from. So the generator tested a box flush
+           * with the island edge and `city.js` drew one hanging over the
+           * pavement: measured, **60 forbidden `pavement × feature` overlaps in
+           * the delivered census**, 0.012 to 0.066 m² each. CONTRACT §9 rule 7 —
+           * both halves of the two-sided check spelled the same yaw omission,
+           * so both reported zero for as long as the ring was narrow enough to
+           * hide the parks. Widening `CITY.groundRadius` is what put them in
+           * the census; the defect is as old as the jitter.
+           *
+           * The bound is `CITY.maxYawDeg`, which is the project's own declared
+           * ceiling on that jitter and the one `citycheck` → `alignment`
+           * enforces. Using the bound rather than the drawn angle keeps this
+           * expression out of the RNG sequence — rolling `yaw()` here to get
+           * the exact value would move every subsequent draw in the park — and
+           * it errs by OVER-claiming, which §9.1 says is the safe direction: an
+           * over-claim shows up as a conflict a reader can see and an
+           * under-claim shows up as nothing at all.
+           */
+          const yawBulge = (CITY.maxYawDeg * Math.PI) / 180;
+          const halfAcross = EDGE_HALF_T * Math.cos(yawBulge) + (seg / 2) * Math.sin(yawBulge);
+          const halfAlong = (seg / 2) * Math.cos(yawBulge) + EDGE_HALF_T * Math.sin(yawBulge);
+          const inward = run.axis === 'x' ? (run.at < mz ? +1 : -1) : (run.at < mx ? +1 : -1);
+          const x = run.axis === 'x' ? c : run.at + inward * halfAcross;
+          const z = run.axis === 'x' ? run.at + inward * halfAcross : c;
+          const box = claimAt('feature', x, z,
+            run.axis === 'x' ? halfAlong : halfAcross, run.axis === 'x' ? halfAcross : halfAlong,
+            { y0: 0, y1: edgeH, owner: `park:${edge}` });
+          if (reg.conflict(box)) continue;
+          features.push({ kind: 'edge', edge, x, z, length: seg, height: edgeH, yawDeg: (run.axis === 'x' ? 0 : 90) + yaw() });
+          reg.claim(box);
+        }
+      }
+
+      /**
+       * PARK LIGHTING — LOWER COLUMNS, CLOSER SPACING, FOLLOWING THE PATHS
+       * RATHER THAN THE KERB.
+       *
+       * Every lamp in this city stands on a kerb line, so every pool of light
+       * in it is in a straight line down a street. These follow the loop, so
+       * at night the park is a rectangle of light with a lit cross through it
+       * seen from above and a receding line of low pools seen from inside —
+       * neither of which the city has anywhere else.
+       */
+      const lampOff = PARK.pathHalf + 0.9;
+      for (const [ax, at, from, to, side] of [
+        ['x', lz0, lx0, lx1, -1], ['x', lz1, lx0, lx1, +1],
+        ['z', lx0, lz0, lz1, -1], ['z', lx1, lz0, lz1, +1],
+      ]) {
+        for (let t = from + PARK.lampEvery / 2; t < to; t += PARK.lampEvery) {
+          const x = ax === 'x' ? t : at + side * lampOff;
+          const z = ax === 'x' ? at + side * lampOff : t;
+          const box = claimAt('feature', x, z, 0.34, 0.34, { y0: 0, y1: PARK.lampHeight, owner: 'park:lamp' });
+          if (reg.conflict(box)) continue;
+          features.push({ kind: 'lamp', x, z, height: PARK.lampHeight });
+          reg.claim(box);
+        }
+      }
+    } else {
+      /**
+       * THE SITE. Hoarding round the outside, hardcore inside it, a part-built
+       * frame, spoil, and one crane.
+       */
+      const site = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'siteGround', yKey: 'site' };
+      for (const g of subtractBoxes([site], reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water'))) ground.push(g);
+
+      const inset = SITE.hoardingInset;
+      const seg = SITE.hoardingSegment;
+      const hx0 = isl.x0 + inset;
+      const hx1 = isl.x1 - inset;
+      const hz0 = isl.z0 + inset;
+      const hz1 = isl.z1 - inset;
+      /** One gate per site, on a rolled side: a hoarding with no way in is a wall. */
+      const gateSide = featRng.int(0, 3);
+      const runs = [
+        { axis: 'x', at: hz0, from: hx0, to: hx1 },
+        { axis: 'x', at: hz1, from: hx0, to: hx1 },
+        { axis: 'z', at: hx0, from: hz0, to: hz1 },
+        { axis: 'z', at: hx1, from: hz0, to: hz1 },
+      ];
+      const gateAt = featRng.range(0.25, 0.75);
+      runs.forEach((run, i) => {
+        const gateC = run.from + (run.to - run.from) * gateAt;
+        for (let t = run.from; t + seg <= run.to; t += seg) {
+          const c = t + seg / 2;
+          if (i === gateSide && Math.abs(c - gateC) < 4.0) continue;
+          const x = run.axis === 'x' ? c : run.at;
+          const z = run.axis === 'x' ? run.at : c;
+          const printed = featRng.chance(0.25);
+          const box = claimAt('site', x, z,
+            run.axis === 'x' ? seg / 2 : 0.12, run.axis === 'x' ? 0.12 : seg / 2,
+            { y0: 0, y1: SITE.hoardingHeight, owner: 'site:hoarding' });
+          if (reg.conflict(box)) continue;
+          features.push({
+            kind: 'hoarding', x, z, length: seg, height: SITE.hoardingHeight,
+            yawDeg: (run.axis === 'x' ? 0 : 90) + yaw(),
+            /** A quarter of the panels carry a printed graphic. */
+            printed,
+          });
+          reg.claim(box);
+        }
+      });
+
+      /**
+       * THE PART-BUILT FRAME. Columns on a grid with slabs over the lower
+       * levels and the top level open — which is what a frame under
+       * construction looks like and is why it reads as unfinished rather than
+       * as a building somebody forgot to skin.
+       */
+      const bays = featRng.int(3, 5);
+      const bayM = featRng.range(7.0, 9.0);
+      const levels = featRng.int(2, 5);
+      const storey = 3.6;
+      const fw = (bays * bayM) / 2;
+      const fx = mx + featRng.range(-12, 12);
+      const fz = mz + featRng.range(-12, 12);
+      const frameBox = claimAt('site', fx, fz, fw, fw, { y0: 0, y1: levels * storey, owner: 'site:frame' });
+      if (!reg.conflict(frameBox)) {
+        features.push({ kind: 'frame', x: fx, z: fz, bays, bayM, levels, storey, yawDeg: yaw() });
+        reg.claim(frameBox);
+      }
+
+      /**
+       * THE CRANE. Its base is a concrete pad and a mast; the jib and the load
+       * are drawn by the same module and MOVED by `construction.js`, because a
+       * crane that does not move is a mast with a stick on it.
+       */
+      const mast = featRng.range(SITE.mastMinM, SITE.mastMaxM);
+      const jib = featRng.range(SITE.jibMinM, SITE.jibMaxM);
+      let craneX = fx + featRng.range(-1, 1) * (fw + 8);
+      let craneZ = fz + featRng.range(-1, 1) * (fw + 8);
+      craneX = Math.min(isl.x1 - 6, Math.max(isl.x0 + 6, craneX));
+      craneZ = Math.min(isl.z1 - 6, Math.max(isl.z0 + 6, craneZ));
+      const cranePhase = featRng.next();
+      const slewDir = featRng.chance(0.5) ? 1 : -1;
+      const craneBox = claimAt('site', craneX, craneZ, 3.4, 3.4, { y0: 0, y1: mast, owner: 'site:crane' });
+      if (!reg.conflict(craneBox)) {
+        features.push({
+          kind: 'crane', x: craneX, z: craneZ, mast, jib,
+          counterJib: jib * SITE.counterJibFrac,
+          /** Its own phase, so two sites on screen are never in step. */
+          phase: cranePhase,
+          slewDir,
+        });
+        reg.claim(craneBox);
+      }
+
+      /** Flood masts, pointing DOWN into the excavation. */
+      for (let i = 0; i < SITE.floodPerSite; i++) {
+        const a = (i / SITE.floodPerSite) * Math.PI * 2 + featRng.next();
+        const rr = featRng.range(18, 34);
+        const x = Math.min(isl.x1 - 4, Math.max(isl.x0 + 4, mx + Math.cos(a) * rr));
+        const z = Math.min(isl.z1 - 4, Math.max(isl.z0 + 4, mz + Math.sin(a) * rr));
+        if (reg.conflict(claimAt('site', x, z, 0.7, 0.7, { y0: 0, y1: SITE.floodHeightM }))) continue;
+        features.push({ kind: 'flood', x, z, height: SITE.floodHeightM, aimX: mx, aimZ: mz });
+        reg.claim(claimAt('site', x, z, 0.7, 0.7, { y0: 0, y1: SITE.floodHeightM, owner: 'site:flood' }));
+      }
+
+      /** Spoil heaps — the one thing on a site that is not rectangular. */
+      const heaps = featRng.int(2, 4);
+      for (let i = 0; i < heaps; i++) {
+        const x = featRng.range(isl.x0 + 6, isl.x1 - 6);
+        const z = featRng.range(isl.z0 + 6, isl.z1 - 6);
+        const r = featRng.range(3.0, 6.5);
+        if (reg.conflict(claimAt('site', x, z, r, r, { y0: 0, y1: r * 0.55 }))) continue;
+        features.push({ kind: 'spoil', x, z, radius: r, height: r * 0.55, yawDeg: yaw() });
+        reg.claim(claimAt('site', x, z, r, r, { y0: 0, y1: r * 0.55, owner: 'site:spoil' }));
+      }
+    }
+  }
+
   // --- street furniture and dead-zone contents -----------------------------
   //
   // Counted as "props" by the clumping check, and the count is what the
@@ -3135,7 +5796,60 @@ export function generateChunk(rootSeed, cx, cz) {
   // what it is spending before it plants anything else.
   const propCount = kind === 'park'
     ? Math.round(22 + 26 * density)
-    : Math.round((lowDetail ? 26 : 96) * Math.pow(density, 3));
+    : kind === 'construction'
+      /**
+       * A SITE'S CLUTTER IS AUTHORED FOR THE SAME REASON A PARK'S PLANTING IS:
+       * a construction site is busy BECAUSE it is a construction site, not
+       * because the density field happened to be high where it landed. 14 plus
+       * a density term over the 104.6 m island is one object every 26 m, which
+       * is a site with room to work in rather than a scrapyard.
+       */
+      ? Math.round(14 + 16 * density)
+      : Math.round((lowDetail ? 26 : 96) * Math.pow(density, 3));
+
+  /**
+   * WHERE A PARK'S PLANTING GOES, AND IT IS NOT UNIFORM.
+   *
+   * `docs/authored-city.md` §1's clumping rule is applied to every other
+   * population in this city and never to the one it reads most obviously on.
+   * Trees scattered uniformly over an island read as an orchard; the thing
+   * that makes planting look planted is that the gaps BETWEEN groups are
+   * bigger than the gaps inside them.
+   *
+   * Benches and bins do not clump — they follow the paths, because that is
+   * where the people are and because a bench facing nothing is scenery. A
+   * bench goes beside a path (`prop x path` is a conflict, so the registry
+   * puts it on the grass by itself) and a bin goes at a junction.
+   */
+  const parkClumps = [];
+  const pathStations = [];
+  if (kind === 'park') {
+    const clumpRng = chunkRng(rootSeed, cx, cz, 'clump');
+    for (let i = 0; i < PARK.clumps; i++) {
+      parkClumps.push({
+        x: clumpRng.range(island.x0 + 10, island.x1 - 10),
+        z: clumpRng.range(island.z0 + 10, island.z1 - 10),
+      });
+    }
+    const li = PARK.loopInset;
+    const lx0 = island.x0 + li;
+    const lx1 = island.x1 - li;
+    const lz0 = island.z0 + li;
+    const lz1 = island.z1 - li;
+    const off = PARK.pathHalf + 1.1;
+    for (const [ax, at, from, to, side] of [
+      ['x', lz0, lx0, lx1, -1], ['x', lz1, lx0, lx1, +1],
+      ['z', lx0, lz0, lz1, -1], ['z', lx1, lz0, lz1, +1],
+    ]) {
+      for (let t = from + 6; t < to; t += 11) {
+        pathStations.push({
+          x: ax === 'x' ? t : at + side * off,
+          z: ax === 'x' ? at + side * off : t,
+          yawDeg: ax === 'x' ? 0 : 90,
+        });
+      }
+    }
+  }
 
   /**
    * THE OCCUPANCY TEST, SESSION 4b. CONTRACT §9.1:
@@ -3205,8 +5919,17 @@ export function generateChunk(rootSeed, cx, cz) {
   const WALK_CLEAR_M = 0.45;
   const LANE_CENTRE_M = (CITY.roadHalfWidth + CORRIDOR) / 2;
   /**
-   * The four pavement lines this chunk draws, as (fixed axis value, the axis
-   * the band runs along, the outward sign). `t` runs along the band.
+   * The four pavement lines this chunk draws, as (the FIXED axis, that axis's
+   * value, the outward sign). `t` runs along the band, on the OTHER axis.
+   *
+   * `axis` NAMES THE AXIS THAT IS HELD CONSTANT, NOT THE ONE THE BAND RUNS
+   * ALONG, and the comment here said the opposite for a session. Read the rows
+   * below rather than this sentence: a band with `axis: 'x'` carries
+   * `at: b.x0`, an x coordinate, and `t0/t1` over the chunk's **z** range — so
+   * the kerb line runs along **Z** and a prop lined up with it wants yaw 90°.
+   * The claim at the placement site has always been built that way round; the
+   * emitted yaw was not, and the mismatch is §9's table with a lattice axis
+   * (see the `kerbRef` assignment below for the measurement).
    */
   const kerbBands = [
     { axis: 'x', at: b.x0, side: +1, t0: b.z0 + CORRIDOR + 3, t1: b.z1 - 3 },
@@ -3230,9 +5953,24 @@ export function generateChunk(rootSeed, cx, cz) {
    * and a curved one are two different things and one field meaning both is
    * how a generator ends up with a bollard in the water.
    */
+  /**
+   * ONE CHUNK ROW FURNISHES EACH BANK, AND IT IS THE ROW THE BANK IS IN.
+   *
+   * `riverTouchesChunk` is true for every chunk the 147.6 m ENVELOPE reaches,
+   * which is two rows of chunks; both used to furnish both banks over the same
+   * x range, so every promenade in the city was furnished twice by two chunks
+   * that could not see each other's props. Measured: **3 overlapping prop pairs
+   * on the promenade** — a bin inside a planter, a cabinet inside a tree —
+   * which is the first defect `prop x prop` has ever been able to report,
+   * because until this session nothing compared two props.
+   *
+   * The test is where the bank ACTUALLY IS at the chunk's own mid-x, against
+   * the chunk's own z range. Exactly one row can answer yes.
+   */
   if (!lowDetail && riverTouchesChunk(cx, cz)) {
-    kerbBands.push({ bank: -1, t0: b.x0 + 3, t1: b.x1 - 3 });
-    kerbBands.push({ bank: +1, t0: b.x0 + 3, t1: b.x1 - 3 });
+    const e = riverEdges((b.x0 + b.x1) / 2);
+    if (e.north >= b.z0 && e.north < b.z1) kerbBands.push({ bank: -1, t0: b.x0 + 3, t1: b.x1 - 3 });
+    if (e.south >= b.z0 && e.south < b.z1) kerbBands.push({ bank: +1, t0: b.x0 + 3, t1: b.x1 - 3 });
   }
   /** Kerbside props already placed, for the min-spacing test between them. */
   const kerbPlaced = [];
@@ -3243,7 +5981,10 @@ export function generateChunk(rootSeed, cx, cz) {
   let propsKerbside = 0;
   for (let i = 0; i < propCount; i++) {
     const propKind = lowDetail
-      ? propRng.pick(kind === 'park' ? ['tree', 'bench', 'planter', 'bin'] : kind === 'parking' ? ['bollard', 'lamppost', 'planter'] : ['container', 'fence', 'bollard'])
+      ? propRng.pick(
+        kind === 'park' ? ['tree', 'tree', 'tree', 'bench', 'planter', 'bin']
+          : kind === 'construction' ? ['container', 'container', 'fence', 'cabinet', 'bollard']
+            : kind === 'parking' ? ['bollard', 'lamppost', 'planter'] : ['container', 'fence', 'bollard'])
       /**
        * `hydrant` and `bench` added to the built list this session. A bench on
        * an ordinary pavement is the commonest street object there is and it
@@ -3252,8 +5993,15 @@ export function generateChunk(rootSeed, cx, cz) {
        * before there was anything to draw them with.
        */
       : propRng.pick(['bollard', 'planter', 'bin', 'cabinet', 'tree', 'bench', 'hydrant']);
-    const scale = propRng.range(0.85, 1.25);
-    const pad = propHalfWidth(propKind) * scale;
+    const scale = propRng.range(PROP_SCALE.min, PROP_SCALE.max);
+    /**
+     * THE VARIANT IS DRAWN HERE, BEFORE THE FIT TEST, because which model it is
+     * decides whether it fits. It used to be drawn at the end, beside `soil`
+     * and `lean`, which was fine while the pad was a property of the KIND.
+     */
+    const variants = propVariantCount(propKind);
+    const variant = variants > 0 ? propRng.int(0, variants - 1) : 0;
+    const pad = propHalfWidth(propKind, variant) * scale;
 
     /**
      * Kerbside if it fits and if the die says so. The die is drawn for EVERY
@@ -3261,7 +6009,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * which kind came up — the same discipline the spread axes below follow.
      */
     const wantKerb = propRng.next() < 0.82;
-    const across = propHalfAcross(propKind) * scale;
+    const across = propHalfAcross(propKind, variant) * scale;
     const offset = CITY.roadHalfWidth + KERB_GAP_M + across;
     const fitsKerb = offset + across <= LANE_CENTRE_M - WALK_CLEAR_M;
 
@@ -3270,6 +6018,24 @@ export function generateChunk(rootSeed, cx, cz) {
     let placed = false;
     let kerb = false;
     let kerbYaw = 0;
+    /**
+     * THE AXIS THIS PROP IS ALIGNED TO, before §3's jitter — session 21.
+     *
+     * A kerbside prop's reference is its kerb: 0° or 90° on the lattice, and
+     * THE BANK'S OWN TANGENT on a promenade, which reaches 11.46° to the grid
+     * where the meander is steepest. `docs/authored-city.md` §3 asks for
+     * imperfect alignment, and what "imperfect" is measured against is the
+     * thing the object is lined up with — a bollard following a curved quay is
+     * aligned, and only its jitter is a deviation.
+     *
+     * Recorded rather than recomputed by the gate, for §9.1's reason: the gate
+     * would have to re-derive the bank tangent at the prop's own station, which
+     * is a fourth copy of a formula this file already warns has three.
+     */
+    let kerbRef = 0;
+    /** The box that was tested. Claimed on success, so the test and the claim
+     *  cannot be two different rectangles (CONTRACT §9.1). */
+    let propClaim = null;
 
     if (wantKerb && fitsKerb && !lowDetail) {
       for (let t = 0; t < PROP_TRIES && !placed; t++) {
@@ -3300,25 +6066,52 @@ export function generateChunk(rootSeed, cx, cz) {
           x = along;
           z = band.at + band.side * offset;
         }
-        if (insideKeepout(x, z, 2)) continue;
-        if (touching.some((l) => landmarkBlocks(l, x, z, 3))) continue;
-        // The river takes the kerb as well as the island: a bollard on the
-        // quayside band of a road that no longer exists is a bollard in the
-        // water. Tested with the prop's own pad, exactly as the island scatter
-        // below does (§9.1 — tested against the existing occupancy, or not
-        // placed).
-        if (riverBlocks(x, z, pad)) continue;
         /**
-         * AND AGAINST THE BUILDINGS, which this branch did not test until
-         * session 15 and got away with because the kerb bands lie on the road
-         * and every building lay on the island — 11.7 m from the boundary
-         * against the kerb's 9.5. The quayside terrace is the first frontage
-         * in this generator that is not on an island edge, so the guarantee
-         * that used to come from the lattice now has to come from the test.
-         * Measured when it was missing: 3 of 1 586 props inside a building,
-         * and `citycheck` said so in the first run after the terrace landed.
+         * ONE TEST — session 21. This replaced four: the origin block, the
+         * landmarks, the river and the buildings, each with its own pad and
+         * its own geometry, added one at a time over sessions 4b, 14 and 15 as
+         * each omission was found. What none of them tested is the
+         * CARRIAGEWAY, and the promenade band runs across every north–south
+         * road corridor the river cuts: measured before this change, **52 of
+         * 1 596 props stood with their centre on a running lane.**
+         *
+         * `pavement` is absent from the `prop` row of the conflict table on
+         * purpose — that pair is what a pavement is for — so this rejects the
+         * road and keeps the kerb.
          */
-        if (occupied(occluders, x, z, pad)) continue;
+        /**
+         * THE CLAIM IS ORIENTED, and a square one was wrong in the direction
+         * that matters. A prop's model has its long axis on local x and the
+         * kerb walk lays that axis ALONG the kerb — a bench is 1.74 m long and
+         * 0.46 m deep — so the extent that reaches toward the carriageway is
+         * `propHalfAcross`, not `propHalfWidth`. Claiming a square of the
+         * larger reported **7 benches, planters and bins conflicting with a
+         * carriageway they are 0.4 m clear of**, which is a false positive in
+         * the instrument rather than a defect in the world, and a gate that
+         * cries wolf is a gate somebody relaxes.
+         */
+        /**
+         * THE YAW'S OWN CONTRIBUTION, and leaving it out put benches 4 cm into
+         * the road.
+         *
+         * §3's imperfect alignment turns a kerbside prop by up to
+         * `CITY.maxYawDeg`, and a 1.74 m bench turned 2.4° reaches
+         * `0.87·sin(2.4°)` = **0.036 m** further across than its own
+         * half-depth. Measured on the delivered census before this was added:
+         * benches overlapping their own carriageway by 0.048 to 0.088 m². The
+         * claim is the ROTATED box's extent — `w·cos θ + l·sin θ` — which is
+         * the same expression `derivePropHalfWidth` uses for a tilted canopy
+         * box and the same one the markings' `paint()` uses, all three now
+         * spelt the same way.
+         */
+        const yawRad = (CITY.maxYawDeg * Math.PI) / 180;
+        const halfAlong = pad * Math.cos(yawRad) + across * Math.sin(yawRad);
+        const halfAcross = across * Math.cos(yawRad) + pad * Math.sin(yawRad);
+        const spot = band.bank || band.axis === 'z'
+          ? claimAt('prop', x, z, halfAlong, halfAcross, { owner: propKind })
+          : claimAt('prop', x, z, halfAcross, halfAlong, { owner: propKind });
+        if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+        propClaim = spot;
         let clash = false;
         for (const q of kerbPlaced) {
           if ((q.x - x) ** 2 + (q.z - z) ** 2 < KERB_SPACING_M * KERB_SPACING_M) { clash = true; break; }
@@ -3341,9 +6134,48 @@ export function generateChunk(rootSeed, cx, cz) {
           const e0 = riverEdges(along - 4);
           const e1 = riverEdges(along + 4);
           const dz = (band.bank < 0 ? e1.north - e0.north : e1.south - e0.south);
-          kerbYaw = (-Math.atan2(dz, 8) * 180) / Math.PI + yaw();
+          kerbRef = (-Math.atan2(dz, 8) * 180) / Math.PI;
+          kerbYaw = kerbRef + yaw();
         } else {
-          kerbYaw = (band.axis === 'x' ? 0 : 90) + yaw();
+          /**
+           * THE LATTICE BANDS, AND THIS LINE WAS TRANSPOSED — session 22.
+           *
+           * `band.axis` is the FIXED axis (see `kerbBands`), so `axis: 'x'` is a
+           * kerb line running along **Z** and its props want **90°**; `axis:
+           * 'z'` runs along X and wants **0°**. It shipped the other way round,
+           * and the two cases are inverted against EACH OTHER — which is why
+           * both produced the same defect and why no comparison between the two
+           * lattice bands could show it.
+           *
+           * THE CLAIM WAS ALWAYS RIGHT. Twenty lines up, `axis === 'x'` claims
+           * `claimAt('prop', x, z, halfAcross, halfAlong)` — the small
+           * half-extent on X and the long one on Z, i.e. exactly yaw 90°. So
+           * the generator tested a box lying along the kerb and `city.js` drew
+           * one lying across it, and `citycheck`'s two halves disagreed by
+           * exactly that transposition. CONTRACT §9 rule 2, measured on one
+           * delivered bench at (8.097, 76.568) by `tools/benchprobe.mjs`:
+           *
+           *     claimed    half (x 0.286, z 0.944)   yaw the claim implies  90°
+           *     delivered  half (x 0.935, z 0.252)   yaw the record carries  -0.325°
+           *     transposed (x -0.008, z -0.034)  ← claimed half SWAPPED
+           *
+           * The centres agree to four decimals and the two boxes are each
+           * other's transpose to within 0.044 m, which is not slop: the claim
+           * is built at `CITY.maxYawDeg` (the worst case over the jitter) and
+           * the bench was drawn at -0.325°, so the claim is larger by exactly
+           * the margin it is supposed to carry.
+           *
+           * 90 AND -90 ARE THE SAME AXIS AND THE SAME BOX, and nothing in this
+           * project distinguishes them today: the occupancy claim reads
+           * |cos|/|sin|, the alignment check reads `yawDeg - refDeg` mod 90, and
+           * `band.side` — the field that would decide which way a bench's BACK
+           * faces — is not read here at all. That is a real gap and it is
+           * written down rather than closed on a guess, because a bench turned
+           * to face the road is a content decision with no measurement behind
+           * it yet.
+           */
+          kerbRef = band.axis === 'x' ? 90 : 0;
+          kerbYaw = kerbRef + yaw();
         }
         kerb = true;
         placed = true;
@@ -3352,12 +6184,41 @@ export function generateChunk(rootSeed, cx, cz) {
 
     if (!placed) {
       for (let t = 0; t < PROP_TRIES; t++) {
-        x = propRng.range(island.x0 + 2, island.x1 - 2);
-        z = propRng.range(island.z0 + 2, island.z1 - 2);
-        if (insideKeepout(x, z, 2)) continue;
-        if (touching.some((l) => landmarkBlocks(l, x, z, 3))) continue;
-        if (riverBlocks(x, z, pad)) continue;
-        if (occupied(occluders, x, z, pad)) continue;
+        /**
+         * THE DIE IS DRAWN THE SAME WAY ON EVERY PATH, so the sequence does
+         * not depend on which kind came up — the discipline the kerb branch
+         * above already follows for `wantKerb`.
+         */
+        const u0 = propRng.next();
+        const u1 = propRng.next();
+        if (parkClumps.length && (propKind === 'tree' || propKind === 'planter')) {
+          const c = parkClumps[propRng.int(0, parkClumps.length - 1)];
+          // Box–Muller off the two uniforms already drawn: a Gaussian scatter
+          // about the clump centre, so density falls off rather than stopping.
+          const r = Math.sqrt(-2 * Math.log(Math.max(1e-9, u0))) * PARK.clumpSpreadM;
+          const a = u1 * Math.PI * 2;
+          x = Math.min(island.x1 - 2, Math.max(island.x0 + 2, c.x + Math.cos(a) * r));
+          z = Math.min(island.z1 - 2, Math.max(island.z0 + 2, c.z + Math.sin(a) * r));
+        } else if (pathStations.length && (propKind === 'bench' || propKind === 'bin')) {
+          const st = pathStations[Math.min(pathStations.length - 1, Math.floor(u0 * pathStations.length))];
+          // ALONG the path, never across it: a bench jittered on both axes
+          // walks off its own station into the grass on one side and into the
+          // path on the other, and only one of those two is wrong in a way
+          // anybody would notice.
+          const j = (u1 - 0.5) * 3.2;
+          x = st.x + (st.yawDeg === 0 ? j : 0);
+          z = st.z + (st.yawDeg === 0 ? 0 : j);
+          kerbYaw = st.yawDeg;
+        } else {
+          x = island.x0 + 2 + u0 * (island.x1 - island.x0 - 4);
+          z = island.z0 + 2 + u1 * (island.z1 - island.z0 - 4);
+        }
+        // The island scatter's yaw is free, so the claim is the model's
+        // circumscribing square. Conservative, and the right answer for a
+        // rotation nobody has fixed yet.
+        const spot = claimAt('prop', x, z, pad, pad, { owner: propKind });
+        if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+        propClaim = spot;
         placed = true;
         break;
       }
@@ -3366,6 +6227,8 @@ export function generateChunk(rootSeed, cx, cz) {
       propGaveUp++;
       continue;
     }
+    /** Claimed the moment it is placed, so the next prop tests against it. */
+    reg.claim(propClaim);
     if (kerb) {
       kerbPlaced.push({ x, z });
       propsKerbside++;
@@ -3383,15 +6246,16 @@ export function generateChunk(rootSeed, cx, cz) {
      * prop rather than only for trees so the sequence does not depend on which
      * kind came up. A kind whose variant declares no `leanRange` ignores it.
      */
-    const variants = propVariantCount(propKind);
     props.push({
       x,
       z,
-      yawDeg: kerb ? kerbYaw : yaw(),
+      yawDeg: kerb || kerbYaw ? kerbYaw : yaw(),
+      /** The axis above, so a deviation is measured from what it lines up with. */
+      refDeg: kerb || kerbYaw ? kerbRef : 0,
       kerb,
       kind: propKind,
       scale,
-      variant: variants > 0 ? propRng.int(0, variants - 1) : 0,
+      variant,
       soil: propRng.range(0.62, 1.0),
       lean: propRng.range(-1, 1),
       leanAzDeg: propRng.range(0, 360),
@@ -3419,6 +6283,29 @@ export function generateChunk(rootSeed, cx, cz) {
     roadMaterials,
     buildings, props, signs, occluders,
     /**
+     * THE GROUND THIS CHUNK EMITS, ALREADY CLIPPED — session 21.
+     *
+     * `city.js`'s `buildGround` computed these rectangles itself and clipped
+     * them against two things it knew by name. Now it EMITS what it is handed.
+     * That is CONTRACT §9.1's rule applied to a surface: two descriptions of
+     * one road network, one of which decides where the piers may stand and the
+     * other of which decides what is drawn, is precisely the arrangement that
+     * put a dome across a carriageway.
+     */
+    ground,
+    /** What a park or a site builds that is not a prop and not ground. */
+    features,
+    /** The painted road markings, already clipped to the delivered carriageway. */
+    markings,
+    /**
+     * The registry itself, for the consumers that place things AFTER the pure
+     * generator has run — `city.js`'s freestanding sign pylons, its park
+     * furniture and its construction sites — and for the gate. It is a live
+     * object rather than data, so it does not cross the worker boundary; the
+     * worker only ever asks for `occluders`.
+     */
+    registry: reg,
+    /**
      * Whether the river's envelope reaches this chunk at all, so `city.js` can
      * skip the whole river path on the 98% of chunks that never see water
      * without recomputing the envelope test in four places.
@@ -3434,12 +6321,35 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     propsAsked: propCount,
     propsGaveUp: propGaveUp,
+    /** What the keep-out registry refused, by the category that refused it. */
+    refused,
     /**
      * How many of the placed props stand on a pavement rather than in a
      * courtyard. Reported for the same reason `propsGaveUp` is: before this
      * session the answer was zero and nothing said so, because nothing asked.
      */
     propsKerbside,
+    /**
+     * SESSION 30, ITEM 4 — WHERE THIS CHUNK WANTS A BUS STOP, OR NULL.
+     *
+     * A DECLARATION AND NOT A PLACEMENT. What is decided here is *which kerb,
+     * how far from the junction, and facing which way*; whether that ground is
+     * free is `city.js`'s question, because the answer depends on the DELIVERED
+     * claims (CONTRACT §9.1: the registry says what was tested and the census
+     * says what arrived, and this side is neither — it is the intent).
+     *
+     * THE PLACEMENT RULE, WRITTEN DOWN, because the brief asked for a rule and
+     * not a scatter:
+     *
+     *   ON THE PAVEMENT.   `kerbBands` already names the four pavement lines
+     *                      this chunk draws, as (fixed axis, its value,
+     *                      outward sign). A stop stands on one of them at the
+     *                      same kerb offset a kerbside prop does.
+     *   NEAR SIDE OF A JUNCTION.  See `busStopAt`, which owns the rule and the
+     *                      derivation of `beforeJunctionM`. This is the field,
+     *                      not a second copy of the argument.
+     */
+    busStop: busStopAt(rootSeed, cx, cz),
   };
 }
 

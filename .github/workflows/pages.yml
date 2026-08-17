@@ -1,0 +1,112 @@
+# Build NOCTIS and publish it to GitHub Pages.
+#
+# WHY THE ACTIONS SOURCE AND NOT "DEPLOY FROM A BRANCH". This repository is a
+# Vite app: what a browser needs is `dist/`, and what is in git is `src/`.
+# Serving a branch would mean committing a build, which is a second description
+# of the source that drifts the moment somebody edits one and not the other.
+# It would also collide with `docs/`, which holds this project's prose and is
+# the other thing the branch source can be pointed at.
+#
+# THE BASE PATH IS TAKEN FROM `configure-pages`, NOT WRITTEN DOWN. A project
+# page is served from `/<repo>/`, a user page from `/`, and a custom domain from
+# `/` again — three answers, and the action already knows which one applies.
+# Hard-coding `/noctis-city/` here would be right until the repository is
+# renamed or a domain is attached, and then silently wrong in the one way that
+# produces a black canvas and no error (see `vite.config.js`).
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  # So the site can be republished without a commit — e.g. the first run, right
+  # after Pages is switched on.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a queued run supersedes a waiting one but never
+# cancels one that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` and not `npm install`: the lockfile is in the repository and a
+      # build that resolves its own dependency versions is a build nobody can
+      # reproduce.
+      - run: npm ci
+
+      # `continue-on-error`, AND IT IS NOT A SHRUG — it is what stops a SETTING
+      # from failing a BUILD.
+      #
+      # The first run of this workflow failed here, in one line:
+      #
+      #     Get Pages site failed. Error: Not Found
+      #     Create Pages site failed. Error: Resource not accessible by integration
+      #
+      # Pages was off and `enablement: true` could not switch it on, because the
+      # workflow token is not permitted to create a Pages site on this
+      # repository — a repository setting, not a defect in anything here. Every
+      # step before it was green: checkout, Node, `npm ci`. With the failure
+      # left hard, a build that is perfectly good is never attempted and the
+      # only signal anybody gets is a red cross next to a commit that builds.
+      #
+      # So the build no longer depends on Pages existing. `deploy` still does,
+      # and still fails loudly until Pages is switched on — which is the right
+      # place for that failure, because it is the step that actually needs it.
+      - name: Configure Pages
+        id: pages
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # `base_path` comes back as `/noctis-city` with no trailing slash and Vite
+      # wants one at both ends. Normalised here rather than in the config,
+      # because the config's job is to read an environment variable and not to
+      # know what shape this action returns.
+      #
+      # THE FALLBACK IS THE REPOSITORY'S OWN NAME, which is the right answer for
+      # a project page and is what `configure-pages` would return for one. It is
+      # only reached when the step above could not run at all; a user page or a
+      # custom domain needs `/`, and both of those imply Pages is already on, so
+      # the action answers and the fallback is not consulted.
+      - name: Build
+        env:
+          PAGES_BASE: ${{ steps.pages.outputs.base_path }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          NOCTIS_BASE="${PAGES_BASE:-/$REPO_NAME}"
+          case "$NOCTIS_BASE" in
+            */) : ;;
+            *)  NOCTIS_BASE="${NOCTIS_BASE}/" ;;
+          esac
+          echo "building with base $NOCTIS_BASE (configure-pages said '${PAGES_BASE:-nothing}')"
+          NOCTIS_BASE="$NOCTIS_BASE" npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

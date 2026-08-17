@@ -82,11 +82,49 @@ try {
   for (const [k, v] of Object.entries(BUDGET.capture.params)) url.searchParams.set(k, String(v));
   await page.goto(url.toString(), { waitUntil: 'load', timeout: 90_000 });
   await page.waitForFunction(() => window.__NOCTIS_HARNESS__, null, { timeout: 60_000 });
+  /**
+   * THE SOFTWARE-RENDERER REFUSAL IS A NOTE HERE, NOT A THROW — session 22, and
+   * it is STATE 21 §7.1's correction reaching the one gate it had not.
+   *
+   * It threw on this line, before a single census was gathered, so a machine
+   * without a GPU produced no verdict on the winding of any mesh in the city.
+   * `citycheck` had exactly that shape a session ago and was corrected by
+   * moving the refusal to the assertion it invalidates — the saturation sample,
+   * which reads pixels. **This gate has no such assertion.** Every one of its
+   * three tests is CPU arithmetic over geometry attributes and delivered
+   * instance matrices:
+   *
+   *   volume    signed volume from the triangle order (harness.windingCensus)
+   *   normals   authored normal against the geometric one, weighted by AREA
+   *   facing    front-facing area toward an EYE POINT, in world space, through
+   *             `matrixWorld` and three's own `frontFaceCW` rule
+   *
+   * None of the three indexes a framebuffer, and `budget.json` →
+   * `winding.thresholds.$minNormalAgreement` already says so in its own
+   * derivation: *"the whole computation is deterministic Float32 arithmetic in
+   * JS with no driver in it."* A refusal that guards no pixel guards nothing,
+   * and CONTRACT §0.2 is explicit about the cost of one that cannot pass: *"a
+   * gate that can never pass produces zero measurements, and zero measurements
+   * is not stricter than imperfect ones — it is nothing."*
+   *
+   * IT CANNOT MAKE A RED GATE GREEN, and the guard is already built rather than
+   * added here. The one way a slow rasteriser degrades this census is by not
+   * finishing the streaming, so fewer meshes are resident — and `minMeshes`
+   * (400 against 627 delivered) and `requiredMeshes` both fail on exactly that.
+   * A software run that under-delivers therefore fails on COVERAGE. The failure
+   * mode is a false red, not a false green, which is the direction a gate is
+   * allowed to be wrong in.
+   *
+   * What is retained is the LABEL: the renderer string is printed with the
+   * census so no table in a log is anonymous about the machine it came off.
+   */
   const gpu = await readRendererString(page);
-  if (rendererIsSoftware(gpu)) {
-    throw new Error(`software renderer (${gpu}) — a rasteriser nobody ships`);
-  }
-  console.log(`GPU: ${gpu}`);
+  const soft = rendererIsSoftware(gpu);
+  console.log(`GPU: ${gpu}${soft
+    ? '  — SOFTWARE. The census below is unaffected: all three tests are CPU\n'
+      + '       arithmetic over geometry and instance matrices and none reads a pixel.\n'
+      + '       `minMeshes` and `requiredMeshes` are what catch a scene that did not arrive.'
+    : ''}`);
   await page.evaluate(() => window.__NOCTIS_HARNESS__.ready);
 
   const missing = await page.evaluate(() => {

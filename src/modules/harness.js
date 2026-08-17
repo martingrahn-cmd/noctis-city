@@ -11,7 +11,7 @@
  */
 
 import * as THREE from 'three';
-import { TAA } from '../core/constants.js';
+import { TAA, LAMP_BOWL } from '../core/constants.js';
 import { gaitOffset } from '../lib/gait.js';
 
 /**
@@ -283,6 +283,30 @@ export function createHarness(options = {}) {
          * occluder boxes. The gate does the test; this supplies no verdict
          * (CONTRACT §8).
          */
+        /**
+         * THE DELIVERED KEEP-OUT CLAIMS — session 21.
+         *
+         * `city.placedClaims()` records what the module EMITTED, at the point
+         * of emission: the ground rectangles that are the mesh, each prop's
+         * world extent off its own delivered instance matrices, each park and
+         * site feature's, each building's envelope and each landmark's ground
+         * solid. `citycheck` runs `occupancy.findConflicts` over it.
+         *
+         * IT IS DELIBERATELY NOT THE GENERATOR'S REGISTRY. That structure says
+         * what the generator TESTED; this says what arrived. The two agreeing
+         * is the claim, and CONTRACT §9.1 exists because twice they have not:
+         * 208 signs decided on a wall and drawn nine metres inside it, and
+         * road patches decided 10 mm thick and drawn a metre tall.
+         */
+        occupancyCensus() {
+          const city = ctx.get('city');
+          if (!city || !city.placedClaims) throw new Error('city.placedClaims() is missing');
+          const claims = city.placedClaims();
+          const counts = {};
+          for (const c of claims) counts[c.kind] = (counts[c.kind] || 0) + 1;
+          return { claims, counts, total: claims.length };
+        },
+
         signPlacement() {
           const city = ctx.get('city');
           if (!city) throw new Error('city module is quarantined — there is nothing to check');
@@ -893,6 +917,72 @@ export function createHarness(options = {}) {
             /** Every mesh that allocated more than it draws. */
             underdrawn: meshes.filter((m) => m.drawn < m.allocated),
             meshes,
+          };
+        },
+
+        /**
+         * THE LAMP BOWL CENSUS — session 28, and it exists because one object
+         * had two radiances in two files with nothing comparing them.
+         *
+         * `constants.js` → `LAMP_BOWL` now derives ONE radiance, Φ/(π·A), and
+         * declares each path as a factor of it. That makes the two agree by
+         * construction at the point of AUTHORING. This reads the other end:
+         * every material in the LIVE SCENE tagged `noctisLampPath`, with the
+         * `emissiveIntensity` that actually arrived on it and the sphere-zone
+         * parameters of the geometry it is actually drawn on.
+         *
+         * CONTRACT §9.1: a gate that reads config verifies the config. The
+         * factor could be right in `constants.js` and the material could still
+         * be set from a literal somewhere downstream — `city.js` and
+         * `block.js` both re-write `emissiveIntensity` every time the photocell
+         * changes, which is exactly the kind of line a refactor rewrites.
+         *
+         * IT REPORTS THE PHOTOCELL RATHER THAN GUESSING FROM THE VALUE. Both
+         * paths carry 0.5 when the lamps are off, and a census that could not
+         * tell "off" from "wrong" would fail every daylight run — §7.1's quiet
+         * gate wearing the opposite sign.
+         */
+        lampBowlCensus() {
+          const lighting = ctx.get('lighting');
+          const byPath = new Map();
+          ctx.scene.traverse((o) => {
+            if (!o.isMesh && !o.isInstancedMesh) return;
+            const mats = Array.isArray(o.material) ? o.material : [o.material];
+            for (const m of mats) {
+              const path = m && m.userData && m.userData.noctisLampPath;
+              if (!path) continue;
+              const g = o.geometry && o.geometry.parameters ? o.geometry.parameters : {};
+              let row = byPath.get(path);
+              if (!row) {
+                row = {
+                  path,
+                  meshes: 0,
+                  /** What ARRIVED on the material, not what was authored for it. */
+                  deliveredNits: m.emissiveIntensity,
+                  /**
+                   * The zone the radiance is divided by, off the DELIVERED
+                   * geometry. BOTH pairs: `theta` is the polar sweep the area
+                   * formula integrates and `phi` is the revolution it assumes
+                   * is complete. Reading only one pair is how this instrument
+                   * was wrong on its first write.
+                   */
+                  radiusM: g.radius === undefined ? null : g.radius,
+                  thetaStart: g.thetaStart === undefined ? null : g.thetaStart,
+                  thetaLength: g.thetaLength === undefined ? null : g.thetaLength,
+                  phiStart: g.phiStart === undefined ? null : g.phiStart,
+                  phiLength: g.phiLength === undefined ? null : g.phiLength,
+                };
+                byPath.set(path, row);
+              }
+              row.meshes++;
+            }
+          });
+          return {
+            /** Φ/(π·A) — the one number both delivered values are a factor of. */
+            derivedNits: LAMP_BOWL.derivedNits,
+            /** So the gate knows whether `deliveredNits` is the ON value. */
+            lampsOn: lighting ? !!lighting.photocellOn : null,
+            paths: [...byPath.values()],
           };
         },
 

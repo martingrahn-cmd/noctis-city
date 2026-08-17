@@ -36,7 +36,23 @@ import { decodePNG } from './lib/png.mjs';
  * landmarks is measured from the same functions the world is built from rather
  * than from a transcription of them (CONTRACT §9.1).
  */
-import { CITY, LANDMARKS, landmarkAABB, riverEdges, bridgeSpec, bridgeIndexAt } from '../src/lib/citygen.js';
+import {
+  CITY, LANDMARKS, landmarkAABB, riverEdges, bridgeSpec, bridgeIndexAt,
+  generateChunk, viaductArc, viaductPiers, latticeCarriageway, BLOCK_KEEPOUT,
+} from '../src/lib/citygen.js';
+/**
+ * The conflict table itself, so the gate and the generator judge an overlap by
+ * ONE rule. A gate carrying its own copy of "which categories may not overlap"
+ * is CONTRACT §9.1's arrangement with a table instead of a spacing, and it is
+ * how `pierEvery: 34` sat beside `i % 3 === 0` for a session.
+ */
+import { findConflicts, conflictPairs } from '../src/lib/occupancy.js';
+/**
+ * The DERIVATION side of the lamp-bowl check. `harness.lampBowlCensus()` is the
+ * delivered side; these are the geometry the radiance was divided by, so the
+ * two can disagree and the disagreement is the finding (CONTRACT §9 rule 7).
+ */
+import { LAMP_BOWL } from '../src/core/constants.js';
 
 /**
  * The seed the pages below are opened with, in one place, so the gate's own
@@ -309,10 +325,19 @@ function judgeCity(M, BUDGET) {
   }
 
   // 4. the saturation reserve — the one pixel measurement
-  if (M.satMax > BUDGET.saturation.maxFraction) {
+  //
+  // UNRUN IS A FAILURE, NOT A SKIP — session 21. The refusal on a software
+  // renderer moved from the top of the run (where it suppressed every other
+  // assertion in this gate) to here (where it suppresses only itself). It still
+  // fails: CONTRACT §10, *a gate that cannot run is not a green gate*.
+  if (M.softwareRenderer) {
+    out.push(['saturation',
+      'UNRUN — the saturation sample needs a hardware rasteriser and this run had SwiftShader. ' +
+      'Every placement assertion in this gate ran; this one did not, and an unrun assertion is red.']);
+  } else if (M.satMax > BUDGET.saturation.maxFraction) {
     out.push(['saturation', `${(M.satMax * 100).toFixed(2)}% of pixels above ${BUDGET.saturation.threshold} saturation > ${(BUDGET.saturation.maxFraction * 100).toFixed(0)}% — if everything glows, nothing glows`]);
   }
-  if (M.satMax < BUDGET.saturation.minFraction) {
+  if (!M.softwareRenderer && M.satMax < BUDGET.saturation.minFraction) {
     out.push(['saturation', `only ${(M.satMax * 100).toFixed(3)}% of pixels are saturated anywhere on the night route — the reserve has been spent on nothing`]);
   }
   /**
@@ -320,10 +345,64 @@ function judgeCity(M, BUDGET) {
    * saturated-and-bright pixels is satisfied by darkening, so the thing it is
    * paired with is a floor on bright pixels regardless of their chromaticity.
    */
-  if (M.brightMean < BUDGET.saturation.minBrightFraction) {
+  if (!M.softwareRenderer && M.brightMean < BUDGET.saturation.minBrightFraction) {
     out.push(['saturation', `only ${(M.brightMean * 100).toFixed(2)}% of pixels on the night route are above ` +
       `${BUDGET.saturation.valueThreshold} value < ${(BUDGET.saturation.minBrightFraction * 100).toFixed(2)}% — ` +
       `the reserve's ceiling is being met by turning the lights down`]);
+  }
+
+  /**
+   * 4a. THE LAMP BOWL RATCHET — session 28, CONTRACT §9 rule 7 and §9.1.
+   *
+   * One object had two radiances in two files and nothing compared them. The
+   * derivation is now single-sourced in `constants.js` → `LAMP_BOWL`; this is
+   * the check on the OTHER end, over `harness.lampBowlCensus()`, which reads
+   * the `emissiveIntensity` that arrived on the live material and the
+   * sphere-zone parameters of the geometry it is drawn on.
+   *
+   * A gate that read the constants would verify the constants. These four
+   * sites can only fail on a disagreement between the derivation and what the
+   * scene actually got.
+   */
+  const LB = BUDGET.lampBowl;
+  if (!M.lampBowl) {
+    out.push(['lampBowl',
+      'harness.lampBowlCensus() returned nothing — the delivered lamp radiances are unmeasured. ' +
+      'UNRUN, not passed.']);
+  } else if (M.lampBowl.lampsOn === false) {
+    out.push(['lampBowl',
+      'the photocell is OFF in the census page, so every bowl carries its 0.5 standby radiance and ' +
+      'this check cannot tell a dark lamp from a wrong one. UNRUN, not passed.']);
+  } else {
+    if (M.lampBowl.paths.length < LB.minPaths) {
+      out.push(['lampBowl',
+        `only ${M.lampBowl.paths.length} tagged lamp-bowl path(s) in the delivered scene, expected at ` +
+        `least ${LB.minPaths} — a path that stops declaring itself stops being compared, which is how ` +
+        `the 42.86× split survived ten sessions`]);
+    }
+    for (const p of M.lampBowl.paths) {
+      const ratio = p.deliveredNits / M.lampBowl.derivedNits;
+      if (ratio < LB.minRatio || ratio > LB.maxRatio) {
+        out.push(['lampBowl',
+          `lamp path '${p.path}' delivers ${p.deliveredNits.toFixed(1)} cd/m² against a derived ` +
+          `${M.lampBowl.derivedNits.toFixed(1)} — ${ratio.toFixed(4)}×, outside the ratchet ` +
+          `[${LB.minRatio}, ${LB.maxRatio}]. These bounds may only ever move toward 1.0`]);
+      }
+      /**
+       * BOTH ANGLE PAIRS. `theta` is what `bowlZoneAreaM2` integrates; `phi` is
+       * the full revolution it assumes and would be silently wrong without.
+       */
+      const g = [['radiusM', LAMP_BOWL.radiusM],
+        ['thetaStart', LAMP_BOWL.thetaStart], ['thetaLength', LAMP_BOWL.thetaLength],
+        ['phiStart', LAMP_BOWL.phiStart], ['phiLength', LAMP_BOWL.phiLength]];
+      for (const [k, want] of g) {
+        if (p[k] == null || Math.abs(p[k] - want) > Math.abs(want) * LB.geometryTolerance) {
+          out.push(['lampBowl',
+            `lamp path '${p.path}' is drawn on a bowl whose ${k} is ${p[k]} where the radiance was ` +
+            `derived over ${want} — the area on the screen is not the area in the derivation`]);
+        }
+      }
+    }
   }
 
   // 5. negative space and dead zones
@@ -404,6 +483,57 @@ function judgeCity(M, BUDGET) {
   // other one being non-empty.
   if (L.requireOutsideGeneratorRange && M.generatorProducible.length) {
     out.push(['landmarks', `${M.generatorProducible.join(', ')} could have been produced by the generator — a landmark the generator can make is not a landmark`]);
+  }
+
+  // 7. THE KEEP-OUT REGISTRY — session 21, and it is the check that generalises
+  //    the two that were already here (`maxPropsInsideBuildings` and
+  //    `maxSignsInsideBuildings`) and the six other instances neither of them
+  //    could see. CONTRACT §9.1: anything placed procedurally is tested against
+  //    the existing occupancy, or it is not placed.
+  const OC = BUDGET.occupancy;
+  if (OC) {
+    if (M.genConflicts == null) {
+      out.push(['occupancy', 'the generator produced no registry — `generateChunk` did not return `registry`']);
+    } else if (M.genConflicts.length > OC.maxGeneratorConflicts) {
+      out.push(['occupancy',
+        `${M.genConflicts.length} forbidden overlap(s) among the GENERATOR's own claims (max ` +
+        `${OC.maxGeneratorConflicts}). A generator that writes to the registry and does not read it is ` +
+        `the defect this structure exists to make impossible. Worst: ` +
+        M.genConflicts.slice(0, 4).map((c) => `${c.a.kind}(${c.a.owner}) x ${c.b.kind}(${c.b.owner}) ${c.areaM2} m2`).join('; ')]);
+    }
+    if (M.deliveredConflicts == null) {
+      out.push(['occupancy', 'harness.occupancyCensus() returned nothing — the delivered world is unmeasured']);
+    } else if (M.deliveredConflicts.length > OC.maxDeliveredConflicts) {
+      out.push(['occupancy',
+        `${M.deliveredConflicts.length} forbidden overlap(s) in the DELIVERED scene (max ` +
+        `${OC.maxDeliveredConflicts}). This reads the emitted geometry, not the generator's description ` +
+        `of it (§9.1). Worst: ` +
+        M.deliveredConflicts.slice(0, 4).map((c) => `${c.a.kind}(${c.a.owner}) x ${c.b.kind}(${c.b.owner}) ${c.areaM2} m2`).join('; ')]);
+    }
+    if (M.deliveredClaims != null && M.deliveredClaims < OC.minDeliveredClaims) {
+      out.push(['occupancy',
+        `only ${M.deliveredClaims} delivered claims (min ${OC.minDeliveredClaims}) — a conflict check over ` +
+        `an empty list passes for free, which is CONTRACT §7.1's quiet gate`]);
+    }
+    if (M.viaductLegsOnCarriageway == null) {
+      out.push(['occupancy', 'the viaduct reported no legs — `viaductPiers` did not return them']);
+    } else if (M.viaductLegsOnCarriageway > OC.maxViaductLegsOnCarriageway) {
+      out.push(['occupancy',
+        `${M.viaductLegsOnCarriageway} viaduct portal leg(s) stand in a carriageway (max ` +
+        `${OC.maxViaductLegsOnCarriageway}) — measured against the ideal road lattice, which is what ` +
+        `viaductPiers places them against`]);
+    }
+    if (M.viaductPiersBlocked > OC.maxViaductPiersBlocked) {
+      out.push(['occupancy',
+        `${M.viaductPiersBlocked} pier(s) could not be placed clear at any offset or nudge (max ` +
+        `${OC.maxViaductPiersBlocked}) — a flagged pier is a pier in the road that the search gave up on`]);
+    }
+    if (M.viaductLegMaxInBlockM != null && M.viaductLegMaxInBlockM > OC.viaductLegsInsideBlockClearBandM) {
+      out.push(['occupancy',
+        `a viaduct leg reaches |x| = ${M.viaductLegMaxInBlockM.toFixed(2)} m inside the origin block against ` +
+        `the ${OC.viaductLegsInsideBlockClearBandM} m band session 5's placement argument is justified by. ` +
+        `That sentence was prose and nothing checked it; measured before this session, a leg reached 12.18 m.`]);
+    }
   }
 
   return out;
@@ -631,6 +761,15 @@ function goodCityFixture() {
     propCV: C.minDensityCV + 0.1,
     populatedFraction: C.minPopulatedFraction + 0.1,
 
+    /** Session 21 — the keep-out registry, inside every bound. */
+    genConflicts: [],
+    deliveredConflicts: [],
+    deliveredClaims: BUDGET.occupancy.minDeliveredClaims + 500,
+    viaductLegsOnCarriageway: 0,
+    viaductPiersBlocked: 0,
+    viaductLegMaxInBlockM: BUDGET.occupancy.viaductLegsInsideBlockClearBandM - 0.1,
+    softwareRenderer: false,
+
     hasCensus: true,
     instancedMeshes: 40,
     unlabelled: 0,
@@ -690,6 +829,32 @@ function goodCityFixture() {
     satMax: (S.minFraction + S.maxFraction) / 2,
     brightMean: S.minBrightFraction + 0.02,
 
+    /**
+     * The lamp-bowl census as it arrives from a healthy scene: both paths
+     * tagged, the photocell on, each delivered radiance exactly its declared
+     * factor of the derivation, and both drawn on the derivation's own bowl.
+     * Built from `LAMP_BOWL` rather than from literals, so a change to the
+     * fixture cannot leave a green fixture behind describing the old one.
+     */
+    lampBowl: {
+      derivedNits: LAMP_BOWL.derivedNits,
+      lampsOn: true,
+      paths: [
+        {
+          path: 'streamed', meshes: 25, deliveredNits: LAMP_BOWL.streamedNits,
+          radiusM: LAMP_BOWL.radiusM,
+          thetaStart: LAMP_BOWL.thetaStart, thetaLength: LAMP_BOWL.thetaLength,
+          phiStart: LAMP_BOWL.phiStart, phiLength: LAMP_BOWL.phiLength,
+        },
+        {
+          path: 'origin', meshes: 16, deliveredNits: LAMP_BOWL.originNits,
+          radiusM: LAMP_BOWL.radiusM,
+          thetaStart: LAMP_BOWL.thetaStart, thetaLength: LAMP_BOWL.thetaLength,
+          phiStart: LAMP_BOWL.phiStart, phiLength: LAMP_BOWL.phiLength,
+        },
+      ],
+    },
+
     lowDetailFraction: N.minLowDetailFraction + 0.05,
     lowKinds: N.minDistinctKinds + 1,
 
@@ -708,6 +873,63 @@ function goodCityFixture() {
  * here fails the coverage arithmetic below, which is the whole point.
  */
 const FALSIFY_CITY = [
+  /**
+   * SESSION 21 — the keep-out registry's own falsifying cases, one per failure
+   * site, which is what `falsify.requireCoverage: 1.0` demands.
+   *
+   * Each perturbation is the SHAPE OF A REAL DEFECT rather than a nonsense
+   * value: a building overlapping a carriageway is the dome across the road, a
+   * prop overlapping a building is session 4b's 146 of 838, a leg on a
+   * carriageway is the 8 of 23 this session measured.
+   */
+  ['occupancy.generatorConflict', (m) => {
+    m.genConflicts = [{
+      a: { kind: 'carriageway', owner: 'road:roadNS' },
+      b: { kind: 'landmark', owner: 'exchange' }, areaM2: 2906.3,
+    }];
+  }],
+  ['occupancy.noRegistry', (m) => { m.genConflicts = null; }],
+  ['occupancy.deliveredConflict', (m) => {
+    m.deliveredConflicts = [{ a: { kind: 'prop', owner: 'tree' }, b: { kind: 'building', owner: 'bld' }, areaM2: 1.9 }];
+  }],
+  ['occupancy.noCensus', (m) => { m.deliveredConflicts = null; }],
+  ['occupancy.emptyCensus', (m) => { m.deliveredClaims = 12; }],
+  ['occupancy.legOnCarriageway', (m) => { m.viaductLegsOnCarriageway = 8; }],
+  ['occupancy.noLegs', (m) => { m.viaductLegsOnCarriageway = null; }],
+  ['occupancy.pierBlocked', (m) => { m.viaductPiersBlocked = 2; }],
+  ['occupancy.legOutsideBlockBand', (m) => { m.viaductLegMaxInBlockM = 12.18; }],
+  ['saturation.unrun', (m) => { m.softwareRenderer = true; }],
+  /**
+   * SESSION 28 — the lamp-bowl ratchet's five sites. Each perturbation is the
+   * shape of a real defect rather than a nonsense value.
+   */
+  ['lampBowl.noCensus', (m) => { m.lampBowl = null; }],
+  /** The daylight run, where every bowl carries its 0.5 standby radiance. */
+  ['lampBowl.photocellOff', (m) => { m.lampBowl = { ...m.lampBowl, lampsOn: false }; }],
+  /** A path that stops tagging itself is a path nothing compares — the defect. */
+  ['lampBowl.pathVanished', (m) => {
+    m.lampBowl = { ...m.lampBowl, paths: m.lampBowl.paths.slice(0, 1) };
+  }],
+  /**
+   * THE DEFECT AS IT ACTUALLY STOOD: the origin block at 210 while the
+   * streamed city ran at 9000 is inside the ratchet by construction, so the
+   * case that must fail is one MOVING AWAY from the derivation. 42.86x on one
+   * path is the split with both halves' error loaded onto one of them.
+   */
+  ['lampBowl.ratioWorse', (m) => {
+    m.lampBowl = {
+      ...m.lampBowl,
+      paths: [{ ...m.lampBowl.paths[0], deliveredNits: m.lampBowl.derivedNits * 42.86 },
+        m.lampBowl.paths[1]],
+    };
+  }],
+  /** A bowl re-authored in one file only: the area on screen leaves the derivation. */
+  ['lampBowl.geometryDiverged', (m) => {
+    m.lampBowl = {
+      ...m.lampBowl,
+      paths: [{ ...m.lampBowl.paths[0], radiusM: 0.5 }, m.lampBowl.paths[1]],
+    };
+  }],
   ['clumping.cv', (m) => { m.propCV = 0.1; }],
   ['clumping.populated', (m) => { m.populatedFraction = 0.1; }],
   ['sceneWalk.noCensus', (m) => { m.hasCensus = false; }],
@@ -1121,9 +1343,13 @@ try {
 
 let placement = null;
 let census = null;
+let lampBowl = null;
 let pedestrians = null;
 let signQuads = null;
 let riverCensus = null;
+let occupancy = null;
+/** Hoisted out of the try: the metrics below and `judgeCity` both read it. */
+let softwareRenderer = false;
 let stalls = null;
 let streamed = null;
 let satSamples = [];
@@ -1148,8 +1374,25 @@ try {
   await page.evaluate(() => window.__NOCTIS_HARNESS__.ready);
 
   const gpu = await readRendererString(page);
-  if (rendererIsSoftware(gpu)) throw new Error(`software renderer (${gpu}) — the saturation sample would be meaningless`);
-  log(`GPU: ${gpu}\n`);
+  /**
+   * THE REFUSAL IS SCOPED TO THE MEASUREMENT IT INVALIDATES — session 21.
+   *
+   * It used to throw here, before anything was gathered, so a machine without a
+   * GPU produced NO verdict at all — not on the clumping, not on the scene
+   * walk, not on the landmarks, not on the new occupancy check, none of which
+   * reads a pixel. CONTRACT §9 rule 6's corollary is that counts do not drift;
+   * a placement is a count and an instance matrix is exact on any rasteriser,
+   * and the ONE measurement here that is not is the saturation sample.
+   *
+   * THIS CANNOT MAKE A RED GATE GREEN. `softwareRenderer` is carried into `M`
+   * and `judgeCity` fails on it — the gate still exits 1, with the saturation
+   * reported as UNRUN rather than as passed (CONTRACT §10: *a gate that cannot
+   * run is not a green gate*). What changes is that the other twenty-odd
+   * assertions now report, which is strictly more information for a gate that
+   * was already failing.
+   */
+  softwareRenderer = rendererIsSoftware(gpu);
+  log(`GPU: ${gpu}${softwareRenderer ? '  — SOFTWARE: the saturation sample will be UNRUN' : ''}\n`);
 
   const faults = await page.evaluate(() => window.__NOCTIS_HARNESS__.faults());
   if (faults.length) throw new Error(`${faults.length} module(s) quarantined: ${faults.map((f) => f.name).join(', ')}`);
@@ -1179,6 +1422,17 @@ try {
     if (!h.sceneCensus) throw new Error('harness.sceneCensus() is missing');
     return h.sceneCensus();
   });
+  /**
+   * The DELIVERED lamp radiances — session 28. Taken on this page, which boots
+   * at `ctx.config.t` = 0.78, so the photocell is on and `emissiveIntensity`
+   * carries the lit value rather than the 0.5 standby. The census reports the
+   * photocell state rather than inferring it, and `judgeCity` refuses rather
+   * than passing if it is off.
+   */
+  lampBowl = await page.evaluate(() => {
+    const h = window.__NOCTIS_HARNESS__;
+    return h.lampBowlCensus ? h.lampBowlCensus() : null;
+  });
   pedestrians = await page.evaluate(() => {
     const h = window.__NOCTIS_HARNESS__;
     return h.pedestrianCensus ? h.pedestrianCensus() : null;
@@ -1198,6 +1452,15 @@ try {
   signQuads = await page.evaluate(() => {
     const h = window.__NOCTIS_HARNESS__;
     return h.signPlacement ? h.signPlacement() : null;
+  });
+  /**
+   * THE DELIVERED KEEP-OUT CLAIMS — session 21. Taken inside the same
+   * `takeOver()` window as the scene census, for the same reason: a census
+   * taken mid-stream measures the streaming system.
+   */
+  occupancy = await page.evaluate(() => {
+    const h = window.__NOCTIS_HARNESS__;
+    return h.occupancyCensus ? h.occupancyCensus() : null;
   });
   /**
    * The river's DELIVERED bridges, session 15. Off the records `river.js`
@@ -1221,7 +1484,7 @@ try {
    * `runs - 1` loads and not `runs`.
    */
   const S = BUDGET.saturation;
-  const RUNS = Math.max(1, Number(args.get('satruns') || S.runs || 1));
+  const RUNS = softwareRenderer ? 0 : Math.max(1, Number(args.get('satruns') || S.runs || 1));
   for (let run = 0; run < RUNS; run++) {
     if (run > 0) {
       await page.goto(`${server.url}?perf=1&seed=${SEED}&paused=1`, { waitUntil: 'load', timeout: 90_000 });
@@ -1285,6 +1548,95 @@ server.child.kill('SIGKILL');
 const M = {};
 
 // ---------------------------------------------------------------------------
+// THE KEEP-OUT REGISTRY, BOTH HALVES — session 21.
+//
+// Half one runs the PURE GENERATOR over the budget's own region and asks
+// whether the claims it made conflict with each other. That is a check on
+// whether every generator reads the registry it writes to.
+//
+// Half two reads the DELIVERED scene through `harness.occupancyCensus()` and
+// asks the same question of the geometry that arrived. CONTRACT §9.1: a gate
+// that reads config verifies the config, and this project has twice had a
+// generator that decided correctly and a module that drew something else.
+{
+  const R = BUDGET.region;
+  const genClaims = [];
+  let refusedTotal = {};
+  for (let cz = R.cz[0]; cz <= R.cz[1]; cz++) {
+    for (let cx = R.cx[0]; cx <= R.cx[1]; cx++) {
+      const c = generateChunk(Number(SEED), cx, cz);
+      if (!c.registry) { M.genConflicts = null; break; }
+      for (const q of c.registry.all()) genClaims.push(q);
+      for (const [k, v] of Object.entries(c.refused || {})) refusedTotal[k] = (refusedTotal[k] || 0) + v;
+    }
+  }
+  if (M.genConflicts !== null) M.genConflicts = findConflicts(genClaims, 60);
+  M.genClaims = genClaims.length;
+  M.refused = refusedTotal;
+  M.deliveredConflicts = occupancy ? findConflicts(occupancy.claims, 60) : null;
+  M.deliveredClaims = occupancy ? occupancy.total : null;
+  M.deliveredCounts = occupancy ? occupancy.counts : null;
+  M.conflictPairs = conflictPairs().length;
+
+  /**
+   * THE VIADUCT'S OWN THREE NUMBERS. They are separate assertions rather than
+   * part of the conflict sweep because the sweep tests the DELIVERED lattice
+   * and the pier search runs against the IDEAL one (see `latticeCarriageway`),
+   * so a leg standing where the river happened to take the road away would
+   * pass the sweep and still be a leg placed in a running lane.
+   */
+  const via = LANDMARKS.find((l) => l.kind === 'viaduct');
+  if (via && via.pierLegOffset !== undefined) {
+    const arc = viaductArc(via);
+    const piers = viaductPiers(arc, via);
+    let onCar = 0;
+    let blocked = 0;
+    let maxInBlock = 0;
+    for (const p of piers) {
+      if (p.blocked) blocked++;
+      for (const leg of p.legs) {
+        if (latticeCarriageway(leg.x, leg.z, via.pierLegHalf)) onCar++;
+        const inBlock = leg.x > BLOCK_KEEPOUT.x0 && leg.x < BLOCK_KEEPOUT.x1
+          && leg.z > BLOCK_KEEPOUT.z0 && leg.z < BLOCK_KEEPOUT.z1;
+        if (inBlock) maxInBlock = Math.max(maxInBlock, Math.abs(leg.x) + via.pierLegHalf);
+      }
+    }
+    M.viaductLegsOnCarriageway = onCar;
+    M.viaductPiersBlocked = blocked;
+    M.viaductLegMaxInBlockM = maxInBlock;
+    M.viaductPiers = piers.length;
+    M.viaductHammerheads = piers.filter((p) => p.hammerhead).length;
+    M.viaductNudged = piers.filter((p) => p.nudgeM).length;
+  } else {
+    M.viaductLegsOnCarriageway = null;
+    M.viaductPiersBlocked = 0;
+    M.viaductLegMaxInBlockM = null;
+  }
+}
+M.softwareRenderer = softwareRenderer;
+
+notes.push(
+  `occupancy        ${M.genClaims} generator claims over the region, ` +
+  `${M.deliveredClaims == null ? 'no' : M.deliveredClaims} delivered (min ${BUDGET.occupancy.minDeliveredClaims}) — ` +
+  `${M.genConflicts == null ? 'n/a' : M.genConflicts.length} / ` +
+  `${M.deliveredConflicts == null ? 'n/a' : M.deliveredConflicts.length} forbidden overlaps ` +
+  `over ${M.conflictPairs} forbidden pairs (max ${BUDGET.occupancy.maxGeneratorConflicts})\n` +
+  `                 delivered by category: ` +
+  Object.entries(M.deliveredCounts || {}).map(([k, v]) => `${k} ${v}`).join(', ') + `\n` +
+  `                 the registry REFUSED, by the category that refused it: ` +
+  (Object.keys(M.refused).length
+    ? Object.entries(M.refused).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
+    : 'nothing') +
+  ` — a cap nobody prints reads as "everything fitted"\n` +
+  `                 viaduct ${M.viaductPiers} piers (${M.viaductHammerheads} hammerhead, ` +
+  `${M.viaductNudged} nudged, ${M.viaductPiersBlocked} blocked), ` +
+  `${M.viaductLegsOnCarriageway} leg(s) on a carriageway (max ` +
+  `${BUDGET.occupancy.maxViaductLegsOnCarriageway}), worst |x| inside the block ` +
+  `${M.viaductLegMaxInBlockM == null ? 'n/a' : M.viaductLegMaxInBlockM.toFixed(2)} m (band ` +
+  `${BUDGET.occupancy.viaductLegsInsideBlockClearBandM} m)`
+);
+
+// ---------------------------------------------------------------------------
 // 1. clumping, not uniform distribution
 
 const chunks = placement.chunks;
@@ -1314,6 +1666,7 @@ const SW = BUDGET.sceneWalk;
 // empty, so that `M` has one shape rather than one per outcome. `hasCensus` is
 // what judgeCity branches on; the zeros below are never read once it is false.
 M.hasCensus = !!census;
+M.lampBowl = lampBowl;
 M.streamed = streamed;
 M.streamedTimedOut = !!(streamed && streamed.timedOut);
 M.instancedMeshes = census ? census.instancedMeshes : 0;
@@ -1539,13 +1892,38 @@ notes.push(
 
 const placed = [];
 for (const c of chunks) {
-  for (const b of c.buildings) placed.push(b.yawDeg);
-  for (const p of c.props || []) placed.push(p.yawDeg);
-  for (const s of c.signs || []) placed.push(s.yawDeg);
+  for (const b of c.buildings) placed.push([b.yawDeg, 0]);
+  for (const p of c.props || []) placed.push([p.yawDeg, p.refDeg || 0]);
+  for (const s of c.signs || []) placed.push([s.yawDeg, 0]);
 }
-/** Deviation from the nearest right angle, which is what "off-axis" means here. */
-const deviations = placed.map((y) => {
-  const m = ((y % 90) + 90) % 90;
+/**
+ * DEVIATION FROM THE AXIS THE OBJECT IS ALIGNED TO — and until session 21 that
+ * was assumed to be the grid, for everything.
+ *
+ * WHAT WAS WRONG, AND IT IS CONTRACT §9's TABLE WITH AN ANGLE. This computed
+ * the delivered yaw's distance from the nearest right angle and used it as
+ * "how far off its own alignment is this object". Those are the same quantity
+ * for every object on the lattice and a different one for anything on a CURVE:
+ * the river's promenade runs at up to **11.46°** to the grid where the meander
+ * is steepest, so a bollard perfectly lined up with its own quay read as
+ * 11.46° of deviation. `river.js` derives the quay wall's segments from exactly
+ * the same tangent and nothing complains, because a wall is not in this list.
+ *
+ * It was inert until this session: the promenade band admitted almost nothing,
+ * because `propHalfAcross` was the MAXIMUM over a kind's variants and the
+ * promenade's clearance test used it. Making that pad per-variant (see
+ * `PROP_HALF_ACROSS_VARIANT`) let the narrow variants onto the quay, and the
+ * measured maximum went 2.27° → 11.46° with no change to any yaw expression.
+ *
+ * THE THRESHOLD DOES NOT MOVE. `maxDeviationDeg` is 3 before and after, and the
+ * negative direction is what makes this a correction rather than a licence
+ * (CONTRACT §7.3.1): a prop misaligned with its OWN kerb by more than 3° still
+ * fails, which is what `alignment.maxDeviation` falsifies, and `refDeg` is 0
+ * for every building, every sign and every prop not on a kerb — so for those
+ * populations the reading is unchanged, bit for bit.
+ */
+const deviations = placed.map(([y, ref]) => {
+  const m = (((y - ref) % 90) + 90) % 90;
   return Math.min(m, 90 - m);
 });
 const offAxis = deviations.filter((d) => d >= BUDGET.alignment.minDeviationDeg);
@@ -1610,6 +1988,26 @@ notes.push(
   `${(satMean / Math.max(1e-9, mean(brightSamples))).toFixed(3)} of bright pixels also clear ${BUDGET.saturation.threshold} saturation\n` +
   `                 a ceiling on the first number is met by lowering EITHER conjunct; this floor is the second one`
 );
+
+/**
+ * THE LAMP BOWL, DERIVED AND DELIVERED ON ONE LINE — session 28, and the line
+ * is the point. These two numbers existed in two files for ten sessions and
+ * nothing ever printed them together; CONTRACT §9 rule 2 says a quantity
+ * derived two ways is printed both ways at least once, and this is the once.
+ */
+if (lampBowl) {
+  notes.push(
+    `lamp bowls       derived ${lampBowl.derivedNits.toFixed(1)} cd/m² = Φ/(π·A) over a ` +
+    `${lampBowl.paths[0] ? lampBowl.paths[0].radiusM : '?'} m bowl, photocell ` +
+    `${lampBowl.lampsOn ? 'on' : 'OFF'}\n` +
+    lampBowl.paths.map((p) =>
+      `                 ${p.path.padEnd(9)} delivered ${p.deliveredNits.toFixed(1).padStart(7)} cd/m² = ` +
+      `${(p.deliveredNits / lampBowl.derivedNits).toFixed(4)}× derived, on ${p.meshes} mesh(es) ` +
+      `(ratchet [${BUDGET.lampBowl.minRatio}, ${BUDGET.lampBowl.maxRatio}], toward 1.0 only)`).join('\n')
+  );
+} else {
+  notes.push('lamp bowls       UNRUN — harness.lampBowlCensus() returned nothing');
+}
 
 // ---------------------------------------------------------------------------
 // 5. negative space and dead zones

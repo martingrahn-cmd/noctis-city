@@ -3,7 +3,16 @@
  *
  * A number that appears in two files eventually appears as two different
  * numbers. Anything here is authored once.
+ *
+ * THE ONE IMPORT, AND IT IS NOT A MODULE. `src/lib/**` is pure — numbers in,
+ * numbers out, no state, no ctx, no three — so `core` may read it and
+ * `parsecheck` allows exactly this (it forbids `src/core` importing a MODULE).
+ * `LAMP_BOWL` below needs an INTEGRAL of the luminaire distribution to state
+ * its own derivation, and a constant whose derivation is copied out by hand is
+ * the thing this file exists to prevent.
  */
+
+import { bowlRadianceNits, bowlZoneAreaM2 } from '../lib/luminaire.js';
 
 /** Where the block is. Chosen, not arbitrary — see WHY_LATITUDE below. */
 export const SITE = {
@@ -147,78 +156,26 @@ export const LIGHT = {
    */
   aviationRedNits: 16300,
   /**
-   * cd/m², THE AREA-AVERAGE RADIANCE OF THE FROSTED BOWL — 9000 → 1952 in
-   * session 18, and it is `signPlateNits` again with a lamp instead of a sign.
+   * cd/m², THE AREA-AVERAGE RADIANCE OF THE FROSTED BOWL — MOVED TO
+   * `LAMP_BOWL` IN THIS FILE, session 28, and it is no longer a value here at
+   * all.
    *
-   * 9000 is not a radiance. It is an INTENSITY OVER A PROJECTION: the bowl is a
-   * sphere of radius 0.42 m (`city.js` → `geometries.bowl`), whose projected
-   * area is π·0.42² = 0.5542 m², and `streetlampCandela` / 0.5542 = 12 270
-   * cd/m². 9000 is that quantity rounded down. Both are cd/m², both are
-   * plausible, and the lamp renders — CONTRACT §9's shape exactly, and the
-   * fourth time this project has made it with a photometric quantity after the
-   * luminaire leak, the tyre reflectance and the sign plate.
+   * It sat here as a bare `9000` for eighteen sessions while `block.js` held
+   * `EMISSIVE.lampBowl = 210` for the same frosted bowl on the same column —
+   * one quantity, two values, two files, 42.86× apart, and nothing comparing
+   * them. That is CONTRACT §9's own class, so the repair is structural rather
+   * than a third number: `LAMP_BOWL` holds the fixture's geometry, derives
+   * Φ/(π·A) = 1952.2 cd/m² from `streetlampCandela` and `LUMINAIRE` through
+   * `lib/luminaire.js`, and expresses BOTH delivered radiances as declared
+   * factors of it. The full derivation, both measured arms and the reason
+   * neither path can ship the correct value today are all written there.
    *
-   * THE RADIANCE OF AN EMITTING SURFACE IS ITS FLUX OVER ITS OWN AREA, not its
-   * peak intensity over its own shadow. `luminaire.js` integrates the §5.9
-   * distribution and returns the fixture's flux; the bowl is a spherical zone
-   * from 63° to 180°, so its emitting area is 2πR²(cos 63° − cos 180°):
-   *
-   *     Φ = luminaireFlux(6800 cd, LUMINAIRE)      =  9883.5 lm
-   *     A = 2π·0.42²·(0.4540 + 1)                  =     1.6115 m²
-   *     L = Φ / (π·A) = 9883.5 / 5.0627            =  1952 cd/m²
-   *
-   * and 9000 / 1952 = **4.61×**, which is the size of the error rather than a
-   * taste. Every number in that derivation already existed in the project; none
-   * of them had ever been written on the same line.
-   *
-   * WHAT IT WAS COSTING. At the night exposure the frame actually settles at
-   * (e ≈ 0.0141), 9000 cd/m² is 127 in exposed linear against a bright-pass
-   * onset of 0.414 — **307× over the bloom threshold**, on ninety-eight lamp
-   * bowls at once. CONTRACT §5.5 says it in one line: "If the whole frame
-   * glows, the threshold is wrong." The threshold was not wrong; what sat above
-   * it was two and a half orders of magnitude over it, and `POST.glareStrength`
-   * has been re-derived twice (0.15 → 0.075) against a veil that this constant
-   * was filling. At 1952 the bowl is 66× the onset — still a lamp, still
-   * blooming, no longer the frame's dominant source of glare energy.
-   *
-   * ────────────────────────────────────────────────────────────────────────
-   * AND THE VALUE IS STILL 9000, BECAUSE THE CORRECTION WAS MEASURED AND IT
-   * MADE THE FRAME WORSE. This is the finding, not the arithmetic above.
-   *
-   * Session 18 set it to 1952, re-shot the operator's own night street from the
-   * pavement at [300, 1.77, 9.7] and read the histogram (`tools/levels.mjs`,
-   * the Zone III–VII textured band):
-   *
-   *     9000 → 1952     textured 12.15% → 3.26%   (−8.89 points)
-   *                     crushed   2.53% → 6.23%   (+3.70 points)
-   *                     clipped   0.10% → 0.10%   (unchanged)
-   *                     mean     0.1419 → 0.1042
-   *
-   * THE TOP END DID NOT MOVE AT ALL, and that is the whole explanation: a bowl
-   * at 9000 and a bowl at 1952 are both far above white, so dividing by 4.61
-   * removes no clipping. What it removes is BLOOM ENERGY — and the veiling
-   * glare fed from that energy is the only thing holding 85% of a night frame
-   * off zero. `POST.glareStrength` says so in its own derivation two blocks
-   * down: it was re-derived 0.15 → 0.075 against a frame whose glare budget
-   * this constant was filling. So the two numbers are one system, and 9000 is
-   * load-bearing as LIGHTING even though it is wrong as a RADIANCE.
-   *
-   * The honest statement is therefore: **this is a real §9 quantity confusion,
-   * the correct value is 1952 cd/m², and it cannot ship on its own** — the
-   * 8.89 points of mid-tone it removes have to come back as light before it
-   * goes in, not as camera veil. That is a lighting change (item 11's kind) and
-   * a glare re-derivation together, measured on the same frames, and session 18
-   * did not have room to land both honestly. Reverting a measured regression is
-   * not the same as declining to fix the defect, and the arithmetic is left
-   * here so the next session argues with the derivation rather than the taste.
-   *
-   * THE SPLIT IS ALSO STILL OPEN. `block.js` → `EMISSIVE.lampBowl` is **210**
-   * for the same object, read only by `block.js`, while this is read only by
-   * `city.js` — 42.9× = 5.42 stops between two paths, with the look gates
-   * watching the 210 side and the night routes filling their frames from this
-   * one. Neither number is Φ/(πA). See STATE.md.
+   * Readers take `LAMP_BOWL.streamedNits` (9000, the streamed city) or
+   * `LAMP_BOWL.originNits` (**420**, the origin block — session 30 took it
+   * from 210 and this sentence went on saying 210, which is exactly 2.0000×
+   * the value a reader would actually have got). `citycheck` runs a ratchet
+   * over both against the derivation.
    */
-  streetlampNits: 9000,
   /**
    * candela, PEAK intensity of a high-pressure sodium luminaire — reached at
    * LUMINAIRE.peakAngleRad off nadir, not on the axis.
@@ -265,6 +222,78 @@ export const LIGHT = {
    * one thing a night street's soffits never are.
    */
   streetAverageLux: 16,
+
+  /**
+   * cd, PEAK. A PARK LAMP — session 21, and it is `streetlampCandela` derived
+   * for a different height and a different job rather than a second guess.
+   *
+   * The batwing's own relation (see `streetlampCandela` above) is
+   * `E = peak · cos³(peakAngle) / h²`, exact inside the peak angle. A park
+   * lamp's mounting height is `PARK.lampHeight` = **4.20 m** against the
+   * street's 8.08, and BS 5489-1 puts a footpath class at about half a traffic
+   * route's level — so the target is `streetAverageLux / 2` = **8 lx**:
+   *
+   *     I = E · h² / cos³(57°) = 8 × 17.64 / 0.1614 = 874 cd  →  870
+   *
+   * Both numbers, and the ratio (§9 rule 4): **870 / 6800 = 0.128× the street
+   * lamp's peak, delivering 0.50× its illuminance**, because the pool is four
+   * times closer to the ground. That factor is the whole reason a park at night
+   * looks like a park and not like a car park: the same light level from half
+   * the height is a smaller, softer pool with a lit column in the middle of it.
+   */
+  parkLampCandela: 870,
+
+  /**
+   * cd, PEAK. A CONSTRUCTION FLOOD MAST — session 21, and it is the one light
+   * type in this city that points DOWN INTO something.
+   *
+   * A site's task lighting is 50 lx (CDM / HSG38 general construction area, and
+   * 3.1× `streetAverageLux` because people are working). The mast is
+   * `SITE.floodHeightM` = 9.0 m and aims at the middle of the excavation, 18 to
+   * 34 m away, so the slant range is `hypot(9, 26)` ≈ **27.5 m** at the middle
+   * of that band:
+   *
+   *     I = E · d² = 50 × 27.5² = 37 800 cd  →  45 000 at the near end of the
+   *     band (d = 20.1 m gives 20 000; d = 35.2 m gives 62 000)
+   *
+   * 45 000 cd is a 2 kW metal-halide site floodlight, which is what is on a
+   * mast on a real site. **6.6× a street lamp's peak from a mast 0.53× the
+   * height**, which is why it reads as a different KIND of light rather than as
+   * a brighter one: hard, directional, downward, and with the excavation's own
+   * spoil casting the long shadows a street lamp never makes.
+   *
+   * IT DOES NOT FOLLOW THE PHOTOCELL. A street lamp is switched by dusk; a site
+   * flood is switched by whether anybody is working, and a site that is lit at
+   * noon is what a real one looks like when the sky is not doing the job. It
+   * costs the same slot either way — see `city.js` → `updateLampPool`.
+   */
+  siteFloodCandela: 60000,
+
+  /**
+   * m. THE FLOOD'S FALLOFF WINDOW, SIZED BEFORE THE INTENSITY WAS DERIVED
+   * THROUGH IT — and the first version of `siteFloodCandela` was not, which is
+   * CONTRACT §9 rows 6b and 20 for the THIRD time in three sessions.
+   *
+   * A pool slot is created with `radius: 30` and three's
+   * `getDistanceAttenuation(d, R, 2)` carries a Frostbite window `(1 − d/R)²`.
+   * A mast aiming 27.5 m from a 30 m window passes `(1 − 0.917)²` = **0.0069**
+   * of its intensity: 45 000 cd arriving as **0.41 lx**, an unlit hole under a
+   * crane. Measured by looking at the first site frame, which is the one thing
+   * that finds this class of defect once the arithmetic has already been done
+   * wrong.
+   *
+   * SIZE THE WINDOW FIRST. The farthest the beam has to reach is
+   * `hypot(floodHeightM, 34)` = **35.2 m**, and a window that still passes half
+   * its intensity there needs `(1 − d/R)² ≥ 0.5` → `R ≥ d/0.293` = **120 m**.
+   * 130 m, so the far end passes 0.53 and the near end (20.1 m) passes 0.71.
+   *
+   * THEN DERIVE THE INTENSITY THROUGH IT. At the middle of the band, d = 27.5 m
+   * and the window is `(1 − 27.5/130)²` = **0.622**, so
+   * `I = E·d²/window = 50 × 756 / 0.622` = **60 800 cd** → 60 000, which is a
+   * 3 kW metal-halide site floodlight. 45 000 was derived as though the window
+   * were 1.
+   */
+  siteFloodRadiusM: 130,
 
   /**
    * lux, below which the photocell closes and the street lights up.
@@ -613,18 +642,62 @@ export const POST = {
   bloomThreshold: 0.92,
   bloomSoftKnee: 0.55,
   /**
-   * 0.055, unchanged since session 1, and session 4 tried 0.030 and put it back.
+   * 0.055 from session 1 to 26. **0.016 in session 27**, and the reason is that
+   * SIXTY-ONE PER CENT OF THE MIDNIGHT FRAME WAS CAMERA GLOW RATHER THAN CITY.
    *
-   * The theory was that bloom, being the term that spreads a source across its
-   * neighbours, was the right half of the glow budget to cut — it would sharpen
-   * the frame, which the dusk stddev floor wants, where cutting the veil instead
-   * flattens the blacks the veil exists to hold off zero. The measurement said
-   * the opposite: at 0.030 the dusk stddev went DOWN (0.1268 → 0.1258) and both
-   * the dawn and dusk means fell out of their bands. Bloom is carrying real
-   * brightness and real structure on a night frame, not just haze. Recorded so
-   * the next session does not re-run the experiment.
+   * Session 4 tried 0.030 and put it back: "at 0.030 the dusk stddev went DOWN
+   * (0.1268 → 0.1258) and both the dawn and dusk means fell out of their bands."
+   * THAT MEASUREMENT NO LONGER REPRODUCES, and the re-measurement is the licence
+   * for this change rather than a preference against it. On today's content,
+   * 0.030 delivers dawn 0.3118 and dusk 0.1518 — both comfortably inside
+   * [0.299, 0.353] and [0.14, 0.18]. Session 4 measured an origin block; the
+   * frame now contains a streamed city, traffic, pedestrians and aircraft, and
+   * the finding was right about a world that has moved on (§9 rule 7).
+   *
+   * THE DECOMPOSITION, `lookcheck` at the gate's own camera and seed. Each arm
+   * is one constant changed from the shipped value, everything else held:
+   *
+   *     bloom  glare   midnight mean   ground pools   albedo clusters
+   *     0.055  0.075        0.1744            5              3        ← shipped
+   *     0.055  0.000        0.1505            8              3
+   *     0.000  0.075        0.1115            9              4
+   *     0.000  0.000        0.0682            9              3
+   *
+   * The exposed scene with NO camera glow at all is 0.0682, against a band of
+   * [0.072, 0.112] centred 0.092. So the city was never the thing that was too
+   * bright: bloom and veil together were adding 0.106 to a 0.068 frame, and
+   * CONTRACT §5.5 names the symptom in one line — "if the whole frame glows, the
+   * threshold is wrong."
+   *
+   * WHY THE THRESHOLD WAS NOT THE LEVER, measured before this one was touched.
+   * `bloomThreshold` 0.92 → 2.0 → 4.0 moves midnight only 0.1744 → 0.1712 →
+   * 0.1672, because the emitters this frame is full of sit ~300× over the onset
+   * (§9's `streetlampNits` row) and a 4.3× onset does not reach them. What it
+   * DOES reach is the daytime mid-tones: noon fell to 0.4277 and 0.4261, i.e.
+   * THROUGH its own 0.428 floor. The obvious repair was the wrong one and is
+   * recorded so it is not tried again.
+   *
+   * WHY BLOOM AND NOT EXPOSURE. `EXPOSURE.minEV` 3.0 → 7.0 puts midnight at
+   * 0.0923 — dead centre of the band — and leaves dawn, noon and dusk identical
+   * to four decimals, which makes it the only midnight-selective lever in the
+   * system. It was rejected on the frame it produces: darkening by exposure
+   * multiplies the near-black pixels down through the ACES toe, and midnight's
+   * crushed-black fraction went to **6.63% against a 2% ceiling** with emitter
+   * clusters at 58 against a floor of 60. Removing bloom removes halos without
+   * moving the toe: at the value below the crush is 0.88% and the clusters 83.
+   *
+   * THE COST, AND IT IS THE TIGHT PART OF THIS CHANGE. Bloom is also what holds
+   * NOON above its own floor: the noon scene without glow is 0.4255 against a
+   * band floor of 0.428. So bloom cannot go to zero, and the feasible window
+   * between "midnight under 0.112" and "noon over 0.428" is about 0.003 wide in
+   * this constant. 0.016 sits in it with midnight at 0.1101 (0.0019 of margin)
+   * and noon at 0.4293 (0.0013). Both are ~15× the run-to-run spread of these
+   * means, which is 0.0001 — resolvable under §0.1 rule 6, and thin. **The two
+   * bands were both re-centred on session 2's content and neither has been
+   * re-derived since; that they now bracket a 0.003 window is a fact about the
+   * bands, and it is STATE 27 §1.5's question for the operator.**
    */
-  bloomStrength: 0.055,
+  bloomStrength: 0.016,
   bloomMips: 8,
   /**
    * Veiling glare, as a fraction of the coarsest bloom mip added uniformly.
@@ -661,8 +734,54 @@ export const POST = {
    * The term still does its job, and that is the constraint this was re-derived
    * under rather than an afterthought: midnight's crushed-black fraction is what
    * the veil exists to hold off zero, and it stays far under its 2% ceiling.
+   *
+   * ────────────────────────────────────────────────────────────────────────
+   * SESSION 27: 0.075 → 0.010, RE-DERIVED A THIRD TIME, AND THIS TIME AGAINST
+   * THE GROUND POOLS RATHER THAN AGAINST THE SATURATION RESERVE.
+   *
+   * `groundPools` asks whether the streetlights lay a pattern on the asphalt. It
+   * counts regions on the roadway brighter than **3.0 × the roadway's own
+   * median**. That ratio is the whole argument:
+   *
+   *   - A MULTIPLICATIVE change — exposure, a global gain — scales the pool and
+   *     the median together. `P > 3·median` is unchanged, and the count does not
+   *     move. Measured: `minEV` 3.0 → 6.0 lowered the roadway median 7.6% and
+   *     left the count at 5.
+   *   - An ADDITIVE change — this term, added uniformly to every pixel — raises
+   *     the median by Δ and therefore the bar by 3Δ, so a pool must now clear
+   *     `3·median + 2Δ`. **The veil makes its own test harder by twice what it
+   *     adds.** Measured: 0.075 → 0.000 lowered the median only 6.9% — less than
+   *     the exposure arm did — and took the count from 5 to 8.
+   *
+   * So the pool count was never about the light level. It was about what was
+   * being added on top of it, and this constant was the thing adding it.
+   *
+   *     glareStrength   0.075   0.035   0.022   0.010
+   *     ground pools        5       6      10      10     (floor 6)
+   *     albedo clusters     3       4       4       4     (floor 4)
+   *
+   * THE ALBEDO COLUMN IS THE SAME MECHANISM AND IT IS WHY THE PALETTE WAS NOT
+   * TOUCHED. `facadeAlbedo` measures chromaticity against log-luminance, and a
+   * uniform lift drives every ratio in a frame toward 1. The five walls it
+   * samples are two concretes, two bricks and a stucco: brick and concrete sit
+   * **2.255** apart in that metric as base reflectances and the frame was
+   * delivering them **0.294** apart. The materials were never the same; the veil
+   * was making them look it. A palette widening was built, measured, and
+   * reverted — it moved the closest pair 0.259 → 0.278 and tipped `warmth:dusk`
+   * red, which is what repairing the wrong cause looks like.
+   *
+   * WHAT BOUNDS IT FROM BELOW, so this is a window and not a direction. The veil
+   * is what holds the ACES toe off zero (§5.5), and with bloom also cut it is
+   * the only thing doing so: at 0.000, with `bloomStrength` at 0.000, midnight's
+   * crushed-black fraction is **5.89% against a 2% ceiling**. At 0.010 against
+   * the bloom value above it is **0.88%**. The term is kept, small, and still
+   * load-bearing — it is not switched off.
+   *
+   * The saturation reserve that produced the 0.15 → 0.075 re-derivation moves
+   * the safe way throughout (0.075 → 10.9%, 0.05 → 8.5% against a 12% reserve),
+   * so nothing that argument protected is put at risk by going further down it.
    */
-  glareStrength: 0.075,
+  glareStrength: 0.01,
   /**
    * Rod vision below ~3 cd/m². Applied per-pixel on absolute luminance, so a
    * neon sign stays photopic and saturated while the asphalt beside it goes
@@ -1162,6 +1281,225 @@ export const LUMINAIRE = {
   peakAngleRad: (57.0 * Math.PI) / 180,
   /** Width of the roll-off at the cutoff, radians. A semi-cutoff optic, not a hard edge. */
   edgeRad: (7.0 * Math.PI) / 180,
+};
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE LAMP BOWL — ONE FIXTURE, ONE DERIVATION, AND THE TWO DELIVERED VALUES
+ * WRITTEN AS WHAT THEY ARE: DECLARED DEPARTURES FROM IT.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 28. What this replaces is CONTRACT §9's own class, and it had been
+ * standing for ten sessions: ONE QUANTITY WITH TWO VALUES IN TWO FILES AND
+ * NOTHING COMPARING THEM.
+ *
+ *     src/modules/block.js  EMISSIVE.lampBowl      210     the origin block
+ *     src/core/constants.js LIGHT.streetlampNits   9000    the streamed city
+ *     derived, and in neither file                 1952.2
+ *
+ * 9000 / 210 = **42.86×**, 5.42 stops, for the same frosted bowl on the same
+ * column carrying the same 6800 cd lantern. Neither number was Φ/(πA); one was
+ * an intensity over a projection (§9 row 18) and the other was authored into a
+ * table whose own comment says "these are authored, not measured".
+ *
+ * ── WHAT IS NOW SINGLE-SOURCE, BY CONSTRUCTION RATHER THAN BY A CHECK ──────
+ *
+ * The bowl's geometry lives HERE and both emitters build from it, so the area
+ * in the derivation and the area on the screen cannot diverge. The derivation
+ * reads `LIGHT.streetlampCandela` and `LUMINAIRE`, so a change to the lantern
+ * moves both delivered radiances with it. Before this, changing the candela
+ * left two stale radiances behind and the bowl stopped being the same lamp as
+ * its own beam — silently, in two files, in opposite directions.
+ *
+ * ── WHAT IS CHECKED, BECAUSE CONSTRUCTION CANNOT REACH IT ─────────────────
+ *
+ * `tools/city-budget.json` → `lampBowl` carries a RATCHET on how far each path
+ * may sit from the derivation, and `citycheck` runs it over the DELIVERED
+ * materials off the live scene (§9.1: a gate that reads config verifies the
+ * config). The bounds sit at today's measured departures and MAY ONLY EVER
+ * MOVE TOWARD 1.0 — the same shape as `floors.visibleInstances` and
+ * `saturation.minBrightFraction`, with an error instead of a count.
+ *
+ * ── WHY BOTH VALUES ARE STILL WRONG, WITH THE ARITHMETIC THAT SAYS SO ─────
+ *
+ * Session 28 measured the correction from both ends at once. It cannot ship on
+ * either path today, and the two failures are in OPPOSITE directions:
+ *
+ *   arm                            look band:midnight   citycheck bright reserve
+ *   ---------------------------------------------------------------------------
+ *   shipped (210 / 9000)              0.1091  ✓            4.95%  ✗ (floor 6.00)
+ *   origin block  210 → 1952          0.1187  ✗ RED        —
+ *   streamed city 9000 → 1952         0.1090               3.56%  ✗
+ *
+ * ATTRIBUTION FIRST, because it is the fact the two arms turn on. Zeroing each
+ * path in turn: the origin block's bowls carry **0.0030** of the look frame's
+ * 0.1091 mean and **0.06** points of the reserve; the streamed city's carry
+ * **0.0000** of the look frame — to four decimals, nothing — and **0.96**
+ * points of the reserve. The look gate watches one path and the night route
+ * watches the other, 16:1, and neither can see what the other is measuring.
+ *
+ *   - ON THE STREAMED CITY THE CORRECTION IS A DIMMING. 9000 → 1952 is ÷4.61,
+ *     and it costs **1.39 points** of bright reserve against a floor the city
+ *     already misses by 1.05. The only path the reserve can see is the one
+ *     where the correct value subtracts light.
+ *   - ON THE ORIGIN BLOCK IT IS A BRIGHTENING OF 9.30×, worth **+0.0096** of
+ *     midnight mean against **0.0021** of band ceiling — red by 0.0067, i.e.
+ *     4.6× the room that exists.
+ *
+ * SO THE BLOCK SIDE IS BLOCKED ON A NUMBER STATE 27 §8.3 ITEM 1 ALREADY NAMED
+ * AS THIS PROJECT'S FIRST OPEN QUESTION: `band:midnight`'s ceiling was
+ * re-centred on session 2's content and has not been re-derived in 25
+ * sessions. The lamp correction needs 0.0067 of ceiling that does not exist.
+ * Those are one question, and this comment is where they meet.
+ *
+ * Session 18 wrote "it cannot ship on its own — the mid-tone it removes has to
+ * come back as light before it goes in". That is still the answer. What is new
+ * is that the sentence now has a number on both ends, and that the two ends
+ * disagree about which direction "more light" even points.
+ */
+const BOWL_RADIUS_M = 0.42;
+const BOWL_THETA_START = Math.PI * 0.35;
+const BOWL_THETA_LENGTH = Math.PI * 0.65;
+/** Φ/(π·A) = 1952.2 cd/m². The one number both delivered values are a factor of. */
+const BOWL_DERIVED_NITS = bowlRadianceNits(
+  LIGHT.streetlampCandela, LUMINAIRE, BOWL_RADIUS_M, BOWL_THETA_START, BOWL_THETA_LENGTH
+);
+/**
+ * THE TWO FACTORS ARE MEASURED DEPARTURES, NOT AUTHORED SETTINGS, so they are
+ * quoted at the precision that reproduces what shipped rather than rounded to
+ * something that reads well:
+ *
+ *     9000 / 1952.1892 = 4.61020889     ->  4.610209 x 1952.1892 = 9000.00000
+ *      210 / 1952.1892 = 0.10757154     ->  0.1075715 x 1952.1892 = 209.99999
+ *
+ * So this refactor delivers the same two radiances the branch already shipped,
+ * to five decimal places, and every gate reading is therefore attributable to
+ * the CONTENT changes that follow rather than to the single-sourcing.
+ */
+const BOWL_STREAMED_FACTOR = 4.610209;
+/**
+ * SESSION 30: 0.1075715 -> 0.2151430, i.e. 210.0 -> 420.0 cd/m2, AND THE
+ * RATCHET MOVES IN WITH IT.
+ *
+ * Session 28 built this as a one-way ratchet on an ERROR — the two departures
+ * from the derived 1952.19 that could not be repaired then — and said in
+ * `city-budget.json` that *"a session that repairs one moves its bound in and
+ * cannot move it back."* This is the first session that repairs one, and it
+ * repairs half of it: the origin block's departure goes from **9.30x too dim
+ * to 4.65x too dim**, and `lampBowl.minRatio` goes 0.1075 -> 0.2151.
+ *
+ * WHY 2x AND NOT THE DERIVATION, AND THE NUMBER IS MEASURED RATHER THAN
+ * CHOSEN. `band:midnight` has a ceiling of 0.112 and the look gate's camera
+ * stands in this block, so the block's own emitters are the only thing that
+ * spends it. Swept on this session's head, three runs at the shipped value and
+ * one per arm:
+ *
+ *     originNits      0     210      420      630      840     1952
+ *     band:midnight  --   0.1098   0.1112   0.1125   (0.1127 pre-3b)  0.1187 (s28)
+ *     verdict              ships    SHIPS    RED       RED             RED
+ *
+ * 420 leaves **0.0008** of headroom against a run-to-run spread of **0.0001**,
+ * which is eight times the instrument's own resolution and is therefore a
+ * margin CONTRACT §0.1 permits a decision on. 630 is red by 0.0005. The
+ * crossing is at about **550**, so what is deliberately not taken is
+ * (550 − 420) / 550 = **24% of the range that exists**, or 31% of the step up
+ * from the shipped value — and it is not taken because shipping at the
+ * crossing leaves a margin smaller than the spread, which is the thing §0.1
+ * forbids.
+ *
+ * NO THRESHOLD MOVED IN THE FORBIDDEN DIRECTION. `look-budget.json` is
+ * byte-identical; `band:midnight` is [0.072, 0.112] before and after. The one
+ * number that moves in a budget file is `lampBowl.minRatio`, and it moves
+ * TOWARD 1.0, which is the only direction its own definition allows and is a
+ * tightening: a future session that puts this bowl back at 210 now FAILS
+ * `citycheck`.
+ */
+const BOWL_ORIGIN_FACTOR = 0.2151430;
+
+export const LAMP_BOWL = {
+  /**
+   * The geometry BOTH emitters build. The tessellation is each emitter's own
+   * business (the origin block draws 12×8, the streamed city 8×6, because one
+   * is sixteen bowls at 30 m and the other is 790 at up to a kilometre); the
+   * SHAPE is not, because the shape is what the radiance is divided by.
+   *
+   * THETA, NOT PHI, AND THE NAMES ARE THREE'S OWN. `SphereGeometry(R, wSeg,
+   * hSeg, phiStart, phiLength, thetaStart, thetaLength)` sweeps PHI around the
+   * equator and THETA pole to pole. This bowl is a THETA zone from 63° to 180°
+   * over a FULL phi revolution. Session 28 first wrote these as `phiStart` and
+   * `phiLength`, built the geometry correctly anyway (the values went into the
+   * theta slots), and then had the delivered census read three's `phiStart` —
+   * 0 and 2π — and compare it with 0.35π and 0.65π. The gate caught it on its
+   * first real run. CONTRACT §9 rule 7, one letter wide.
+   */
+  radiusM: BOWL_RADIUS_M,
+  thetaStart: BOWL_THETA_START,
+  thetaLength: BOWL_THETA_LENGTH,
+  /**
+   * The azimuthal sweep, and it is here because `bowlZoneAreaM2` ASSUMES it.
+   * A bowl swept over less than a full revolution has a proportionally smaller
+   * emitting area and the derivation would be silently wrong by that factor,
+   * which is the same defect one axis over. `citycheck` checks the delivered
+   * geometry against it.
+   */
+  phiStart: 0,
+  phiLength: Math.PI * 2,
+
+  /**
+   * m², the EMITTING area of that zone — 2πR²(cos φ0 − cos φ1) = 1.6115.
+   *
+   * It is the denominator of the derivation and it was also a bare `1.6115`
+   * literal in `city.js`'s own boot log, written out by hand from a comment in
+   * this file. Two copies of an area, one of which would not have moved if the
+   * bowl had. §9 rule 2: derived once, read everywhere.
+   */
+  areaM2: bowlZoneAreaM2(BOWL_RADIUS_M, BOWL_THETA_START, BOWL_THETA_LENGTH),
+
+  /**
+   * cd/m². Φ/(π·A) for the fixture above — 9883.5 lm over 1.6115 m². Computed
+   * at load from `luminaire.js`, never authored: §9 rule 4 wants both numbers
+   * printed at the moment of derivation, and `city.js` prints this one beside
+   * each delivered value at init.
+   */
+  derivedNits: BOWL_DERIVED_NITS,
+
+  /**
+   * THE STREAMED CITY'S 790 BOWLS. 4.610× the derivation.
+   *
+   * This is `LIGHT.streetlampCandela / (π·0.42²)` = 12 270 rounded down to
+   * 9000 — an intensity over a projected area, used as a radiance. §9 row 18.
+   * It is load-bearing as LIGHTING while it is wrong as a RADIANCE: it carries
+   * 0.96 of the 4.95 points of bright reserve this city delivers, and the
+   * corrected value costs 1.39 of them.
+   */
+  streamedFactor: BOWL_STREAMED_FACTOR,
+  /** cd/m² AS DELIVERED to the streamed city's bowl material. 9000.0. */
+  streamedNits: BOWL_DERIVED_NITS * BOWL_STREAMED_FACTOR,
+
+  /**
+   * THE ORIGIN BLOCK'S 16 BOWLS. **0.2151× the derivation, i.e. 4.65× too dim**
+   * since session 30, and 0.1076× / 9.30× before it — see `BOWL_ORIGIN_FACTOR`
+   * above for the sweep that moved it and for why the remaining **24%** of the
+   * available range was not taken. (550 - 420) / 550 = 23.64%; the 30% this
+   * line carried is the figure from before the bowl moved, and the corrected
+   * value has been 77 lines above it since session 30.)
+   *
+   * ITS HISTORY, IN THE PAST TENSE, BECAUSE SESSION 31 FOUND THIS PARAGRAPH
+   * STILL WRITTEN IN THE PRESENT FIVE LINES BELOW ITS OWN 210 -> 420
+   * CORRECTION. The value **was** 210 and is 420; it **was** authored in
+   * `block.js`'s EMISSIVE table and has not lived there since session 2 — see
+   * `block.js`'s own note, which says so. So it was never a wrong derivation,
+   * it was an absent one (§9 rule 5: a number without a derivation is a
+   * guess), and session 30 gave it one. The claim that it "is the value the
+   * look gate's `band:midnight` was last balanced against" was true of 210 and
+   * is not true of 420: session 30 measured 420 at `band:midnight` 0.1112 and
+   * shipped it, and session 31 measured 0.0745 with the station standing in
+   * the same frame. Nothing here is what that assertion is balanced against
+   * any more, and §8 of STATE 31 is where that balance now lives.
+   */
+  originFactor: BOWL_ORIGIN_FACTOR,
+  /** cd/m² AS DELIVERED to the origin block's bowl material. 420.0 — session 30. */
+  originNits: BOWL_DERIVED_NITS * BOWL_ORIGIN_FACTOR,
 };
 
 /**
@@ -1910,6 +2248,85 @@ export const HUD = {
   graphSeconds: 1.0,
   /** Levels, in cycle order. `off` is a level so `H` always has somewhere to go. */
   levels: ['off', 'minimal', 'render', 'world', 'derivations'],
+
+  /**
+   * THE VSYNC LOCK — session 23, item 1. WHY A CEILING NEEDS A DETECTOR AT ALL.
+   *
+   * `wallFrameMsP95` is 12.5 and `budget.json` says what it is a ceiling ON, in
+   * its own words: *"End-to-end animation-frame interval WITH VSYNC AND THE
+   * FRAME-RATE LIMITER DISABLED, so it is bounded below by whichever of the CPU
+   * and the GPU is slower."* `page.mjs` and `perfcheck` both launch with
+   * `--disable-gpu-vsync --disable-frame-rate-limit` for exactly that reason.
+   *
+   * A BROWSER ON THE OPERATOR'S DESK HAS NEITHER FLAG. There the delivered
+   * interval is `max(work, T)` for a refresh period `T`, and the ceiling is on
+   * `work`. Those are two different quantities with the same units and plausible
+   * magnitudes, which is CONTRACT §9's entire subject — and the tell is written
+   * in the budget file already: `$wallFrameMsP95_rebaseline` records that this
+   * ceiling USED TO BE 16.67 and that *"16.67 was the vsync line"*. The red
+   * number the operator read, 16.7, is the ceiling's own discarded value.
+   *
+   * Under a lock the reading is CENSORED rather than wrong. An interval of
+   * `m·T` establishes `work` in `((m-1)·T, m·T]` and nothing finer, so a verdict
+   * against a ceiling `W` is available exactly when that whole band lies on one
+   * side of `W`:
+   *
+   *     m = 1, T = 16.67   work in (0, 16.67]   W = 12.5 is INSIDE   no verdict
+   *     m = 2, T = 16.67   work in (16.67, 33]  W is BELOW           breach
+   *     m = 1, T =  8.33   work in (0, 8.33]    W is ABOVE           clear
+   *
+   * So this is not a suppression: at 120 Hz the same rule turns the cell GREEN,
+   * because a held 8.33 ms lock PROVES the work is under 12.5 ms. At 60 Hz it
+   * turns the cell neutral, because nothing is proved either way. And a dropped
+   * frame stays RED at every refresh rate, which is the one thing a locked
+   * context can still resolve and the thing a person actually sees.
+   *
+   * NO GATE READS ANY OF THIS. `perfcheck` runs unlocked and asserts the same
+   * 12.5 it always has; `HUD.budgets` above is byte-identical and still checked
+   * against `budget.json` key for key. This changes what a panel says about a
+   * measurement it cannot make, and nothing about the measurement.
+   */
+  vsync: {
+    /**
+     * Frames before a lock may be claimed. 60 is one second at 60 Hz, and it is
+     * the granularity that makes `lockedFraction` a statistic: with 60 samples
+     * the fraction moves in steps of 1/60 = 1.67%, so the 0.90 threshold below
+     * sits 6 whole frames clear of 1.0 and a single hitch cannot flip the claim.
+     */
+    minSamples: 60,
+    /**
+     * How close to an integer multiple of the candidate period counts as ON the
+     * grid: `|interval - m·T| <= tolFrac·T`. 0.06 is 1.00 ms at T = 16.67 —
+     * an order of magnitude above the rAF timestamp's own coarsening (Chrome
+     * clamps `performance.now()` to 100 us cross-origin-isolated, 5 us
+     * otherwise) and a sixth of the 8.33 ms half-gap to the next multiple, so
+     * the bands cannot touch. THE DISCRIMINATION IS ARITHMETIC: bands of width
+     * `2·tolFrac·T` repeating every `T` cover 12% of the line, so a distribution
+     * that is NOT quantised puts about 12% of its samples on the grid by luck,
+     * against the 0.90 required below — a separation of 7.5x.
+     */
+    tolFrac: 0.06,
+    /**
+     * The share of intervals that must lie on the grid. 0.90 over the loop's
+     * 240-frame buffer is 24 frames of slack: a machine dropping more than one
+     * frame in ten is not holding its refresh, and the lock claim should lapse
+     * rather than explain away a stutter.
+     */
+    lockedFraction: 0.90,
+    /**
+     * The callback must not FILL the period, or the period is explained by the
+     * work and there is no lock to attribute it to. `p95(callback) <= 0.75·T`.
+     *
+     * It is a NECESSARY condition and not a sufficient one, and the reason is
+     * worth the line: `callback` ends when the rAF body returns, so it does not
+     * contain the GPU work that retires afterwards or the compositor's own. The
+     * measured duty therefore UNDERSTATES the true one, and 0.75 leaves the
+     * unmeasured remainder a quarter of the period to live in. What carries the
+     * claim is the quantisation above; this only removes the case where the
+     * work alone already accounts for the period.
+     */
+    maxDutyFraction: 0.75,
+  },
 };
 
 /**

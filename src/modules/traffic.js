@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY, riverNoRoad } from '../lib/citygen.js';
+import { CITY, riverNoRoad, busStopAt, BUS_STOP } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
@@ -107,6 +107,50 @@ const TURN_RADIUS = 8.0;
 const TURN_SPEED = 5.0;
 
 /**
+ * THE LONGEST BODY THAT MAY TAKE THIS TURN — SESSION 29, AND IT IS DERIVED.
+ *
+ * The arc above is run by the vehicle's ORIGIN. A rigid body of half-length L
+ * sitting on that origin puts its front outer corner at radius
+ * sqrt((R + W)^2 + L^2) from the turn centre, where W is the body's half-width,
+ * so the corner swings
+ *
+ *     sqrt((R + W)^2 + L^2) - (R + W)  ~=  L^2 / (2R)
+ *
+ * OUTSIDE the band its own width entitles it to. The quantity is in the SQUARE
+ * of the half-length, which is why it is invisible on a short body and
+ * unignorable on a long one, and it is exactly CONTRACT §9 row 23's shape: a
+ * length that stopped meaning what it meant the moment the body got longer.
+ *
+ * MEASURED BEFORE THIS CONSTANT EXISTED, on the delivered arc, by
+ * `tools/fleetprobe.mjs` — measured against L^2/2R predicted:
+ *
+ *     moto   0.072 / 0.076     pod  0.192 / 0.214     wedge  0.397 / 0.456
+ *     van    0.483 / 0.563     hauler 1.162 / 1.440
+ *
+ * Two derivations agreeing to within the sampling of the arc (§9 rule 2); the
+ * measurement sits under the asymptote because a frame rarely lands on the exact
+ * mid-arc where the excursion peaks.
+ *
+ * THE BOUND IS THE LANE HALF-PITCH. Lanes are 3.50 m apart (`LANE_OFFSET`:
+ * 5.25 - 1.75), so an excursion over 1.75 m puts a corner past the NEXT LANE'S
+ * CENTRELINE — into the space the following model is keeping clear for somebody
+ * else. Solving L^2/(2R) <= 1.75 at R = 8.0:
+ *
+ *     L <= sqrt(2 x 8.0 x 1.75) = sqrt(28) = 5.2915 m,  i.e. len <= 10.583 m
+ *
+ * The delivered fleet against it: hauler 9.60 m (L 4.80, 1.44 m) passes with
+ * 0.31 m to spare, lorry 8.20 m (L 4.10, 1.05 m) passes, and the 12.00 m bus
+ * (L 6.00, 2.25 m) DOES NOT. So a bus does not turn here.
+ *
+ * REFUSED RATHER THAN MOVED, which is the discipline the sign pylon and the
+ * advertising pillars already use: the alternative is a second turn radius for
+ * long vehicles, which is a junction geometry this city does not have and a
+ * kerb line it would drive over. A bus that runs straight through junctions is
+ * a bus on a route; a bus that cuts the corner is a bug.
+ */
+const MAX_TURN_HALF_LEN_M = Math.sqrt(2 * TURN_RADIUS * (5.25 - 1.75) / 2);
+
+/**
  * Free-flow speed, m/s. 12 m/s is 43 km/h, an urban arterial between signals.
  *
  * It is also the speed CONTRACT §5.11's motion-vector arithmetic was written
@@ -183,6 +227,17 @@ const HEADLAMP_SLOTS = 96;
  *
  * 14 s of green is two 128 m blocks' worth of queue discharge at 12 m/s.
  */
+/**
+ * Bus dwell, seconds: a fixed door cycle plus a per-boarder term. Both are
+ * transit-practice figures and both are bounded, which is what §9 rule 5 asks.
+ * About 5 s covers opening, kneeling and closing; about 2.5 s is one passenger
+ * through one door. The boarder count is COUNTED off the people standing at the
+ * shelter, never assumed — see `busDwellSeconds`.
+ */
+const BUS_BERTH_M = 1.0;
+const BUS_DOOR_CYCLE_S = 5.0;
+const BUS_BOARD_S = 2.5;
+
 const GREEN_S = 14;
 const AMBER_S = 4;
 const CYCLE_S = 2 * (GREEN_S + AMBER_S);
@@ -223,6 +278,18 @@ const CYCLE_S = 2 * (GREEN_S + AMBER_S);
 const CAMERA_CLEARANCE = 14.0;
 /** Metres either side of a lane centre within which the camera is IN that lane. */
 const CAMERA_LANE_HALF = 2.2;
+
+/**
+ * The clearance a re-seeded vehicle must have from the nearest body already on
+ * its line, BUMPER TO BUMPER, metres. Session 29.
+ *
+ * It is the standing term of the following model's own gap — `safe = 2.0 +
+ * 1.2 v` at v = 0 — and NOT a car length, because a gap expressed in car lengths
+ * is the quantity CONTRACT §9 has caught this project confusing four times. A
+ * vehicle seeded exactly at this clearance is a vehicle stopped in a queue, and
+ * the following model will hold it there rather than close it up.
+ */
+const SEED_CLEAR_M = 2.0;
 
 /** Comfortable deceleration, m/s^2, and the stop line it implies. */
 const BRAKE_A = 2.0;
@@ -1142,6 +1209,259 @@ const LOFT = [
       [0.78, 0, 0.56, 0.16], [-0.78, 0, 0.56, 0.16],
     ],
   },
+  /* -------------------------------------------------------------------------
+   * SESSION 29: TWO CLASSES, AND THE BRIEF'S PREMISE ABOUT THIS TABLE IS WRONG.
+   *
+   * The brief said "today every vehicle is a car-length body". MEASURED off this
+   * table by `tools/fleetprobe.mjs` before anything was written: the fleet is
+   * 2.20 to 9.60 m long and 1.28 to 3.62 m tall, and the hauler is already
+   * taller than it is wide (3.62 against 2.66). What was actually missing is
+   * narrower and worth saying exactly:
+   *
+   *   NO PASSENGER VEHICLE OF ANY KIND. Nothing in this city carries people
+   *     except the people themselves, and a bus is the one road vehicle whose
+   *     INTERIOR is a light source at night.
+   *   NO STEP IN THE SIDE ELEVATION. Every one of the five is a monotone wedge —
+   *     widest at the nose, drawn in at the tail, roof rising or falling once.
+   *     A rigid lorry is a LOW CAB WITH A TALL BOX BEHIND IT, and that step is a
+   *     silhouette this fleet does not contain at any length.
+   *
+   * So the two additions are chosen for the silhouettes the table lacks rather
+   * than for the lengths, and the length follows from the class.
+   * ---------------------------------------------------------------------------
+   */
+  {
+    /**
+     * THE CITY BUS. 12.00 m is the standard rigid single-decker and it is the
+     * length the class is defined by, not a number chosen to be long: 12.00 /
+     * 5.40 = 2.22x the wedge and 2.67x a 4.50 m reference-era saloon, which is
+     * the "three times a car" the brief asked for measured against a real car
+     * rather than against this fleet's own wedge.
+     *
+     * 2.55 m wide is the EU maximum for a bus (Directive 96/53/EC), and this
+     * world's hauler at 2.66 is over it — a freighter here is wider than
+     * anything licensed to carry passengers, which is a distinction worth
+     * keeping rather than smoothing. 3.20 m to the roof is a low-floor
+     * single-decker: 0.34 m floor, 2.40 m saloon headroom, 0.46 m of roof
+     * structure and air-conditioning.
+     *
+     * SPEED 0.78. A bus is not slow because it is heavy, it is slow because it
+     * stops; 0.78 x 12 = 9.4 m/s free-running, between the hauler's 8.9 and the
+     * van's 10.3. The dwell that makes it actually slow is item 4 and is not
+     * here.
+     *
+     * THE ROOFLINE IS A RAKED NOSE AND THAT IS WHAT MAKES IT MEASURABLE. A real
+     * bus is a flat-topped slab and would read roofSpan near zero against a 0.30
+     * floor — §7.5's own `$minWidthSpan_notAllVehiclesTaper` records the same
+     * trade for a panel van, and this is that trade taken deliberately rather
+     * than discovered. The lowered driver's bay at 1.98 m under a 3.20 m saloon
+     * roof is 1.22 m of step: a raked screen, the same device the viaduct
+     * train's nose uses, and session 23's finding is that a silhouette change
+     * reads at distance far better than added polygons do.
+     *
+     * THE FIRST DRAFT OF THIS TABLE FAILED BOTH FLOORS AND THE NUMBERS WRITTEN
+     * HERE BEFORE IT WAS MEASURED WERE WRONG. `tools/fleetprobe.mjs` scored the
+     * first bus at roofSpan 0.2307 against a comment claiming 0.4211, because
+     * the §7.4 sampling trims 10% of the length at each end and then takes
+     * TWELVE stations over what is left — which on an eight-section body reaches
+     * sections 1 to 6 and NEVER SAMPLES SECTIONS 0 OR 7. A nose deck authored in
+     * section 0 is invisible to the metric however deep it is. The step
+     * therefore lives in section 1, and the floors are cleared by the sampled
+     * body rather than by the drawn one agreeing with it by luck.
+     *
+     * DELIVERED, through the geometry path: roofSpan 0.3265, widthSpan 0.1670.
+     * Both above their floors (0.30 / 0.12); the width is above the whole
+     * pre-session-29 fleet's worst (hauler 0.1610). Every sampled section top
+     * clears the 1.60 m width probe by 0.38 m or more.
+     *
+     * IT CANNOT MAKE THE JUNCTION TURN AND THAT IS DERIVED, NOT DECIDED. See
+     * MAX_TURN_HALF_LEN_M: a rigid body of half-length L on an 8.0 m arc swings
+     * its corners L^2/(2R) outside the band its own width entitles them to, and
+     * at L = 6.00 that is 2.25 m against a 1.75 m lane half-pitch. A turning bus
+     * would put its front corner past the next lane's centreline. Refused rather
+     * than moved.
+     */
+    name: 'bus', len: 12.00, wide: 2.55, speed: 0.78, weight: 0.03, rough: 0.46,
+    plan: [1.00, 1.00, 1.00, 1.00, 0.99, 0.95, 0.82, 0.68],
+    top: [1.80, 1.98, 3.20, 3.20, 3.20, 3.20, 3.14, 2.92],
+    seams: [1, 5],
+    floorY: 0.62, sillY: 0.26,
+    /**
+     * The saloon glazing band, spanning sections 2-5 — the constant-plan,
+     * constant-roof run — so it is one continuous window down the flank rather
+     * than a visor. Local tops 3.20, glass 3.02 (strictly under); local plans
+     * 1.00, glass 0.92, which is inside the flank and outside the tumblehome
+     * plane at 0.76, so the band breaks through the crease facet and shows. Its
+     * span [-2.90, +2.90] stays inside sections 2-5 at [-2.97, +2.97].
+     */
+    glaze: [0.00, 5.80, 3.02, 2.10, 0.90],
+    wheels: [
+      [4.35, 1.10, 0.98, 0.30], [4.35, -1.10, 0.98, 0.30],
+      [-3.30, 1.10, 0.98, 0.30], [-3.30, -1.10, 0.98, 0.30],
+    ],
+    /**
+     * THE LIT SALOON — `[len, height, width, centreAlong, centreHeight, kind]`,
+     * the same row shape as `marker`, kind 3.
+     *
+     * A bus is the only road vehicle whose INTERIOR is a light source at night,
+     * and this is the one emitter in the session that is large-area rather than
+     * a line. It rides the same window band the `glaze` box occupies — centre
+     * 2.56, which is (3.02 + 2.10)/2 — and is 0.86 m tall inside the glass's
+     * 0.92, so it is the lit interior seen THROUGH the glazing rather than a
+     * strip stuck on the outside.
+     *
+     * 1.01 x 2.55 = 2.5755 m WIDE AGAINST A 2.55 m FLANK, i.e. 12.8 mm proud on
+     * each side, and that 12.8 mm is the whole reason it is visible at all: a
+     * light row has no lateral offset large enough to reach a flank from the
+     * centreline, so an interior box inside the body is CONTRACT §9.1's
+     * "geometry authored and then drawn inside something else" — which is
+     * exactly the state the hauler's marker has been in since session 6b. The
+     * span is 5.80 m, the constant-plan sections 2-5, so it never protrudes past
+     * the drawn-in tail the way a full-length box would (section 7 is 0.68 of
+     * the width, and a 2.5755 m box there would stand 0.42 m proud each side).
+     *
+     * WHY THE HAULER'S 2.78 m MARKER WAS REFUSED AND THIS IS NOT. That row was
+     * measured to cost 2.50 points of `citycheck`'s saturated-and-bright peak
+     * (8.70% -> 11.20% against a 12% ceiling) and the diagnosis beside it is
+     * *"it is not the strip, it is the bloom off its clipped core"*. This is a
+     * different case in the two ways that matter, and both are measured rather
+     * than argued in STATE: it is 160 nits against that row's authored line
+     * brightness, i.e. `g = 160/900 = 0.178` of the material's own maximum, and
+     * it is WARM WHITE, which is the low-saturation half of a conjunct whose
+     * ceiling is on saturation AND value. The peak is 2.97% today against 12%.
+     */
+    interior: [5.80, 0.86, 2.5755, 0.00, 2.56, 3],
+  },
+  {
+    /**
+     * THE RIGID LORRY, AND IT IS THE STEP THIS FLEET DOES NOT HAVE.
+     *
+     * 8.20 m over two axles is a 12-tonne rigid goods vehicle — the size that
+     * actually delivers to a city street, between the van's 6.00 m and the
+     * hauler's 9.60. 2.40 m wide, 3.30 m to the top of the box: TALLER THAN IT
+     * IS WIDE by 1.375x, which is the brief's own definition of the class and is
+     * a proportion no other type here has except the hauler.
+     *
+     * WHAT MAKES IT NOT A LONGER VAN. The van is a monotone aero wedge: nose
+     * deck, one rake step, cargo box, blunt tail. This is a CAB AND A BOX — a
+     * 2.06 m cab over the front axle, a hard step up to a 3.30 m body that runs
+     * flat to a square tail with no draw-in at the roof at all. In plan the box
+     * is the widest thing on it and the cab is narrower, which is the opposite
+     * of every other type in this table (all of them widest at the nose). That
+     * inversion is the point: a queue of five types that all taper the same way
+     * is one shape at five scales.
+     *
+     * THE CAB IS NARROWER THAN THE BOX AND THAT IS BOTH THE STYLING AND THE
+     * MEASUREMENT. 0.82 of 2.40 m is a 1.97 m cab under a 2.40 m body. A real
+     * box lorry has a cab the same width as its body and would read widthSpan
+     * 0.114 against a 0.12 floor — measured on the first draft of this row, and
+     * the same trade the bus above records.
+     *
+     * Delivered, through the geometry path: roofSpan 0.3295, widthSpan 0.1740.
+     * Every sampled section top clears the 1.65 m width probe by 0.37 m or more.
+     * Off-tracking at L = 4.10 m is 1.05 m, inside the 1.75 m lane half-pitch,
+     * so it turns like the rest of the fleet.
+     */
+    name: 'lorry', len: 8.20, wide: 2.40, speed: 0.82, weight: 0.06, rough: 0.55,
+    plan: [0.86, 0.82, 1.00, 1.00, 1.00, 1.00, 0.88, 0.74],
+    top: [1.94, 2.02, 3.30, 3.30, 3.30, 3.30, 3.30, 3.26],
+    seams: [1, 5],
+    floorY: 0.72, sillY: 0.26,
+    /**
+     * The cab screen, inside sections 0-1 only (tops 2.06/2.20, glass 1.98;
+     * plans 0.86/0.88, glass 0.82, which is inside the narrower of the two and
+     * outside tumble 0.76 x 0.86 = 0.654). It stops at the cab because the box
+     * behind it has no windows — which is the whole difference between this and
+     * the van.
+     */
+    glaze: [3.05, 1.60, 1.90, 1.58, 0.78],
+    wheels: [
+      [2.95, 1.00, 0.86, 0.28], [2.95, -1.00, 0.86, 0.28],
+      [-2.20, 1.00, 0.86, 0.28], [-2.20, -1.00, 0.86, 0.28],
+    ],
+  },
+];
+
+/**
+ * SIX SINCE SESSION 29, UP FROM THREE, AND THE ALLOCATION IS WHAT A SIGNATURE
+ * COSTS.
+ *
+ * Four rows for the signature — the widest of them, `pair` and `column`, is two
+ * units at each end — plus the marker row that has existed since session 6b and
+ * one interior row that only the bus fills. A type wearing `bar` or `strip`
+ * parks two of the four; a type with no marker parks a fifth; everything but the
+ * bus parks a sixth. A parked row is written identically every frame at
+ * (0, -1000, 0) and scale 1e-4, which is the arrangement the hauler's missing
+ * third row already used.
+ *
+ * THE COST, and it is stated here because the three numbers this comment block
+ * used to carry were WRONG and nobody had checked them. 160 x 3 more rows = 480
+ * more instances in a mesh that is already drawn, at 12 triangles a row = 5 760
+ * triangles, against `ceilings.triangles` 2 000 000 and a delivered worst route
+ * of about 1.18 M. ZERO new draw calls, ZERO new meshes, ZERO new materials,
+ * ZERO new light slots — every one of these is emissive geometry, by the same
+ * argument `trafficLights.$content` makes about tail lamps. The §5.12 previous-
+ * transform double buffer for the light layer goes 560 x 64 x 2 = 70.0 KiB to
+ * 1040 x 64 x 2 = 130.0 KiB.
+ */
+const LIGHTS_PER_VEHICLE = 6;
+
+/**
+ * LIGHT SIGNATURES — SESSION 29, AND IT IS THE OLDEST UNFULFILLED REQUEST IN THE
+ * PROJECT.
+ *
+ * The operator asked for this long before any of the recent instrument work:
+ * *"every car has the same single stripe front and back"*. It was true. The
+ * session-4b comment at the top of this file states it as a feature — *"the
+ * light signatures are LINES rather than lamps: a full-width bar front and
+ * rear"* — and one line on every vehicle of every type is not a design language,
+ * it is a single object repeated 160 times.
+ *
+ * FOUR SIGNATURES, ROLLED PER VEHICLE on `traffic:signature`. Each unit's width
+ * and lateral offset are fractions of the END SECTION'S OWN WIDTH so the
+ * proportion survives a 0.64 m motorcycle and a 2.55 m bus; `h` is metres,
+ * because a lamp's height is a lamp's height at any width, and `dy` shifts a
+ * unit off the loft's own lamp line.
+ *
+ *   bar     ONE full-width bar. Exactly what shipped before this session, kept
+ *           as signature 0 so the fleet's existing look is a member of the new
+ *           vocabulary rather than something it replaced.
+ *   pair    TWO separated units, outboard. The commonest real arrangement and
+ *           the one that most changes a distant silhouette: two points of light
+ *           at a known separation is what tells an eye how wide and how far.
+ *   column  TWO units, outboard and TALL — a vertical lamp at each corner. 0.22 m
+ *           against the bar's 0.075, so it reads as an edge rather than a dot.
+ *   strip   ONE narrow central strip. The minimal signature, and the moto's only
+ *           one.
+ *
+ * A SEPARATED PAIR NEEDED A LATERAL OFFSET AND LIGHT ROWS DID NOT HAVE ONE. The
+ * emitter put every light row on the vehicle's centreline; the hauler's marker
+ * comment records that as the reason its strip could only be made visible by
+ * making it WIDER than the flank. `lat` is the seventh element of a light row and
+ * is applied down the vehicle's RIGHT, which is the same `(-cos yaw, sin yaw)`
+ * the wheels have used since session 5 — one convention, not a second one.
+ */
+const SIGNATURES = [
+  {
+    name: 'bar',
+    front: [{ w: 0.86, lat: 0, h: 0.075 }],
+    rear: [{ w: 0.88, lat: 0, h: 0.075 }],
+  },
+  {
+    name: 'pair',
+    front: [{ w: 0.20, lat: 0.33, h: 0.085 }, { w: 0.20, lat: -0.33, h: 0.085 }],
+    rear: [{ w: 0.20, lat: 0.34, h: 0.085 }, { w: 0.20, lat: -0.34, h: 0.085 }],
+  },
+  {
+    name: 'column',
+    front: [{ w: 0.13, lat: 0.36, h: 0.22 }, { w: 0.13, lat: -0.36, h: 0.22 }],
+    rear: [{ w: 0.13, lat: 0.37, h: 0.22 }, { w: 0.13, lat: -0.37, h: 0.22 }],
+  },
+  {
+    name: 'strip',
+    front: [{ w: 0.34, lat: 0, h: 0.06 }],
+    rear: [{ w: 0.34, lat: 0, h: 0.06 }],
+  },
 ];
 
 /**
@@ -1290,11 +1610,61 @@ function loftBody(T) {
    * the body rather than inside it.
    */
   const lampLen = 0.10;
-  const front = [lampLen, 0.075, T.wide * T.plan[0] * 0.86,
-    T.len / 2 + 0.02 - lampLen / 2, noseBottom + 0.60 * (noseTop - noseBottom), 0];
-  const rear = [lampLen, 0.075, T.wide * T.plan[SECTIONS - 1] * 0.88,
-    -(T.len / 2 + 0.02 - lampLen / 2), tailBottom + 0.60 * (tailTop - tailBottom), 1];
-  const lights = T.marker ? [front, rear, T.marker] : [front, rear];
+  const frontAlong = T.len / 2 + 0.02 - lampLen / 2;
+  const rearAlong = -(T.len / 2 + 0.02 - lampLen / 2);
+  const frontY = noseBottom + 0.60 * (noseTop - noseBottom);
+  const rearY = tailBottom + 0.60 * (tailTop - tailBottom);
+  const frontW = T.wide * T.plan[0];
+  const rearW = T.wide * T.plan[SECTIONS - 1];
+
+  /**
+   * THE SIGNATURE, EXPANDED AGAINST THIS TYPE'S OWN END FACES — SESSION 29.
+   *
+   * A row is `[len, height, width, along, y, kind, lat]`. Every unit's width and
+   * lateral offset are FRACTIONS OF THE END SECTION'S OWN WIDTH, so a 0.64 m
+   * motorcycle tail and a 2.55 m bus tail get the same proportion rather than the
+   * same metres — the identical argument the section chamfers are authored under.
+   * The heights and the along positions are the loft's, unchanged, so §9 rule 4's
+   * "a lamp height authored beside a body height is two numbers that drift" still
+   * holds: nothing here is authored, all of it is derived from the finished
+   * sections.
+   *
+   * Padded to LIGHTS_PER_VEHICLE with nulls. The emitter parks a null row, which
+   * is the mechanism the hauler's missing third row has used since session 6b.
+   */
+  const sigLights = SIGNATURES.map((sig) => {
+    const rows = [];
+    for (const u of sig.front) {
+      rows.push([lampLen, u.h, frontW * u.w, frontAlong, frontY + (u.dy || 0), 0, frontW * (u.lat || 0)]);
+    }
+    for (const u of sig.rear) {
+      rows.push([lampLen, u.h, rearW * u.w, rearAlong, rearY + (u.dy || 0), 1, rearW * (u.lat || 0)]);
+    }
+    while (rows.length < LIGHTS_PER_VEHICLE - 2) rows.push(null);
+    rows.push(T.marker ? [...T.marker, 0] : null);
+    rows.push(T.interior ? [...T.interior, 0] : null);
+    if (rows.length !== LIGHTS_PER_VEHICLE) {
+      throw new Error(`${T.name}/${sig.name}: ${rows.length} light rows against LIGHTS_PER_VEHICLE ${LIGHTS_PER_VEHICLE}`);
+    }
+    return rows;
+  });
+  /**
+   * Which signatures this type may wear. A class constrains it — the brief's own
+   * requirement — and the constraint is a property of what the vehicle IS:
+   *
+   *   moto        ONE unit at each end. A motorcycle has one headlamp; a
+   *               separated pair on a 0.64 m fairing is two lamps 0.21 m apart,
+   *               which reads as a fault rather than as a style.
+   *   bus/lorry/  DISCRETE CLUSTERS ONLY (bar or pair). A goods or passenger
+   *   hauler      vehicle's lamps are type-approved units in a housing, not a
+   *               styling light-line; the full-width bar and the outboard pair
+   *               are both real and the two styling signatures are not.
+   *   the rest    all four.
+   */
+  const sigAllowed = T.name === 'moto' ? [3]
+    : (T.name === 'bus' || T.name === 'lorry' || T.name === 'hauler') ? [0, 1]
+      : [0, 1, 2, 3];
+  const lights = sigLights[sigAllowed[0]];
 
   /**
    * `min` is the smallest overall body dimension and is what CONTRACT §5.12's
@@ -1346,7 +1716,7 @@ function loftBody(T) {
 
   return {
     name: T.name, min, len: T.len, wide: T.wide, speed: T.speed, weight: T.weight,
-    boxes, wheels: T.wheels, lights,
+    boxes, wheels: T.wheels, lights, sigLights, sigAllowed,
     rowGrime, rowAlbScale,
     _probeH: probeH,
     _straddle: straddle,
@@ -1380,7 +1750,6 @@ const BODY_TYPES = LOFT.map(loftBody);
  */
 const BOXES_PER_VEHICLE = SECTIONS + SEAMS_PER_VEHICLE + 2;
 const WHEELS_PER_VEHICLE = 4;
-const LIGHTS_PER_VEHICLE = 3;
 
 /**
  * THE PAINT PALETTE, AND WHY THE OLD ONE DELIVERED TWO COLOURS FROM SIX.
@@ -1404,41 +1773,200 @@ const LIGHTS_PER_VEHICLE = 3;
  * lighting rather than of the paint.
  *
  * SO THE SPREAD IS BUILT FROM CHROMATICITY AND NOT FROM TASTE. Each entry's
- * (r, b) chromaticity is written beside it; the closest pair is 0.088 apart,
- * which is 4.4x the threshold and leaves room for the illuminant to close some
- * of it.
+ * (r, b) chromaticity is written beside it. **The closest CHROMATIC pair is
+ * teal and pale blue at 0.0608, which is 3.04x the threshold and leaves room
+ * for the illuminant to close some of it.** (The second-tightest is oxide red
+ * and livery red at 0.0983, and an earlier draft of this sentence quoted that
+ * one as though it were the minimum.) The sentence here used to say "the closest pair is
+ * 0.088", full stop, and measured over the whole table that was false by an
+ * order of magnitude: the ten tightest pairs in the table are all
+ * neutral-on-neutral, from off-white/white at **0.0022** to graphite/off-white
+ * at 0.0194, and the pair the old sentence would have been about — graphite
+ * and silver — sits at **0.0082**, which is 0.41x the threshold. They are
+ * meant to. **FIVE of these entries are NEUTRALS** — graphite, mid grey,
+ * silver, off-white and white — and a neutral is defined by having no
+ * chromaticity to separate — what separates
+ * them is LUMINANCE, and stating a chromaticity floor over a set that contains
+ * neutrals is CONTRACT §9.1's comment-that-claims-a-property. Corrected in
+ * session 30 by measuring it, and the floor is now stated over the pairs it
+ * can apply to.
+ *
+ * ---------------------------------------------------------------------------
+ * SESSION 30: THE LADDER, AND THE MEASUREMENT THAT SAID THE SPREAD WAS NOT
+ * WHERE THE COMMENT ABOVE SAID IT WAS.
+ *
+ * The brief for this session said paint "has never been touched" and that the
+ * fleet reads near-black. **The first half is wrong and the second is right,
+ * and the reason they are both true at once is the whole of this section.**
+ * Session 9 built the table above and it already carried silver at Rec.709
+ * luminance 0.318 and off-white at 0.465. What it did not carry was a
+ * DISTRIBUTION. Measured on the delivered eight:
+ *
+ *   luminance ladder   0.047 0.048 0.053 0.054 0.062 | 0.123 0.318 0.465
+ *
+ * FIVE OF EIGHT inside 0.047-0.062 — a 1.32x band at the very bottom — and
+ * `bodyAlbedo` walked the table at a fixed stride, so each entry was drawn
+ * equally often and **62.5% of a 160-vehicle fleet was inside that band**. A
+ * night carriageway in this project's own delivered frame sits at 0.05-0.10.
+ * So five eighths of the traffic was painted the colour of the road it stood
+ * on, and no count of colours could see it, which is CONTRACT §7.2 with a
+ * palette instead of a body type.
+ *
+ * The repair is a LADDER — thirteen entries from 0.047 to 0.698, which is
+ * log2(0.6977/0.0469) = **3.90 stops over twelve gaps, i.e. 0.325 of a stop a
+ * rung**; the first draft of this sentence said "roughly every half-stop",
+ * which over thirteen entries would have spanned six stops rather than 3.9 —
+ * and a WEIGHTED draw per class, so the shape of the distribution is a
+ * decision rather than a side effect of a stride.
+ *
+ *   0.047 deep blue   0.048 oxide red  0.053 graphite   0.054 teal
+ *   0.062 olive       0.095 livery red 0.124 sand       0.148 pale blue
+ *   0.177 mid grey    0.318 silver     0.421 cream      0.465 off-white
+ *   0.698 white
+ *
+ * 0.698 IS DERIVED AND NOT PICKED. Automotive white is about 0.75-0.85 total
+ * reflectance in the visible; at 0.70 linear albedo this table's white sits
+ * just under the bottom of that range, which is where a panel that has been
+ * outdoors for a decade sits. It is 14.9x the darkest entry and 1.50x the
+ * off-white it stands above, and it is the first body colour in this project
+ * lighter than a lit pavement.
  *
  * AND IT COSTS NOTHING FROM THE SATURATION RESERVE, which is the check that had
  * to be done before adding colour to 160 objects. `tools/city-budget.json` ->
  * saturation measures pixels that are saturated AND bright — `valueThreshold`
  * 0.5 on the encoded frame — on `night_rain`, and the whole point of that
  * threshold is that a chromatic surface which does not GLOW is not spending the
- * reserve. Deep blue paint at reflectance 0.115 under LIGHT.streetAverageLux =
- * 16 lux is nowhere near HSV value 0.5 in a frame metered for neon. The two
+ * reserve. The BRIGHTEST paint in this table, white at Rec.709 reflectance
+ * 0.698, under `LIGHT.streetAverageLux` = 16 lx delivers rho*E/pi =
+ * **3.56 cd/m2** and is nowhere near HSV value 0.5 in a frame metered for
+ * neon; deep blue at 0.047 delivers 0.24. (The figure here was "deep blue at
+ * reflectance 0.115" for twenty-one sessions and matches no reading of that
+ * entry's albedo [0.030, 0.046, 0.105] — max channel 0.105, luminance 0.047,
+ * mean 0.060. Session 30 replaced it with the case that actually bounds the
+ * argument, which is the brightest entry rather than a middling one.) The two
  * saturated things on a vehicle at night are its tail bar and its brake bar,
  * both of which were already budgeted at 0.26 points in session 4b and neither
  * of which is paint.
  */
 const PAINT = [
-  /** graphite      (0.333, 0.343) — the neutral, and half a fleet is neutral */
-  [0.052, 0.053, 0.055],
-  /** silver        (0.331, 0.339) — bright neutral. The single biggest win in
-   *  daylight legibility per unit of anything: it is the only body value that
-   *  is lighter than the road. */
-  [0.315, 0.318, 0.322],
-  /** deep blue     (0.170, 0.596) */
-  [0.030, 0.046, 0.105],
-  /** oxide red     (0.641, 0.183) */
-  [0.112, 0.030, 0.032],
-  /** olive         (0.243, 0.270) */
-  [0.036, 0.072, 0.040],
-  /** sand          (0.428, 0.221) */
-  [0.148, 0.121, 0.076],
-  /** teal          (0.196, 0.451) */
-  [0.032, 0.058, 0.074],
-  /** off-white     (0.334, 0.330) — a white van is a white van in every era */
-  [0.470, 0.464, 0.458],
+  /** graphite      (0.325, 0.344)  lum 0.0529 — the neutral, and half a fleet is neutral */
+  { name: 'graphite', albedo: [0.052, 0.053, 0.055] },
+  /** silver        (0.330, 0.337)  lum 0.3177 — bright neutral, and until session
+   *  30 the only body value lighter than the road. */
+  { name: 'silver', albedo: [0.315, 0.318, 0.322] },
+  /** deep blue     (0.166, 0.580)  lum 0.0469 */
+  { name: 'deep blue', albedo: [0.030, 0.046, 0.105] },
+  /** oxide red     (0.644, 0.184)  lum 0.0476 */
+  { name: 'oxide red', albedo: [0.112, 0.030, 0.032] },
+  /** olive         (0.243, 0.270)  lum 0.0620 */
+  { name: 'olive', albedo: [0.036, 0.072, 0.040] },
+  /** sand          (0.429, 0.220)  lum 0.1235 */
+  { name: 'sand', albedo: [0.148, 0.121, 0.076] },
+  /** teal          (0.195, 0.451)  lum 0.0536 */
+  { name: 'teal', albedo: [0.032, 0.058, 0.074] },
+  /** off-white     (0.338, 0.329)  lum 0.4648 — a white van is a white van in every era */
+  { name: 'off-white', albedo: [0.470, 0.464, 0.458] },
+
+  /* ---- session 30, the five rungs the ladder was missing ---------------- */
+
+  /** white         (0.336, 0.330)  lum 0.6977 — the top of the ladder. See the
+   *  header for why 0.70 linear and not 0.85. */
+  { name: 'white', albedo: [0.700, 0.698, 0.688] },
+  /** cream         (0.378, 0.274)  lum 0.4209 — warm white. A delivery livery,
+   *  and the one light colour that is not a neutral, so the light end of the
+   *  fleet is not three greys. */
+  { name: 'cream', albedo: [0.455, 0.420, 0.330] },
+  /** mid grey      (0.328, 0.340)  lum 0.1769 — the rung between silver and
+   *  graphite that was a factor of six of empty ladder. */
+  { name: 'mid grey', albedo: [0.175, 0.177, 0.181] },
+  /** pale blue     (0.253, 0.432)  lum 0.1476 — deep blue's rung 3.1x up, and
+   *  0.172 away from it in chromaticity, so the two do not read as one colour
+   *  at two brightnesses. Its closest neighbour is teal at 0.0608, which is
+   *  this table's tightest chromatic pair and the number the header quotes. */
+  { name: 'pale blue', albedo: [0.120, 0.150, 0.205] },
+  /** livery red    (0.724, 0.128)  lum 0.0947 — a BUS red: 1.99x oxide red's
+   *  luminance and 0.0983 from it in chromaticity, so an operator's livery and
+   *  a rusting flank are two colours rather than one at two exposures. */
+  { name: 'livery red', albedo: [0.255, 0.052, 0.045] },
 ];
+
+/**
+ * WHICH PAINTS A CLASS WEARS, AND IN WHAT PROPORTION.
+ *
+ * The brief asked for this and it is the half of item 2 that did not exist:
+ * `bodyAlbedo` walked one table at a fixed stride for every body type, so a
+ * bus, a skip lorry and a motorcycle drew from the same distribution.
+ *
+ * THE CAR ROW IS DERIVED FROM THE REAL AUTOMOTIVE COLOUR CENSUS rather than
+ * chosen, so the next session can disagree with the source instead of with the
+ * taste (§9 rule 5). European new-car colour share runs roughly white 27%,
+ * black 22%, grey 22%, silver 8%, blue 10%, red 5%, other 6%. Mapped onto this
+ * ladder — white+off-white+cream 0.30 (census 27), graphite 0.20 (22), mid
+ * grey 0.14 + silver 0.10 (grey 22 + silver 8 = 30), pale blue+deep blue 0.11
+ * (10), the two reds 0.06 (5), olive+teal+sand 0.09 (other 6) — which
+ * reproduces white, black, blue and red inside three points and is **six
+ * points short on grey-plus-silver**, spent on the three chromatic entries
+ * this fleet needs for §7.2's cluster floor. Stated rather than rounded away.
+ *
+ * THE OTHER ROWS ARE STATEMENTS ABOUT WHAT THE VEHICLE IS, which is what the
+ * brief asked for and is also why they are not derived from the same census:
+ * a census of CARS says nothing about a bus.
+ *
+ *   van, lorry, hauler   a commercial body is bought white and is signwritten
+ *                        afterwards, so the light end (white, off-white, cream,
+ *                        silver) carries **0.78 / 0.68 / 0.70** of those three
+ *                        rows respectively — the first draft said "two thirds
+ *                        of each", which is true of none of them
+ *   bus                  A LIVERY IS NOT A COLOUR CHOICE. Three entries, one
+ *                        dominant, because an operator paints a fleet and not
+ *                        a vehicle — and the same argument session 29 used to
+ *                        give buses discrete lamp clusters rather than a
+ *                        styling light-line
+ *   moto                 no commercial whites; a fairing is either dark or it
+ *                        is a colour
+ *
+ * A NAME THAT IS NOT IN `PAINT` THROWS AT MODULE LOAD, the arrangement
+ * `occupancy.js` uses for its conflict table: a weight on a paint nobody has
+ * is §9.1's config-the-code-does-not-read, and this file is not the place for
+ * one. Each row is normalised at load, so the numbers can be read as shares
+ * whatever they sum to.
+ */
+const PAINT_WEIGHTS = {
+  wedge: { white: 0.15, 'off-white': 0.12, cream: 0.03, silver: 0.10, 'mid grey': 0.14,
+    'pale blue': 0.05, sand: 0.03, 'livery red': 0.01, olive: 0.03, teal: 0.03,
+    graphite: 0.20, 'oxide red': 0.05, 'deep blue': 0.06 },
+  pod: { white: 0.15, 'off-white': 0.12, cream: 0.03, silver: 0.10, 'mid grey': 0.14,
+    'pale blue': 0.05, sand: 0.03, 'livery red': 0.01, olive: 0.03, teal: 0.03,
+    graphite: 0.20, 'oxide red': 0.05, 'deep blue': 0.06 },
+  van: { white: 0.34, 'off-white': 0.22, cream: 0.10, silver: 0.12, 'mid grey': 0.08,
+    'pale blue': 0.04, 'livery red': 0.04, graphite: 0.06 },
+  lorry: { white: 0.30, 'off-white': 0.18, cream: 0.10, silver: 0.10, 'mid grey': 0.08,
+    'livery red': 0.08, 'pale blue': 0.05, sand: 0.05, graphite: 0.06 },
+  hauler: { white: 0.28, 'off-white': 0.20, silver: 0.14, cream: 0.08, 'mid grey': 0.10,
+    'livery red': 0.06, 'deep blue': 0.06, graphite: 0.08 },
+  bus: { 'livery red': 0.55, cream: 0.25, white: 0.20 },
+  moto: { graphite: 0.26, 'oxide red': 0.16, 'deep blue': 0.14, teal: 0.10, silver: 0.12,
+    white: 0.10, 'livery red': 0.08, olive: 0.04 },
+};
+
+/**
+ * The weights above as a cumulative table per body type, built once at load.
+ * Throws HERE on an unknown paint name or a body type with no row, rather than
+ * silently drawing graphite forever.
+ */
+const PAINT_INDEX = new Map(PAINT.map((p, i) => [p.name, i]));
+function buildPaintTable(typeName) {
+  const row = PAINT_WEIGHTS[typeName];
+  if (!row) throw new Error(`traffic: no PAINT_WEIGHTS row for body type '${typeName}'`);
+  const entries = Object.entries(row).map(([name, w]) => {
+    const idx = PAINT_INDEX.get(name);
+    if (idx === undefined) throw new Error(`traffic: PAINT_WEIGHTS.${typeName} names unknown paint '${name}'`);
+    return [idx, w];
+  });
+  const total = entries.reduce((a, e) => a + e[1], 0);
+  let acc = 0;
+  return entries.map(([idx, w]) => { acc += w / total; return [idx, acc]; });
+}
 
 /**
  * EMISSIVE NITS FOR THE LIGHT LINES.
@@ -1518,6 +2046,29 @@ const NITS_FRONT = 70;
  */
 const NITS_FRONT_DAY = 900;
 const NITS_MARKER = 22;
+/**
+ * THE LIT BUS SALOON, SEEN FROM OUTSIDE THROUGH THE GLAZING. cd/m², session 29.
+ *
+ * Derived rather than chosen, because §9 rule 5 says a number without a
+ * derivation is a guess and this one is the subject of an experiment. What a
+ * window band delivers is the AREA AVERAGE of what is behind it, and there are
+ * two populations behind a bus window:
+ *
+ *   THE SURFACES — seat backs, the opposite glazing, standing passengers. A bus
+ *     saloon is lit to about 150 lx (BS EN 13272's band for urban service is
+ *     100-150), and at a reflectance of 0.40 that is E·rho/pi = 150 x 0.40 /
+ *     3.1416 = 19.1 cd/m².
+ *   THE LUMINAIRES — the ceiling diffuser run, visible directly along the top of
+ *     the aperture, about 8% of it at roughly 1 750 cd/m² = 140 cd/m².
+ *
+ *   19.1 + 140 = 159.1  ->  160 cd/m²
+ *
+ * CHECKED AGAINST THE ONE NEIGHBOUR THAT MATTERS: `LIGHT.windowNits` = 220 is a
+ * lit building window. 160 / 220 = 0.73, so a bus interior is a little dimmer
+ * than an office window, which is the right ordering and is the sort of thing
+ * that would have been obviously wrong at 900 or at 20.
+ */
+const NITS_INTERIOR = 160;
 
 /**
  * The material's `emissiveIntensity`, which every instance scales DOWN through
@@ -1639,6 +2190,57 @@ export function createTraffic(options = {}) {
       const lights = ctx.get('lights');
       const rng = ctx.rng('traffic:layout');
       /**
+       * THE CLASS ROLL GETS ITS OWN NAMED STREAM — SESSION 29 — AND WHAT THAT
+       * DOES AND DOES NOT BUY IS WORTH STATING, BECAUSE THE OBVIOUS CLAIM IS
+       * FALSE.
+       *
+       * CONTRACT §6 makes streams independent, so a roll on its own stream
+       * cannot shift another system's sequence. Session 28 used that to add a
+       * `retailRng` and leave 7 851 rows of the streamed city byte-identical.
+       *
+       * THIS IS NOT THAT CASE AND SAYING SO IS THE POINT. The class roll ALREADY
+       * EXISTED, on `traffic:layout`, one draw per vehicle at construction. A
+       * NEW roll on a new stream shifts nothing; MOVING an existing one off a
+       * shared stream re-phases everything drawn after it — here `pref` and
+       * `cab`, and through them every speed and therefore the whole disposition.
+       * There is no arm in which the fleet gains two classes and the traffic
+       * stands still, because the weights alone re-type every vehicle, so the
+       * re-phasing costs nothing that was available anyway.
+       *
+       * WHAT THE SEPARATE STREAM IS ACTUALLY FOR is the other direction: from
+       * here on, adding an eighth class or retuning a share cannot move `pref`,
+       * `cab`, `junctionsLeft` or a single seeding draw. The determinism control
+       * for the claim that nothing OUTSIDE traffic moved is a byte-identical
+       * dump of the streamed city's registry, and it holds for a stronger reason
+       * than stream independence: `citygen` never reads a traffic stream at all.
+       */
+      const classRng = ctx.rng('traffic:class');
+      /**
+       * The light signature, on its own stream too — session 29, item 2. Same
+       * argument as `traffic:class` above: retuning the signature vocabulary,
+       * or adding a fifth, must not move a single vehicle. It is a NEW roll on a
+       * NEW stream, which is the case session 28 measured as byte-identical
+       * downstream, so unlike the class roll it re-phases nothing at all.
+       */
+      const sigRng = ctx.rng('traffic:signature');
+      /**
+       * The paint, on its own stream — session 30, item 2. Same argument as
+       * `traffic:class` and `traffic:signature`: retuning a colour share, or
+       * adding a rung to the ladder, must not move a single vehicle. It is a
+       * NEW roll on a NEW stream, so like the signature roll it re-phases
+       * nothing at all, and the determinism control is that the nearest-vehicle
+       * list at the look camera is identical across the change.
+       */
+      const paintRng = ctx.rng('traffic:paint');
+      /** Cumulative weights per body type. Throws at build on a bad name. */
+      const paintTables = BODY_TYPES.map((t) => buildPaintTable(t.name));
+      function pickPaint(type) {
+        const table = paintTables[type];
+        const r = paintRng.next();
+        for (const [idx, cum] of table) if (r <= cum) return idx;
+        return table[table.length - 1][0];
+      }
+      /**
        * The root seed, as a string, for `riverNoRoad` — which asks the pure
        * generator which crossing carries a bridge and must be handed the same
        * seed `citygen` was. `String()` because the config value may arrive as a
@@ -1686,10 +2288,19 @@ export function createTraffic(options = {}) {
       // --- geometry --------------------------------------------------------
       //
       // THREE InstancedMeshes for 160 vehicles: 1 920 body rows at 28
-      // triangles, 480 light quads at 12 and 640 wheels at 40 — 53 760 + 5 760 +
-      // 25 600 = 85 120 triangles against `floors.triangles` 940 000 and
-      // `ceilings.triangles` 2 000 000. Session 9's merge freed 8 960 of the
-      // 7c loft's 62 720.
+      // triangles, 1 040 light rows at 12 and 640 wheels at 40 — 53 760 +
+      // 12 480 + 25 600 = 91 840 triangles against `floors.triangles` 940 000
+      // and `ceilings.triangles` 2 000 000. Session 9's merge freed 8 960 of
+      // the 7c loft's 62 720.
+      //
+      // SESSION 29 CORRECTED THIS BLOCK'S ARITHMETIC AS WELL AS ITS INPUTS, and
+      // the correction is worth recording because the error was of exactly the
+      // kind §9.1 is about. It read "480 light quads" — which is `signalBase`,
+      // the VEHICLE rows alone — while the mesh has always been allocated
+      // `signalBase + SIGNAL_APPROACHES * SIGNAL_ROWS`, i.e. 560 rows since the
+      // signal heads landed in session 21. The stated total was 85 120 against a
+      // true 86 080: a number written from one of the two terms that make it,
+      // in a comment nothing checks. The light row count is now 160 x 6 + 80.
       //
       // Each mesh owns its OWN geometry object because an instanced attribute
       // lives on the GEOMETRY: `noctisRough` and the §5.12 previous-transform
@@ -1863,10 +2474,43 @@ export function createTraffic(options = {}) {
 
       // --- the vehicles ----------------------------------------------------
 
+      /**
+       * CLASS SHARE, AND IT IS A CONTENT DECISION WITH ARITHMETIC UNDER IT.
+       *
+       * The weights are NOT normalised in the table: `typeTotal` is their sum
+       * and `pickType` divides by it. That is deliberate and it is what makes
+       * session 29 a two-line change to the composition rather than a seven-line
+       * one — the five pre-existing weights are UNTOUCHED, so their proportions
+       * relative to each other are exactly what they were, and the two new
+       * classes take their share pro rata from all five at once. Editing five
+       * numbers to make room would have made every one of them a number nobody
+       * could attribute.
+       *
+       *   sum = 0.34 + 0.24 + 0.20 + 0.10 + 0.12 + 0.03 + 0.06 = 1.09
+       *   bus   0.03 / 1.09 = 2.75% of 160 =  4.4 vehicles in the ring
+       *   lorry 0.06 / 1.09 = 5.50% of 160 =  8.8 vehicles in the ring
+       *   the five existing shares are each scaled by 1 / 1.09 = 0.9174
+       *
+       * WHY THOSE TWO NUMBERS AND NOT EQUAL ONES. The brief's requirement is the
+       * ordering — buses rare, delivery lorries less so — and the ratio is 1:2.
+       * In flow terms, which is the checkable form: 4.4 buses over the 1 772 m of
+       * centreline inside the 190 m ring is one every 403 m, i.e. 26.8 buses per
+       * hour per lane at the 12 m/s free speed. THAT IS AT THE TOP OF THE REAL
+       * RANGE and it is chosen rather than derived: a trunk corridor with several
+       * routes converging runs 20-30 buses an hour, and a bus the camera never
+       * meets is content that does not exist. The lorry's 8.8 is 53.5 veh/h/lane,
+       * which against this fleet's already freight-heavy van (18.3%) and hauler
+       * (9.2%) shares is the smaller claim of the two.
+       *
+       * WHAT IT COSTS IN LENGTH, because that is the quantity item 1(f) is about:
+       * the weighted mean body length goes 5.148 -> 5.505 m, +6.9%, at a fixed
+       * vehicle count of 160 and a fixed 1 772 m of centreline. Road area is
+       * unchanged; the fleet occupies 6.9% more of it.
+       */
       const typeWeights = BODY_TYPES.map((t) => t.weight);
       const typeTotal = typeWeights.reduce((a, b) => a + b, 0);
       function pickType() {
-        let r = rng.next() * typeTotal;
+        let r = classRng.next() * typeTotal;
         for (let i = 0; i < BODY_TYPES.length; i++) {
           r -= typeWeights[i];
           if (r <= 0) return i;
@@ -1876,8 +2520,26 @@ export function createTraffic(options = {}) {
 
       const vehicles = [];
       for (let i = 0; i < count; i++) {
+        const type = pickType();
         vehicles.push({
-          type: pickType(),
+          type,
+          /**
+           * Which of `SIGNATURES` this vehicle wears, drawn from the ones its
+           * CLASS allows. Rolled once at construction and never again: a
+           * signature that changed when a vehicle was recycled would be a
+           * different car wearing the same instance rows, and the eye finds that
+           * even when a gate cannot.
+           */
+          sig: BODY_TYPES[type].sigAllowed[
+            Math.min(BODY_TYPES[type].sigAllowed.length - 1,
+              Math.floor(sigRng.next() * BODY_TYPES[type].sigAllowed.length))],
+          /**
+           * Which of `PAINT` this vehicle wears, drawn from its CLASS's own
+           * weights. Rolled once at construction and never again, for the
+           * reason `sig` gives: a vehicle that changed colour when it was
+           * recycled is a different vehicle wearing the same instance rows.
+           */
+          paint: pickPaint(type),
           axis: 0, line: 0, dir: 1, lane: 0,
           s: 0,
           v: FREE_SPEED,
@@ -1892,6 +2554,12 @@ export function createTraffic(options = {}) {
           px: 0, pz: 0, hx: 0, hz: 1, d2: 0, nose: 0,
           /** Set on the frame an instance is re-seated. Its previous transform is elsewhere. */
           recycled: true,
+          /**
+           * False until `seed()` has put this vehicle somewhere. Session 29's
+           * spawn spacing test reads it: a vehicle still stacked at the
+           * constructor's origin is not an obstacle, it is an absence.
+           */
+          placed: false,
           /** Interior glow gain, fixed per vehicle so a row of cabs is not identical. */
           cab: rng.range(0.25, 1.0),
         });
@@ -1905,6 +2573,14 @@ export function createTraffic(options = {}) {
 
       const warmHead = kelvinToLinearRGB(4300);
       const coolDay = kelvinToLinearRGB(5600);
+      /**
+       * The bus saloon. 4000 K is the neutral-white LED a modern service
+       * interior is lit with — warmer than the 5600 K running lamp, cooler than
+       * the 4300 K headlamp — and it is a CHROMATICITY rather than a colour, so
+       * it goes through the same blackbody conversion every other emitter here
+       * uses instead of being authored as a hex triple.
+       */
+      const warmCabin = kelvinToLinearRGB(4000);
       /** HEADLAMP_SLOTS lights for VEHICLE_COUNT vehicles, re-assigned by distance. */
       const lampPool = [];
       if (lights) {
@@ -1935,6 +2611,9 @@ export function createTraffic(options = {}) {
       const tracks = new Map();
       const lampOrder = [];
       const camLane = { axis: -1, line: 0, dir: 1, lane: 0, s: 0 };
+      /** Session 29's two seeding instruments. Run-cumulative; read by `stats()`. */
+      let seedRejects = 0;
+      let seedFallbacks = 0;
 
       /**
        * Seed or re-seed a vehicle somewhere inside the ring.
@@ -1954,7 +2633,20 @@ export function createTraffic(options = {}) {
           const axis = rng.next() < 0.5 ? 0 : 1;
           const line = (axis === 0 ? cj : ci) + rng.int(-span, span);
           const dir = rng.next() < 0.5 ? 1 : -1;
-          const lane = rng.next() < 0.62 ? 1 : 0;
+          /**
+           * A BUS RUNS IN THE KERBSIDE LANE — session 33. Every other type keeps
+           * the 62/38 split; a 12 m single-decker that serves kerbside stops
+           * does not spend its route in the overtaking lane, and until this
+           * line it did, three quarters of the time. Measured before it: of
+           * 13.3 buses in the ring, **24.5% were in lane 1**, so the stop-
+           * serving rule below had almost nothing to fire on and `busStopAt`
+           * delivered 0 berths in 40 s of simulation.
+           *
+           * It is a content correction and not a tuning knob: `LANE_OFFSET[1]`
+           * = 5.25 is the lane whose kerb the shelters stand on, and this makes
+           * a bus be where a bus is.
+           */
+          const lane = BODY_TYPES[veh.type].name === 'bus' ? 1 : (rng.next() < 0.62 ? 1 : 0);
           const along = axis === 0 ? cam.x : cam.z;
           const s = along + rng.range(-SIM_RADIUS, SIM_RADIUS);
           lanePosition(axis, line, dir, lane, s, pos);
@@ -1976,8 +2668,101 @@ export function createTraffic(options = {}) {
            * candidate that still wins when every draw is bad.
            */
           if (riverNoRoad(rootSeed, pos.x, pos.z, axis === 0)) continue;
-          // HARD, not scored. See CAMERA_CLEARANCE.
-          if (d2 < CAMERA_CLEARANCE * CAMERA_CLEARANCE) continue;
+          /**
+           * HARD, not scored. See CAMERA_CLEARANCE.
+           *
+           * MEASURED FROM THE BODY, NOT FROM THE ORIGIN — SESSION 29, AND THE
+           * CONSTANT'S OWN DERIVATION ALREADY SAID SO.
+           *
+           * `CAMERA_CLEARANCE` is derived above as *"2.0 + 1.2 x 12 = 16.4 m,
+           * less half a hauler — 9.60/2 = 4.80 — so the derivation gives 11.6 m
+           * and the constant holds the CONSERVATIVE side of it"*. That is a
+           * statement about where the NOSE ends up. The test was
+           * `d2 < CAMERA_CLEARANCE^2` on the vehicle's ORIGIN, so what it
+           * actually guaranteed was `14.0 − len/2` to the body: 11.2 m for a
+           * hauler, and 8.0 m for the 12.00 m bus this session adds. CONTRACT §9
+           * rule 7 — a right number measured from the wrong place — and it was
+           * invisible for as long as the longest half-length in the fleet was
+           * the 4.80 m the derivation happened to be written against.
+           *
+           * So the clearance is now to the oriented BODY, which makes it
+           * STRICTER for every type and strictest for the longest: a bus must
+           * now seed its origin 20.0 m out where 14.0 m used to do. At seed time
+           * the body is axis-aligned to its lane, so the distance is the same
+           * clamp-to-box the probe uses — half the length along the lane, half
+           * the width across it.
+           *
+           * IT DOES NOT MOVE THE STREAM. The candidate loop still draws exactly
+           * five numbers per iteration for exactly twelve iterations; only which
+           * candidate wins changes. `traffic:layout`'s phase is untouched.
+           */
+          {
+            const halfL = BODY_TYPES[veh.type].len * 0.5;
+            const halfW = BODY_TYPES[veh.type].wide * 0.5;
+            // The lane's own axes: the body runs along `axis`, across the other.
+            const dAlong = axis === 0 ? Math.abs(dx) : Math.abs(dz);
+            const dAcross = axis === 0 ? Math.abs(dz) : Math.abs(dx);
+            const bx = Math.max(0, dAlong - halfL);
+            const bz = Math.max(0, dAcross - halfW);
+            if (bx * bx + bz * bz < CAMERA_CLEARANCE * CAMERA_CLEARANCE) continue;
+          }
+          /**
+           * NOT SEEDED INSIDE A BODY THAT IS ALREADY THERE — SESSION 29, AND IT
+           * IS A DEFECT THIS SESSION MEASURED RATHER THAN INTRODUCED.
+           *
+           * `seed()` had NO spacing test of any kind. Every other placement
+           * routine in this project tests what is already there — CONTRACT §9.1
+           * states it as a rule and session 21 turned it into `occupancy.js`
+           * after it had been broken seven times — and the one placement routine
+           * that re-runs 160 times a second was the eighth.
+           *
+           * MEASURED ON THE FLEET AS IT STOOD, BEFORE A BUS EXISTED
+           * (`tools/fleetprobe.mjs`, 216 simulated seconds, eye parked at the
+           * look shot): 245 of 637 re-seats — 38.5% — landed INSIDE a body
+           * already on that line, worst overlap 9.475 m, and those overlaps
+           * account for essentially all of the 17% of pair-frames whose
+           * bumper-to-bumper gap is negative. The car-following model cannot
+           * undo one: with `gap < 0` its limit is `max(0, lead.v x gap/safe)` =
+           * 0, so the vehicle behind simply STOPS INSIDE the vehicle in front
+           * and waits for it to drive out.
+           *
+           * WHY IT IS FIXED HERE RATHER THAN LEFT. Item 1's whole subject is
+           * that a longer body finds the places an extent is used, and this is
+           * the largest of them: the depth of an overlap is bounded by the two
+           * bodies' half-lengths, so a 12.00 m bus makes every overlap it is in
+           * up to 3.20 m deeper than the 9.60 m hauler could. Shipping the bus
+           * over this would have been shipping the defect at its new maximum.
+           *
+           * HARD, NOT SCORED, for the same reason the two tests above it are:
+           * a scored candidate still wins when every draw is bad. The clearance
+           * asked for is the model's own standing gap at rest — `2.0 m`, the
+           * constant term of `safe = 2.0 + 1.2 v` — and not a car length, which
+           * is the quantity this project has confused with a gap before.
+           */
+          {
+            const half = BODY_TYPES[veh.type].len * 0.5;
+            let clash = false;
+            for (const other of vehicles) {
+              if (other === veh) continue;
+              /**
+               * A VEHICLE THAT HAS NEVER BEEN SEEDED IS NOT AN OBSTACLE, AND
+               * LEAVING THIS OUT WOULD HAVE BIASED THE WHOLE BOOT.
+               *
+               * The constructor gives every vehicle `axis 0, line 0, dir 1,
+               * lane 0, s 0` and the boot loop then seeds them one at a time, so
+               * on the first call 159 vehicles are stacked at the world origin
+               * on exactly one lane. Without this line the first seeds would
+               * have found that lane occupied by 159 bodies and refused every
+               * candidate on it — a systematic hole in the initial distribution,
+               * on the line z = 0 that runs the length of the origin block and
+               * carries every look shot in the project.
+               */
+              if (!other.placed) continue;
+              if (other.axis !== axis || other.line !== line || other.dir !== dir || other.lane !== lane) continue;
+              if (Math.abs(other.s - s) < half + BODY_TYPES[other.type].len * 0.5 + SEED_CLEAR_M) { clash = true; break; }
+            }
+            if (clash) { seedRejects++; continue; }
+          }
           const ahead = (dx * fwd.x + dz * fwd.z) / Math.max(1, Math.sqrt(d2));
           const score = initial ? 0 : ahead;
           if (score > bestScore) { bestScore = score; best = { axis, line, dir, lane, s }; }
@@ -1986,6 +2771,14 @@ export function createTraffic(options = {}) {
           // Twelve candidates all inside the clearance or outside the ring is
           // possible only if the ring is degenerate. Park it at the far edge of
           // the camera's own street, which is always outside both.
+          //
+          // SESSION 29 added a third hard rejection above, so this branch is
+          // reachable for a new reason and its rate is now an instrument rather
+          // than an impossibility: `stats().seedFallbacks` counts it and
+          // `fleetprobe` prints it. A fallback places a body WITHOUT the spacing
+          // test, so a high rate would mean the test is not doing what the
+          // number below claims.
+          seedFallbacks++;
           best = { axis: 0, line: cj, dir: 1, lane: 1, s: cam.x + SIM_RADIUS * 0.8 };
         }
         veh.axis = best.axis;
@@ -2011,7 +2804,25 @@ export function createTraffic(options = {}) {
          * coincidence of arithmetic.
          */
         veh.cleared = null;
+        /**
+         * And so does the bus dwell, for the same reason one line up: a berth
+         * position is a world coordinate on a 128 m lattice, so a stale
+         * `servedAt` can equal the berth of the stop the bus has just been
+         * re-seeded in front of — which is permission to drive past a shelter,
+         * granted by a coincidence of arithmetic. And a bus re-seeded mid-dwell
+         * would arrive somewhere new already standing still.
+         */
+        veh.dwell = 0;
+        veh.stopAt = null;
+        veh.servedAt = null;
+        veh.stopRec = null;
         veh.recycled = true;
+        /**
+         * From here this vehicle is somewhere real, so it becomes an obstacle
+         * for every later seed. Set LAST, after `best` has been written, so a
+         * vehicle can never be tested against its own stale position.
+         */
+        veh.placed = true;
       }
 
       /**
@@ -2024,6 +2835,91 @@ export function createTraffic(options = {}) {
        *
        * Returns 0 green, 1 amber, 2 red.
        */
+      /**
+       * The next bus stop this vehicle should serve, as a position along its own
+       * line — or null if there is not one, or there is one and it refuses it.
+       *
+       * `busStopAt` is PURE in (rootSeed, cx, cz) and costs one hash and a
+       * bounds call, which is why this asks it directly for the chunk the bus is
+       * in and the one ahead rather than caching a route network. There is no
+       * route network and item 4 said there must not be one.
+       */
+      function nextBusStop(veh, type) {
+        const S = CITY.chunkSize;
+        const here = Math.floor(veh.s / S);
+        for (let k = 0; k < 2; k++) {
+          const idx = here + veh.dir * k;
+          /**
+           * The chunk that OWNS the band this bus is driving beside. An axis-0
+           * bus runs along x on the road at z = line·S, and that road is chunk
+           * (idx, line)'s own `b.z0` band — so `cz` is the line and `cx` is
+           * where the bus is. An axis-1 bus is the transpose.
+           */
+          const cx = veh.axis === 0 ? idx : veh.line;
+          const cz = veh.axis === 0 ? veh.line : idx;
+          const stop = busStopAt(rootSeed, cx, cz);
+          if (!stop) continue;
+          // The band has to be the road this bus is on: axis 'z' is the EW road
+          // at b.z0 (traffic axis 0), axis 'x' is the NS road at b.x0 (axis 1).
+          const bandAxis = stop.axis === 'z' ? 0 : 1;
+          if (bandAxis !== veh.axis) continue;
+          if (Math.round(stop.at / S) !== veh.line) continue;
+          // Which side it serves — `lanePosition`'s own sign.
+          const servesDir = veh.axis === 0 ? stop.side : -stop.side;
+          if (servesDir !== veh.dir) { stats.busStopsRefused.wrongSide++; continue; }
+          // ITEM 4d. A bus in the through lane does not stop; it does not swerve.
+          if (veh.lane !== 1) { stats.busStopsRefused.offsideLane++; continue; }
+          const berth = stop.along - veh.dir * (type.len / 6);
+          if (veh.servedAt === berth) continue;
+          const ahead = (berth - veh.s) * veh.dir;
+          if (ahead <= 0) continue;
+          // Only brake for one it can actually reach comfortably from here.
+          if (ahead > (veh.v * veh.v) / (2 * BRAKE_A) + 60) continue;
+          veh.stopRec = stop;
+          return berth;
+        }
+        return null;
+      }
+
+      /**
+       * Seconds a bus stands at a stop, AND IT IS THE BOARDING TIME OF THE
+       * PEOPLE WHO ARE ACTUALLY STANDING THERE.
+       *
+       * Transit practice splits dwell into a fixed door cycle and a per-boarder
+       * term: about 5 s to open, kneel and close, and 2.5 s a passenger through
+       * a single door. Both are figures from outside this project and both are
+       * bounded, which is what §9 rule 5 asks of a number.
+       *
+       * THE BOARDER COUNT IS NOT ASSUMED, IT IS COUNTED. `streetlife.js` puts
+       * pedestrians at shelters as a destination and holds them there
+       * (item 4b), and `waitingAt` returns how many are within the shelter's own
+       * roof footprint. So a stop with nobody at it is a 5 s pause and a stop
+       * with four people at it is 15 s — the bus's dwell is CAUSED by what the
+       * frame shows, rather than being a constant that happens to coincide with
+       * it. With `streetlife` absent or quarantined the count is zero and every
+       * dwell is the door cycle, which is the correct degenerate answer.
+       */
+      function busDwellSeconds(veh) {
+        const streetlife = ctx.get('streetlife');
+        const stop = veh.stopRec;
+        let boarders = 0;
+        if (streetlife && streetlife.waitingAt && stop) {
+          /**
+           * The SHELTER's own centre, built the way `city.js` builds it to draw
+           * it — `roadHalfWidth + kerbGapM + roofDeepM/2` out from the road
+           * centreline on the band's own side. Not the berth, which is on the
+           * carriageway and is the same distance from BOTH pavements; asking
+           * for people near the berth would count the crowd waiting on the
+           * other side of the street as boarders for this bus.
+           */
+          const off = CITY.roadHalfWidth + BUS_STOP.kerbGapM + BUS_STOP.roofDeepM / 2;
+          const sx = stop.axis === 'x' ? stop.at + stop.side * off : stop.along;
+          const sz = stop.axis === 'x' ? stop.along : stop.at + stop.side * off;
+          boarders = streetlife.waitingAt(sx, sz);
+        }
+        return BUS_DOOR_CYCLE_S + BUS_BOARD_S * boarders;
+      }
+
       function signal(axis, now) {
         const t = ((now % CYCLE_S) + CYCLE_S) % CYCLE_S;
         const mine = axis === 0 ? 0 : GREEN_S + AMBER_S;
@@ -2048,11 +2944,54 @@ export function createTraffic(options = {}) {
         bodyTypes: BODY_TYPES.length,
         suppressedByThreshold: 0,
         recycledThisFrame: 0,
+        /**
+         * SESSION 29. Run-cumulative counts of the spawn spacing test above:
+         * how many candidate placements it refused, and how many times all
+         * twelve candidates were refused and the fallback placed a body without
+         * it. Instruments, not thresholds — `tools/fleetprobe.mjs` reads them and
+         * no gate asserts either, because the quantity a gate should assert here
+         * is the DELIVERED overlap and that is what the probe measures.
+         */
+        seedRejects: 0,
+        seedFallbacks: 0,
         cutoffM: 0,
         turning: 0,
         stopped: 0,
         /** Vehicles at a standstill at a stop line without permission. Session 18. */
         holdingAtRed: 0,
+        /**
+         * Vehicle-frames this frame in which a junction was withheld because
+         * somebody was still on the carriageway of the road it was approaching.
+         * Session 33, LOOK.md §4. An instrument: no gate asserts it, and what
+         * it is for is telling a session whether the yield ever fires at all —
+         * a rule that never fires and a rule that is wired up wrong produce the
+         * same frames.
+         */
+        yieldedToPedestrian: 0,
+        /**
+         * Run-cumulative. Vehicle-frames in which a vehicle holding a junction
+         * had body inside a crossing box somebody was standing on. The
+         * dilemma-zone residual — see the block that increments it. Instrument.
+         */
+        pedConflictFrames: 0,
+        /**
+         * Bus stops, session 33. `served` is run-cumulative berths made;
+         * `refused` is why a bus passed one, by reason. Instruments: item 4d
+         * says a bus that cannot pull clear refuses rather than moves, and a
+         * refusal that is never counted is indistinguishable from a rule that
+         * is not wired up.
+         */
+        busStopsServed: 0,
+        busStopsRefused: { wrongSide: 0, offsideLane: 0 },
+        busesDwelling: 0,
+        /**
+         * Session 21. The longest queue at any single junction this frame, and
+         * how many junctions have one at all. Both are instruments; neither
+         * carries a threshold, because what the number MEANS depends on whether
+         * it empties — which is a property of the series and not of a frame.
+         */
+        worstQueue: 0,
+        queuedJunctions: 0,
         /**
          * Metres from a held vehicle's FRONT to its own stop line, worst over
          * the run. Session 19, item 7. Positive is short of the line, which is
@@ -2060,10 +2999,46 @@ export function createTraffic(options = {}) {
          * means no vehicle has been held at a red yet, which is not a pass.
          */
         worstStopLineM: Infinity,
+        /**
+         * WHICH VEHICLE SET `worstStopLineM`, AND WHAT WAS TRUE OF IT — session
+         * 25, and it is a WITNESS rather than a threshold.
+         *
+         * STATE 22 §5 and STATE 24 §3 both asked for this and both deferred it,
+         * and it is the measurement that has to precede any repair: the figure
+         * has been red at about −10.5 m since session 21 and NOBODY HAS EVER
+         * ASKED WHICH VEHICLE PRODUCES IT. Two worlds give the same number and
+         * they want opposite repairs:
+         *
+         *   SPILLBACK      a vehicle entered a junction box on green, its exit
+         *                  was blocked, and it stopped inside. Real, and the
+         *                  repair is a reservation on the EXIT.
+         *   A TELEPORT     `recycled` is set when an instance is re-seated
+         *                  somewhere else entirely, and a re-seated vehicle has
+         *                  `cleared = null` — no permission — so it is eligible
+         *                  for this statistic from its first frame. Its distance
+         *                  to "its own" stop line is then bookkeeping about where
+         *                  the recycler dropped it, not a vehicle that ran a red.
+         *
+         * Building the exit reservation without separating those is CONTRACT §9
+         * row 21a exactly: two sessions carried a repair for a viaduct deck
+         * defect that was not there, because nobody measured before designing.
+         *
+         * Costs one object write on a strictly rarer path than the comparison it
+         * sits beside — only when a new worst is found.
+         */
+        worstStopLineWitness: null,
         signalHeads: 0,
       };
 
       /** Hoisted for `writeSignals`: the frame loop must not allocate. */
+      /**
+       * The per-junction queue census, rebuilt every frame. A Map rather than
+       * an object because the key is composite and the set changes as the ring
+       * moves; hoisted for the same reason `signalCandidates` is — the frame
+       * loop must not allocate.
+       */
+      const queueNow = new Map();
+
       const signalCandidates = [];
       const signalHeads = [];
       const signalSeat = new Array(SIGNAL_APPROACHES).fill('');
@@ -2250,10 +3225,37 @@ export function createTraffic(options = {}) {
           }
         }
 
+        /**
+         * The pedestrians, for the crossing yield below. `ctx.get` and not an
+         * import (CONTRACT §0 rule 1), fetched once a frame rather than per
+         * vehicle, and undefined whenever `?streetlife=0` or the module is
+         * quarantined — in which case there is nobody in the road and the
+         * permission is granted exactly as it was for thirty-two sessions.
+         */
+        const streetlife = ctxRef.get('streetlife');
+
         stats.turning = 0;
         stats.stopped = 0;
+        queueNow.clear();
         stats.holdingAtRed = 0;
+        stats.yieldedToPedestrian = 0;
         stats.recycledThisFrame = 0;
+        // Run-cumulative, so they are published rather than reset. Session 29.
+        stats.seedRejects = seedRejects;
+        stats.seedFallbacks = seedFallbacks;
+        /**
+         * THE PER-FRAME WORST, BESIDE THE RUN-CUMULATIVE ONE — session 25.
+         *
+         * `worstStopLineM` only ever decreases, so its witness is only written
+         * on the few frames a new record is set — and those cluster at the START
+         * of a run, when every vehicle has just been seeded. A probe reading
+         * only the record-setters therefore measures the FIRST SECONDS of the
+         * simulation and reports it as a property of the traffic, which is
+         * CONTRACT §9's shape with a sampling window. This field is reset every
+         * frame, so a caller can build the distribution over the whole run.
+         */
+        stats.frameWorstStopLineM = Infinity;
+        stats.frameWorstStopLineWitness = null;
 
         for (const bucket of tracks.values()) {
           for (let i = 0; i < bucket.length; i++) {
@@ -2285,6 +3287,90 @@ export function createTraffic(options = {}) {
               const gapCam = (camLane.s - veh.s) * veh.dir - type.len * 0.5 - CAMERA_CLEARANCE;
               if (gapCam < safe) {
                 limit = Math.min(limit, Math.max(0, FREE_SPEED * (gapCam / Math.max(0.1, safe))));
+              }
+            }
+
+            /**
+             * THE BUS STOPS — LOOK.md §4, deferred since session 29 and built
+             * here. Session 33.
+             *
+             * The shelters have existed on both content paths since session 30
+             * — `citygen.js` → `busStopAt`, 23 of them streamed and 2 in the
+             * origin block — and nothing had ever stopped at one. This is the
+             * consumer.
+             *
+             * "CLEAR OF THE RUNNING LANE" CANNOT MEAN A LAY-BY ON THIS LATTICE,
+             * AND THE ARITHMETIC IS WHY. The kerb is at `roadHalfWidth` = 7.50.
+             * The kerbside lane's centre is `LANE_OFFSET[1]` = 5.25 and the lane
+             * half-pitch is 1.75, so the lane's outer edge is at 7.00 — leaving
+             * 0.50 m between the running lane and the kerb. A bus is 2.55 m
+             * wide. There is nowhere to pull into, anywhere in the city, and no
+             * amount of trying changes 0.50 into 2.55.
+             *
+             * SO IT IS DELIVERED AS "CLEAR OF THE THROUGH LANE", WHICH IS WHAT
+             * A KERBSIDE STOP IS IN THE WORLD: the bus halts in lane 1 and the
+             * traffic behind it passes in lane 0. THE REFUSAL IS REAL AND IT IS
+             * ITEM 4d's: a bus in the OFFSIDE lane does not serve the stop at
+             * all, because stopping there would stand a 12 m vehicle across the
+             * only lane that can pass one — and nothing in this project changes
+             * lanes, so the honest answer is not to stop rather than to swerve
+             * across a running lane to reach a kerb. `stats.busStopsRefused`
+             * counts it, by reason.
+             *
+             * WHICH SIDE A STOP SERVES IS `lanePosition`'s OWN SIGN, not a new
+             * convention: an axis-0 vehicle sits at `dir * off` in z and an
+             * axis-1 vehicle at `-dir * off` in x, so a shelter on the `+side`
+             * pavement is served by `dir = +side` on the x-running road and by
+             * `dir = -side` on the z-running one. Getting this backwards stops
+             * every bus on the far side of the street from its own shelter,
+             * which is the same class of error `busStopAt`'s own comment records
+             * about near and far junctions.
+             */
+            if (type.name === 'bus') {
+              if (veh.dwell > 0) {
+                veh.dwell -= dt;
+                limit = 0;
+                if (veh.dwell <= 0) {
+                  veh.dwell = 0;
+                  // Served. `servedAt` keeps it from re-stopping at the same
+                  // shelter the instant it pulls away with its centre still
+                  // inside the arrival tolerance.
+                  veh.servedAt = veh.stopAt;
+                  veh.stopAt = null;
+                }
+              } else {
+                const stop = nextBusStop(veh, type);
+                if (stop != null) {
+                  const toDoor = (stop - veh.s) * veh.dir;
+                  /**
+                   * BERTHED WITHIN A DOOR WIDTH, NOT AT toDoor <= 0, AND THAT
+                   * DISTINCTION IS THIS FILE'S OWN §9 INCIDENT ONE OBJECT OVER.
+                   *
+                   * The approach profile is `v = sqrt(2·a·s)`, which reaches
+                   * s = 0 at v = 0 in finite time in continuous arithmetic and
+                   * NEVER in discrete steps — each frame multiplies the
+                   * remaining distance by a factor short of zero. The first
+                   * draft tested `toDoor <= 0` and delivered **8 approaches and
+                   * 0 berths in 40 s**: every bus crept toward its shelter for
+                   * ever. The stop-line block below carries a long comment
+                   * about exactly this shape, written in session 18, and it did
+                   * not stop this from being written again.
+                   *
+                   * 1.00 m is a berthing accuracy and not an epsilon: a bus
+                   * door is about 1.2 m wide, so a driver who stops within half
+                   * a door of the flag has berthed. At the crawl the profile
+                   * delivers there, the residual closes in well under a frame.
+                   */
+                  if (toDoor <= BUS_BERTH_M) {
+                    veh.v = 0;
+                    limit = 0;
+                    veh.stopAt = stop;
+                    veh.dwell = busDwellSeconds(veh);
+                    stats.busStopsServed++;
+                  } else {
+                    limit = Math.min(limit, Math.sqrt(2 * BRAKE_A * toDoor));
+                  }
+                }
               }
             }
 
@@ -2388,13 +3474,97 @@ export function createTraffic(options = {}) {
             const phase = signal(veh.axis, now);
             const brakeDist = (veh.v * veh.v) / (2 * BRAKE_A);
 
+            /**
+             * THE YIELD — LOOK.md §4, session 33, and it is one term on the
+             * permission rather than a second braking model.
+             *
+             * Pedestrians step off only on the red for the road they are
+             * crossing, so in the ordinary case the vehicles they cross in
+             * front of are already held and this term never fires. It fires on
+             * the case the signal timing deliberately leaves open: the crossing
+             * is timed on a 1.2 m/s design speed and this crowd walks 1.4 m/s
+             * with a per-person spread, so the slow ones are still in the road
+             * when the phase turns. A vehicle is then not granted the junction
+             * until they are out of it.
+             *
+             * WITHHOLDING PERMISSION AND NOT ADDING AN OBSTACLE. The block
+             * below already brakes comfortably to the stop line whenever
+             * `veh.cleared !== nextJ`, and the car-following model already
+             * queues everything behind it. So the yield costs one Set lookup
+             * and inherits a braking profile and a queue that are both already
+             * gated.
+             *
+             * AND IT CANNOT DEADLOCK A JUNCTION, for two reasons written down
+             * rather than hoped for: the set is rebuilt from the agents every
+             * frame (`streetlife.js` → `crossingOccupied`), so a re-seated or
+             * quarantined pedestrian cannot leave a key behind; and the test is
+             * only on GRANTING, so a vehicle already inside the box keeps its
+             * permission and leaves — CONTRACT's own rule that the one thing
+             * worse than entering on red is stopping in the middle.
+             *
+             * `veh.line * CITY.chunkSize` is the road's centreline in the other
+             * axis, so the junction this vehicle is approaching is at
+             * (nextJ, line·chunkSize) for axis 0 and (line·chunkSize, nextJ)
+             * for axis 1 — the same pair `signalApproaches` places heads at.
+             */
+            let pedInRoad = false;
+            if (streetlife && streetlife.crossingBlocked) {
+              const jLineM = veh.line * CITY.chunkSize;
+              pedInRoad = veh.axis === 0
+                ? streetlife.crossingBlocked(nextJ, jLineM, 0)
+                : streetlife.crossingBlocked(jLineM, nextJ, 1);
+              if (pedInRoad) stats.yieldedToPedestrian++;
+            }
+
             if (veh.cleared !== nextJ) {
               // Strictly less than, so a vehicle already on the comfortable
               // stopping profile — where toStop === brakeDist by construction —
               // is not granted permission by its own deceleration.
-              if (phase === 0 || (phase === 1 && toStop < brakeDist)) veh.cleared = nextJ;
-            } else if (phase !== 0 && toStop > brakeDist) {
+              if (!pedInRoad && (phase === 0 || (phase === 1 && toStop < brakeDist))) veh.cleared = nextJ;
+            } else if ((phase !== 0 || pedInRoad) && toStop > brakeDist) {
+              /**
+               * REVOKED, AND `pedInRoad` IS THE SECOND REASON — session 33.
+               *
+               * The first is unchanged: a vehicle waved through on green at
+               * 200 m must not keep its permission through the amber it watched
+               * turn. The second is a person who stepped off after it was
+               * granted — which happens because the crossings are timed on a
+               * 1.2 m/s design speed and this crowd is not all above it.
+               *
+               * `toStop > brakeDist` GUARDS BOTH, and it is the same guard for
+               * the same reason: permission is only ever taken back from a
+               * vehicle that can still stop comfortably. One inside its own
+               * braking distance keeps it and drives through, because the
+               * alternative is a discontinuity in the velocity of a body the
+               * camera can see, and because a vehicle stopped in a junction is
+               * worse than one leaving it. What that leaves open is measured
+               * rather than asserted away — `stats.pedConflictFrames` below.
+               */
               veh.cleared = null;
+            }
+
+            /**
+             * THE RESIDUAL, COUNTED. Vehicle-frames in which a vehicle holding
+             * permission has some part of its body inside a crossing box that
+             * somebody is standing on. This is the dilemma-zone case the
+             * paragraph above cannot close, and the arithmetic says it cannot
+             * be closed by timing either: a vehicle granted at the last instant
+             * of amber is `v^2/2a` = 36 m from its line when the red begins and
+             * needs (36 + 9.00 + 8.15 + 0.60 + len)/12 = 4.9 s (car) to 5.5 s
+             * (bus) to clear the far crossing, while a 15.0 m carriageway at the
+             * 1.2 m/s design speed takes 12.5 s of an 18 s red. 18 - 5.5 - 12.5
+             * = 0.0 s. THE SIGNAL TIMING LEAVES EXACTLY ZERO SECONDS for a
+             * fully protected pedestrian phase, and no arrangement of the
+             * stepping-off rule changes that. So the number below is the honest
+             * report of what the city delivers, not a bound anything passes.
+             */
+            if (pedInRoad && veh.cleared === nextJ) {
+              const past = (along - nextJ) * veh.dir;
+              const near = CITY.crossingFromJunctionM - CITY.crossingDepthM / 2;
+              const far = CITY.crossingFromJunctionM + CITY.crossingDepthM / 2;
+              const nose = Math.abs(past) + frontM;
+              const tail = Math.abs(past) - frontM;
+              if (nose > near && tail < far) stats.pedConflictFrames++;
             }
 
             if (veh.cleared !== nextJ) {
@@ -2419,7 +3589,67 @@ export function createTraffic(options = {}) {
                  * `toStop` goes negative legitimately; including it would make the
                  * statistic measure the green light.
                  */
-                if (toStop < stats.worstStopLineM) stats.worstStopLineM = toStop;
+                if (toStop < stats.frameWorstStopLineM) {
+                  stats.frameWorstStopLineM = toStop;
+                  stats.frameWorstStopLineWitness = {
+                    toStopM: toStop,
+                    recycled: !!veh.recycled,
+                    framesSinceRecycle: veh.recycledAtFrame === undefined ? null : frameId - veh.recycledAtFrame,
+                    type: type.name,
+                    speedMps: veh.v,
+                    phase,
+                    pastJunctionM: (along - nextJ) * veh.dir,
+                  };
+                }
+                if (toStop < stats.worstStopLineM) {
+                  stats.worstStopLineM = toStop;
+                  /**
+                   * The witness. `sinceRecycle` is what separates the two worlds
+                   * above: a vehicle re-seated within the last few frames is a
+                   * teleport whose stop-line distance describes the recycler.
+                   */
+                  stats.worstStopLineWitness = {
+                    toStopM: toStop,
+                    recycled: !!veh.recycled,
+                    framesSinceRecycle: veh.recycledAtFrame === undefined ? null : frameId - veh.recycledAtFrame,
+                    type: type.name,
+                    lenM: type.len,
+                    speedMps: veh.v,
+                    axis: veh.axis,
+                    phase,
+                    cleared: veh.cleared,
+                    nextJ,
+                    alongM: along,
+                    /** Distance from the vehicle's ORIGIN past the junction centre; > 0 is inside the box. */
+                    pastJunctionM: (along - nextJ) * veh.dir,
+                  };
+                }
+                /**
+                 * THE QUEUE, PER JUNCTION — session 21, and it is an
+                 * INSTRUMENT rather than a threshold.
+                 *
+                 * The operator's aerial frame showed bumper-to-bumper traffic
+                 * across several junctions and it looked permanent rather than
+                 * like a signal cycle. Session 18's trace showed a queue
+                 * building 0 → 29 and emptying exactly at `GREEN_S + AMBER_S`
+                 * = 18 s, but that trace measured ONE junction in isolation,
+                 * and a network can deadlock in a way no single junction shows.
+                 *
+                 * So this counts held vehicles by the junction they are held
+                 * at, every frame, and `tools/queueprobe.mjs` reads the series
+                 * over several full cycles. The distinction it exists to make:
+                 * a queue that empties every cycle is CONGESTION BY DESIGN and
+                 * the question is the density; a queue that grows without bound
+                 * is a DEADLOCK and the question is the mechanism. Measure
+                 * before theorising.
+                 *
+                 * The key is the junction's own identity — axis, line and node
+                 * — rather than a position, so a vehicle approaching from
+                 * either side of the same node is counted in the same queue,
+                 * which is what "the junction is blocked" means.
+                 */
+                const qk = `${veh.axis}:${veh.line}:${nextJ}`;
+                queueNow.set(qk, (queueNow.get(qk) || 0) + 1);
               }
             }
 
@@ -2461,7 +3691,16 @@ export function createTraffic(options = {}) {
             const toTurn = (nextJ - along) * veh.dir - (TURN_RADIUS + LANE_OFFSET[veh.lane]);
             if (
               veh.lane === 1 && !veh.turn && phase === 0 && veh.junctionsLeft === 0 &&
-              toTurn <= 0 && toTurn > -3 && veh.v > 1.0
+              toTurn <= 0 && toTurn > -3 && veh.v > 1.0 &&
+              /**
+               * A body too long for the arc does not take it. See
+               * MAX_TURN_HALF_LEN_M: the excursion is L^2/(2R) and the bound is
+               * the 1.75 m lane half-pitch. Tested on the TYPE's half-length
+               * rather than on a flag in the table, so a later retune of `len`
+               * moves the eligibility with it instead of leaving a stale
+               * boolean behind (§9.1's config-the-code-does-not-read).
+               */
+              type.len * 0.5 <= MAX_TURN_HALF_LEN_M
             ) {
               // Start the arc from where the vehicle actually is, not from the
               // tangent point it has already passed by up to one frame's travel.
@@ -2670,9 +3909,10 @@ export function createTraffic(options = {}) {
           // Light lines. `kind` picks the chromaticity and the gain, and the
           // brake gain is the one thing on a vehicle that changes frame to
           // frame — which is what makes the stopping legible.
+          const sigRows = type.sigLights[veh.sig];
           for (let l = 0; l < LIGHTS_PER_VEHICLE; l++) {
             const row = vi * LIGHTS_PER_VEHICLE + l;
-            const spec = type.lights[l];
+            const spec = sigRows[l];
             if (!spec) {
               // A body type with fewer light lines than the allocation parks
               // its spare rows. A parked row is written IDENTICALLY every
@@ -2687,9 +3927,17 @@ export function createTraffic(options = {}) {
               continue;
             }
             const lx = spec[3];
+            /**
+             * `spec[6]` is the lateral offset, down the vehicle's RIGHT, which
+             * is `(-cos yaw, sin yaw)` — the same convention the wheels use, and
+             * written out here for the same reason it is written out there: the
+             * sign is invisible on a symmetric pair and would put every
+             * asymmetric signature on the wrong side.
+             */
+            const lt = spec[6] || 0;
             writeRow(
               lightArr, lightMotion, row,
-              px + syaw * lx, spec[4], pz + cyaw * lx, yaw,
+              px + syaw * lx - cyaw * lt, spec[4], pz + cyaw * lx + syaw * lt, yaw,
               spec[2], spec[1], spec[0],
               suppress
             );
@@ -2703,6 +3951,16 @@ export function createTraffic(options = {}) {
               // A brake lamp works at every hour; a tail lamp is a night lamp.
               chroma = EMITTER_CHROMA.neonRed;
               nits = veh.braking ? NITS_BRAKE : (lampsOn ? NITS_TAIL : 0);
+            } else if (spec[5] === 3) {
+              /**
+               * The bus saloon. A night light and nothing else: an interior lit
+               * at noon delivers nothing against 100 000 lux and would be a
+               * emitter budget spent on a frame that cannot show it. `veh.cab`
+               * is the per-vehicle interior gain that already exists for the
+               * marker row, so two buses in a queue are not the same object.
+               */
+              chroma = warmCabin;
+              nits = lampsOn ? NITS_INTERIOR * (0.6 + 0.4 * veh.cab) : 0;
             } else {
               chroma = EMITTER_CHROMA.sodium;
               nits = lampsOn ? NITS_MARKER * veh.cab : 0;
@@ -2723,6 +3981,15 @@ export function createTraffic(options = {}) {
           veh.d2 = dx * dx + dz * dz;
           veh.nose = type.len * 0.45;
 
+          /**
+           * Session 25: stamp the frame the re-seat happened on before the flag
+           * is cleared, so `worstStopLineWitness` can say how long ago a vehicle
+           * was teleported. `recycled` itself lives exactly one frame, and a
+           * re-seated vehicle takes several to come to a stand — so the flag
+           * alone cannot tell a teleport from a red-light overshoot and the
+           * frame number can.
+           */
+          if (veh.recycled) veh.recycledAtFrame = frameId;
           veh.recycled = false;
         }
 
@@ -2785,17 +4052,21 @@ export function createTraffic(options = {}) {
       }
 
       /**
-       * Body albedo, deterministic per vehicle. See the module-level `PAINT`
-       * table for the palette and for why the previous one delivered two
-       * distinguishable colours across thirteen vehicles.
+       * Body albedo. **A LOOKUP NOW, NOT A STRIDE** — session 30.
        *
-       * `vi * 7 + type * 3` modulo 8: 7 and 8 are coprime, so consecutive
-       * vehicles in a queue never share a paint, and the `type * 3` term makes
-       * the same index a different colour on a different body — which is what
-       * stops every hauler being the same colour as every other hauler.
+       * It used to be `PAINT[(vi * 7 + type * 3) % 8]`, whose comment said 7
+       * and 8 are coprime so consecutive vehicles never share a paint. That is
+       * true and it is also what made every entry equally likely, which over a
+       * table with five of eight entries inside a 1.32x luminance band put
+       * 62.5% of the fleet the colour of the road. A stride cannot express a
+       * distribution; the roll is at construction now, from the class's own
+       * weights, and this reads it. See the module-level `PAINT`.
+       *
+       * `vi` is unused and is kept in the signature because the grime function
+       * beside it takes the same pair and the two are called together.
        */
-      function bodyAlbedo(veh, vi) {
-        return PAINT[(vi * 7 + veh.type * 3) % PAINT.length];
+      function bodyAlbedo(veh, vi) {   // eslint-disable-line no-unused-vars
+        return PAINT[veh.paint].albedo;
       }
 
       /**
@@ -2876,6 +4147,18 @@ export function createTraffic(options = {}) {
         `-> ${BOXES_PER_VEHICLE * SECTION_TRIANGLES} tris/vehicle (14 rows / 392 before s9); secLen ` +
         `${BODY_TYPES.map((t) => `${t.name} (${t.len} - ${SEAMS_PER_VEHICLE}x${SEAM_LEN})/${SECTIONS} = ` +
           `${t._secLen.toFixed(3)} m, seams @ ${t._seamAlong.map((a) => a.toFixed(2)).join(' / ')}`).join('; ')}; ` +
+        /**
+         * SESSION 29 item 2, §9 rule 4: the signature vocabulary and what the
+         * roll actually DELIVERED, side by side. A vocabulary of four that
+         * delivers one is the shape this whole item exists to end, and it would
+         * be invisible in any count of rows.
+         */
+        `light signatures ${SIGNATURES.length} (${SIGNATURES.map((s) => s.name).join('/')}) in ` +
+        `${LIGHTS_PER_VEHICLE} rows/vehicle -> ${count * LIGHTS_PER_VEHICLE} + ${signalCount} = ${lightCount} light rows; ` +
+        `delivered ${SIGNATURES.map((s, i) => `${s.name} ${vehicles.filter((v) => v.sig === i).length}`).join(' / ')}; ` +
+        `allowed per class ${BODY_TYPES.map((t) => `${t.name} ${t.sigAllowed.map((i) => SIGNATURES[i].name).join('+')}`).join(', ')}; ` +
+        `bus saloon ${NITS_INTERIOR} cd/m2 = ${(NITS_INTERIOR / LIGHT.windowNits).toFixed(2)}x LIGHT.windowNits ` +
+        `over ${(BODY_TYPES.find((t) => t.name === 'bus') ? 5.80 * 0.86 : 0).toFixed(2)} m2 a flank; ` +
         `signals ${GREEN_S}/${AMBER_S}/${GREEN_S}/${AMBER_S} s, amber covers ` +
         `${(AMBER_S * FREE_SPEED).toFixed(0)} m against a ${((FREE_SPEED * FREE_SPEED) / (2 * BRAKE_A)).toFixed(0)} m ` +
         `braking distance, so the dilemma zone is empty; prev-instance buffers ` +
@@ -2904,8 +4187,20 @@ export function createTraffic(options = {}) {
           wheelMotion.setUploadFrozen(b);
         },
         stats() {
+          /**
+           * The queue census, summarised at READ time rather than kept in step
+           * every frame. Two numbers a caller can assert on and the whole map
+           * for one that wants the series (`tools/queueprobe.mjs`).
+           */
+          let worst = 0;
+          let queued = 0;
+          for (const v of queueNow.values()) { if (v > 0) queued++; if (v > worst) worst = v; }
+          stats.worstQueue = worst;
+          stats.queuedJunctions = queued;
           return {
             ...stats,
+            /** Held vehicles by junction, this frame. An instrument; no threshold. */
+            queueByJunction: Object.fromEntries(queueNow),
             body: bodyMotion.stats,
             light: lightMotion.stats,
             wheel: wheelMotion.stats,
@@ -2965,6 +4260,26 @@ export function createTraffic(options = {}) {
         signalPhase(axis) {
           const time = ctx.get('time');
           return signal(axis, time ? time.now : 0);
+        },
+        /**
+         * The phase AND how much of it is left, for a consumer that has to
+         * decide whether something fits inside it — `streetlife.js` asking
+         * whether a red covers 15 m of carriageway before it steps a person off
+         * a kerb. Session 33.
+         *
+         * THE ARITHMETIC IS `signal()`'s OWN, one line further on, so there is
+         * exactly one place where `GREEN_S` and `AMBER_S` mean anything and no
+         * second copy of the cycle for another module to drift from — CONTRACT
+         * §9.1's whole subject. `rel` is the time since this axis's green
+         * began; the three boundaries are the three the phase test uses.
+         */
+        signalAt(axis, now) {
+          const t = ((now % CYCLE_S) + CYCLE_S) % CYCLE_S;
+          const mine = axis === 0 ? 0 : GREEN_S + AMBER_S;
+          const rel = (((t - mine) % CYCLE_S) + CYCLE_S) % CYCLE_S;
+          if (rel < GREEN_S) return { phase: 0, remaining: GREEN_S - rel };
+          if (rel < GREEN_S + AMBER_S) return { phase: 1, remaining: GREEN_S + AMBER_S - rel };
+          return { phase: 2, remaining: CYCLE_S - rel };
         },
         _internal: { vehicles, BODY_TYPES, lanePosition, signal },
       };
