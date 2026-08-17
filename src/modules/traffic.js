@@ -471,6 +471,7 @@ const SIGNAL_PARTS = [
  */
 const SIGNAL_KERB_M = 1.15;
 
+
 /**
  * Lens chromaticities, indexed BY PHASE — 0 green, 1 amber, 2 red, the same
  * encoding `signal()` returns. Sodium stands in for amber: it is the warm
@@ -1885,6 +1886,47 @@ function loftBody(T) {
 const BODY_TYPES = LOFT.map(loftBody);
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * DOES A LANDMARK'S GROUND REACH THIS BODY — SESSION 35, AND IT IS THE SAME
+ * CORRECTION `CAMERA_CLEARANCE` ALREADY CARRIES SIX HUNDRED LINES DOWN.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 34 gave `seed` and the recycler a landmark test and the test is
+ * `landmarkOccupies(pos.x, pos.z)` — the vehicle's ORIGIN. A body is up to
+ * 12.00 m long, so half of it can stand inside a claim while its origin stands
+ * outside, and `tools/landmarkcensus.mjs --sim=90` measured exactly that: two
+ * body boxes and two wheels at **x = −195 and −196 against the weir's own
+ * x1 = −195**, on the street at z = 256, with the origin a metre or two clear.
+ *
+ * That is CONTRACT §9 rule 7 — a right number measured from the wrong place —
+ * and this file already records the same finding about the same function's
+ * neighbour: *"MEASURED FROM THE BODY, NOT FROM THE ORIGIN — SESSION 29, AND
+ * THE CONSTANT'S OWN DERIVATION ALREADY SAID SO."*
+ *
+ * THREE POINTS AND NOT A PAD. `landmarkOccupies` takes a pad, and passing half
+ * the body length would be one call — but the pad is applied to BOTH axes, so
+ * a 12.00 m bus would keep 6.00 m clear ACROSS its lane as well as along it,
+ * which refuses 4.7 m of road either side of every landmark for a reason that
+ * has nothing to do with the landmark. Nose, tail and centre are exact for an
+ * axis-aligned body against an axis-aligned claim wherever the claim is longer
+ * than half the body — the smallest landmark ground claim in the project is the
+ * mast's 9.0 m against a 6.00 m half-bus, so it holds for all eight.
+ *
+ * MID-TURN IS THE ONE CASE IT IS APPROXIMATE FOR, and it is approximate in the
+ * lenient direction: a turning body is at up to 45° to its lane, so the nose is
+ * `half·cos θ` along instead of `half`. The recycler exempts turning vehicles
+ * anyway (`if (veh.turn) continue`), so nothing is lost that was there.
+ */
+function landmarkUnderBody(x, z, axis, type) {
+  const half = BODY_TYPES[type].len * 0.5;
+  const ax = axis === 0 ? half : 0;
+  const az = axis === 0 ? 0 : half;
+  return landmarkOccupies(x, z)
+    || landmarkOccupies(x + ax, z + az)
+    || landmarkOccupies(x - ax, z - az);
+}
+
+/**
  * Boxes, wheels and light quads per vehicle. Fixed, so the census is fixed.
  *
  * TWELVE BOXES SINCE SESSION 9, DOWN from fourteen, and the cost is stated
@@ -2840,7 +2882,7 @@ export function createTraffic(options = {}) {
            * HARD rather than scored, for the reason the two tests either side
            * of it are: a scored candidate still wins when every draw is bad.
            */
-          if (landmarkOccupies(pos.x, pos.z)) continue;
+          if (landmarkUnderBody(pos.x, pos.z, axis, veh.type)) continue;
           /**
            * NOR PAST A STOP LINE IT HAS NO PERMISSION TO HAVE PASSED —
            * SESSION 34. See `stopLineClearanceM` at the top of this file for
@@ -3340,6 +3382,38 @@ export function createTraffic(options = {}) {
           signalApproaches(j.jx, j.jz, signalHeads);
           for (const h of signalHeads) {
             if (slot >= SIGNAL_APPROACHES) break;
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * THE SEVENTH SPELLING OF "DOES A LANDMARK STAND HERE", AND IT
+             * SPELLED IT AS NOTHING AT ALL — SESSION 35.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * Session 34 unified six readers of that question and repaired all
+             * six. This loop is a seventh and it asked nobody: it emits four
+             * heads at every junction of an arithmetic lattice, and the road
+             * clip has already taken the carriageway out from under some of
+             * them. **Measured by `tools/landmarkcensus.mjs --sim=90`: ten
+             * signal-head boxes standing inside the weir's 210 m basin, at
+             * y 1.55 to 3.86 over a floor 9.80 m down.** That is the operator's
+             * *"traffic signals standing on nothing"*, and a mast is also what
+             * his *"lamp posts standing in the road"* is looking at — the
+             * kerbside lamps have tested this since session 34 and these have
+             * not.
+             *
+             * THE TEST IS AT THE HEAD AND NOT AT THE JUNCTION, AND THAT IS THE
+             * WHOLE OF WHY THE OBVIOUS VERSION WOULD HAVE MISSED IT. The ten
+             * boxes belong to junction (−256, 256) — which is one metre
+             * OUTSIDE the weir's own AABB, `z1 = 255`. `signalApproaches` puts
+             * a head `STOP_LINE` back and `roadHalfWidth + SIGNAL_KERB_M`
+             * across, so its heads stand at z = 247, nine metres inside the
+             * claim the junction is outside of. CONTRACT §9 rule 7 again: a
+             * right predicate at the wrong point.
+             *
+             * SKIPPED RATHER THAN SLOT-CONSUMED. `slot` only advances for a
+             * head that is written, so refusing one lets the next junction's
+             * approach have the row instead of leaving a hole in the pool.
+             */
+            if (landmarkOccupies(h.x, h.z)) continue;
             const yaw = Math.atan2(h.faceX, h.faceZ);
             const cy = Math.cos(yaw);
             const sy = Math.sin(yaw);
@@ -3373,6 +3447,34 @@ export function createTraffic(options = {}) {
               col[row * 3 + 2] = chroma[2] * g;
             }
             slot++;
+          }
+        }
+        /**
+         * EVERY SLOT THE JUNCTIONS DID NOT FILL IS COLLAPSED — SESSION 35, and
+         * it is what makes the refusal above a refusal rather than a ghost.
+         *
+         * Sixteen slots and four junctions of four approaches filled all of
+         * them exactly, every frame, since the signals existed — so a slot had
+         * never been left over and nothing cleared one. The moment a head can
+         * be REFUSED that stops being true: the leftover row keeps the matrix
+         * it was written with last frame, which is a signal head standing at
+         * the position the refusal was supposed to remove it from. A stale
+         * instance is `citycheck`'s `underdrawn` case wearing a different hat —
+         * geometry drawn from a description of a world that no longer exists.
+         *
+         * Zero scale rather than a shorter `count`: the rows are the TAIL of a
+         * mesh whose head is the vehicle light lines, so `mesh.count` cannot
+         * end before them. `carry` on the same row, because a collapsed
+         * instance has no history worth reprojecting (§5.12's recycle rule).
+         */
+        for (let r = slot; r < SIGNAL_APPROACHES; r++) {
+          signalSeat[r] = null;
+          for (let p = 0; p < SIGNAL_ROWS; p++) {
+            const row = signalBase + r * SIGNAL_ROWS + p;
+            writeRow(arr, lightMotion, row, 0, 0, 0, 0, 0, 0, 0, true);
+            col[row * 3 + 0] = 0;
+            col[row * 3 + 1] = 0;
+            col[row * 3 + 2] = 0;
           }
         }
         stats.signalHeads = slot;
@@ -4024,7 +4126,7 @@ export function createTraffic(options = {}) {
           const dx = pos.x - cam.position.x;
           const dz = pos.z - cam.position.z;
           const offRoad = riverNoRoad(rootSeed, pos.x, pos.z, veh.axis === 0)
-            || landmarkOccupies(pos.x, pos.z);
+            || landmarkUnderBody(pos.x, pos.z, veh.axis, veh.type);
           if (dx * dx + dz * dz > SIM_RADIUS * SIM_RADIUS || offRoad) {
             /**
              * Out of the ring, OR driven onto a road the river took, OR onto
