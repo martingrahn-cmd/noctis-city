@@ -55,6 +55,8 @@ import {
   landmarkGroundBlockers,
   riverImpassable,
   occupied,
+  busStopAt,
+  BUS_STOP,
   BLOCK_KEEPOUT,
 } from '../lib/citygen.js';
 
@@ -221,7 +223,31 @@ const STEP_LENGTH_M = GAIT.stepM;
  * value to the lib both of them may read.
  */
 const WALK_SPEED_MEAN = GAIT.walkSpeedMps;
-const WALK_SPEED_SD = 0.18;
+/**
+ * m/s. THE SPREAD, AND IT WAS THE ONE NUMBER HERE WITH NO DERIVATION — 0.18,
+ * typed in whichever session first drew a per-agent speed, with the paragraph
+ * above deriving only the MEAN. Session 33 replaces it with a measured one.
+ *
+ * Free-flow walking speed on a level pavement is one of the most measured
+ * quantities in pedestrian engineering, and the standard figure is a mean near
+ * 1.34 m/s with a standard deviation near **0.26 m/s** across a mixed adult
+ * population — a coefficient of variation of about 0.19. 0.18 m/s on this
+ * project's 1.4 m/s mean is a CV of 0.13, i.e. **the crowd was a third less
+ * varied than a real one**, and that is exactly the complaint the frame makes:
+ * LOOK.md §4, and the operator's word for session 30's pavements was conveyor.
+ *
+ * THE MEAN IS NOT MOVED. It is `GAIT.walkSpeedMps`, it has its own derivation
+ * in that file, and `GAIT.stepM` is derived from it — changing it here would
+ * change the gait's step length through a number this file does not own. Only
+ * the spread moves, and it moves to a figure with a source.
+ *
+ * The clamps are unchanged and they now bite slightly harder, which is stated
+ * rather than left to be found: at sd 0.26, 4.0% of draws fall below the
+ * 0.95 m/s floor and 3.0% above the 1.9 m/s ceiling, against 0.6% and 0.3% at
+ * 0.18. They are the speeds at which the gait model's own step length stops
+ * being a walk, so they stay where they are.
+ */
+const WALK_SPEED_SD = 0.26;
 const WALK_SPEED_MIN = 0.95;
 const WALK_SPEED_MAX = 1.9;
 
@@ -249,6 +275,35 @@ const DWELL_SCALE_S = 5;
 const DWELL_MAX_S = 25;
 
 /**
+ * WAITING FOR A BUS IS NOT DWELLING AT A SHOP WINDOW — session 33, item 4b.
+ *
+ * IT IS DELIBERATELY NOT HALF THE DELIVERED HEADWAY, AND THE MEASUREMENT IS WHY.
+ * A passenger arriving at a uniformly random moment waits half a service
+ * interval, so the textbook answer would read the interval off the city. It was
+ * read: `traffic.js` → `stats.busStopsServed` delivers **8 berths in 240 s of
+ * simulation across the 11 shelters inside `SIM_RADIUS`** — 0.0030 berths per
+ * second per shelter, a headway of **330 s**. Half of that is 165 s.
+ *
+ * THAT NUMBER IS AN ARTEFACT OF THERE BEING NO ROUTES, WHICH ITEM 4 FORBADE.
+ * The fleet is 160 vehicles at a 3% bus share, seeded anywhere on a 380 m box
+ * of lattice and turning at random; a real 5.5-minute service is a scheduling
+ * decision and this city has no schedule. Waiting 165 s on the strength of a
+ * headway nothing chose would park bodies under a shelter for the better part
+ * of three minutes and the stop would read as a monument.
+ *
+ * SO THE BOUND IS THE SHELTER'S OWN CAPACITY INSTEAD, which is a thing this
+ * project actually authored: `BUS_STOP.roofAlongM` is 4.00 m and a person is
+ * 0.60 m across, so four or five people stand under one. The wait is drawn as
+ * `MIN + Exponential(SCALE)` clipped — the same shape as every other dwell here
+ * — with MIN 6 (nobody arrives at a stop and boards instantly), SCALE 30, and a
+ * 90 s clip. The DELIVERED occupancy at those numbers is measured rather than
+ * predicted and is printed by `pedestrianStats().waitingAtStops`.
+ */
+const BUS_WAIT_MIN_S = 6;
+const BUS_WAIT_SCALE_S = 30;
+const BUS_WAIT_MAX_S = 90;
+
+/**
  * Probability that a new trip goes back the way the agent came.
  *
  * IT IS THE ONE PARAMETER STRAIGHTNESS IS SENSITIVE TO. A window containing a
@@ -258,6 +313,25 @@ const DWELL_MAX_S = 25;
  * over 360 agents for 400 s: mean straightness 0.948 against the 0.55 floor.
  */
 const REVERSE_CHANCE = 0.12;
+
+/**
+ * Probability that a pedestrian arriving at a CORNER crosses a road instead of
+ * turning it. Session 33.
+ *
+ * IT IS 2/3 BECAUSE A CORNER HAS THREE ONWARD CONTINUATIONS AND TWO OF THEM ARE
+ * CROSSINGS. A walker at a four-way junction who is not turning back can turn
+ * along this island, cross the road it has been walking beside, or cross the
+ * road ahead of it. An unbiased choice among the three crosses two times in
+ * three, and the alternative to an unbiased choice is a number chosen to make
+ * the frame look right — which is what LOOK.md §4 calls the stalls' failure.
+ *
+ * It is a chance at CORNER ARRIVALS ONLY, and corners are four entries in a
+ * destination list that also carries every shopfront and every stall pitch on
+ * the island — twenty to sixty of them. So this is not two thirds of the crowd;
+ * it is two thirds of the minority of trips that end at a corner, and the
+ * delivered rate is measured rather than predicted.
+ */
+const CROSS_AT_CORNER_CHANCE = 2 / 3;
 
 /**
  * Metres from the centreline to the nominal walking line. The pavement runs
@@ -301,8 +375,118 @@ const LANE_CENTRE_M = (CITY.roadHalfWidth + CORRIDOR) / 2;
 const PED_LANE_INSET_M = 0.5;
 const PED_LANE_HALF_M = 0.5;
 
+/**
+ * KEEP-RIGHT, AND THE PARAGRAPH ABOVE SAYS WHY IT WAS NOT MODELLED — SESSION 33.
+ *
+ * The objection was exact and it was not about keep-right: "heading reverses at
+ * a destination, which would slide a body a metre sideways in one frame, and a
+ * motion vector across that gap is not motion, it is bookkeeping." That is an
+ * argument against a STEP, not against two streams. The answer is a time
+ * constant, and it costs one lerp.
+ *
+ * WHY IT IS WORTH THE LERP. Session 30's pavements read as a conveyor — one
+ * file, one spacing, one direction — and the operator's word for it is the
+ * reason this session exists. Two counter-flowing streams is the single
+ * cheapest thing that makes a pavement read as a crowd, because it puts people
+ * PASSING each other in frame, and passing is the motion a queue cannot make.
+ *
+ * THE THREE NUMBERS HAVE TO SUM, EXACTLY AS THE CORRIDOR BUDGET ABOVE DOES,
+ * AND THE FIRST DRAFT OF THIS DID NOT. The corridor is 1.60 m wide — 9.30 to
+ * 10.90 — so with a 0.30 m body half-width the CENTRES live in [9.60, 10.60],
+ * a half-range of 0.50 m about 10.10. Everything a body's centre can be offset
+ * by has to fit inside that 0.50:
+ *
+ *     lane split 0.35 + jitter 0.15 + body 0.30 = 0.80 = the corridor's own
+ *     half-width, and 0.35 + 0.15 = 0.50 = the centre half-range.
+ *
+ * The draft used a 0.40 split with the old +/-0.25 jitter, which is 0.65 of an
+ * available 0.50 and put 0.15 m of shoulder into the stall run on one side and
+ * the shopfront pitch strip on the other — a crowd walking through the stalls,
+ * which is precisely what the corridor budget above exists to prevent and what
+ * its own last line warns about: change one and another has to give.
+ *
+ * So the lane centres sit at 9.75 and 10.45 with +/-0.15 m of per-agent jitter
+ * on each, and the delivered body extents are [9.300, 10.200] kerbward and
+ * [10.000, 10.900] inland — a union that is the corridor exactly, to the
+ * centimetre, at both ends. The two streams overlap by 0.20 m at their jitter
+ * extremes, which is people passing close rather than two separated files, and
+ * is the correct shape: nothing here does collision and a 0.20 m brush between
+ * counter-flowing strangers is what a busy pavement is.
+ *
+ * 1.2 s IS THE SWAP TIME AND IT IS A LENGTH, NOT A TASTE. A person changing
+ * sides does it over about a step and a half, and `GAIT_CYCLE_M` /
+ * `WALK_SPEED_MEAN` = 1.50/1.4 = 1.07 s is a step and a half exactly. 1.2 s is
+ * that rounded up, so the lateral rate is 0.58 m/s against a 1.4 m/s forward
+ * one — a body moving diagonally, which is what it is.
+ */
+const PED_LANE_SPLIT_M = 0.35;
+const PED_LANE_JITTER_SCALE = 0.3;
+const PED_LANE_SWAP_S = 1.2;
+
 /** Metres between samples when a planned leg is tested against occupancy. */
 const PATH_PROBE_M = 6;
+
+// ---------------------------------------------------------------------------
+// CROSSINGS — LOOK.md §4, and the paint has been on the road since session 21
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the crossing IS, read from `citygen.js` and not typed here — the paint,
+ * the people and the conflict instrument are one geometry and CONTRACT §9.1 is
+ * a whole section about the second copy. The derivation lives beside the
+ * constant, in `CITY.crossingFromJunctionM`: 8.15 m from the junction centre,
+ * 1.20 m deep, and both are forced by `roadHalfWidth` and
+ * `stopLineFromJunctionM` rather than chosen.
+ *
+ * SESSION 21's CROSSINGS WERE AT 6.40 — `stopLineFromJunctionM - 2.6`, 1.10 m
+ * INSIDE the crossing road's own carriageway, i.e. painted in the junction box
+ * where the green axis drives. They were also half width, one approach at a
+ * time, so no single crossing spanned the road it crossed. Both are corrected
+ * in the same session that put people on them, because a crossing nobody walks
+ * is a texture and a crossing in the wrong place is a texture in the wrong
+ * place.
+ */
+const CROSSING_OFFSET_M = CITY.crossingFromJunctionM;
+const CROSSING_DEPTH_M = CITY.crossingDepthM;
+
+/**
+ * m/s. THE SPEED A SIGNAL IS TIMED ON, WHICH IS NOT THE SPEED PEOPLE WALK AT.
+ *
+ * Crossing signals are timed on a design walking speed — 1.2 m/s is the figure
+ * in ordinary use, and it is deliberately below the 1.34-1.4 m/s a free-flowing
+ * crowd averages, because a signal that assumes the mean strands half its
+ * users. This project's crowd walks `GAIT.walkSpeedMps` = 1.4 with a per-person
+ * spread, so agents below 1.2 m/s exist and ARE STILL IN THE ROAD WHEN THE
+ * LIGHT CHANGES.
+ *
+ * THAT IS NOT A BUG, IT IS THE REASON `crossingBlocked` EXISTS. A pedestrian
+ * steps off only on red and only if the red remaining covers 15.0 m at 1.2 m/s
+ * (12.5 s of an 18 s red, so the window is the first 5.5 s); the slow ones
+ * overrun and the vehicles hold for them. The yield does visible work rather
+ * than being a rule nothing ever exercises.
+ */
+const CROSSING_DESIGN_SPEED_MPS = 1.2;
+
+/**
+ * The sign of the island relative to the junction at each of its four loop
+ * corners, and the corner a crossing lands on.
+ *
+ * Corner `e` is the START of edge `e`: e0 = (x0+c, z0+c), e1 = (x1-c, z0+c),
+ * e2 = (x1-c, z1-c), e3 = (x0+c, z1-c). So the junction that corner touches is
+ * at `x0` where SX is +1 and `x1` where it is -1, and likewise SZ with z0/z1.
+ *
+ * Crossing the road that runs along x flips the z side; crossing the road that
+ * runs along z flips the x side. A flip lands on the neighbouring island's
+ * mirrored corner, which is why these two tables are enough to route a crossing
+ * with no search: the far island's loop position is `FLIP[e] * LOOP_EDGE_LENGTH`
+ * exactly, on the chunk one step away in the flipped axis.
+ */
+const CORNER_SX = [1, -1, -1, 1];
+const CORNER_SZ = [1, 1, -1, -1];
+/** Crossing the x-running road (axis 0): flip the z side. */
+const FLIP_Z = [3, 2, 1, 0];
+/** Crossing the z-running road (axis 1): flip the x side. */
+const FLIP_X = [1, 0, 3, 2];
 
 // ---------------------------------------------------------------------------
 // STRAIGHTNESS AND ARRIVALS — the two numbers the gate reads
@@ -2043,6 +2227,15 @@ export function createStreetlife(options = {}) {
   let suppressedByThreshold = 0;
   let reseatsThisFrame = 0;
   let reseatsTotal = 0;
+  /**
+   * Run-cumulative crossings begun, and the frame's counts of who is on one.
+   * Instruments, not thresholds: `citycheck` asserts a straightness and an
+   * arrival rate, and both of those already see a crossing as what it is — a
+   * straight 19 m leg ending at a destination. These exist so a session can
+   * say how many crossings a minute the delivered city makes rather than
+   * predicting it from `CROSS_AT_CORNER_CHANCE`.
+   */
+  let crossingsStarted = 0;
   let motionCutoffM = 0;
   let chromaticGarments = 0;
 
@@ -2301,6 +2494,45 @@ export function createStreetlife(options = {}) {
    * That definition counts the origin block's shopfronts too, because it asks
    * the occupancy rather than the generator.
    */
+  /**
+   * The bus shelter on island (cx, cz)'s own loop, as a loop position — or null.
+   *
+   * THE FOUR EDGES ARE THE FOUR KERB BANDS AND THE MAPPING IS EXACT. Edge 0 is
+   * the `+side` of the EW road at `b.z0`, which `busStopAt` generates from THIS
+   * chunk; edge 3 is the `+side` of the NS road at `b.x0`, also this chunk. But
+   * edge 1 is the `-side` of the road at `b.x1`, which is chunk (cx+1, cz)'s own
+   * `b.x0` band, and edge 2 is the `-side` at `b.z1`, which is (cx, cz+1)'s. So
+   * three chunks can put a shelter on this island's pavement and only two of the
+   * four edges belong to this one — the same asymmetry `city.js` sweeps nine
+   * chunks for when it refuses an advertising pillar that would stand in a
+   * shelter.
+   *
+   * `busStopAt` returns at most one band per chunk, so this returns at most one
+   * shelter per island in practice and takes the first it finds.
+   */
+  function busStopFor(cx, cz) {
+    const b = chunkBounds(cx, cz);
+    const c = LANE_CENTRE_M;
+    const cand = [
+      { cx, cz, axis: 'z', side: 1, e: 0 },
+      { cx: cx + 1, cz, axis: 'x', side: -1, e: 1 },
+      { cx, cz: cz + 1, axis: 'z', side: -1, e: 2 },
+      { cx, cz, axis: 'x', side: 1, e: 3 },
+    ];
+    for (const k of cand) {
+      const S = busStopAt(rootSeed, k.cx, k.cz);
+      if (!S || S.axis !== k.axis || S.side !== k.side) continue;
+      let u;
+      if (k.e === 0) u = S.along - (b.x0 + c);
+      else if (k.e === 1) u = S.along - (b.z0 + c);
+      else if (k.e === 2) u = (b.x1 - c) - S.along;
+      else u = (b.z1 - c) - S.along;
+      if (u < 1 || u > LOOP_EDGE_LENGTH - 1) continue;
+      return { p: k.e * LOOP_EDGE_LENGTH + u, stop: S };
+    }
+    return null;
+  }
+
   function destinationsFor(ctx, cx, cz) {
     const key = chunkKey(cx, cz);
     let list = destinations.get(key);
@@ -2319,6 +2551,27 @@ export function createStreetlife(options = {}) {
     }
     const stalls = stallChunks.get(key);
     if (stalls) for (const s of stalls.pitches) list.push({ p: s.p, kind: 'stall' });
+    /**
+     * THE BUS SHELTER, AS A DESTINATION — LOOK.md §4, item 4b. Session 33.
+     *
+     * A shelter with three people standing at it is the cheapest "this city is
+     * inhabited" signal available, and until this session the shelters were
+     * furniture: 23 of them streamed, 2 in the block, and the pedestrian model
+     * had never heard of one. It is one entry in this list, and everything else
+     * — walking to it, standing there, facing the road — is machinery that
+     * already existed for shopfronts.
+     *
+     * WHERE ON THE LOOP. `busStopAt` gives the band (`axis`, `at`, `side`) and
+     * the position `along` in world coordinates; the loop's four edges are the
+     * four bands, so the edge is the (axis, side) pair and `u` is `along`
+     * measured from that edge's own start. The shelter belongs to a chunk but
+     * its `-side` band is the pavement of the NEIGHBOUR, which is why this
+     * sweeps the three chunks whose bands can touch this island rather than
+     * only its own — the same nine-chunk sweep `city.js` does for the pillars,
+     * with the two that cannot reach dropped.
+     */
+    const bs = busStopFor(cx, cz);
+    if (bs) list.push({ p: bs.p, kind: 'busstop' });
     list.sort((a, b) => a.p - b.p);
     destinations.set(key, list);
     if (destinations.size > 256) destinations.delete(destinations.keys().next().value);
@@ -2421,6 +2674,16 @@ export function createStreetlife(options = {}) {
           Math.min(WALK_SPEED_MAX, WALK_SPEED_MEAN + gaitRng.gauss() * WALK_SPEED_SD)
         ),
         spread: PED_LANE_INSET_M + gaitRng.range(-PED_LANE_HALF_M, PED_LANE_HALF_M),
+        /**
+         * Keep-right. `lane` is the half of the corridor this agent's HEADING
+         * puts it in and `laneNow` is where its body actually is, eased toward
+         * it over `PED_LANE_SWAP_S`. Seeded at `dir` so the very first frame is
+         * already in its lane rather than easing out of the middle.
+         */
+        lane: 1,
+        laneNow: 1,
+        /** The three-leg crossing in progress, or null. Session 33. */
+        cross: null,
         /**
          * Cycle parameter in [0,1), and its previous-frame twin. Distributed
          * over the WHOLE cycle rather than over a step: two people in
@@ -2790,7 +3053,7 @@ export function createStreetlife(options = {}) {
     let p = 0;
     for (let t = 0; t < 12; t++) {
       p = rng.next() * LOOP_LENGTH;
-      loopPoint(a.cx, a.cz, p, a.spread, scratchPoint);
+      loopPoint(a.cx, a.cz, p, laneOffset(a), scratchPoint);
       // Never seated in the water. Twelve draws and then whatever the last one
       // gave, which is the existing contract of this loop — a chunk whose
       // whole loop is river gets a coverage of 0 in `loopCoverage` and is
@@ -2859,7 +3122,7 @@ export function createStreetlife(options = {}) {
     const boxes = walkBlockers(ctx, a.cx, a.cz);
     let arc = best.arc;
     for (let d = PATH_PROBE_M; d <= arc; d += PATH_PROBE_M) {
-      loopPoint(a.cx, a.cz, a.p + a.dir * d, a.spread, scratchPoint);
+      loopPoint(a.cx, a.cz, a.p + a.dir * d, laneOffset(a), scratchPoint);
       // The river is occupancy of a kind no box can express — a bridge deck is
       // a hole in it — so it is tested by the same predicate the walkability
       // mask and the traffic lattice use, beside the box test rather than
@@ -2878,6 +3141,197 @@ export function createStreetlife(options = {}) {
       a.dir = -a.dir;
       a.dwell = DWELL_MIN_S;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // CROSSINGS
+  // -------------------------------------------------------------------------
+
+  /**
+   * Junctions whose carriageway currently has somebody standing on it, keyed
+   * `jx,jz,axis` where `axis` is the road being crossed: 0 for the road that
+   * runs along x, 1 for the road that runs along z — the same encoding
+   * `traffic.js`'s `signal(axis, now)` and `veh.axis` use, so neither module
+   * has to translate the other's.
+   *
+   * REBUILT EVERY FRAME FROM THE AGENTS THEMSELVES rather than maintained by
+   * add/remove on state transitions. A set that is edited on entry and exit is
+   * a set that leaks the first time an agent is re-seated, quarantined or
+   * disposed mid-crossing, and a leaked key is a junction no vehicle may ever
+   * enter again — a deadlock that would show up as stopped traffic somewhere
+   * the camera is not, days later. Recomputing it costs one pass over 360
+   * agents, of which at most a handful are ever on a carriageway.
+   */
+  const crossingOccupied = new Set();
+
+  /**
+   * Build the crossing an agent standing at loop corner `e` of island
+   * (cx, cz) would make across `road` — 0 for the x-running road at that
+   * corner, 1 for the z-running one. Returns null if the geometry does not
+   * exist, which it always does on the lattice and may not once a landmark or
+   * the river has taken the far island.
+   *
+   * THE PATH IS THREE LEGS AND THE MIDDLE ONE IS THE ROAD.
+   *
+   *   1  loop corner -> the near kerb head, a 2.55 m diagonal (1.45 m along the
+   *      road being crossed, 2.10 m out to the kerb). People cut a corner to a
+   *      crossing; this is that cut, and it is what puts the agent ON the paint
+   *      instead of 1.45 m past its end.
+   *   2  the carriageway, 15.00 m kerb to kerb, and the ONLY leg that waits for
+   *      a signal or blocks a vehicle.
+   *   3  the far kerb head -> the far island's mirrored loop corner, the same
+   *      2.55 m diagonal reflected.
+   *
+   * The wait happens AT THE END OF LEG 1, at the kerb, because that is where a
+   * person waits and because it is what makes the signal timing honest: the
+   * red has to cover 15.0 m and not 17.1 m.
+   */
+  function buildCrossing(ctx, a, e, road) {
+    const b = chunkBounds(a.cx, a.cz);
+    const sx = CORNER_SX[e];
+    const sz = CORNER_SZ[e];
+    const jx = sx > 0 ? b.x0 : b.x1;
+    const jz = sz > 0 ? b.z0 : b.z1;
+    const c = LANE_CENTRE_M;
+    const kerb = CITY.roadHalfWidth;
+    /**
+     * Where this agent walks within the crossing's own 1.20 m depth. Its
+     * `spread` is a pavement offset in [0, 1] and this maps it onto
+     * [-0.4, +0.4] of the crossing centreline, which keeps a 0.30 m half-width
+     * body inside the 0.60 m half-depth with 0.20 m to spare. Two people
+     * crossing together therefore do not occupy one line, for the same reason
+     * the pavement lane has a jitter.
+     */
+    const lat = (a.spread - PED_LANE_INSET_M) * 0.8;
+    const off = CROSSING_OFFSET_M + lat;
+
+    let e2;
+    let cx2;
+    let cz2;
+    const pt = [];
+    if (road === 0) {
+      // The x-running road at z = jz. Walk in z; hold x at the crossing offset.
+      e2 = FLIP_Z[e];
+      cx2 = a.cx;
+      cz2 = a.cz - sz;
+      pt.push([jx + sx * c, jz + sz * c]);
+      pt.push([jx + sx * off, jz + sz * kerb]);
+      pt.push([jx + sx * off, jz - sz * kerb]);
+      pt.push([jx + sx * c, jz - sz * c]);
+    } else {
+      // The z-running road at x = jx.
+      e2 = FLIP_X[e];
+      cx2 = a.cx - sx;
+      cz2 = a.cz;
+      pt.push([jx + sx * c, jz + sz * c]);
+      pt.push([jx + sx * kerb, jz + sz * off]);
+      pt.push([jx - sx * kerb, jz + sz * off]);
+      pt.push([jx - sx * c, jz + sz * c]);
+    }
+
+    /**
+     * The far island's pavement has to be walkable where the crossing lands, or
+     * this is a crossing into a river or into the side of a landmark. The same
+     * predicate pair `planTrip` uses on a leg, asked once at the landing point
+     * — one test rather than a swept probe, because the middle leg is over a
+     * carriageway the registry has already emitted and the near end is where
+     * the agent is standing.
+     */
+    const boxes = walkBlockers(ctx, cx2, cz2);
+    const land = pt[3];
+    if (occupied(boxes, land[0], land[1], BODY_HALF_WIDTH_M)) return null;
+    if (riverImpassable(rootSeed, land[0], land[1], BODY_HALF_WIDTH_M)) return null;
+    if (riverImpassable(rootSeed, pt[1][0], pt[1][1], BODY_HALF_WIDTH_M)) return null;
+    if (riverImpassable(rootSeed, pt[2][0], pt[2][1], BODY_HALF_WIDTH_M)) return null;
+
+    const seg = [];
+    let total = 0;
+    for (let i = 0; i < 3; i++) {
+      const dx = pt[i + 1][0] - pt[i][0];
+      const dz = pt[i + 1][1] - pt[i][1];
+      const len = Math.hypot(dx, dz);
+      seg.push({ x: pt[i][0], z: pt[i][1], dx: dx / len, dz: dz / len, len });
+      total += len;
+    }
+    return {
+      road,
+      jx,
+      jz,
+      key: `${jx},${jz},${road}`,
+      seg,
+      total,
+      /** Metres walked along the whole three-leg path. */
+      t: 0,
+      /** True while the agent is standing at the kerb waiting for a red. */
+      waiting: true,
+      cx2,
+      cz2,
+      p2: e2 * LOOP_EDGE_LENGTH,
+    };
+  }
+
+  /** Where along the three legs the carriageway starts and ends. */
+  function crossingRoadSpan(cr) {
+    return [cr.seg[0].len, cr.seg[0].len + cr.seg[1].len];
+  }
+
+  /**
+   * Advance one crossing by `dt`. Returns true while the agent is still on it.
+   *
+   * THE SIGNAL IS ASKED OF `traffic`, NEVER RECOMPUTED HERE. `GREEN_S`,
+   * `AMBER_S` and the phase arithmetic live in `traffic.js` and CONTRACT §9.1
+   * is a whole section about the second copy of a number. If the traffic module
+   * is absent — `?traffic=0`, or quarantined — there is nothing to be hit by,
+   * so the crossing proceeds without waiting and says so by simply not waiting.
+   */
+  function advanceCrossing(ctx, a, dt) {
+    const cr = a.cross;
+    const traffic = ctx.get ? ctx.get('traffic') : null;
+    const [roadFrom, roadTo] = crossingRoadSpan(cr);
+
+    if (cr.waiting) {
+      let go = true;
+      if (traffic && traffic.signalAt) {
+        const s = traffic.signalAt(cr.road, ctx.get('time') ? ctx.get('time').now : 0);
+        /**
+         * Step off on RED ONLY, and only with enough of it left to cross at the
+         * design speed. `phase` 2 is red for the road being crossed, i.e. the
+         * traffic that would hit this person is held. The remaining-time test
+         * is what a signal's own timing does, and using the DESIGN speed rather
+         * than this agent's own is what leaves the slow ones exposed on purpose
+         * — see `CROSSING_DESIGN_SPEED_MPS`.
+         */
+        go = s.phase === 2 && s.remaining >= (roadTo - roadFrom) / CROSSING_DESIGN_SPEED_MPS;
+      }
+      if (!go) return true;
+      cr.waiting = false;
+    }
+
+    cr.t += a.speed * dt;
+    a.pathLength += a.speed * dt;
+    a.gaitPhase = (a.gaitPhase + a.speed * dt) % GAIT_CYCLE_M;
+    if (cr.t < cr.total) {
+      if (cr.t > roadFrom && cr.t < roadTo) crossingOccupied.add(cr.key);
+      return true;
+    }
+
+    // Landed. The far island's mirrored corner, and a fresh trip from it.
+    a.cross = null;
+    a.cx = cr.cx2;
+    a.cz = cr.cz2;
+    a.p = cr.p2;
+    /**
+     * Both directions out of a corner lead away from the junction, so either is
+     * a walk and neither is into the road. Drawn rather than chosen: keeping
+     * the heading would need the entry edge's own axis carried through the
+     * crossing, and the two are indistinguishable in frame at a corner where
+     * both edges leave.
+     */
+    a.dir = ctx.rng('streetlife:trip').chance(0.5) ? 1 : -1;
+    a.remaining = 0;
+    a.dwell = 0;
+    planTrip(ctx, a, ctx.rng('streetlife:trip'));
+    return false;
   }
 
   /**
@@ -2910,16 +3364,61 @@ export function createStreetlife(options = {}) {
    * the instance origin, and the instance origin is what moved.
    */
   function updateAgentPosition(a, ctx) {
-    loopPoint(a.cx, a.cz, a.p, a.spread, scratchPoint);
+    const city = ctx && ctx.get ? ctx.get('city') : null;
+    if (a.cross) {
+      /**
+       * On a crossing the position comes off the three-leg path and not off the
+       * loop, and the yaw comes off the leg's own direction — so somebody
+       * waiting at the kerb faces the road they are about to step into rather
+       * than along the pavement they arrived on, which is the difference
+       * between a person waiting and a person standing.
+       */
+      const cr = a.cross;
+      let t = Math.min(cr.t, cr.total);
+      let s = cr.seg[0];
+      for (let i = 0; i < 3; i++) {
+        if (t <= cr.seg[i].len || i === 2) { s = cr.seg[i]; break; }
+        t -= cr.seg[i].len;
+      }
+      a.x = s.x + s.dx * Math.min(t, s.len);
+      a.z = s.z + s.dz * Math.min(t, s.len);
+      a.y = city && city.groundYAt ? city.groundYAt(a.x, a.z) : 0;
+      // Waiting at the kerb: face leg 2, the carriageway.
+      const f = cr.waiting ? cr.seg[1] : s;
+      a.yaw = Math.atan2(f.dx, f.dz);
+      return;
+    }
+    loopPoint(a.cx, a.cz, a.p, laneOffset(a), scratchPoint);
     a.x = scratchPoint.x;
     a.z = scratchPoint.z;
-    const city = ctx && ctx.get ? ctx.get('city') : null;
     a.y = city && city.groundYAt ? city.groundYAt(a.x, a.z) : 0;
     if (a.dwell > 0) {
       a.yaw = a.dwellYaw;
     } else {
       a.yaw = Math.atan2(a.dir * scratchPoint.hx, a.dir * scratchPoint.hz);
     }
+  }
+
+  /**
+   * The agent's inland offset THIS frame: its own jitter, plus the keep-right
+   * lane it is currently in, eased between the two.
+   *
+   * `a.lane` is where it is going (-1 kerbward, +1 inland, by heading) and
+   * `a.laneNow` is where it is, moved toward it at `PED_LANE_SPLIT_M /
+   * PED_LANE_SWAP_S` per second. The ease is the whole point: a heading
+   * reversal at a destination is a lane swap, and a swap taken in one frame is
+   * the teleport the corridor comment above refused this feature for.
+   *
+   * NARROWED JITTER. The old spread was +/-0.50 m about the corridor's middle
+   * and it was the only offset there was. A lane centre is now +/-0.35 m off
+   * that middle, so the jitter is scaled to 0.3 of its old width — +/-0.15 m —
+   * and 0.35 + 0.15 + 0.30 = 0.80, the corridor's own half-width. See
+   * `PED_LANE_SPLIT_M`: these three have to sum and the first draft's did not.
+   */
+  function laneOffset(a) {
+    return PED_LANE_INSET_M
+      + (a.spread - PED_LANE_INSET_M) * PED_LANE_JITTER_SCALE
+      + a.laneNow * PED_LANE_SPLIT_M;
   }
 
   // -------------------------------------------------------------------------
@@ -3544,7 +4043,69 @@ export function createStreetlife(options = {}) {
             chromaticGarments,
             reseats: reseatsTotal,
             ringChunks: pedRingKeys.length,
+            /** Session 33. Crossings begun since boot, and this frame's state. */
+            crossingsStarted,
+            crossing: agents.reduce((n, a) => n + (a.cross ? 1 : 0), 0),
+            crossingWaiting: agents.reduce((n, a) => n + (a.cross && a.cross.waiting ? 1 : 0), 0),
+            crossingOnRoad: crossingOccupied.size,
+            /** Item 4b: people standing at a shelter, waiting rather than passing. */
+            waitingAtStops: agents.reduce((n, a) => n + (!a.cross && a.dwell > 0 && a.destKind === 'busstop' ? 1 : 0), 0),
+            busStopChunks: pedRingKeys.reduce((n, k) => {
+              const [kx, kz] = k.split(',').map(Number);
+              return n + (busStopFor(kx, kz) ? 1 : 0);
+            }, 0),
           };
+        },
+
+        /**
+         * IS ANYBODY STANDING ON THE CARRIAGEWAY OF THE `axis` ROAD AT THIS
+         * JUNCTION? `traffic.js` asks this before it grants a vehicle the
+         * junction, and that is the whole of "vehicles yield to people in the
+         * crossing" — LOOK.md §4.
+         *
+         * IT IS A PERMISSION TEST AND NOT A BRAKING ONE, which is why it goes
+         * where it goes. The traffic model already refuses to enter a junction
+         * without `veh.cleared`, and already brakes comfortably to the stop
+         * line when it has not got it. Adding a second obstacle would be a
+         * second braking model beside a correct one; withholding the permission
+         * reuses the correct one exactly, including the queue behind it.
+         *
+         * `axis` is the road being crossed, in `traffic.js`'s own encoding: 0
+         * for the road running along x. A pedestrian crossing the x-running
+         * road stands in the path of x-running vehicles and nowhere near the
+         * z-running ones, because `CROSSING_OFFSET_M` is 8.15 and the other
+         * road's carriageway ends at 7.50. The green axis is never blocked by
+         * this, by construction.
+         */
+        crossingBlocked(jx, jz, axis) {
+          return crossingOccupied.has(`${jx},${jz},${axis}`);
+        },
+
+        /**
+         * HOW MANY PEOPLE ARE STANDING AT THIS SHELTER, WAITING. `traffic.js`
+         * turns the answer into a bus's dwell — LOOK.md §4, item 4b — so a bus
+         * stands at a busy stop for longer than at an empty one, and the reason
+         * it stands there is visible in the same frame.
+         *
+         * WAITING, NOT PASSING, and that is the whole of what `destKind` buys:
+         * an agent counts only if it has stopped AND what it stopped for was
+         * this shelter. Somebody walking past, or standing at the shopfront
+         * next door, is not a boarder. The radius is the shelter's own roof
+         * half-length plus a body — `BUS_STOP.roofAlongM / 2 + 0.5` = 2.50 m —
+         * so it is the footprint of the thing rather than a disc chosen to
+         * catch the right number of people.
+         */
+        waitingAt(x, z) {
+          const r = BUS_STOP.roofAlongM / 2 + 0.5;
+          const r2 = r * r;
+          let n = 0;
+          for (const a of agents) {
+            if (a.dwell <= 0 || a.destKind !== 'busstop' || a.cross) continue;
+            const dx = a.x - x;
+            const dz = a.z - z;
+            if (dx * dx + dz * dz <= r2) n++;
+          }
+          return n;
         },
 
         stallStats() {
@@ -3796,6 +4357,8 @@ export function createStreetlife(options = {}) {
       }
 
       pedCounts.clear();
+      // Rebuilt from the agents themselves, every frame — see `crossingOccupied`.
+      crossingOccupied.clear();
       for (let i = 0; i < agents.length; i++) {
         const a = agents[i];
         /**
@@ -3814,6 +4377,44 @@ export function createStreetlife(options = {}) {
           }
           continue;
         }
+        /**
+         * A crossing owns the agent for as long as it lasts: no trip, no dwell,
+         * no loop position. `advanceCrossing` returns false on the frame it
+         * lands, having already re-homed the agent and planned its next trip,
+         * so the walk below picks up on the next frame with nothing to unwind.
+         */
+        if (a.cross) {
+          if (advanceCrossing(ctx, a, dt)) {
+            a.gaitUPrev = a.gaitU;
+            a.gaitAmpPrev = a.gaitAmp;
+            a.gaitU = a.gaitPhase / GAIT_CYCLE_M;
+            const wantWalk = a.cross.waiting ? 0 : 1;
+            const f2 = dt / GAIT.dwellFadeS;
+            a.gaitAmp = wantWalk > a.gaitAmp
+              ? Math.min(wantWalk, a.gaitAmp + f2)
+              : Math.max(wantWalk, a.gaitAmp - f2);
+            updateAgentPosition(a, ctx);
+            const ck = chunkKey(a.cx, a.cz);
+            pedCounts.set(ck, (pedCounts.get(ck) || 0) + 1);
+            if (a.reseated) reseatsThisFrame++;
+            continue;
+          }
+        }
+        /**
+         * Keep-right: the lane is the heading, the body eases into it — except
+         * at a bus stop, where somebody waiting stands at the KERB edge of the
+         * corridor rather than in the middle of it, so the queue is beside the
+         * shelter and not blocking the people walking past it. The ease is the
+         * same one, so a person arriving at a stop drifts kerbward over 1.2 s
+         * instead of stepping sideways.
+         */
+        a.lane = (a.dwell > 0 && a.destKind === 'busstop') ? -1 : (a.dir > 0 ? 1 : -1);
+        if (a.laneNow !== a.lane) {
+          const rate = dt / PED_LANE_SWAP_S;
+          a.laneNow = a.lane > a.laneNow
+            ? Math.min(a.lane, a.laneNow + 2 * rate)
+            : Math.max(a.lane, a.laneNow - 2 * rate);
+        }
         if (a.dwell > 0) {
           a.dwell -= dt;
           if (a.dwell <= 0) planTrip(ctx, a, tripRng);
@@ -3825,18 +4426,52 @@ export function createStreetlife(options = {}) {
             a.pathLength += advanced;
             a.remaining = 0;
             arrivalBuckets[arrivalBucket]++;
-            a.dwell = Math.min(DWELL_MAX_S, DWELL_MIN_S + -Math.log(1 - dwellRng.next()) * DWELL_SCALE_S);
             /**
-             * Turn toward whatever was walked to. A shopfront and a stall are
-             * inland, a corner is whichever way the person happened to be
-             * looking. Two lines, and without them a queue at a food stand is
-             * a line of people facing along the pavement.
+             * ARRIVED AT A CORNER — LOOK.md §4, and this is the branch that
+             * turns a pavement loop into a street network. A corner IS a
+             * junction: the four loop corners are the four chunk corners, and
+             * `a.p` is an exact multiple of `LOOP_EDGE_LENGTH` there. Two thirds
+             * of the time the agent crosses one of the two roads instead of
+             * turning; `buildCrossing` refuses if the far pavement is a river
+             * or a landmark, and a refusal falls straight through to the dwell
+             * below, which is a person hesitating at a kerb and then walking on.
              */
-            loopPoint(a.cx, a.cz, a.p, a.spread, scratchPoint);
-            a.dwellYaw =
-              a.destKind === 'corner'
-                ? Math.atan2(a.dir * scratchPoint.hx, a.dir * scratchPoint.hz) + dwellRng.range(-1.2, 1.2)
-                : Math.atan2(-scratchPoint.ox, -scratchPoint.oz);
+            if (a.destKind === 'corner' && tripRng.chance(CROSS_AT_CORNER_CHANCE)) {
+              const q = ((a.p % LOOP_LENGTH) + LOOP_LENGTH) % LOOP_LENGTH;
+              const e = Math.round(q / LOOP_EDGE_LENGTH) % 4;
+              if (Math.abs(q - e * LOOP_EDGE_LENGTH) < 0.5 || Math.abs(q - LOOP_LENGTH) < 0.5) {
+                const cr = buildCrossing(ctx, a, e, tripRng.chance(0.5) ? 0 : 1);
+                if (cr) {
+                  a.cross = cr;
+                  a.dwell = 0;
+                  crossingsStarted++;
+                }
+              }
+            }
+            if (!a.cross) {
+              a.dwell = a.destKind === 'busstop'
+                ? Math.min(BUS_WAIT_MAX_S, BUS_WAIT_MIN_S + -Math.log(1 - dwellRng.next()) * BUS_WAIT_SCALE_S)
+                : Math.min(DWELL_MAX_S, DWELL_MIN_S + -Math.log(1 - dwellRng.next()) * DWELL_SCALE_S);
+              /**
+               * Turn toward whatever was walked to. A shopfront and a stall are
+               * inland, a corner is whichever way the person happened to be
+               * looking. Two lines, and without them a queue at a food stand is
+               * a line of people facing along the pavement.
+               */
+              loopPoint(a.cx, a.cz, a.p, laneOffset(a), scratchPoint);
+              /**
+               * A shopfront and a stall are INLAND, so a person at one faces
+               * the building. A person waiting for a bus faces the ROAD — which
+               * is `+out` and not `-out`, and is the difference between a queue
+               * at a stop and a queue at a shop with its back to the traffic.
+               */
+              a.dwellYaw =
+                a.destKind === 'corner'
+                  ? Math.atan2(a.dir * scratchPoint.hx, a.dir * scratchPoint.hz) + dwellRng.range(-1.2, 1.2)
+                  : a.destKind === 'busstop'
+                    ? Math.atan2(scratchPoint.ox, scratchPoint.oz) + dwellRng.range(-0.5, 0.5)
+                    : Math.atan2(-scratchPoint.ox, -scratchPoint.oz);
+            }
           } else {
             a.p += a.dir * step;
             a.remaining -= step;

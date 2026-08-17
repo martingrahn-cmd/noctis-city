@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY, riverNoRoad } from '../lib/citygen.js';
+import { CITY, riverNoRoad, busStopAt, BUS_STOP } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
@@ -227,6 +227,17 @@ const HEADLAMP_SLOTS = 96;
  *
  * 14 s of green is two 128 m blocks' worth of queue discharge at 12 m/s.
  */
+/**
+ * Bus dwell, seconds: a fixed door cycle plus a per-boarder term. Both are
+ * transit-practice figures and both are bounded, which is what §9 rule 5 asks.
+ * About 5 s covers opening, kneeling and closing; about 2.5 s is one passenger
+ * through one door. The boarder count is COUNTED off the people standing at the
+ * shelter, never assumed — see `busDwellSeconds`.
+ */
+const BUS_BERTH_M = 1.0;
+const BUS_DOOR_CYCLE_S = 5.0;
+const BUS_BOARD_S = 2.5;
+
 const GREEN_S = 14;
 const AMBER_S = 4;
 const CYCLE_S = 2 * (GREEN_S + AMBER_S);
@@ -2622,7 +2633,20 @@ export function createTraffic(options = {}) {
           const axis = rng.next() < 0.5 ? 0 : 1;
           const line = (axis === 0 ? cj : ci) + rng.int(-span, span);
           const dir = rng.next() < 0.5 ? 1 : -1;
-          const lane = rng.next() < 0.62 ? 1 : 0;
+          /**
+           * A BUS RUNS IN THE KERBSIDE LANE — session 33. Every other type keeps
+           * the 62/38 split; a 12 m single-decker that serves kerbside stops
+           * does not spend its route in the overtaking lane, and until this
+           * line it did, three quarters of the time. Measured before it: of
+           * 13.3 buses in the ring, **24.5% were in lane 1**, so the stop-
+           * serving rule below had almost nothing to fire on and `busStopAt`
+           * delivered 0 berths in 40 s of simulation.
+           *
+           * It is a content correction and not a tuning knob: `LANE_OFFSET[1]`
+           * = 5.25 is the lane whose kerb the shelters stand on, and this makes
+           * a bus be where a bus is.
+           */
+          const lane = BODY_TYPES[veh.type].name === 'bus' ? 1 : (rng.next() < 0.62 ? 1 : 0);
           const along = axis === 0 ? cam.x : cam.z;
           const s = along + rng.range(-SIM_RADIUS, SIM_RADIUS);
           lanePosition(axis, line, dir, lane, s, pos);
@@ -2780,6 +2804,18 @@ export function createTraffic(options = {}) {
          * coincidence of arithmetic.
          */
         veh.cleared = null;
+        /**
+         * And so does the bus dwell, for the same reason one line up: a berth
+         * position is a world coordinate on a 128 m lattice, so a stale
+         * `servedAt` can equal the berth of the stop the bus has just been
+         * re-seeded in front of — which is permission to drive past a shelter,
+         * granted by a coincidence of arithmetic. And a bus re-seeded mid-dwell
+         * would arrive somewhere new already standing still.
+         */
+        veh.dwell = 0;
+        veh.stopAt = null;
+        veh.servedAt = null;
+        veh.stopRec = null;
         veh.recycled = true;
         /**
          * From here this vehicle is somewhere real, so it becomes an obstacle
@@ -2799,6 +2835,91 @@ export function createTraffic(options = {}) {
        *
        * Returns 0 green, 1 amber, 2 red.
        */
+      /**
+       * The next bus stop this vehicle should serve, as a position along its own
+       * line — or null if there is not one, or there is one and it refuses it.
+       *
+       * `busStopAt` is PURE in (rootSeed, cx, cz) and costs one hash and a
+       * bounds call, which is why this asks it directly for the chunk the bus is
+       * in and the one ahead rather than caching a route network. There is no
+       * route network and item 4 said there must not be one.
+       */
+      function nextBusStop(veh, type) {
+        const S = CITY.chunkSize;
+        const here = Math.floor(veh.s / S);
+        for (let k = 0; k < 2; k++) {
+          const idx = here + veh.dir * k;
+          /**
+           * The chunk that OWNS the band this bus is driving beside. An axis-0
+           * bus runs along x on the road at z = line·S, and that road is chunk
+           * (idx, line)'s own `b.z0` band — so `cz` is the line and `cx` is
+           * where the bus is. An axis-1 bus is the transpose.
+           */
+          const cx = veh.axis === 0 ? idx : veh.line;
+          const cz = veh.axis === 0 ? veh.line : idx;
+          const stop = busStopAt(rootSeed, cx, cz);
+          if (!stop) continue;
+          // The band has to be the road this bus is on: axis 'z' is the EW road
+          // at b.z0 (traffic axis 0), axis 'x' is the NS road at b.x0 (axis 1).
+          const bandAxis = stop.axis === 'z' ? 0 : 1;
+          if (bandAxis !== veh.axis) continue;
+          if (Math.round(stop.at / S) !== veh.line) continue;
+          // Which side it serves — `lanePosition`'s own sign.
+          const servesDir = veh.axis === 0 ? stop.side : -stop.side;
+          if (servesDir !== veh.dir) { stats.busStopsRefused.wrongSide++; continue; }
+          // ITEM 4d. A bus in the through lane does not stop; it does not swerve.
+          if (veh.lane !== 1) { stats.busStopsRefused.offsideLane++; continue; }
+          const berth = stop.along - veh.dir * (type.len / 6);
+          if (veh.servedAt === berth) continue;
+          const ahead = (berth - veh.s) * veh.dir;
+          if (ahead <= 0) continue;
+          // Only brake for one it can actually reach comfortably from here.
+          if (ahead > (veh.v * veh.v) / (2 * BRAKE_A) + 60) continue;
+          veh.stopRec = stop;
+          return berth;
+        }
+        return null;
+      }
+
+      /**
+       * Seconds a bus stands at a stop, AND IT IS THE BOARDING TIME OF THE
+       * PEOPLE WHO ARE ACTUALLY STANDING THERE.
+       *
+       * Transit practice splits dwell into a fixed door cycle and a per-boarder
+       * term: about 5 s to open, kneel and close, and 2.5 s a passenger through
+       * a single door. Both are figures from outside this project and both are
+       * bounded, which is what §9 rule 5 asks of a number.
+       *
+       * THE BOARDER COUNT IS NOT ASSUMED, IT IS COUNTED. `streetlife.js` puts
+       * pedestrians at shelters as a destination and holds them there
+       * (item 4b), and `waitingAt` returns how many are within the shelter's own
+       * roof footprint. So a stop with nobody at it is a 5 s pause and a stop
+       * with four people at it is 15 s — the bus's dwell is CAUSED by what the
+       * frame shows, rather than being a constant that happens to coincide with
+       * it. With `streetlife` absent or quarantined the count is zero and every
+       * dwell is the door cycle, which is the correct degenerate answer.
+       */
+      function busDwellSeconds(veh) {
+        const streetlife = ctx.get('streetlife');
+        const stop = veh.stopRec;
+        let boarders = 0;
+        if (streetlife && streetlife.waitingAt && stop) {
+          /**
+           * The SHELTER's own centre, built the way `city.js` builds it to draw
+           * it — `roadHalfWidth + kerbGapM + roofDeepM/2` out from the road
+           * centreline on the band's own side. Not the berth, which is on the
+           * carriageway and is the same distance from BOTH pavements; asking
+           * for people near the berth would count the crowd waiting on the
+           * other side of the street as boarders for this bus.
+           */
+          const off = CITY.roadHalfWidth + BUS_STOP.kerbGapM + BUS_STOP.roofDeepM / 2;
+          const sx = stop.axis === 'x' ? stop.at + stop.side * off : stop.along;
+          const sz = stop.axis === 'x' ? stop.along : stop.at + stop.side * off;
+          boarders = streetlife.waitingAt(sx, sz);
+        }
+        return BUS_DOOR_CYCLE_S + BUS_BOARD_S * boarders;
+      }
+
       function signal(axis, now) {
         const t = ((now % CYCLE_S) + CYCLE_S) % CYCLE_S;
         const mine = axis === 0 ? 0 : GREEN_S + AMBER_S;
@@ -2838,6 +2959,31 @@ export function createTraffic(options = {}) {
         stopped: 0,
         /** Vehicles at a standstill at a stop line without permission. Session 18. */
         holdingAtRed: 0,
+        /**
+         * Vehicle-frames this frame in which a junction was withheld because
+         * somebody was still on the carriageway of the road it was approaching.
+         * Session 33, LOOK.md §4. An instrument: no gate asserts it, and what
+         * it is for is telling a session whether the yield ever fires at all —
+         * a rule that never fires and a rule that is wired up wrong produce the
+         * same frames.
+         */
+        yieldedToPedestrian: 0,
+        /**
+         * Run-cumulative. Vehicle-frames in which a vehicle holding a junction
+         * had body inside a crossing box somebody was standing on. The
+         * dilemma-zone residual — see the block that increments it. Instrument.
+         */
+        pedConflictFrames: 0,
+        /**
+         * Bus stops, session 33. `served` is run-cumulative berths made;
+         * `refused` is why a bus passed one, by reason. Instruments: item 4d
+         * says a bus that cannot pull clear refuses rather than moves, and a
+         * refusal that is never counted is indistinguishable from a rule that
+         * is not wired up.
+         */
+        busStopsServed: 0,
+        busStopsRefused: { wrongSide: 0, offsideLane: 0 },
+        busesDwelling: 0,
         /**
          * Session 21. The longest queue at any single junction this frame, and
          * how many junctions have one at all. Both are instruments; neither
@@ -3079,10 +3225,20 @@ export function createTraffic(options = {}) {
           }
         }
 
+        /**
+         * The pedestrians, for the crossing yield below. `ctx.get` and not an
+         * import (CONTRACT §0 rule 1), fetched once a frame rather than per
+         * vehicle, and undefined whenever `?streetlife=0` or the module is
+         * quarantined — in which case there is nobody in the road and the
+         * permission is granted exactly as it was for thirty-two sessions.
+         */
+        const streetlife = ctxRef.get('streetlife');
+
         stats.turning = 0;
         stats.stopped = 0;
         queueNow.clear();
         stats.holdingAtRed = 0;
+        stats.yieldedToPedestrian = 0;
         stats.recycledThisFrame = 0;
         // Run-cumulative, so they are published rather than reset. Session 29.
         stats.seedRejects = seedRejects;
@@ -3131,6 +3287,90 @@ export function createTraffic(options = {}) {
               const gapCam = (camLane.s - veh.s) * veh.dir - type.len * 0.5 - CAMERA_CLEARANCE;
               if (gapCam < safe) {
                 limit = Math.min(limit, Math.max(0, FREE_SPEED * (gapCam / Math.max(0.1, safe))));
+              }
+            }
+
+            /**
+             * THE BUS STOPS — LOOK.md §4, deferred since session 29 and built
+             * here. Session 33.
+             *
+             * The shelters have existed on both content paths since session 30
+             * — `citygen.js` → `busStopAt`, 23 of them streamed and 2 in the
+             * origin block — and nothing had ever stopped at one. This is the
+             * consumer.
+             *
+             * "CLEAR OF THE RUNNING LANE" CANNOT MEAN A LAY-BY ON THIS LATTICE,
+             * AND THE ARITHMETIC IS WHY. The kerb is at `roadHalfWidth` = 7.50.
+             * The kerbside lane's centre is `LANE_OFFSET[1]` = 5.25 and the lane
+             * half-pitch is 1.75, so the lane's outer edge is at 7.00 — leaving
+             * 0.50 m between the running lane and the kerb. A bus is 2.55 m
+             * wide. There is nowhere to pull into, anywhere in the city, and no
+             * amount of trying changes 0.50 into 2.55.
+             *
+             * SO IT IS DELIVERED AS "CLEAR OF THE THROUGH LANE", WHICH IS WHAT
+             * A KERBSIDE STOP IS IN THE WORLD: the bus halts in lane 1 and the
+             * traffic behind it passes in lane 0. THE REFUSAL IS REAL AND IT IS
+             * ITEM 4d's: a bus in the OFFSIDE lane does not serve the stop at
+             * all, because stopping there would stand a 12 m vehicle across the
+             * only lane that can pass one — and nothing in this project changes
+             * lanes, so the honest answer is not to stop rather than to swerve
+             * across a running lane to reach a kerb. `stats.busStopsRefused`
+             * counts it, by reason.
+             *
+             * WHICH SIDE A STOP SERVES IS `lanePosition`'s OWN SIGN, not a new
+             * convention: an axis-0 vehicle sits at `dir * off` in z and an
+             * axis-1 vehicle at `-dir * off` in x, so a shelter on the `+side`
+             * pavement is served by `dir = +side` on the x-running road and by
+             * `dir = -side` on the z-running one. Getting this backwards stops
+             * every bus on the far side of the street from its own shelter,
+             * which is the same class of error `busStopAt`'s own comment records
+             * about near and far junctions.
+             */
+            if (type.name === 'bus') {
+              if (veh.dwell > 0) {
+                veh.dwell -= dt;
+                limit = 0;
+                if (veh.dwell <= 0) {
+                  veh.dwell = 0;
+                  // Served. `servedAt` keeps it from re-stopping at the same
+                  // shelter the instant it pulls away with its centre still
+                  // inside the arrival tolerance.
+                  veh.servedAt = veh.stopAt;
+                  veh.stopAt = null;
+                }
+              } else {
+                const stop = nextBusStop(veh, type);
+                if (stop != null) {
+                  const toDoor = (stop - veh.s) * veh.dir;
+                  /**
+                   * BERTHED WITHIN A DOOR WIDTH, NOT AT toDoor <= 0, AND THAT
+                   * DISTINCTION IS THIS FILE'S OWN §9 INCIDENT ONE OBJECT OVER.
+                   *
+                   * The approach profile is `v = sqrt(2·a·s)`, which reaches
+                   * s = 0 at v = 0 in finite time in continuous arithmetic and
+                   * NEVER in discrete steps — each frame multiplies the
+                   * remaining distance by a factor short of zero. The first
+                   * draft tested `toDoor <= 0` and delivered **8 approaches and
+                   * 0 berths in 40 s**: every bus crept toward its shelter for
+                   * ever. The stop-line block below carries a long comment
+                   * about exactly this shape, written in session 18, and it did
+                   * not stop this from being written again.
+                   *
+                   * 1.00 m is a berthing accuracy and not an epsilon: a bus
+                   * door is about 1.2 m wide, so a driver who stops within half
+                   * a door of the flag has berthed. At the crawl the profile
+                   * delivers there, the residual closes in well under a frame.
+                   */
+                  if (toDoor <= BUS_BERTH_M) {
+                    veh.v = 0;
+                    limit = 0;
+                    veh.stopAt = stop;
+                    veh.dwell = busDwellSeconds(veh);
+                    stats.busStopsServed++;
+                  } else {
+                    limit = Math.min(limit, Math.sqrt(2 * BRAKE_A * toDoor));
+                  }
+                }
               }
             }
 
@@ -3234,13 +3474,97 @@ export function createTraffic(options = {}) {
             const phase = signal(veh.axis, now);
             const brakeDist = (veh.v * veh.v) / (2 * BRAKE_A);
 
+            /**
+             * THE YIELD — LOOK.md §4, session 33, and it is one term on the
+             * permission rather than a second braking model.
+             *
+             * Pedestrians step off only on the red for the road they are
+             * crossing, so in the ordinary case the vehicles they cross in
+             * front of are already held and this term never fires. It fires on
+             * the case the signal timing deliberately leaves open: the crossing
+             * is timed on a 1.2 m/s design speed and this crowd walks 1.4 m/s
+             * with a per-person spread, so the slow ones are still in the road
+             * when the phase turns. A vehicle is then not granted the junction
+             * until they are out of it.
+             *
+             * WITHHOLDING PERMISSION AND NOT ADDING AN OBSTACLE. The block
+             * below already brakes comfortably to the stop line whenever
+             * `veh.cleared !== nextJ`, and the car-following model already
+             * queues everything behind it. So the yield costs one Set lookup
+             * and inherits a braking profile and a queue that are both already
+             * gated.
+             *
+             * AND IT CANNOT DEADLOCK A JUNCTION, for two reasons written down
+             * rather than hoped for: the set is rebuilt from the agents every
+             * frame (`streetlife.js` → `crossingOccupied`), so a re-seated or
+             * quarantined pedestrian cannot leave a key behind; and the test is
+             * only on GRANTING, so a vehicle already inside the box keeps its
+             * permission and leaves — CONTRACT's own rule that the one thing
+             * worse than entering on red is stopping in the middle.
+             *
+             * `veh.line * CITY.chunkSize` is the road's centreline in the other
+             * axis, so the junction this vehicle is approaching is at
+             * (nextJ, line·chunkSize) for axis 0 and (line·chunkSize, nextJ)
+             * for axis 1 — the same pair `signalApproaches` places heads at.
+             */
+            let pedInRoad = false;
+            if (streetlife && streetlife.crossingBlocked) {
+              const jLineM = veh.line * CITY.chunkSize;
+              pedInRoad = veh.axis === 0
+                ? streetlife.crossingBlocked(nextJ, jLineM, 0)
+                : streetlife.crossingBlocked(jLineM, nextJ, 1);
+              if (pedInRoad) stats.yieldedToPedestrian++;
+            }
+
             if (veh.cleared !== nextJ) {
               // Strictly less than, so a vehicle already on the comfortable
               // stopping profile — where toStop === brakeDist by construction —
               // is not granted permission by its own deceleration.
-              if (phase === 0 || (phase === 1 && toStop < brakeDist)) veh.cleared = nextJ;
-            } else if (phase !== 0 && toStop > brakeDist) {
+              if (!pedInRoad && (phase === 0 || (phase === 1 && toStop < brakeDist))) veh.cleared = nextJ;
+            } else if ((phase !== 0 || pedInRoad) && toStop > brakeDist) {
+              /**
+               * REVOKED, AND `pedInRoad` IS THE SECOND REASON — session 33.
+               *
+               * The first is unchanged: a vehicle waved through on green at
+               * 200 m must not keep its permission through the amber it watched
+               * turn. The second is a person who stepped off after it was
+               * granted — which happens because the crossings are timed on a
+               * 1.2 m/s design speed and this crowd is not all above it.
+               *
+               * `toStop > brakeDist` GUARDS BOTH, and it is the same guard for
+               * the same reason: permission is only ever taken back from a
+               * vehicle that can still stop comfortably. One inside its own
+               * braking distance keeps it and drives through, because the
+               * alternative is a discontinuity in the velocity of a body the
+               * camera can see, and because a vehicle stopped in a junction is
+               * worse than one leaving it. What that leaves open is measured
+               * rather than asserted away — `stats.pedConflictFrames` below.
+               */
               veh.cleared = null;
+            }
+
+            /**
+             * THE RESIDUAL, COUNTED. Vehicle-frames in which a vehicle holding
+             * permission has some part of its body inside a crossing box that
+             * somebody is standing on. This is the dilemma-zone case the
+             * paragraph above cannot close, and the arithmetic says it cannot
+             * be closed by timing either: a vehicle granted at the last instant
+             * of amber is `v^2/2a` = 36 m from its line when the red begins and
+             * needs (36 + 9.00 + 8.15 + 0.60 + len)/12 = 4.9 s (car) to 5.5 s
+             * (bus) to clear the far crossing, while a 15.0 m carriageway at the
+             * 1.2 m/s design speed takes 12.5 s of an 18 s red. 18 - 5.5 - 12.5
+             * = 0.0 s. THE SIGNAL TIMING LEAVES EXACTLY ZERO SECONDS for a
+             * fully protected pedestrian phase, and no arrangement of the
+             * stepping-off rule changes that. So the number below is the honest
+             * report of what the city delivers, not a bound anything passes.
+             */
+            if (pedInRoad && veh.cleared === nextJ) {
+              const past = (along - nextJ) * veh.dir;
+              const near = CITY.crossingFromJunctionM - CITY.crossingDepthM / 2;
+              const far = CITY.crossingFromJunctionM + CITY.crossingDepthM / 2;
+              const nose = Math.abs(past) + frontM;
+              const tail = Math.abs(past) - frontM;
+              if (nose > near && tail < far) stats.pedConflictFrames++;
             }
 
             if (veh.cleared !== nextJ) {
@@ -3936,6 +4260,26 @@ export function createTraffic(options = {}) {
         signalPhase(axis) {
           const time = ctx.get('time');
           return signal(axis, time ? time.now : 0);
+        },
+        /**
+         * The phase AND how much of it is left, for a consumer that has to
+         * decide whether something fits inside it — `streetlife.js` asking
+         * whether a red covers 15 m of carriageway before it steps a person off
+         * a kerb. Session 33.
+         *
+         * THE ARITHMETIC IS `signal()`'s OWN, one line further on, so there is
+         * exactly one place where `GREEN_S` and `AMBER_S` mean anything and no
+         * second copy of the cycle for another module to drift from — CONTRACT
+         * §9.1's whole subject. `rel` is the time since this axis's green
+         * began; the three boundaries are the three the phase test uses.
+         */
+        signalAt(axis, now) {
+          const t = ((now % CYCLE_S) + CYCLE_S) % CYCLE_S;
+          const mine = axis === 0 ? 0 : GREEN_S + AMBER_S;
+          const rel = (((t - mine) % CYCLE_S) + CYCLE_S) % CYCLE_S;
+          if (rel < GREEN_S) return { phase: 0, remaining: GREEN_S - rel };
+          if (rel < GREEN_S + AMBER_S) return { phase: 1, remaining: GREEN_S + AMBER_S - rel };
+          return { phase: 2, remaining: CYCLE_S - rel };
         },
         _internal: { vehicles, BODY_TYPES, lanePosition, signal },
       };

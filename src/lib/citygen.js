@@ -88,6 +88,33 @@ export const CITY = {
   stopLineFromJunctionM: 7.5 + 1.5,
 
   /**
+   * THE CROSSING, AND IT HAS FOUR READERS — session 33, LOOK.md §4. It is here
+   * for the same reason `stopLineFromJunctionM` is: `citygen.js` paints it,
+   * `streetlife.js` walks people down it, `traffic.js` measures conflicts
+   * against it, and none of the three may import either of the others.
+   *
+   * BOTH NUMBERS ARE FORCED, NOT CHOSEN. A crossing has to be clear of the
+   * carriageway it does NOT cross, or it is painted in the junction box where
+   * the green axis is driving; and it has to be inside the line the vehicles
+   * stop at, or the vehicles it protects people from are entitled to stand on
+   * it. That is
+   *
+   *     near edge >= roadHalfWidth           = 7.50
+   *     far edge  <= stopLine - stopBarW / 2 = 9.00 - 0.20 = 8.80
+   *
+   * — a band of exactly 1.30 m. At the 0.05 m clearance this project's pavement
+   * budget uses at every join, the depth is 1.20 m and the centreline is
+   * 7.50 + 0.05 + 0.60 = 8.15.
+   *
+   * IT IS SHALLOW AND THAT IS A CONSEQUENCE RATHER THAN A PREFERENCE. A zebra
+   * gets 2.4 m in the world. 1.20 m is what 7.50, 9.00 and 0.40 leave between
+   * them, and the only way to widen it is to move the stop line — which is
+   * `minStopLineM`'s own subject and not something to move in passing.
+   */
+  crossingDepthM: 1.20,
+  crossingFromJunctionM: 7.5 + 0.05 + 1.20 / 2,
+
+  /**
    * Chebyshev radius, in chunks, of each residency ring.
    *
    *   detail    full geometry: facades, windows, signage, street furniture, lights
@@ -5308,6 +5335,16 @@ export function generateChunk(rootSeed, cx, cz) {
     /** Metres. 0.10 m is a standard urban line; a stop bar is 0.40 m. */
     const LINE_W = 0.10;
     const BAR_W = 0.40;
+    /**
+     * The crossing. Depth is what the band between the junction mouth and the
+     * stop bar leaves (see the junction block below); the stripe count and
+     * width are the 1:1 stripe-to-gap a zebra has, over the 14.4 m of
+     * carriageway left inside a 0.30 m edge margin: 14 x 0.50 m on a 1.029 m
+     * pitch.
+     */
+    const CROSSING_DEPTH = CITY.crossingDepthM;
+    const CROSSING_STRIPES = 14;
+    const CROSSING_STRIPE_W = 0.50;
 
     for (const axis of ['NS', 'EW']) {
       const at = axis === 'NS' ? b.x0 : b.z0;
@@ -5361,17 +5398,52 @@ export function generateChunk(rootSeed, cx, cz) {
       const half = ax === 'EW' ? -sgn : sgn;
       const barOff = half * (r / 2 + 0.15);
       const barLen = r - 0.3;
+      /**
+       * THE CROSSING, AND SESSION 21's WAS IN THE WRONG PLACE AND HALF THE
+       * WIDTH IT NEEDED TO BE. Session 33, LOOK.md §4.
+       *
+       * IT WAS AT `d - 2.6` = 6.40 m FROM THE JUNCTION CENTRE, spanning 2.0 m
+       * of depth, i.e. 5.40 to 7.40 — and the crossing road's own carriageway
+       * runs to `r` = 7.50. So the whole zebra lay INSIDE THE JUNCTION BOX,
+       * across the path of whichever axis had green. It was also painted over
+       * one approach half at a time (`half * (0.4 + u * (r - 0.8))`), so no
+       * single crossing spanned the road it crossed and nobody could have
+       * walked one end to end.
+       *
+       * THE BAND IS 1.30 m WIDE AND THE CITY'S OWN NUMBERS FIX BOTH ENDS OF IT:
+       *
+       *   near edge >= r = 7.50            outside the crossing carriageway
+       *   far edge  <= d - BAR_W/2 = 8.80  inside the line vehicles stop at
+       *
+       * At the 0.05 m clearance the pavement budget uses at every join, that is
+       * a 1.20 m depth centred on 8.15. `streetlife.js` → `CROSSING_OFFSET_M`
+       * carries the same 8.15 and walks people down it; the two are one
+       * quantity and they are derived from `r`, `d` and `BAR_W`, which is why
+       * neither file copies the other's number.
+       *
+       * A 1.20 m crossing is shallow — a zebra gets 2.4 m in the world. That is
+       * what 7.50, 9.00 and 0.40 leave between them, and widening it means
+       * moving `CITY.stopLineFromJunctionM`, which is `minStopLineM`'s subject
+       * and not a thing to move in passing.
+       *
+       * FULL WIDTH, 14 STRIPES. The carriageway is 2r = 15.0 m; 0.30 m of edge
+       * margin each side leaves 14.4 m, and 14 stripes on a 1.029 m pitch at
+       * 0.50 m wide is the 1:1 stripe-to-gap a zebra actually has. Session 21's
+       * six 0.45 m stripes over half a road was a hatch, not a crossing.
+       */
+      const cOff = CITY.crossingFromJunctionM;
+      const cSpan = r - 0.3;
       if (ax === 'NS') {
         paint(jx + barOff, jz + sgn * d, BAR_W, barLen, 90, 'stopbar');
-        for (let k = 0; k < 6; k++) {
-          const u = (k + 0.5) / 6;
-          paint(jx + half * (0.4 + u * (r - 0.8)), jz + sgn * (d - 2.6), 2.0, 0.45, 90, 'crossing');
+        for (let k = 0; k < CROSSING_STRIPES; k++) {
+          const u = (k + 0.5) / CROSSING_STRIPES;
+          paint(jx + (2 * u - 1) * cSpan, jz + sgn * cOff, CROSSING_DEPTH, CROSSING_STRIPE_W, 90, 'crossing');
         }
       } else {
         paint(jx + sgn * d, jz + barOff, BAR_W, barLen, 0, 'stopbar');
-        for (let k = 0; k < 6; k++) {
-          const u = (k + 0.5) / 6;
-          paint(jx + sgn * (d - 2.6), jz + half * (0.4 + u * (r - 0.8)), 2.0, 0.45, 0, 'crossing');
+        for (let k = 0; k < CROSSING_STRIPES; k++) {
+          const u = (k + 0.5) / CROSSING_STRIPES;
+          paint(jx + sgn * cOff, jz + (2 * u - 1) * cSpan, CROSSING_DEPTH, CROSSING_STRIPE_W, 0, 'crossing');
         }
       }
     }
