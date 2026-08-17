@@ -289,6 +289,71 @@ try {
     return out;
   }, claimsByLandmark);
 
+  /**
+   * WHAT THE CLAIM IS FOR, AND HOW MUCH OF IT THE STRUCTURE USES.
+   *
+   * The claim is an AABB and a structure is whatever shape it is, so the ratio
+   * of the two is a real question and nobody has asked it. It is measured off
+   * the DELIVERED geometry — the world-space bounds of every mesh whose name
+   * begins `landmark:` — and not off `LANDMARKS`, because §9.1's whole point is
+   * that the description and the artefact are two things.
+   */
+  const bounds = await page.evaluate(() => {
+    const { ctx, THREE } = window.__NOCTIS__;
+    const m = new THREE.Matrix4();
+    const v = new THREE.Vector3();
+    const out = {};
+    ctx.scene.updateMatrixWorld(true);
+    ctx.scene.traverse((o) => {
+      if (!o.isMesh || !o.name || !o.name.startsWith('landmark:')) return;
+      const key = o.name.split(':')[1];
+      const r = out[key] || (out[key] = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y0: Infinity, y1: -Infinity, n: 0 });
+      const pos = o.geometry.attributes.position;
+      const reps = o.isInstancedMesh ? o.count : 1;
+      for (let i = 0; i < reps; i++) {
+        if (o.isInstancedMesh) { o.getMatrixAt(i, m); m.premultiply(o.matrixWorld); } else m.copy(o.matrixWorld);
+        r.n++;
+        for (let k = 0; k < pos.count; k++) {
+          v.fromBufferAttribute(pos, k).applyMatrix4(m);
+          r.x0 = Math.min(r.x0, v.x); r.x1 = Math.max(r.x1, v.x);
+          r.z0 = Math.min(r.z0, v.z); r.z1 = Math.max(r.z1, v.z);
+          r.y0 = Math.min(r.y0, v.y); r.y1 = Math.max(r.y1, v.y);
+        }
+      }
+    });
+    return out;
+  });
+
+  console.log('\nTHE CLAIM AGAINST THE DELIVERED STRUCTURE');
+  console.log('  landmark    claim AABB (m)   claim m2  claims   delivered (m)      del/claim   y span');
+  for (const g of claimsByLandmark) {
+    const cw = g.aabb.x1 - g.aabb.x0;
+    const cd = g.aabb.z1 - g.aabb.z0;
+    /**
+     * The claim's own AABB is the denominator, NOT the sum of the claim boxes:
+     * a landmark with seven ground claims (the stack's stepped drums) has them
+     * nested, so the sum double-counts and reports a keep-out three times its
+     * own extent. The summed area is printed beside it and labelled, because
+     * for a landmark with ONE claim the two agree and for the rest the gap
+     * between them is a fact about the claim list.
+     */
+    let sum = 0;
+    for (const c of g.claims) sum += (c.x1 - c.x0) * (c.z1 - c.z0);
+    const b = bounds[g.name];
+    const head = `  ${g.name.padEnd(11)} ${cw.toFixed(0).padStart(4)} x ${cd.toFixed(0).padEnd(5)} ${sum.toFixed(0).padStart(9)} ${String(g.claims.length).padStart(5)}   `;
+    if (!b) { console.log(`${head}not resident`); continue; }
+    const dw = b.x1 - b.x0;
+    const dd = b.z1 - b.z0;
+    console.log(
+      `${head}${dw.toFixed(1).padStart(6)} x ${dd.toFixed(1).padEnd(7)} ${((dw * dd) / (cw * cd)).toFixed(3).padStart(7)}    [${b.y0.toFixed(2)}, ${b.y1.toFixed(2)}]`
+    );
+  }
+  console.log('\n  del/claim is delivered BOUNDING BOX over claim AABB, so it is 1.000 for a');
+  console.log('  structure that exactly fills its keep-out WHATEVER ITS SHAPE — a round one');
+  console.log('  reads 1.000 and still leaves 1 - pi/4 = 21.5% of the claim in the corners.');
+  console.log('  Over 1.000 means geometry outside the keep-out; the arch and the viaduct are');
+  console.log('  expected there because their claims are legs and their extent is a deck.');
+
   console.log(`\nINSTANCES STANDING INSIDE A LANDMARK'S GROUND CLAIM`);
   console.log(`  camera at [${AT.join(', ')}] looking at [${LOOK.join(', ')}]`);
   console.log(`  the landmark's own geometry is in this list too — a drum's boxes stand in the drum's claim.\n`);
