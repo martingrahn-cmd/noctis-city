@@ -939,6 +939,191 @@ export function buildingHeightRoll(rng) {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * HOW DEEP A BUILDING GOES — SESSION 35, AND THE CORE IS DERIVED RATHER THAN
+ * CHOSEN.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * WHAT WAS THERE, AND WHAT IT MEASURED. `rng.range(15, 26)`, one band for every
+ * building on every frontage of every block in the city. Over `city-budget`'s
+ * own 10 × 10 region at seed 1337, walked by `tools/depthprobe.mjs`:
+ *
+ *     median depth 20.1 m into a 52.3 m half-block, max 26.0
+ *     island footprint covered by buildings              20.8%
+ *     built past 31 m from the lot line                   0.06%
+ *
+ * A rind along the street frontage with the middle of every block hollow. That
+ * is what LOOK.md §2 is about — *"a working metropolis ... streets walled on
+ * both sides for their whole length"* — and the frontage half of it was raised
+ * in session 32 as far as the occupancy registry allows. This is the other
+ * half, and unlike the frontage it grows INWARD, into land nothing occupies.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHAT THE CORE IS, AND WHY IT IS THAT NUMBER.
+ *
+ * A perimeter block is not solid: it has a light well, and its width is the one
+ * number this whole change turns on. LOOK.md §5's test is that a device be
+ * derivable from something the city already has, so it is derived from the
+ * narrowest gap this city already puts between two building lines and still
+ * calls a street:
+ *
+ *     CORRIDOR             11.7 m   building line to road centreline
+ *     two of them          23.4 m   building line to BUILDING LINE
+ *
+ * That is `CITY.roadHalfWidth + CITY.sidewalkWidth`, doubled — the section of
+ * an ordinary street in this city, and the distance at which this generator
+ * already asserts two facades may face each other. A well narrower than that is
+ * a shaft nothing could see out of; one that wide is a mews, which is what the
+ * back of a dense block is.
+ *
+ * It is also the number the canyon bake (§5.7) is already asked to resolve at
+ * street level, so the light well is inside the regime the indirect-light field
+ * was built for rather than outside it.
+ *
+ *     island                       104.6 m   `CITY.chunkSize − 2·CORRIDOR`
+ *     core                          23.4 m   `2 · CORRIDOR`
+ *     lot depth   (104.6 − 23.4)/2  40.6 m   ← the deepest a building may go
+ *
+ * A full ring at 40.6 m covers **95.0%** of the island — against the 96.3% of
+ * the lower Manhattan block STATE 33 §6 put beside today's 20.8%, and the 84.9%
+ * of the 32 m ring in the same table. The reference is reached by a derivation
+ * and not by aiming at it.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE DISTRIBUTION, AND WHY IT IS A MIXTURE RATHER THAN A WIDER BAND.
+ *
+ * Widening `rng.range` to `(15, 40.6)` would make the median depth 27.8 m and
+ * every block a rind of uniformly middling buildings — a constant fraction of
+ * the lot, moved. Real lot coverage is not unimodal: a block is mostly
+ * buildings built to the back of their lot, plus a minority with a YARD behind
+ * them. Those are two populations and they should be drawn as two.
+ *
+ *     deep      `lot − range(0, CORRIDOR)`      28.9 – 40.6 m   built out
+ *     shallow   `range(bandLoM, bandHiM)`       15.0 – 26.0 m   a yard behind
+ *
+ * BOTH ARMS ARE A YARD AND THE DIFFERENCE IS HOW BIG IT IS, which is why the
+ * deep arm's spread is a length rather than a fraction: it is the lot less a
+ * rear yard **of at most half a street**, `CORRIDOR`. A building built out to
+ * its lot is still not a slab to the boundary — it keeps a service strip — and
+ * the largest strip that is still a strip rather than a courtyard is the same
+ * 11.7 m this file already uses for the distance from a building line to the
+ * middle of the road.
+ *
+ * The shallow arm is TODAY'S BAND UNCHANGED, which is what makes the claim
+ * "some of it should survive" checkable: a shallow building in the new city is
+ * literally a building from the old one.
+ *
+ * WHICH ARM IS A FUNCTION OF DENSITY, because LOOK.md §2 says density has
+ * causes and this is the cheapest of them to honour: land under a viaduct gets
+ * sheds and yards; land in the core gets built to the back of the lot.
+ *
+ * AND IT IS THE FILL LAW'S OWN ENDPOINTS WITH THE POWER SET TO ONE, not a
+ * second set of constants:
+ *
+ *     frontage   `0.12 + 0.88 · density^1.4`   how much of the side is built
+ *     depth      `0.12 + 0.88 · density^1.0`   how much of the lot is built out
+ *
+ * The endpoints are shared because they are the same statement about the same
+ * field — at the bottom of the density field a block is one in eight, at the
+ * top it is everything. The POWER is where they differ, and it differs for the
+ * reason the quay walk already gives about its own softer power: **depth is the
+ * cheapest thing a developer buys.** Somebody who has paid for the frontage
+ * builds it out; a heavy power would say the opposite, that the back of the lot
+ * is the last thing to go up. So the district structure enters through a linear
+ * term rather than through the frontage's 1.4.
+ *
+ * ONE DRAW, FROM `rng`, AND DELIBERATELY NOT FROM A NEW STREAM.
+ *
+ * Every other roll added since session 20 got its own stream, for CONTRACT §6's
+ * reason: a new roll drawn from `rng` displaces everything after it. This one is
+ * the exception and the exception is the reason. It does not ADD a draw — it
+ * REPLACES `rng.range(15, 26)`, one draw for one draw — so taken from `rng` the
+ * `band` arm below is the shipped city **bit for bit**, and it is a control
+ * rather than a memory. Moved to a stream of its own it would take a draw AWAY
+ * from `rng`, and the arm would deliver a differently-phased city that could no
+ * longer be compared with anything. Measured, before this paragraph was
+ * written: on its own stream the `band` arm read **475 buildings against the
+ * 480 at HEAD**, and every one of those five is a re-phase.
+ *
+ * WHAT NO ARRANGEMENT OF STREAMS CAN SAVE, and it is worth being plain about
+ * because it decides how the before/after frames must be read: whether a
+ * building is PLACED or REFUSED already costs `rng` a different number of draws
+ * — one on the refusal path (`rng.range(0, 3)`), zero or two on the placement
+ * path (`cantilever` and `crown`, contemporary only). So the FIRST building
+ * whose verdict the new depth changes re-phases every building after it in that
+ * chunk. The delivered city is a different population and not the old one with
+ * deeper boxes, exactly as session 34's blade was for the signage.
+ */
+export const DEPTH_DISTRIBUTION = {
+  /** `lot` is what ships. `band` is session 32's shipped 15–26, kept as an ARM. */
+  mode: 'lot',
+  /**
+   * The depth clip, as an ARM rather than as a memory. `false` restores the
+   * refuse-outright behaviour every session before this one had, which is what
+   * makes the claim "the clip is what keeps the block a ring" a measurement
+   * (STATE 35 §1) rather than an assertion. `tools/depthprobe.mjs --sweep` is
+   * the only caller that sets it, and it asserts nothing.
+   */
+  clip: true,
+  /** The light well, as a multiple of `CORRIDOR`. Two of them: line to line. */
+  coreCorridors: 2,
+  /** The shallow arm — today's band, unchanged, and it is the yard case. */
+  bandLoM: 15,
+  bandHiM: 26,
+  /**
+   * The deep arm's own rear yard, as a multiple of `CORRIDOR`. The arm runs
+   * from `lot − deepYardCorridors·CORRIDOR` to `lot`.
+   */
+  deepYardCorridors: 1,
+  /**
+   * P(deep). The fill law's own endpoints — `0.12 + 0.88·d^p` — with `p` at 1.
+   * The two are one statement about one field and differ only in the power.
+   */
+  deepAtZero: 0.12,
+  deepAtOne: 1.0,
+  deepPower: 1.0,
+  /**
+   * The shallowest building the clip may leave standing. Below this a
+   * "building" is a wall with windows in it — the sentence `MIN_RIVER_DEPTH`
+   * already makes about the tightest stretch of the embankment, and this is the
+   * same number for the same reason, so a corner and a quay agree about what a
+   * single-bay terrace is.
+   */
+  minM: 9,
+};
+
+/** The lot depth the core leaves on each side of an island. 40.6 m. */
+export function lotDepthM() {
+  const island = CITY.chunkSize - 2 * CORRIDOR;
+  return (island - DEPTH_DISTRIBUTION.coreCorridors * CORRIDOR) / 2;
+}
+
+/**
+ * ONE draw, from `depthRng`. `density` is the chunk's own, so the mixture is a
+ * property of the district and not of the building.
+ */
+export function buildingDepthRoll(rng, density) {
+  const D = DEPTH_DISTRIBUTION;
+  if (D.mode === 'band') return rng.range(D.bandLoM, D.bandHiM);
+  const lot = lotDepthM();
+  const pDeep = D.deepAtZero + (D.deepAtOne - D.deepAtZero) * Math.pow(density, D.deepPower);
+  const u = rng.next();
+  /**
+   * The SAME uniform remapped into whichever arm it lands in, rather than a
+   * second draw for the arm's own position. Two draws would make the roll cost
+   * twice what the band it replaces cost and would put a `pDeep`-shaped comb
+   * into the stream; one keeps the arm and the position perfectly correlated,
+   * which is harmless here because the arms do not overlap.
+   */
+  if (u < pDeep) {
+    const v = pDeep > 0 ? u / pDeep : 0;
+    return lot - D.deepYardCorridors * CORRIDOR * (1 - v);
+  }
+  const v = pDeep < 1 ? (u - pDeep) / (1 - pDeep) : 0;
+  return D.bandLoM + (D.bandHiM - D.bandLoM) * v;
+}
+
+/**
  * SETBACKS — session 20, item 4's other half.
  *
  * A tower that is one width from pavement to parapet reads as a SHAPE. One that
@@ -4396,6 +4581,68 @@ export function occupied(boxes, x, z, pad = 0) {
  */
 const MIN_RIVER_DEPTH = 9;
 
+/**
+ * Bisection steps for session 35's depth clip. 7 halvings of a 40.6 m lot
+ * resolve 0.32 m, which is under the 0.35 m `MIN_GROUND_PIECE_M` already calls
+ * the smallest piece of ground worth emitting — so the residue is smaller than
+ * the smallest thing this generator will draw. The search always converges from
+ * ABOVE onto a free depth (`lo` is only ever moved to a depth that tested
+ * free), so the residue is land left empty and never land taken twice.
+ */
+const CLIP_STEPS = 7;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE CENTRE OF A BODY WHOSE NEAR FACE STANDS ON A LOT LINE — SESSION 35.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * A perimeter building's near face is its lot line, and the lot line is also
+ * the far edge of the footway claim in front of it. The two are the same real
+ * number and `overlaps` is a STRICT inequality, so a face exactly ON the line
+ * does not conflict and a face one ulp past it does.
+ *
+ * `centre = at − out·half` and then `centre + out·half` is not the identity in
+ * binary floating point. At `at = −116.3` with `half = 17.517` it returns
+ * **−116.30000000000001** — 1.4e-14 m on the road side of the line.
+ *
+ * WHAT IT COST BEFORE ANYBODY LOOKED. **Six buildings of 480 at HEAD**, refused
+ * for a `pavement` conflict of about 1e-13 m²; they are session 34's
+ * `refused: { pavement: 6 }` and nobody had asked what a building was doing
+ * standing in a footway. That is a small, old, stationary cost.
+ *
+ * WHAT IT COSTS THE MOMENT A DEPTH CLIP EXISTS IS NOT STATIONARY, AND THAT IS
+ * WHY THIS IS REPAIRED IN THE SESSION THAT ADDED THE CLIP. The round trip's
+ * error depends on `half`, so the conflict FLICKERS along the bisection — the
+ * near face is over the line at some depths and on it at others — and the
+ * search converges wherever the arithmetic happened to round. Measured before
+ * the repair: **1.09 m taken off a 35.03 m building** for no reason in the
+ * world, and nothing bounds that: a 40 m building can bisect down to 20 m on an
+ * ulp.
+ *
+ * THE REPAIR IS STATE 34 §2.3's, ONE FILE OVER — *a bound at a real number the
+ * double lattice does not contain*, answered by removing the noise rather than
+ * by widening the line. The centre is stepped INWARD by one ulp of its own
+ * magnitude until the reconstructed near face is on the lot line or inside it.
+ * Two steps is the observed worst case and the loop is bounded at four; the
+ * total movement is under 1e-12 m at this city's coordinates, which is
+ * 3.5e11 times smaller than `MIN_GROUND_PIECE_M`.
+ *
+ * IT SNAPS THE CENTRE AND NOT THE FACES, and the difference is the whole
+ * reason it is shaped like this — see `boxAt`. `city.js` reconstructs the
+ * DELIVERED claim as `bld.x ± bld.width/2`, so a claim built from exact faces
+ * would be a second description of one rectangle and the two would disagree by
+ * exactly the ulp this exists to remove. Measured: **59 `building × pavement`
+ * overlaps of 0.000 m² in the delivered census.** Both sides compute
+ * `centre ± half`; only the centre moves.
+ */
+export function lotCentre(lotLine, out, half) {
+  let c = lotLine - out * half;
+  for (let i = 0; i < 4 && (c + out * half - lotLine) * out > 0; i++) {
+    c -= out * Math.max(Number.MIN_VALUE, Math.abs(c) * Number.EPSILON);
+  }
+  return c;
+}
+
 /** Half-width of the road-plus-pavement corridor on a chunk boundary. */
 export const CORRIDOR = CITY.roadHalfWidth + CITY.sidewalkWidth;
 
@@ -4709,6 +4956,22 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const refused = {};
   const refuse = (hit) => { if (hit) refused[hit.kind] = (refused[hit.kind] || 0) + 1; return hit; };
+  /**
+   * SESSION 35. What SHORTENED a building rather than refusing it, by the
+   * category that shortened it, plus the metres given up.
+   *
+   * It is a separate tally from `refused` and not a second use of it, because
+   * the two are different verdicts about the same query: a refusal is a
+   * building that does not exist and a clip is one that exists and is smaller.
+   * Pooling them would make the deepening look like a wave of refusals in
+   * exactly the report that is supposed to say whether it was.
+   */
+  const clipped = {};
+  const clip = (kind, lost) => {
+    const c = clipped[kind] || (clipped[kind] = { n: 0, lostM: 0 });
+    c.n++;
+    c.lostM += lost;
+  };
 
   // --- the buildable island ------------------------------------------------
   // Roads run along every chunk boundary, so the interior is the chunk inset by
@@ -5098,7 +5361,7 @@ export function generateChunk(rootSeed, cx, cz) {
             continue;
           }
 
-          let depth = rng.range(15, 26);
+          let depth = buildingDepthRoll(rng, density);
 
           /**
            * A FRONTAGE ON A NARROW EMBANKMENT IS SHALLOW, NOT ABSENT.
@@ -5171,7 +5434,101 @@ export function generateChunk(rootSeed, cx, cz) {
           const height = floors * (era.floor + eraRng.gauss() * 0.05);
 
           /**
-           * MINUS `out`, not plus.
+           * ═══════════════════════════════════════════════════════════════
+           * THE DEPTH CLIP — SESSION 35. A FRONTAGE ON A CONSTRAINED LOT IS
+           * SHALLOW, NOT ABSENT, AND THAT IS THE SENTENCE THE RIVER CLAMP
+           * ABOVE ALREADY MAKES.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * WHY IT HAD TO EXIST THE MOMENT DEPTH GREW. The four sides are
+           * walked in order — the two running along x first, over the island's
+           * FULL x range, then the two running along z. A 40 m building on side
+           * one occupies the whole corner, and every candidate on side three
+           * that lands within 40 m of that corner is refused outright. Measured
+           * over the gate's own region with the deepening in and the clip out:
+           * see STATE 35 §1's sweep — the block stops being a ring and becomes
+           * two deep bars, and the two z sides lose most of their frontage to a
+           * refusal each rather than to a shorter building.
+           *
+           * A REAL BLOCK DOES NOT DO THAT. Its corner is one building serving
+           * two frontages, and the building behind the corner is simply less
+           * deep. So the answer is the river's: cut the depth to whatever land
+           * there is, and refuse only when what is left is under
+           * `DEPTH_DISTRIBUTION.minM` — the same 9 m `MIN_RIVER_DEPTH` calls a
+           * single-bay terrace, so a corner and a quay agree about what the
+           * shallowest real building is.
+           *
+           * BISECTION, AND IT IS EXACT RATHER THAN APPROXIMATE. The near face
+           * is pinned to the lot line and only the far face moves, so the box
+           * at depth `d` CONTAINS the box at every smaller depth: conflict is
+           * monotone in `d` and a bisection finds the boundary. It draws no
+           * random numbers, so it cannot move a stream. `CLIP_STEPS` of 7 on a
+           * 40.6 m range resolves 0.32 m, which is under the 0.35 m
+           * `MIN_GROUND_PIECE_M` already calls the smallest piece of ground
+           * worth emitting.
+           *
+           * THE FULL-DEPTH BOX IS TESTED FIRST AND COSTS EXACTLY WHAT THE OLD
+           * SINGLE TEST COST. Only a building that actually meets something
+           * pays for the search, which is why this is not seven times the
+           * registry work.
+           */
+          /**
+           * The footprint at depth `d`. `MINUS out` — see the note at `site`.
+           *
+           * IT IS STILL A CENTRE PLUS AND MINUS A HALF, AND THAT IS LOAD-
+           * BEARING RATHER THAN INHERITED. `city.js` reconstructs the DELIVERED
+           * claim as `bld.x ± bld.width/2` off the mass it drew, and
+           * `citycheck`'s occupancy gate compares that against this one. Two
+           * expressions for one rectangle is CONTRACT §9.1's own shape, and it
+           * is not hypothetical here: building this box from its FACES instead
+           * — exact, and the obvious repair for the ulp below — made the
+           * generator and the census disagree by one ulp at the lot line and
+           * put **59 `building × pavement` overlaps of 0.000 m² into the
+           * delivered census** on the first run. The two sides have to compute
+           * the same thing, so the repair goes into the CENTRE.
+           */
+          const bodyAt = (d) => {
+            const half = d / 2;
+            const across = lotCentre(side.at, side.out, half);
+            const along = t + width / 2;
+            const bx = side.axis === 'x' ? along : across;
+            const bz = side.axis === 'x' ? across : along;
+            const hx = side.axis === 'x' ? width / 2 : half;
+            const hz = side.axis === 'x' ? half : width / 2;
+            return {
+              bx, bz,
+              /** `2·half` is exact in binary, so `bw/2` is `hx` bit for bit. */
+              bw: 2 * hx,
+              bd: 2 * hz,
+              site: claimBox('building',
+                bx - hx, bz - hz, bx + hx, bz + hz,
+                { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `bld:${cx},${cz}` }),
+            };
+          };
+          const boxAt = (d) => bodyAt(d).site;
+
+          if (DEPTH_DISTRIBUTION.clip) {
+            const hit = reg.conflict(boxAt(depth), 0, BUILDING_SETBACKS);
+            if (hit) {
+              const wanted = depth;
+              let lo = 0;
+              let hi = depth;
+              for (let i = 0; i < CLIP_STEPS; i++) {
+                const mid = (lo + hi) / 2;
+                if (reg.conflict(boxAt(mid), 0, BUILDING_SETBACKS)) hi = mid; else lo = mid;
+              }
+              if (lo < DEPTH_DISTRIBUTION.minM) {
+                refuse(hit);
+                t += width + rng.range(0, 3);
+                continue;
+              }
+              clip(hit.kind, wanted - lo);
+              depth = lo;
+            }
+          }
+
+          /**
+           * MINUS `out`, not plus — and it is inside `boxAt` now.
            *
            * `out` is the direction the building FACES — outward, toward the
            * road. Its body therefore extends the other way, into the island. The
@@ -5182,9 +5539,16 @@ export function generateChunk(rootSeed, cx, cz) {
            * lens. The same class of error as every other one in CONTRACT §9 — a
            * quantity used as though it were a different one, here a facing used
            * as an offset.
+           *
+           * THE CENTRE IS NOW DERIVED FROM THE CLAIM AND NOT THE OTHER WAY
+           * ROUND — CONTRACT §9.1, one description. `bld.x`/`bld.z` are what
+           * `city.js` puts the mass at and the claim is what the registry
+           * refuses things against, and computing them from two expressions
+           * that agree in exact arithmetic and not in the driver's is the
+           * arrangement §9.1 is a list of. It is also what the ulp above is
+           * about: the claim's faces are the authority, so the centre is their
+           * midpoint.
            */
-          const cxb = side.axis === 'x' ? t + width / 2 : side.at - (side.out * depth) / 2;
-          const czb = side.axis === 'x' ? side.at - (side.out * depth) / 2 : t + width / 2;
 
           /**
            * ONE TEST, AGAINST EVERYTHING — session 21.
@@ -5209,17 +5573,13 @@ export function generateChunk(rootSeed, cx, cz) {
            * `water: 0` because `riverBlocks`' 7.7 m of wall-and-promenade is
            * already inside the claim.
            */
-          const bw = side.axis === 'x' ? width : depth;
-          const bd = side.axis === 'x' ? depth : width;
           /**
            * `y1` IS THE TOP OF THE BUILDING AND NOT THE TOP OF THE WALL —
            * session 25. It was `height`, which is where the masonry stops and
            * not where the building does: parapet, cornice and plant all stand
            * above it, the worst by 18.72 m. See `buildingTopM`.
            */
-          const site = claimBox('building',
-            cxb - bw / 2, czb - bd / 2, cxb + bw / 2, czb + bd / 2,
-            { y0: 0, y1: buildingTopM(era, eraName, height, floors), owner: `bld:${cx},${cz}` });
+          const { bx: cxb, bz: czb, bw, bd, site } = bodyAt(depth);
           if (refuse(reg.conflict(site, 0, BUILDING_SETBACKS))) {
             t += width + rng.range(0, 3);
             continue;
@@ -5251,8 +5611,14 @@ export function generateChunk(rootSeed, cx, cz) {
 
           const bld = {
             x: cxb, z: czb,
-            width: side.axis === 'x' ? width : depth,
-            depth: side.axis === 'x' ? depth : width,
+            /**
+             * OFF THE CLAIM, so the mass `city.js` draws and the footprint the
+             * registry defends are one description and not two — see the note
+             * at `cxb`. `bw`/`bd` are `width`/`depth` in the right world axis
+             * to within an ulp, and it is the ulp that is the point.
+             */
+            width: bw,
+            depth: bd,
             height,
             floors,
             era: eraName,
@@ -5601,6 +5967,25 @@ export function generateChunk(rootSeed, cx, cz) {
         if (room < MIN_RIVER_DEPTH) { t += width + rng.range(2, 12); continue; }
         const depth = Math.min(room, rng.range(MIN_RIVER_DEPTH, 24));
         const cxb = t + width / 2;
+        /**
+         * NOT SNAPPED, AND THE REASON IS WRITTEN DOWN RATHER THAN THE REPAIR.
+         *
+         * This walk has the same representability exposure the perimeter walk's
+         * `lotCentre` closes, at the other end of the body: `depth` is capped
+         * by `room = face − backstop`, so a terrace that takes its whole lot
+         * lands its FAR face exactly on `backstop` — the edge of the embankment
+         * road's own footway claim — and the centre round trip puts it an ulp
+         * past. Measured with the perimeter walk repaired: every remaining
+         * `pavement` refusal over the gate's region was this walk's, four of
+         * them, on chunks (−5,−3), (−4,−4), (−1,−3) and (3,−4).
+         *
+         * It is left alone because it is a NEAR-face repair on a FAR face and
+         * the two are not the same edit, because it is pre-existing rather than
+         * anything this session's depth change introduced, and because a second
+         * ulp repair in the same commit would make the delivered building count
+         * a sum of two effects. STATE 35 §1 carries it as a gap with the four
+         * chunks named.
+         */
         const czb = face + bank * (depth / 2);
         /**
          * A BOX-AGAINST-BOX TEST, NOT A PADDED CENTRE — and since session 21 it
@@ -6754,6 +7139,12 @@ export function generateChunk(rootSeed, cx, cz) {
     propsGaveUp: propGaveUp,
     /** What the keep-out registry refused, by the category that refused it. */
     refused,
+    /**
+     * SESSION 35. What the registry SHORTENED rather than refused, by the
+     * category that shortened it, with the metres of depth given up. A clip is
+     * a different verdict from a refusal and is counted as one — see `clip`.
+     */
+    clipped,
     /**
      * How many of the placed props stand on a pavement rather than in a
      * courtyard. Reported for the same reason `propsGaveUp` is: before this
