@@ -1151,14 +1151,23 @@ export function buildingDepthRoll(rng, density) {
  * else. Session 28 wrote that as 1.6 against the perimeter's 2.2 — the quay
  * softer by 0.6 — and session 32 moved the perimeter to 1.4 without moving the
  * quay, which INVERTED the sentence it was derived from: for four sessions the
- * quay has been the HARDER of the two. `quayPower` is here so that the relation
- * is one subtraction instead of two greps.
+ * quay has been the HARDER of the two, and session 36 has made it harder still.
+ *
+ * IT IS LEFT INVERTED, DELIBERATELY, WITH THE NUMBER BESIDE IT. Restoring the
+ * relation is `quayPower = power − 0.6` = 0.5, and measured over the region it
+ * delivers **17 river-bank buildings against 8, +9 buildings, +0.2 points of
+ * island coverage.** It is not taken here because it decides a content question
+ * this project has open and has not answered: STATE 35 §1.6 records that the
+ * deep island frontage already took the quay from 12 buildings to 9, and *which
+ * frontage owns a narrow riverside lot* is the operator's call, not a side
+ * effect of a fill raise. `quayPower` is here so the relation is one
+ * subtraction instead of two greps, and so that call costs ten minutes.
  */
 export const FRONTAGE_FILL = {
   atZero: 0.12,
   atOne: 1.0,
-  /** The island perimeter. Session 32 moved it 2.2 → 1.4. */
-  power: 1.4,
+  /** The island perimeter. Session 32 moved it 2.2 → 1.4; session 36, 1.4 → 1.1. */
+  power: 1.10,
   /** The river bank. Session 28's own derivation is `power − 0.6`. */
   quayPower: 1.6,
 };
@@ -5362,7 +5371,62 @@ export function generateChunk(rootSeed, cx, cz) {
      * and not an effect. At this fill the walk is rejection-dominated: a
      * rejected candidate already costs `width + 1..7` ≈ 23 m, so saving 8 m at
      * the end of a run rarely buys room for another 19 m building. The gap is
-     * worth revisiting only if the roll ever gets near 1.
+     * worth revisiting only if the roll ever gets near 1. Session 36 took the
+     * roll to 1 and the gap is now the larger of the two remaining terms — see
+     * the sweep below.
+     *
+     * ───────────────────────────────────────────────────────────────────────
+     * SESSION 36: 1.4 → 1.1, AND THE THING THAT STOPS IT IS NOT THE ONE ABOVE.
+     *
+     * Session 32 wrote *"1.4 is where the budget stops"* and the budget it meant
+     * was draw calls and triangles. Swept the whole way to the ceiling by
+     * `tools/fillprobe.mjs` — same 10 × 10 region, same seed, delivered counts
+     * off `generateChunk`, coverage as a UNION raster and not a sum:
+     *
+     *     power   bldgs   cover%   occ/blk   bare/400   objCV   perfcheck
+     *      1.40     491    28.1%    0.237     147/400   0.626   433 draws 1.60 M tris
+     *      1.10     528    31.2%    0.268     137/400   0.626   434 draws 1.71 M tris   <- ships
+     *      1.05     548    32.1%    0.277     138/400   0.611
+     *      1.00     552    32.2%    0.283     140/400   0.609
+     *      0.95     569    33.3%    0.293     134/400   0.604
+     *      0.90     595    34.4%    0.306     128/400   0.591   <- clumping RED
+     *      0.50     689    38.4%    0.355     118/400   0.568
+     *      0.00     786    45.4%    0.463     122/400   0.535   437 draws 2.18 M tris
+     *
+     * `cover%` is over the 81 chunks carrying a building; `objCV` is
+     * buildings + props + signs per chunk, which is the quantity `citycheck`'s
+     * clumping floor of **0.60** is computed from.
+     *
+     * **THE DRAW-CALL CEILING NEVER BINDS.** At `fill = 1.0` — 60% more
+     * buildings than ship — `highway_speed` measured **437 draws of 440**. The
+     * whole range of this law costs FOUR draw calls. What binds at that end is
+     * the TRIANGLE ceiling: 2.18 M against 2.00 M, first breached near 700
+     * buildings by the 1.96 kTri per building the two endpoints imply.
+     *
+     * **AND THE CLUMPING FLOOR BINDS BEFORE EITHER, AT 0.90.** A smaller power
+     * fills the SPARSE end hardest (see `FRONTAGE_FILL`), which is district
+     * structure being spent, and district structure is what that floor is for —
+     * LOOK.md §2's *"density has causes"* asks for the same thing from the other
+     * side. So it is not a proxy arguing against the goal and it was not
+     * re-derived.
+     *
+     * 1.1 IS THE LARGEST RAISE THAT COSTS NO CLUMPING MARGIN AT THE GATE'S OWN
+     * SEED: `objCV` is 0.626 at 1.4 and 0.626 at 1.1, and 0.611 one step
+     * further on. It buys +7.5% buildings, +11% island coverage, +13% frontage
+     * occupancy and ten fewer block sides bare end to end, for one draw call.
+     *
+     * **WHAT THAT MARGIN IS WORTH, MEASURED, BECAUSE IT IS ONE DRAW.** Over
+     * five seeds `objCV` at the SHIPPED law reads 0.626 / 0.529 mean / **0.466
+     * worst** — a spread of 0.160 against a floor margin of 0.026. The gate is
+     * green at 1337 and would be red at four of the five. That is CONTRACT §0
+     * rule 6's own condition and it is recorded here rather than acted on: the
+     * floor is not moved and the arm chosen is the one that spends none of it.
+     *
+     * AND FILL IS NOT THE LAST KNOB EITHER. At `fill = 1.0` the delivered
+     * coverage is **45.4%** against the 95.0% a full ring at this depth would
+     * cover. What is left is the end-of-run gap below and the refusals — at the
+     * ceiling the registry refuses 484 candidates, 282 of them against another
+     * BUILDING, which is the corner meeting session 35's depth created.
      */
     const fill = frontageFill(density);
 
