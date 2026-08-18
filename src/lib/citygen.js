@@ -1124,6 +1124,52 @@ export function buildingDepthRoll(rng, density) {
 }
 
 /**
+ * THE FRONTAGE FILL LAW, AS A KNOB RATHER THAN AS A LITERAL — SESSION 36.
+ *
+ * `fill` is the probability that a candidate slot on a block frontage becomes a
+ * building. It has been a bare expression inside `generateChunk` since the
+ * perimeter walk was written, which is why every session that wanted to know
+ * what a different fill delivers has had to edit the generator to find out —
+ * session 32 did, and its sweep table is the comment beside the call site. An
+ * arm nobody can run is a number nobody can check.
+ *
+ * IT IS THE SAME STATEMENT AS `DEPTH_DISTRIBUTION`'s `pDeep`, WITH THE SAME
+ * ENDPOINTS: `atZero + (atOne − atZero)·density^power`. At the bottom of the
+ * density field a block is one in eight; at the top it is everything. The power
+ * is the only place the two laws differ and the comment above
+ * `buildingDepthRoll` says why they differ there.
+ *
+ * WHICH DIRECTION IS "MORE". A SMALLER power is a FULLER city, and it fills the
+ * SPARSE end hardest: at density 0.30, `d^1.4` is 0.185 and `d^0.6` is 0.486, so
+ * fill goes 0.283 → 0.548; at density 0.80 the same move is 0.764 → 0.890. That
+ * asymmetry is the whole cost of the knob — it is district structure being
+ * spent, which is what `citycheck`'s clumping CV measures and what the comment
+ * at the call site was written to protect.
+ *
+ * THE QUAY IS THIS LAW WITH A SOFTER POWER AND THE DIFFERENCE IS DERIVED: a
+ * waterfront is the one frontage a city builds on before it builds on anything
+ * else. Session 28 wrote that as 1.6 against the perimeter's 2.2 — the quay
+ * softer by 0.6 — and session 32 moved the perimeter to 1.4 without moving the
+ * quay, which INVERTED the sentence it was derived from: for four sessions the
+ * quay has been the HARDER of the two. `quayPower` is here so that the relation
+ * is one subtraction instead of two greps.
+ */
+export const FRONTAGE_FILL = {
+  atZero: 0.12,
+  atOne: 1.0,
+  /** The island perimeter. Session 32 moved it 2.2 → 1.4. */
+  power: 1.4,
+  /** The river bank. Session 28's own derivation is `power − 0.6`. */
+  quayPower: 1.6,
+};
+
+/** `p` is passed only by the quay walk, which has its own power for a reason. */
+export function frontageFill(density, p = FRONTAGE_FILL.power) {
+  const F = FRONTAGE_FILL;
+  return F.atZero + (F.atOne - F.atZero) * Math.pow(density, p);
+}
+
+/**
  * SETBACKS — session 20, item 4's other half.
  *
  * A tower that is one width from pavement to parapet reads as a SHAPE. One that
@@ -5318,7 +5364,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * the end of a run rarely buys room for another 19 m building. The gap is
      * worth revisiting only if the roll ever gets near 1.
      */
-    const fill = 0.12 + 0.88 * Math.pow(density, 1.4);
+    const fill = frontageFill(density);
 
     const sides = [
       { axis: 'x', at: island.z0, out: -1, from: island.x0, to: island.x1 },
@@ -5937,7 +5983,7 @@ export function generateChunk(rootSeed, cx, cz) {
          * back. 1.6 against 2.2 is that sentence: at a density of 0.5 the
          * perimeter fills 0.31 of its frontage and the quay fills 0.41.
          */
-        if (rng.next() > 0.12 + 0.88 * Math.pow(density, 1.6)) {
+        if (rng.next() > frontageFill(density, FRONTAGE_FILL.quayPower)) {
           t += width + rng.range(1, 9);
           continue;
         }
