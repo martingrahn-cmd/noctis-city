@@ -49,17 +49,37 @@ It is that the street wall is broken.
   the bullet above asks. **The real complaint is inside the `built` chunks and it
   is the frontage:** median block frontage occupancy 0.162 before the raise and
   0.244 after, with 148 of 400 block sides still bare end to end.
-- **THE LIMITER IS THE OCCUPANCY REGISTRY, NOT DRAW CALLS AND NOT BATCHING.**
-  Session 32 measured the fill law one exponent further on (`d^1.4` → `d^1.2`,
-  480 → 515 buildings) and the delivered scene carried **one forbidden overlap,
-  `sign(adpillar) × prop(planter)`, 0.061 m²**. §7 reserves the registry's
-  authority absolutely, so that is the stop. The three ceilings people expected
-  are all slack: **+31% buildings cost +2 draw calls** (430 → 432 of 440), 1.57 M
-  triangles of 2.00 M, and 2–3 ms of frame-time margin. And a merged building
-  pool does not help: the frustum test **rejects 54–60% of the city's triangles**,
-  so one pool would submit **1.90 M against the 2.00 M ceiling** before the sky,
-  the traffic, the people and the stalls. The per-chunk meshes are doing the
-  culling work.
+- **THE LIMITER IS `citycheck`'s CLUMPING FLOOR. IT IS NOT THE REGISTRY, IT IS
+  NOT DRAW CALLS AND IT IS NOT BATCHING — AND THE FIRST OF THOSE WAS MINE.**
+  This bullet used to read *"THE LIMITER IS THE OCCUPANCY REGISTRY"*, on session
+  32's one forbidden overlap — `sign(adpillar) × prop(planter)`, 0.061 m² — and
+  it stopped the fill raise for four sessions. **Session 36 shipped a fill past
+  the one that produced it and the delivered census read 0 / 0 forbidden
+  overlaps over 53 forbidden pairs, on 5 512 generator claims and 4 169
+  delivered.** The registry keeps its absolute authority (§7); it simply was not
+  what was in the way.
+
+  Swept the whole law to `fill = 1.0` by `tools/fillprobe.mjs`, same 10 × 10
+  region at seed 1337:
+
+  ```
+    power    bldgs   island cover   occ/block   bare sides   objCV   highway_speed
+     1.40      491      28.1%         0.237      147/400     0.626   433 draws 1.60 M tris
+     1.10      528      31.2%         0.268      137/400     0.626   434 draws 1.71 M tris
+     0.90      595      34.4%         0.306      128/400     0.591   <- clumping RED
+     0.00      786      45.4%         0.463      122/400     0.535   437 draws 2.18 M tris
+  ```
+
+  **THE DRAW-CALL CEILING NEVER BINDS.** At `fill = 1.0` — 60% more buildings
+  than ship — `highway_speed` measures **437 draws of 440**. The whole range of
+  this law costs four draw calls. The triangle ceiling binds at that end instead
+  (2.18 M of 2.00 M, first breached near 700 buildings), and **`citycheck`'s
+  clumping CV floor of 0.60 binds before either, at `d^0.90`** — a smaller power
+  fills the SPARSE end of the density field hardest, and that is the district
+  structure the last bullet of this section asks for, spent. The merged-pool
+  finding is unchanged: the frustum test rejects 54–60% of the city's triangles,
+  so one pool would submit 1.90 M before the sky, the traffic, the people and
+  the stalls.
 - **BUILDINGS GO TO THE BACK OF THEIR LOT, AND THE CORE IS A LIGHT WELL ONE
   STREET WIDE.** Measured over `city-budget`'s own 10 × 10 region at seed 1337
   by `tools/depthprobe.mjs`, which is the instrument the numbers below come out
@@ -83,13 +103,32 @@ It is that the street wall is broken.
   covers **95.0%** of the island against the 96.3% of the lower Manhattan block
   STATE 33 §6 measured this against.
 
-  **AND THE OTHER KNOB IS STILL THE SHORT ONE.** Coverage is depth × frontage
-  and they multiply: depth now stands at **0.73 of the reference ring** and
-  frontage occupancy at **0.244** (STATE 32). Nothing about this bullet closes
-  the bullet above it. **From the street the deepening is nearly invisible** —
-  session 35's own frame pair says so — because a gap in a street wall is a
-  frontage fact and depth grows the other way. What it changes is the view from
-  the air and the view past a corner.
+  **AND THE OTHER KNOB WAS THE SHORT ONE, AND SESSION 36 RAISED IT AS FAR AS THE
+  GATES ALLOW.** Coverage is depth × frontage and they multiply — measured, over
+  the 2 × 2 of both laws at both settings, to within 6%. Depth stands at 0.73 of
+  the reference ring; frontage occupancy went **0.237 → 0.268 per block** and
+  island coverage **28.1% → 31.2%** over the chunks carrying a building, against
+  95.0% for a full ring at this depth. `tools/fillprobe.mjs` is the instrument
+  and it prints its population; session 32's *"0.244"* is a per-BLOCK median,
+  and on the same population this instrument reads 0.234, so the figure quoted
+  for four sessions is a hundredth out and the denominator was never written
+  down. Its *"148 of 400 block sides bare"* reproduces EXACTLY.
+
+  **NEITHER KNOB REACHES THE REFERENCE AND FILL CANNOT.** At `fill = 1.0` the
+  delivered coverage is **45.4%**. What holds the other half is the end-of-run
+  gap — `rng.range(6, 26)` after every run of 1–4 buildings — and the registry
+  refusals, which at the ceiling number 484 over the region, **282 of them
+  against another BUILDING**. That last number is the corner meeting session
+  35's 40.6 m depth created: two deep corner buildings own 81 m of a 104.6 m
+  side before the walk that runs third reaches it. **Depth and fill do not
+  purely multiply; they fight at the corners**, and the third knob is the gap.
+
+  **From the street the deepening was nearly invisible** — session 35's own
+  frame pair says so — because a gap in a street wall is a frontage fact and
+  depth grows the other way. **The fill raise IS visible from the street, on the
+  blocks it reached**: 32 of 100 chunks gained a building, 10 lost one to the
+  re-phase and 58 are unchanged, so which street you stand in decides whether
+  you see it at all.
 - **Heights are lognormal, not an even comb.** Mostly six to twelve storeys,
   with occasional towers standing well clear. `citygen.js` already carries the
   argument and both measured arms: sd/mean 0.664 against today's 0.425, p99
@@ -268,7 +307,16 @@ thresholds now measure a city that no longer exists:
 
 - the 6.00% bright-reserve floor, derived under a camera veil session 27
   removed, and since excluded by three independent mechanisms;
-- `band:noon`, whose margin is smaller than its own run-to-run spread;
+- `band:noon`, whose margin is smaller than its own run-to-run spread — **and it
+  is now equal to it, measured, session 36: delivered 0.4281 against a floor of
+  0.428, a margin of 0.0001, against a run-to-run spread of 0.0001 over three
+  runs.** It lost 92% of that margin to 37 buildings. The direction is the whole
+  problem: at noon the sun is at 58° and more buildings mean more shadow, so
+  **a floor on the noon mean is a ceiling on density**, which is §2 argued
+  against from the other side. `citycheck`'s 6.00% bright reserve moved the same
+  way, 5.67% → 5.33%. **This is written as a measurement and not as a verdict:
+  no threshold was moved, and the question of whether a floor that density
+  pushes down is measuring the right thing is the operator's;**
 - 76 of 189 bounds with no recorded derivation at all.
 
 **A look threshold is evidence, not a verdict.** When a change moves the city
