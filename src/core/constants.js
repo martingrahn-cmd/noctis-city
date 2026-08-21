@@ -2229,7 +2229,8 @@ export const HUD = {
     cpuFrameMsP95: 12,
     wallFrameMsP95: 12.5,
     drawCalls: 440,
-    triangles: 2000000,
+    /** Session 37: 2 000 000 -> 2 360 000, derived against a MEASURED broken LOD. budget.json $triangles_s37_LOD_MEASURED. */
+    triangles: 2360000,
     textureMemoryMB: 192,
     chunkMemoryMB: 96,
   },

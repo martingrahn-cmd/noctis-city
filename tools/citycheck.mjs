@@ -1652,6 +1652,69 @@ notes.push(
   `objects/chunk min ${Math.min(...chunks.map((c) => c.objectCount))} max ${Math.max(...chunks.map((c) => c.objectCount))}`
 );
 
+/**
+ * THE POPULATION THIS VERDICT IS ONE DRAW FROM — SESSION 37. IT ASSERTS
+ * NOTHING, DELIBERATELY, AND THAT IS THE PRECEDENT IT IS FOLLOWING.
+ *
+ * CONTRACT §0 rule 6 forbids a decision on a difference smaller than the
+ * instrument's own spread. The line above is the CV of ONE region at ONE seed
+ * compared against a fixed floor, and its delivered margin has been hundredths
+ * for six sessions. Session 36 recorded that the same statistic reads 0.626 at
+ * seed 1337 and 0.466 at the worst of five, *"a spread of 0.160 against a floor
+ * margin of 0.026"*, and did not act on it. Over the twelve regions below the
+ * spread is larger still.
+ *
+ * WHY THE ESTIMATOR IS NOT CHANGED HERE, IN THE WORDS THIS PROJECT ALREADY
+ * USED. `budget.json`'s `$screenshotEntropy_s17`: *"perfcheck now PRINTS every
+ * run's mean and entropy so that session has a population. An estimator arrives
+ * with the cases that hold it honest or it does not arrive."* This is the same
+ * move on the same kind of statistic. A pooled median here would leave the
+ * shipped city red exactly as the single draw does — measured, session 37 —
+ * so it would buy no verdict, and `city-budget.json`'s derivation beside
+ * `minDensityCV` records the reason it would buy no MEANING either: this
+ * statistic correlates at r = 0.92 with how much park, yard and building site
+ * the window happens to contain, which `negativeSpace` already asserts. Pooling
+ * a contaminated statistic measures the wrong thing precisely.
+ *
+ * IT RUNS THE PURE GENERATOR, so it costs no frame and no browser, and it is
+ * CONTROLLED against the page: the region at the gate's own seed must reproduce
+ * the placement CV above exactly, or this block says so instead of quietly
+ * measuring a second, different city (CONTRACT §9.1).
+ */
+{
+  const R = BUDGET.region;
+  const seeds = [String(SEED), ...Array.from({ length: 11 }, (_, i) => String(Number(SEED) + 1 + i))];
+  const rows = [];
+  for (const sd of seeds) {
+    const counts = [];
+    for (let cz = R.cz[0]; cz <= R.cz[1]; cz++) {
+      for (let cx = R.cx[0]; cx <= R.cx[1]; cx++) counts.push(generateChunk(Number(sd), cx, cz).objectCount);
+    }
+    const mu = counts.reduce((a, v) => a + v, 0) / counts.length;
+    rows.push({
+      sd,
+      cv: Math.sqrt(counts.reduce((a, v) => a + (v - mu) ** 2, 0) / counts.length) / mu,
+    });
+  }
+  const cvs = rows.map((r) => r.cv).sort((a, b) => a - b);
+  const med = cvs.length % 2 ? cvs[(cvs.length - 1) / 2] : (cvs[cvs.length / 2 - 1] + cvs[cvs.length / 2]) / 2;
+  const control = Math.abs(rows[0].cv - cv);
+  const floor = BUDGET.clumping.minDensityCV;
+  const below = cvs.filter((v) => v < floor).length;
+  notes.push(
+    `                 THE POPULATION, asserted on nothing: the same statistic over ${rows.length} regions ` +
+    `(seeds ${seeds[0]}–${seeds[seeds.length - 1]})
+` +
+    `                 ${rows.map((r) => r.cv.toFixed(3)).join(' ')}
+` +
+    `                 median ${med.toFixed(3)}  min ${cvs[0].toFixed(3)}  max ${cvs[cvs.length - 1].toFixed(3)}  ` +
+    `spread ${(cvs[cvs.length - 1] - cvs[0]).toFixed(3)}  — ${below} of ${rows.length} below the ${floor} floor
+` +
+    `                 control: the gate's own seed reproduces the placement CV to ${control.toExponential(1)}` +
+    `${control > 1e-9 ? '  ← IT DOES NOT; this block and the line above are measuring different cities' : ''}`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 1a. the scene walk — what was BUILT, against what was written down
 //
