@@ -67,8 +67,19 @@ It is that the street wall is broken.
      1.40      491      28.1%         0.237      147/400     0.626   433 draws 1.60 M tris
      1.10      528      31.2%         0.268      137/400     0.626   434 draws 1.71 M tris
      0.90      595      34.4%         0.306      128/400     0.591   <- clumping RED
+     0.50      689      38.4%         0.355      118/400     0.568   436 draws 2.09 M tris  <- SHIPS, s37
      0.00      786      45.4%         0.463      122/400     0.535   437 draws 2.18 M tris
   ```
+
+  **AND THE ARM THAT SHIPS WAS CHOSEN BY LOOKING, WHICH IS NEW.** Session 37 took
+  fourteen aerial frames over seven arms at two poses and one seed
+  (`tools/shot-out/s37-airA-f*.png`, `s37-airB-f*.png`, and five street frames
+  `s37-street-f*.png`), by `lookat --params=fill=` — `?fill=` is CONTRACT §6's
+  new parameter and the arm is bit-for-bit at the shipped value. The frames give
+  **two different answers**: from the pavement, denser is better all the way to
+  `fill = 1.0` and there is no arm at which the street wall stops improving;
+  from the air it is not, because past about `d^0.5` the sparse districts fill
+  in as fast as the dense ones and the city becomes one carpet.
 
   **THE DRAW-CALL CEILING NEVER BINDS.** At `fill = 1.0` — 60% more buildings
   than ship — `highway_speed` measures **437 draws of 440**. The whole range of
@@ -103,12 +114,27 @@ It is that the street wall is broken.
   covers **95.0%** of the island against the 96.3% of the lower Manhattan block
   STATE 33 §6 measured this against.
 
-  **AND THE OTHER KNOB WAS THE SHORT ONE, AND SESSION 36 RAISED IT AS FAR AS THE
-  GATES ALLOW.** Coverage is depth × frontage and they multiply — measured, over
-  the 2 × 2 of both laws at both settings, to within 6%. Depth stands at 0.73 of
-  the reference ring; frontage occupancy went **0.237 → 0.268 per block** and
-  island coverage **28.1% → 31.2%** over the chunks carrying a building, against
-  95.0% for a full ring at this depth. `tools/fillprobe.mjs` is the instrument
+  **AND THE OTHER KNOB WAS THE SHORT ONE, AND IT IS NOW PAST WHAT THE GATES
+  ALLOW — DELIBERATELY.** Frontage occupancy went 0.237 (s32) → 0.268 (s36) →
+  **0.355 per block** (s37) and island coverage 28.1% → 31.2% → **38.4%** over
+  the chunks carrying a building, against 95.0% for a full ring.
+
+  **DEPTH AND FILL DO NOT MULTIPLY — RAISING ONE LOWERS THE OTHER, MEASURED.**
+  Session 36 said they multiply to within 6% and that they fight at the corners;
+  session 37 put a sign on it. Through `depthprobe`, same seed, same region,
+  both arms:
+
+  ```
+                                  d^1.10      d^0.50
+    buildings on an island edge      520         679
+    median depth into the island    29.8 m      26.7 m     −3.1 m, −10.4%
+    depth clipped at corners        905 m      1342 m      +48%
+    island coverage, built chunks   31.2%       38.4%
+  ```
+
+  So the frontage raise BOUGHT 7.2 points of coverage and SPENT 3.1 m of the
+  depth session 35 built. The third knob — the end-of-run gap — is still
+  unspent, and it is the one that does not fight anything. `tools/fillprobe.mjs` is the instrument
   and it prints its population; session 32's *"0.244"* is a per-BLOCK median,
   and on the same population this instrument reads 0.234, so the figure quoted
   for four sessions is a hundredth out and the denominator was never written
@@ -138,6 +164,26 @@ It is that the street wall is broken.
   transit gets built tall and to the line. Land under a viaduct gets sheds and
   yards. A station mouth concentrates frontage around it. A city generated from
   noise looks generated however dense it is.
+
+  **THIS BULLET HAS A NUMBER NOW, AND IT IS THE PRICE LIST FOR THE BULLET
+  ABOVE IT.** `fillprobe --districts` pools 963 `built` chunks over twelve
+  regions (seeds 1337–1348) and reports the median delivered island coverage of
+  the densest quarter over that of the sparsest — 1.00× meaning a sparse block
+  and a dense block are the same block:
+
+  ```
+    power    cov Q1 sparse   cov Q4 dense   CONTRAST
+     1.40        14.7%          40.8%        2.77x     session 32
+     1.10        17.9%          42.7%        2.38x     session 36
+     0.50        30.5%          49.3%        1.61x     ships, session 37
+     0.00        45.2%          53.9%        1.19x
+  ```
+
+  **The dense quarter gains 1.32× across the whole law and the sparse quarter
+  gains 3.08×**, because the core is already against its own refusal ceiling. So
+  the fill knob does not spend "some" district structure — the contrast column
+  IS what it spends, and at `fill = 1.0` this bullet is unreadable by
+  construction. That is the whole reason the arm is `d^0.50` and not `d^0.0`.
 
 ---
 
@@ -310,13 +356,29 @@ thresholds now measure a city that no longer exists:
 - `band:noon`, whose margin is smaller than its own run-to-run spread — **and it
   is now equal to it, measured, session 36: delivered 0.4281 against a floor of
   0.428, a margin of 0.0001, against a run-to-run spread of 0.0001 over three
-  runs.** It lost 92% of that margin to 37 buildings. The direction is the whole
-  problem: at noon the sun is at 58° and more buildings mean more shadow, so
-  **a floor on the noon mean is a ceiling on density**, which is §2 argued
-  against from the other side. `citycheck`'s 6.00% bright reserve moved the same
-  way, 5.67% → 5.33%. **This is written as a measurement and not as a verdict:
-  no threshold was moved, and the question of whether a floor that density
-  pushes down is measuring the right thing is the operator's;**
+  runs.** It lost 92% of that margin to 37 buildings.
+
+  **AND THE MECHANISM SESSION 36 INFERRED FROM THAT DID NOT FIRE. THE
+  INFERENCE WAS MINE AND IT IS WITHDRAWN.** This bullet went on to say *"at noon
+  the sun is at 58° and more buildings mean more shadow, so a floor on the noon
+  mean is a ceiling on density"*, and three consecutive briefs carried it as the
+  reason density was blocked. **Session 37 added 161 buildings — 4.4× session
+  36's 37, +30% over the region — and `band:noon` moved 0.4281 → 0.4281, a delta
+  of 0.0000 against an instrument that resolves 0.0001 over three runs.** The
+  other three moved by 0.0001, −0.0012 and −0.0003. So the noon floor is not a
+  ceiling on density at any rate this project can reach with this knob, and the
+  0.0011 session 36 attributed to 37 buildings has no surviving mechanism —
+  `lookcheck` stands in the origin block, which `block.js` authors and the
+  generator never touches (STATE 35). **`band:noon` is GREEN and nothing was
+  owed on it.** What actually went red is in `tools/city-budget.json` and
+  `tools/budget.json`, beside the numbers, dated.
+
+  **AND THE BRIGHT RESERVE MOVED THE OTHER WAY, WHICH IS THE SAME CORRECTION
+  FROM THE FRONT.** §2 spent four sessions being told that density costs light.
+  `citycheck`'s 6.00% bright-reserve floor had been RED FOR SIX SESSIONS — 5.67%
+  at s35, 5.33% at s36 — and at `d^0.50` it reads **6.37% and is GREEN**. More
+  buildings on a night route is more lit windows. The gate that was supposed to
+  argue against density was fixed by density;
 - 76 of 189 bounds with no recorded derivation at all.
 
 **A look threshold is evidence, not a verdict.** When a change moves the city
