@@ -497,6 +497,7 @@ causes that is still a QUESTION.** It is one commit wide.
 Branch `claude/noctis-36-frontage-fill`, from `47d92e4`, pushed.
 
 ```
+  f825ad9  STATE 37, and the removal of an iCloud copy of citygen.js that git add -A committed
   380ce1a  LOOK.md §2 and §7 — the fill law ships at d^0.50, and the noon mechanism was mine
   0f06737  The triangle ceiling is re-derived against a MEASURED broken LOD; clumping is not
   60adb48  The frontage fill law goes to d^0.50, and the arm was chosen by looking
@@ -509,7 +510,7 @@ Branch `claude/noctis-36-frontage-fill`, from `47d92e4`, pushed.
 > and the extra one was **`src/lib/citygen 2.js`** — an iCloud sync-conflict copy of the largest
 > module in the project, carrying the OLD `power: 1.10`, created at 20:08 while `citygen.js` was
 > being rewritten twice in a second for §1.4's paired depth measurement. `git add -A` swept it into
-> `380ce1a`. Nothing imported it, so nothing rendered from it; it is removed in `9e13c53` and
+> `380ce1a`. Nothing imported it, so nothing rendered from it; it is removed in `f825ad9` and
 > `parsecheck` is back to 108. **`/Users/martingrahn/Documents` is a synced directory, so `git add
 > -A` on this machine can commit files nobody wrote** — and a second copy of `citygen.js` in
 > `src/lib/` is precisely CONTRACT §9.1's failure mode, two files that have to be kept in step,
