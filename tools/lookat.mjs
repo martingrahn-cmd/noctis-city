@@ -33,10 +33,28 @@ import { startServer, launchBrowser, openPage, readRendererString } from './lib/
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const OUT = path.join(ROOT, 'tools', 'shot-out');
 
+/**
+ * SPLIT ON THE FIRST `=` ONLY — SESSION 37, AND IT WAS BROKEN FOR THIRTY-TWO
+ * SESSIONS BEFORE ANYTHING NEEDED IT.
+ *
+ * `split('=')` destructured into `[k, v]` silently DROPS everything after the
+ * second `=`: `--params=fill=0.90` arrived as `params` → `fill`, with the 0.90
+ * gone. `loftprobe.mjs` carries this same note because the same line cost it a
+ * refusal in session 10, and this file was written with the broken form and
+ * never passed a value containing an `=` until the fill sweep did.
+ *
+ * WHAT IT COST HERE: seven aerial frames swept across seven fill laws, all
+ * seven rendered the SHIPPED law, and the sweep looked like a finding — the
+ * city does not change with the fill — because every frame was the same city.
+ * It failed the right way only by luck: two of the seven differed anyway, which
+ * is what sent somebody to the hashes. CONTRACT §9's failure mode with a string
+ * instead of a length.
+ */
 const args = new Map(
   process.argv.slice(2).map((a) => {
-    const [k, v = 'true'] = a.replace(/^--/, '').split('=');
-    return [k, v];
+    const s = a.replace(/^--/, '');
+    const i = s.indexOf('=');
+    return i < 0 ? [s, 'true'] : [s.slice(0, i), s.slice(i + 1)];
   })
 );
 

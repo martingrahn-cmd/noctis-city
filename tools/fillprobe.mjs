@@ -50,7 +50,7 @@
 
 import {
   CITY, CORRIDOR, generateChunk, chunkBounds, FRONTAGE_FILL, frontageFill,
-  DEPTH_DISTRIBUTION,
+  DEPTH_DISTRIBUTION, densityAt,
 } from '../src/lib/citygen.js';
 
 const args = new Map(process.argv.slice(2).map((a) => {
@@ -122,6 +122,15 @@ function arm(power, quayPower, seed = SEED) {
   /** Chunks carrying no building at all, by chunk kind — LOOK.md §2's list. */
   const emptyByKind = new Map();
   const kindChunks = new Map();
+  /**
+   * PER-`built`-CHUNK COVERAGE AND THE CHUNK'S OWN DENSITY — SESSION 37, and it
+   * is the only column in this file that measures LOOK.md §2's LAST bullet
+   * rather than its first. "Density has causes" is a claim that a sparse block
+   * and a dense block look different, and until now this project had no number
+   * for it at all — every figure here says how MUCH city there is, none said
+   * whether it varies. See `districtContrast` below.
+   */
+  const perChunk = [];
 
   for (let cx = -R; cx < R; cx++) {
     for (let cz = -R; cz < R; cz++) {
@@ -183,11 +192,14 @@ function arm(power, quayPower, seed = SEED) {
         if (!spans.length) bareSides++;
       }
       blockOcc.push(blockRun ? blockBuilt / blockRun : 0);
+      const chunkDensity = densityAt(seed, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
 
       /** Island coverage: the UNION area of building claims over the island. */
       const claims = c.registry.all().filter((cl) => cl.kind === 'building');
       const nx = Math.round((island.x1 - island.x0) / CELL);
       const nz = Math.round((island.z1 - island.z0) / CELL);
+      let chunkCells = 0;
+      let chunkCovered = 0;
       for (let ix = 0; ix < nx; ix++) {
         const x = island.x0 + (ix + 0.5) * CELL;
         const row = claims.filter((cl) => x >= cl.x0 && x <= cl.x1);
@@ -200,8 +212,13 @@ function arm(power, quayPower, seed = SEED) {
           if (built) {
             coveredCells++;
             if (c.buildings.length) popCoveredCells++;
+            if (c.kind === 'built') chunkCovered++;
           }
+          if (c.kind === 'built') chunkCells++;
         }
+      }
+      if (c.kind === 'built' && chunkCells) {
+        perChunk.push({ d: chunkDensity, cov: chunkCovered / chunkCells });
       }
     }
   }
@@ -214,7 +231,26 @@ function arm(power, quayPower, seed = SEED) {
   blockOcc.sort((a, b) => a - b);
   const m = counts.reduce((a, v) => a + v, 0) / counts.length;
   const objCV = Math.sqrt(counts.reduce((a, v) => a + (v - m) ** 2, 0) / counts.length) / m;
+  /**
+   * DISTRICT CONTRAST — the median delivered island coverage of the DENSEST
+   * quarter of `built` chunks over that of the SPARSEST quarter, both ranked by
+   * the chunk's own `densityAt`. 1.00 means a sparse block and a dense block are
+   * the same block, which is the state `fill = 1.0` delivers by construction.
+   *
+   * IT IS NOT A THRESHOLD AND MUST NOT BECOME ONE — this file asserts nothing.
+   * It is here because session 37 chose a fill law by looking at aerial frames,
+   * and this is the quantity those frames were being read for.
+   */
+  perChunk.sort((a, b) => a.d - b.d);
+  const k = Math.floor(perChunk.length / 4);
+  const covQ1 = perChunk.slice(0, k).map((r) => r.cov).sort((a, b) => a - b);
+  const covQ4 = perChunk.slice(perChunk.length - k).map((r) => r.cov).sort((a, b) => a - b);
+  const mQ1 = q(covQ1, 0.5);
+  const mQ4 = q(covQ4, 0.5);
   return {
+    perChunk,
+    builtChunkSample: perChunk.length, covQ1: mQ1, covQ4: mQ4,
+    districtContrast: mQ1 > 0 ? mQ4 / mQ1 : NaN,
     power, quayPower, buildings, quay, props, gaveUp, signs, objCV,
     chunksWithBuildings, builtChunks, refused, clipped, clipM,
     coverAll: pct(coveredCells, islandCells),
@@ -238,6 +274,51 @@ const fmt = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
  */
 if (args.get('depth') === 'band') Object.assign(DEPTH_DISTRIBUTION, { mode: 'band', clip: false });
 
+/**
+ * `--districts` — LOOK.md §2's LAST BULLET, WHICH HAS NEVER HAD A NUMBER.
+ *
+ *   node tools/fillprobe.mjs --districts
+ *   node tools/fillprobe.mjs --districts --seeds=1337,1338,1339 --powers=1.4,0.5
+ *
+ * *"Density has causes... a city generated from noise looks generated however
+ * dense it is."* Every other column in this file says how MUCH city there is.
+ * This one says whether it VARIES: the median delivered island coverage of the
+ * densest quarter of `built` chunks over that of the sparsest quarter.
+ *
+ * POOLED OVER SEEDS BY CONCATENATION, not by averaging twelve ratios. The
+ * quantity is a property of the GENERATOR and each region is a sample of it, so
+ * the quartiles are taken over the pooled population of chunks — which is also
+ * the only way the sparse quarter has enough chunks in it to have a median that
+ * means anything. Twelve regions is 963 `built` chunks; one is 83.
+ *
+ * IT ASSERTS NOTHING. `citycheck` owns the verdicts, and this number is a
+ * description of a choice rather than a bound on one.
+ */
+if (args.has('districts')) {
+  const powers = (args.get('powers') || '1.4,1.1,0.9,0.7,0.5,0.3,0.15,0.0')
+    .split(',').map(Number);
+  const seeds = (args.get('seeds') || SEED).split(',');
+  console.log(`fillprobe --districts — ${seeds.length} region(s) of ${2 * R} x ${2 * R} chunks, seeds ${seeds.join(',')}`);
+  console.log('  delivered island coverage of the `built` chunks, split at the quartiles of the');
+  console.log('  chunk\'s own densityAt. CONTRAST 1.00 = a sparse block and a dense block are the');
+  console.log('  same block, which is what fill = 1.0 delivers by construction.\n');
+  console.log('  power   built chunks   cov Q1 sparse   cov Q4 dense   CONTRAST');
+  for (const p of powers) {
+    const pooled = [];
+    for (const sd of seeds) pooled.push(...arm(p, null, sd).perChunk);
+    pooled.sort((a, b) => a.d - b.d);
+    const k = Math.floor(pooled.length / 4);
+    const c1 = q(pooled.slice(0, k).map((r) => r.cov).sort((a, b) => a - b), 0.5);
+    const c4 = q(pooled.slice(pooled.length - k).map((r) => r.cov).sort((a, b) => a - b), 0.5);
+    console.log(
+      `  ${p.toFixed(2).padStart(5)}      ${String(pooled.length).padStart(6)}        ` +
+      `${(100 * c1).toFixed(1).padStart(5)}%          ${(100 * c4).toFixed(1).padStart(5)}%       ` +
+      `${(c4 / c1).toFixed(2)}x`
+    );
+  }
+  process.exit(0);
+}
+
 if (args.has('sweep')) {
   const powers = (args.get('powers') || '1.4,1.2,1.0,0.8,0.6,0.4,0.2,0.0')
     .split(',').map(Number);
@@ -259,7 +340,7 @@ if (args.has('sweep')) {
   const seeds = (args.get('seeds') || SEED).split(',');
   console.log(`fillprobe --sweep — seed ${SEED}, ${2 * R} x ${2 * R} chunks, raster ${CELL} m`);
   console.log('  fill = 0.12 + 0.88 · density^power, the island perimeter only; the quay keeps its own\n');
-  console.log('  power   fill@.3  fill@.7   bldgs  quay   cover%  cover%pop   occSide  occBlk  bare/400   props  gaveUp   objCV   refused');
+  console.log('  power   fill@.3  fill@.7   bldgs  quay   cover%  cover%pop   occSide  occBlk  bare/400   props  gaveUp   objCV  contrast   refused');
   for (const p of powers) {
     const a = arm(p, null);
     if (seeds.length > 1) {
@@ -273,7 +354,7 @@ if (args.has('sweep')) {
       `${String(a.buildings).padStart(5)}  ${String(a.quay).padStart(4)}   ${a.coverAll.toFixed(1).padStart(5)}%   ` +
       `${a.coverPop.toFixed(1).padStart(6)}%     ${a.occMed.toFixed(3)}   ${a.blockMed.toFixed(3)}   ` +
       `${String(a.bareSides).padStart(3)}/400   ${String(a.props).padStart(5)}  ${String(a.gaveUp).padStart(5)}   ` +
-      `${a.objCV.toFixed(3)}   ${fmt(a.refused)}`
+      `${a.objCV.toFixed(3)}   ${a.districtContrast.toFixed(2)}x   ${fmt(a.refused)}`
     );
     if (a.seedNote) console.log(a.seedNote);
   }
@@ -303,6 +384,12 @@ console.log(`    per SIDE,  ${a.sides} of them    median ${a.occMed.toFixed(3)} 
 console.log(`    per BLOCK, ${4 * R * R} of them    median ${a.blockMed.toFixed(3)}   mean ${a.blockMean.toFixed(3)}   median over the ${a.chunksWithBuildings} built ${a.blockMedBuilt.toFixed(3)}`);
 console.log(`    ARM: widths SUMMED rather than unioned, per side   median ${a.occSumMed.toFixed(3)}`);
 console.log(`    bare end to end  ${a.bareSides} of ${a.sides} sides  (${pct(a.bareSides, a.sides).toFixed(1)}%)\n`);
+
+console.log(`  DISTRICT CONTRAST — LOOK.md §2's "density has causes", over the ${a.builtChunkSample} 'built' chunks`);
+console.log(`    sparsest quarter by densityAt  ${(100 * a.covQ1).toFixed(1)}% covered`);
+console.log(`    densest quarter                ${(100 * a.covQ4).toFixed(1)}% covered`);
+console.log(`    CONTRAST                       ${a.districtContrast.toFixed(2)}x   (1.00x = no districts at all)`);
+console.log('    One region is a small sample of this; `--districts --seeds=` pools it.\n');
 
 console.log('  ISLAND COVERAGE — union area of building claims');
 console.log(`    over all ${4 * R * R} islands                  ${a.coverAll.toFixed(1)}%   (${(a.coveredCells * a.cellArea / 1e3).toFixed(1)} of ${(a.islandCells * a.cellArea / 1e3).toFixed(1)} thousand m2)`);

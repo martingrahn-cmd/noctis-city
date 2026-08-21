@@ -1166,8 +1166,59 @@ export function buildingDepthRoll(rng, density) {
 export const FRONTAGE_FILL = {
   atZero: 0.12,
   atOne: 1.0,
-  /** The island perimeter. Session 32 moved it 2.2 → 1.4; session 36, 1.4 → 1.1. */
-  power: 1.10,
+  /**
+   * The island perimeter. Session 32 moved it 2.2 → 1.4; session 36, 1.4 → 1.1;
+   * **session 37, 1.1 → 0.50, AND THIS ONE WAS CHOSEN BY LOOKING.**
+   *
+   * The three before it were chosen by where a gate stopped — session 36 says so
+   * of its own arm in as many words, *"the largest raise that costs no clumping
+   * margin at the gate's own seed"*. This one was chosen from fourteen aerial
+   * frames swept over the whole law at one pose and one seed by
+   * `tools/lookat.mjs --params=fill=`, and then the gates were told what the
+   * choice cost. `tools/shot-out/s37-airA-f*.png` and `s37-airB-f*.png`.
+   *
+   * WHAT THE FRAMES SHOW, AND IT IS TWO DIFFERENT ANSWERS. From the pavement,
+   * denser is better all the way to `fill = 1.0`: the street wall closes
+   * monotonically and there is no arm at which it stops improving. From the
+   * air, it is not — past about `d^0.5` the SPARSE districts fill in as fast as
+   * the dense ones and the city becomes one carpet.
+   *
+   * THE NUMBER THE FRAMES ARE READING, over the 963 `built` chunks of twelve
+   * regions (seeds 1337–1348), as the median delivered island coverage of the
+   * densest quarter over that of the sparsest quarter:
+   *
+   *     power    cov Q1 sparse   cov Q4 dense   CONTRAST
+   *      1.40        14.7%          40.8%        2.77x     session 32
+   *      1.10        17.9%          42.7%        2.38x     session 36
+   *      0.90        21.3%          45.2%        2.12x     citycheck clumping RED here
+   *      0.70        24.4%          47.1%        1.93x
+   *      0.50        30.5%          49.3%        1.61x     <- ships
+   *      0.30        36.3%          51.8%        1.43x
+   *      0.00        45.2%          53.9%        1.19x
+   *
+   * `node tools/fillprobe.mjs --districts --seeds=1337,...,1348` is the
+   * instrument and it prints its population.
+   *
+   * **THE DENSE QUARTER BARELY MOVES AND THE SPARSE QUARTER TRIPLES.** Across
+   * the whole law the core gains 1.32× and the edge gains 3.08×, because the
+   * core is already against its own refusal ceiling — so what this knob spends
+   * is not "some district structure", it is ALL of it, and the contrast column
+   * is the price list. At `fill = 1.0` a sparse block and a dense block are the
+   * same block and LOOK.md §2's *"density has causes"* is unreadable.
+   *
+   * 0.50 IS WHERE THE TWO ANSWERS STILL BOTH HOLD. At 0.70 the sparse blocks in
+   * the aerial still read as unfinished scatter rather than as low-density
+   * districts; at 0.30 the gradient has gone flat and the frame reads as one
+   * uniform mass. It is a judgement and it is recorded as one — the contrast
+   * number is what the judgement was looking at, not a threshold it was derived
+   * from, and the next session is invited to disagree with the frames.
+   *
+   * IT IS NOT THE ARM THAT KEEPS THE GATES GREEN, DELIBERATELY. `citycheck`'s
+   * clumping CV floor binds at `d^0.90` and this is four steps past it. What
+   * that floor turned out to be measuring, and what was done about it, is in
+   * `tools/city-budget.json` beside the number.
+   */
+  power: 0.50,
   /** The river bank. Session 28's own derivation is `power − 0.6`. */
   quayPower: 1.6,
 };
