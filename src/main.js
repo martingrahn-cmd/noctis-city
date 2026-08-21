@@ -28,6 +28,7 @@ import { createMoving } from './modules/moving.js';
 import { createUi } from './modules/ui.js';
 import { createHud } from './modules/hud.js';
 import { createHarness } from './modules/harness.js';
+import { FRONTAGE_FILL } from './lib/citygen.js';
 
 const DEFAULTS = {
   seed: '1337',
@@ -203,6 +204,34 @@ const DEFAULTS = {
    * wants a map is the one person who has asked for a controller.
    */
   ui: -1,
+  /**
+   * THE FRONTAGE FILL LAW'S POWER, AS AN ARM — SESSION 37.
+   *
+   * `citygen.js`'s `FRONTAGE_FILL.power` decides what fraction of a block
+   * frontage carries a building, and it is the single largest lever this
+   * project has on LOOK.md §2. Every session that has wanted to know what a
+   * different fill LOOKS like has had to edit the generator, take a frame and
+   * edit it back — session 32, session 36 and this one — and a frame taken that
+   * way is a frame nobody else can retake. LOOK.md §8: a number with no
+   * instrument behind it cannot be checked and therefore cannot be wrong.
+   *
+   * **−1 DEFERS TO `FRONTAGE_FILL.power`**, which is the shipped law and the
+   * only thing any gate ever renders; `>= 0` overrides it. The same shape
+   * `fieldDrip`, `ui` and `hud` use, and for the same reason: the useful
+   * default is "whatever the module already decided", and the override exists
+   * so a session can pin it without arguing with that decision.
+   *
+   * IT IS A PARAMETER AND NOT A SECOND COPY OF `citygen.js` because CONTRACT
+   * §6 says an arm is a parameter — two files that differ in one number are
+   * §9.1's own failure mode, and the way it fails is that they drift and the
+   * probe measures the drift. `?fill=0.5` is one number in one live file.
+   *
+   * THE ONE THING IT MUST NOT BECOME is a way for a gate to render a city the
+   * app does not. No gate passes it; `budget.json`'s `capture.params` does not
+   * carry it, and `lookcheck`, `citycheck` and `perfcheck` all render the
+   * shipped law exactly as they have for thirty-seven sessions.
+   */
+  fill: -1,
 };
 
 function readConfig() {
@@ -218,6 +247,14 @@ function readConfig() {
 }
 
 const config = readConfig();
+
+/**
+ * The fill arm, applied BEFORE any module is constructed and therefore before
+ * `generateChunk` is called for the first time. `city.js` and `streetlife.js`
+ * are the two readers and both walk the generator at init; nothing caches a
+ * fill from an earlier value because there is no earlier value.
+ */
+if (config.fill >= 0) FRONTAGE_FILL.power = config.fill;
 
 // --- renderer -------------------------------------------------------------
 

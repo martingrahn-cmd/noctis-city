@@ -157,6 +157,28 @@ const times = (args.get('t') || '0.5').split(',').map(Number);
 const wetArg = args.has('wet') ? Number(args.get('wet')) : null;
 const tag = args.get('tag') || '';
 
+/**
+ * `--params=k=v;k=v` — ANY CONTRACT §6 PARAMETER, PASSED THROUGH TO THE PAGE.
+ *
+ * Session 37, and the reason is `?fill=`. Choosing a fill law BY LOOKING means
+ * one aerial frame per arm at one pose, and until this existed the only way to
+ * get one was to edit `citygen.js` between shots — which makes each frame a
+ * frame nobody can retake, and makes the sweep a claim rather than a result.
+ * Semicolon-separated, and the split is on the FIRST `=` only, for the reason
+ * `loftprobe` records: `split('=')` destructured into [k, v] drops everything
+ * after a second `=` silently.
+ *
+ * `seed` and `paused` are set below and win, because this tool's determinism
+ * and its frozen clock are not arms.
+ */
+const passParams = new Map();
+for (const pair of (args.get('params') || '').split(';')) {
+  if (!pair || pair === 'true') continue;
+  const i = pair.indexOf('=');
+  if (i < 0) continue;
+  passParams.set(pair.slice(0, i).trim(), pair.slice(i + 1).trim());
+}
+
 await mkdir(OUT, { recursive: true });
 
 let server = null;
@@ -173,8 +195,10 @@ const { page } = await openPage(browser, {
 
 try {
   const url = new URL(baseUrl);
+  for (const [k, v] of passParams) url.searchParams.set(k, v);
   url.searchParams.set('seed', args.get('seed') || '1337');
   url.searchParams.set('paused', '1');
+  if (passParams.size) console.log(`  params: ${[...passParams].map(([k, v]) => `${k}=${v}`).join(' ')}`);
   await page.goto(url.toString(), { waitUntil: 'load', timeout: 90000 });
   await page.waitForFunction(() => !!window.__NOCTIS_HARNESS__, null, { timeout: 60000 });
   await page.evaluate(() => window.__NOCTIS_HARNESS__.ready);
