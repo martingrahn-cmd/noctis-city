@@ -186,9 +186,54 @@ It is that the street wall is broken.
   `t < side.to − 12` and its narrowest building is 11.0 m, so a building fits in
   every one of them by construction: **94 of 332 sides (28.3%) end this way,
   giving up 1 591 m — 12.1 m at the least, 16.9 m on average, 24.6 m at the
-  most.** It is 4.6% of the island edge at every arm. Not repaired: the fix
+  most.** It is 4.6% of the island edge at every arm. ~~Not repaired: the fix
   draws more random numbers on those sides and re-phases the whole city, which
-  would discard the arm session 37 chose from nineteen frames.
+  would discard the arm session 37 chose from nineteen frames.~~ **REPAIRED IN
+  SESSION 39, AND THE HALF OF THAT SENTENCE ABOUT RANDOM NUMBERS WAS WRONG.** The
+  repair draws exactly the uniform the walk already drew — the width is CUT to
+  the frontage that remains, not re-rolled — and the same is true of the pad
+  repair below. What re-phases the city is the BUILDINGS the repair adds, which
+  draw their own depth, era, height and signs; no named stream can help with
+  that, because those draws have always come from the chunk's own stream and
+  moving them would move every building in the city rather than the new ones.
+  The arm was re-chosen by looking anyway, and it did not move — see below.
+
+  **AND THE CEILING IS 0.451, NOT 0.431 — SESSION 39, AND THE PAD WAS NOT THE
+  THING.** Session 38 named landmark and block pads as the cause because
+  `landmark` refuses 87% of what it meets and `block` 100%. Measured by
+  `tools/padprobe.mjs`, which reads the walk's own refusals by OWNER rather than
+  by kind, over `citycheck`'s 10 × 10 at seed 1337:
+
+  ```
+    the option                                        what it returns
+    a narrower pad (BUILDING_SETBACKS.landmark 4.2 m)   6 of 296 refusals
+        — 98% of refusals OVERLAP the claim along their own frontage,
+          so the setback is not what refuses them
+    the weir's disc instead of its bounding square      3 refusals, 54 m, 0.2%
+        — 21.5% of that claim is ground the basin is not standing on,
+          and the frontage meets it square on rather than at a corner
+    the walk RESUMING at the pad's far edge            68 refusals, 701 m, 2.0%
+        — the advance `width + rng.range(0, 3)` knows nothing about
+          where the claim ends, so it steps past the short ones
+  ```
+
+  **SO THE PADS ARE UNTOUCHED AND THE WALK'S RESPONSE TO THEM IS WHAT CHANGED.**
+  With the overrun repaired and the refusal landing at the claim's far edge,
+  pooled over twelve regions: occupancy at the shipped law **0.354 → 0.371** and
+  the walk's own ceiling **0.431 → 0.451** (0.403–0.478). The registry keeps
+  every claim it had, to the millimetre.
+
+  **AND THE END-OF-RUN GAP IS A DEFINITION THAT CANNOT MAKE THE THING ITS OWN
+  COMMENT NAMES.** `rng.range(6, 26)` after every run of 1–4 buildings: 267 gaps
+  at seed 1337, 15.0 m mean, 4 001 m, 11.5% of the island edge. **188 of them —
+  2 662 m, 7.7% — fall MID-SIDE**, where the walk goes on afterwards, and those
+  are the ones that read as a hole in a street wall; the other 79 are the last
+  parcel before a corner. **Not one of the 267 is under 6 m**, because 6 m is the
+  law's own floor, so the *"side alleys"* its comment claims are unreachable by
+  construction and every one of them is a yard. The width is a constant with no
+  derivation beside it, and it is the largest remaining loss that is neither the
+  law nor the registry. **Not changed in session 39** — it is a look decision and
+  the sweep STATE 37 §7.2 asks for comes first.
 
   **From the street the deepening was nearly invisible** — session 35's own
   frame pair says so — because a gap in a street wall is a frontage fact and
