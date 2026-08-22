@@ -115,7 +115,8 @@ function arm(power, seed = SEED) {
     fill: 0, sides: 0, frontageM: 0, leadInM: 0, tailM: 0,
     runs: 0, candidates: 0, overrun: 0, overrunM: 0,
     overrunRoomMinM: Infinity, overrunRoomMaxM: 0,
-    clamped: 0, clampedM: 0, overrunRoomM: 0,
+    clamped: 0, clampedM: 0, overrunRoomM: 0, widthOverrunDrawnM: 0,
+    clampedDelivered: 0, clampedDeliveredM: 0,
     fillRefused: 0, fillRefusedM: 0, riverRefused: 0, riverRefusedM: 0,
     clipRefused: 0, clipRefusedM: 0, regRefused: 0, regRefusedM: 0,
     delivered: 0, builtM: 0, runGapM: 0, endGapM: 0, endGaps: 0,
@@ -371,13 +372,21 @@ if (args.has('laws')) {
   };
   const sdU = (lo, hi) => (hi - lo) / Math.sqrt(12);
   const sdSum = (a, b) => Math.sqrt(a * a + b * b);
+  let clampedN = 0;
+  let clampedM = 0;
+  let clampedDelN = 0;
+  let clampedDelM = 0;
   for (const sd of seeds) {
     const { T } = arm(power, sd);
+    clampedN += T.clamped; clampedM += T.clampedM;
+    clampedDelN += T.clampedDelivered; clampedDelM += T.clampedDeliveredM;
     add('lead-in  rng.range(0, 9)', T.leadInM, T.sides, LAW.leadIn, sdU(0, 9));
     add('width    rng.range(11, 27), delivered', T.widthDeliveredM, T.delivered, LAW.width, sdU(11, 27));
     add('width    rng.range(11, 27), every draw', T.widthDrawnM, T.candidates, LAW.width, sdU(11, 27));
     add('fill refusal   width + rng.range(1, 7)', T.fillRefusedM, T.fillRefused, LAW.width + LAW.fillGap, sdSum(sdU(11, 27), sdU(1, 7)));
-    add('hard refusal   width + rng.range(0, 3)', T.clipRefusedM + T.riverRefusedM + T.regRefusedM,
+    add(WALK.refusal === 'resume'
+      ? 'hard refusal   min(width + range(0,3), pad end)'
+      : 'hard refusal   width + rng.range(0, 3)', T.clipRefusedM + T.riverRefusedM + T.regRefusedM,
       T.clipRefused + T.riverRefused + T.regRefused, LAW.width + LAW.refuseGap, sdSum(sdU(11, 27), sdU(0, 3)));
     add('within-run gap rng.range(0.2, 1.4)', T.runGapM, T.delivered - T.endGaps, LAW.runGap, sdU(0.2, 1.4));
     add('end-of-run gap rng.range(6, 26)', T.endGapM, T.endGaps, LAW.endGap, sdU(6, 26));
@@ -389,7 +398,7 @@ if (args.has('laws')) {
      * rows are here so that the delivered row's deficit can be attributed to it
      * rather than asserted away.
      */
-    const overrunWidth = T.widthDrawnM - T.widthDeliveredM - T.widthFillRefusedM - T.widthHardRefusedM;
+    const overrunWidth = T.widthOverrunDrawnM;
     add('  width of a fill-refused candidate', T.widthFillRefusedM, T.fillRefused, LAW.width, sdU(11, 27));
     add('  width of a hard-refused candidate', T.widthHardRefusedM, T.clipRefused + T.riverRefused + T.regRefused, LAW.width, sdU(11, 27));
     add('  width of an overrun candidate', overrunWidth, T.overrun, LAW.width, sdU(11, 27));
@@ -398,6 +407,30 @@ if (args.has('laws')) {
   console.log(`  power ${power ?? FRONTAGE_FILL.power}. Each row is a uniform the walk draws; DEFINITION is its own`);
   console.log('  mean. A stage that loses more than its definition explains reads outside 3 se.\n');
   console.log('  what is drawn                                n      measured   DEFINITION    delta    3 se   verdict');
+  if (WALK.refusal === 'resume') {
+    /**
+     * SAID BEFORE THE ROW IS READ RATHER THAN AFTER. Under
+     * `WALK.refusal = 'resume'` a registry refusal advances to the LESSER of
+     * `width + rng.range(0, 3)` and the far edge of the claim that refused it,
+     * so 20.5 m is an upper bound on that row and not its mean. The row is
+     * printed against 20.5 anyway, because the DISTANCE below it is the
+     * frontage the repair hands back.
+     */
+    console.log('  NOTE: `refusal = resume`, so the hard-refusal row\'s 20.5 m is an UPPER BOUND and');
+    console.log('  the deficit below it is what the repair returns rather than what it loses.\n');
+  }
+  if (WALK.overrun !== 'abandon') {
+    /**
+     * THE SECOND ARM'S OWN NOTE, AND IT IS OWED FOR THE SAME REASON. A clamped
+     * candidate carries a NARROWER width than it drew into whichever bucket it
+     * lands in, so every width row below reads under 19.0 by construction — the
+     * fill-refusal and hard-refusal rows included. The paragraph after the table
+     * gives the exact metres and where they went.
+     */
+    console.log(`  NOTE: \`overrun = ${WALK.overrun}\`, so a candidate whose draw did not fit carries a`);
+    console.log('  NARROWER width into whichever bucket it lands in. Every width row below reads');
+    console.log('  under 19.0 for that reason and not for another one.\n');
+  }
   for (const [k, e] of Object.entries(acc)) {
     const mean = e.m / e.n;
     const se = e.sd / Math.sqrt(e.n);
@@ -419,6 +452,21 @@ if (args.has('laws')) {
     console.log(`  definition and not a defect. Removing those ${over.n} draws leaves a pool of ${poolN} at`);
     console.log(`  ${poolMean.toFixed(3)} m, and the delivered mean of ${(dl.m / dl.n).toFixed(3)} m stands ${(d >= 0 ? '+' : '') + d.toFixed(3)} m from it against 3 se`);
     console.log(`  of ${(3 * se).toFixed(3)} — ${Math.abs(d) <= 3 * se ? 'INSIDE. Nothing else selects on width.' : 'OUTSIDE. Something else selects on width.'}`);
+    /**
+     * AND UNDER `WALK.overrun = 'clamp'` SOMETHING ELSE DOES, BY CONSTRUCTION.
+     * The clamp cuts a too-wide draw down to the frontage that remains, so a
+     * clamped candidate is delivered NARROWER than it was drawn. That is the
+     * repair working, not a defect — but it is a selection on width and this
+     * instrument exists to name every one of them.
+     */
+    if (clampedN) {
+      console.log(`\n  AND THE CLAMP SELECTS ON WIDTH BY CONSTRUCTION — \`WALK.overrun = '${WALK.overrun}'\`.`);
+      console.log(`  ${clampedN} candidates were cut to the frontage that remained, ${clampedM.toFixed(0)} m in total at`);
+      console.log(`  ${(clampedM / clampedN).toFixed(3)} m each. ${clampedDelN} of them became BUILDINGS, carrying ${clampedDelM.toFixed(0)} m of that cut`);
+      console.log(`  into the delivered row: ${(clampedDelM / dl.n).toFixed(3)} m per delivered building against the ${(-d).toFixed(3)} m`);
+      console.log(`  deficit measured above. The rest of the cut is on candidates the roll or the`);
+      console.log('  registry refused afterwards, where it costs nothing.');
+    }
   }
 
   console.log('\n  The two buckets with no DEFINITION are the overrun (`side.to - t` when a');

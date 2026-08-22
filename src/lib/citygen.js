@@ -5227,7 +5227,9 @@ export function generateChunk(rootSeed, cx, cz) {
      * `overrunM` — the bucket — is added only where the metres actually leave
      * the walk, which is `'abandon'` alone.
      */
-    clamped: 0, clampedM: 0, overrunRoomM: 0,
+    clamped: 0, clampedM: 0, overrunRoomM: 0, widthOverrunDrawnM: 0,
+    /** Of the clamped candidates, the ones that became a BUILDING, and the metres cut off them. */
+    clampedDelivered: 0, clampedDeliveredM: 0,
     /**
      * THE QUAY WALK'S OWN COPY OF THE SAME OVERRUN, counted for the first time
      * — STATE 38 §8 carried it as *"uncounted by this funnel"*. It is NOT in
@@ -5735,6 +5737,8 @@ export function generateChunk(rootSeed, cx, cz) {
         frontage.runs++;
         for (let i = 0; i < runLength && t < side.to - 12; i++) {
           const room = side.to - t;
+          /** Metres the clamp took off this candidate's drawn width, if any. */
+          let cut = 0;
           /** One uniform, whatever the arm — see `WALK`. */
           let width = WALK.overrun === 'fit'
             ? rng.range(11, Math.min(27, room))
@@ -5745,6 +5749,16 @@ export function generateChunk(rootSeed, cx, cz) {
           if (t + width > side.to) {
             frontage.overrun++;
             frontage.overrunRoomM += room;
+            /**
+             * THE WIDTH AS DRAWN, STORED RATHER THAN RECOVERED BY SUBTRACTION.
+             * `funnelprobe --laws` used to get this as
+             * `widthDrawnM − delivered − fillRefused − hardRefused`, which is
+             * exact only while an overrun candidate lands in NO other bucket.
+             * Under `WALK.overrun = 'clamp'` it lands in one, so that
+             * subtraction silently became the clamp's own loss and the row read
+             * 4.878 m for a stage whose definition is 19.0. Stored.
+             */
+            frontage.widthOverrunDrawnM += width;
             frontage.overrunRoomMinM = Math.min(frontage.overrunRoomMinM, room);
             frontage.overrunRoomMaxM = Math.max(frontage.overrunRoomMaxM, room);
             traceFrontage({
@@ -5768,6 +5782,7 @@ export function generateChunk(rootSeed, cx, cz) {
             // this is always a lot the walk could have drawn.
             frontage.clamped++;
             frontage.clampedM += width - room;
+            cut = width - room;
             width = room;
           }
 
@@ -6333,6 +6348,7 @@ export function generateChunk(rootSeed, cx, cz) {
           frontage.delivered++;
           frontage.builtM += width;
           frontage.widthDeliveredM += width;
+          if (cut) { frontage.clampedDelivered++; frontage.clampedDeliveredM += cut; }
           traceFrontage({
             what: 'built', cx, cz, axis: side.axis, at: side.at, out: side.out,
             t: tCand, width, density, depth,
