@@ -1312,7 +1312,7 @@ function traceFrontage(row) {
  */
 export const WALK = {
   overrun: 'clamp',
-  refusal: 'step',
+  refusal: 'resume',
 };
 
 /**
