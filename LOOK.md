@@ -149,6 +149,47 @@ It is that the street wall is broken.
   side before the walk that runs third reaches it. **Depth and fill do not
   purely multiply; they fight at the corners**, and the third knob is the gap.
 
+  **AND THE WHOLE CHAIN HAS NOW BEEN WALKED, STAGE BY STAGE, AND IT CLOSES TO
+  ZERO — SESSION 38.** `tools/funnelprobe.mjs` counts every stage inside
+  `citygen.js`'s own perimeter walk; over `citycheck`'s 10 × 10 at seed 1337 the
+  law evaluates to **0.771**, the roll passes **0.771** — the law is applied
+  exactly as written — and **0.364** of the island edge ends up standing behind
+  a wall. Those are three different quantities: a probability per candidate lot,
+  the same probability measured, and a LENGTH ratio. The metres between them are
+  all accounted for, with a residual of 0.000000 m:
+
+  ```
+    of 34 727 m of walked island edge, at d^0.50        at fill = 1.0
+      standing behind a building              36.4%         42.8%
+      refused by the fill roll                20.2%          0.0%
+      refused by the registry (clip + river)  20.4%         31.5%
+      end-of-run gaps                         11.4%         13.6%
+      overrun — the side ABANDONED             4.6%          4.6%
+      lead-in at the head of each side         4.3%          4.4%
+      tail, the last 12 m never entered        1.7%          2.0%
+      gaps within a run                        1.0%          1.1%
+  ```
+
+  **SO THE WALK'S OWN CEILING IS 0.431 OF THE FRONTAGE**, pooled over twelve
+  regions (0.389–0.455), and not 1.0. Everything the fill law gives up is not
+  handed to the street: taking the power from 1.40 to 0.00 frees 654 candidate
+  lots at seed 1337 and **302 of them become buildings while 337 become registry
+  refusals**. The core is the end where that is worst — per-chunk frontage
+  occupancy in the DENSEST quartile moves 0.348 → 0.470 across the entire law
+  (1.35×) while the sparsest moves 0.144 → 0.458 (3.18×), pooled over eight
+  regions. **A SATURATED CORE IS NOT REACHABLE BY ANY FILL LAW OF ANY SHAPE**,
+  because at `fill = 1.0` the core already delivers only 0.470.
+
+  **AND ONE STAGE ABANDONS FRONTAGE WHERE A BUILDING FITS.** When a candidate is
+  wider than what is left, the walk sets `t = side.to` and ENDS THE SIDE rather
+  than walking past it as every other refusal does. Its own outer guard is
+  `t < side.to − 12` and its narrowest building is 11.0 m, so a building fits in
+  every one of them by construction: **94 of 332 sides (28.3%) end this way,
+  giving up 1 591 m — 12.1 m at the least, 16.9 m on average, 24.6 m at the
+  most.** It is 4.6% of the island edge at every arm. Not repaired: the fix
+  draws more random numbers on those sides and re-phases the whole city, which
+  would discard the arm session 37 chose from nineteen frames.
+
   **From the street the deepening was nearly invisible** — session 35's own
   frame pair says so — because a gap in a street wall is a frontage fact and
   depth grows the other way. **The fill raise IS visible from the street, on the
