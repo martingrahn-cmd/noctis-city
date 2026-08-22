@@ -506,7 +506,14 @@ if (args.has('stages')) {
   const step = (num, den) => runs.map((a) => (den(a) ? num(a) / den(a) : NaN));
   const pooled = (num, den) => runs.reduce((t, a) => t + num(a), 0) / runs.reduce((t, a) => t + den(a), 0);
   const rows = [
-    ['survive the overrun test', (a) => a.T.candidates - a.T.overrun, (a) => a.T.candidates],
+    /**
+     * THE LABEL FOLLOWS THE ARM. `overrun` still counts every candidate whose
+     * drawn width did not fit, but under `'clamp'` and `'fit'` that candidate is
+     * not refused — it is cut and walks on — so "survive" would be a word for a
+     * thing that no longer happens.
+     */
+    [WALK.overrun === 'abandon' ? 'survive the overrun test' : 'drawn width fitted, no clamp',
+      (a) => a.T.candidates - a.T.overrun, (a) => a.T.candidates],
     ['survive the fill roll', (a) => a.rollsPassed, (a) => a.rollsTaken],
     ['survive the river depth', (a) => a.rollsPassed - a.T.riverRefused, (a) => a.rollsPassed],
     ['survive the depth clip', (a) => a.T.delivered, (a) => a.rollsPassed - a.T.riverRefused],
