@@ -50,7 +50,7 @@
 
 import { createHash } from 'node:crypto';
 import {
-  CITY, CORRIDOR, generateChunk, FRONTAGE_FILL, frontageFill, DEPTH_DISTRIBUTION,
+  CITY, CORRIDOR, generateChunk, FRONTAGE_FILL, frontageFill, DEPTH_DISTRIBUTION, WALK,
 } from '../src/lib/citygen.js';
 
 const args = new Map(process.argv.slice(2).map((a) => {
@@ -67,6 +67,15 @@ const args = new Map(process.argv.slice(2).map((a) => {
  * to the fill law being followed down the chain.
  */
 if (args.get('depth') === 'band') Object.assign(DEPTH_DISTRIBUTION, { mode: 'band', clip: false });
+
+/**
+ * THE TWO SESSION-39 ARMS, so the repair can be measured against the thing it
+ * repairs from the command line rather than by editing the generator between
+ * runs. `--overrun=abandon --refusal=step` is the walk exactly as session 38
+ * measured it, and it is how every "before" figure in STATE 39 was taken.
+ */
+if (args.has('overrun')) WALK.overrun = args.get('overrun');
+if (args.has('refusal')) WALK.refusal = args.get('refusal');
 
 /** The same region `citycheck`, `fillprobe` and `depthprobe` report over. */
 const R = Number(args.get('radius') || 5);
@@ -106,6 +115,7 @@ function arm(power, seed = SEED) {
     fill: 0, sides: 0, frontageM: 0, leadInM: 0, tailM: 0,
     runs: 0, candidates: 0, overrun: 0, overrunM: 0,
     overrunRoomMinM: Infinity, overrunRoomMaxM: 0,
+    clamped: 0, clampedM: 0, overrunRoomM: 0,
     fillRefused: 0, fillRefusedM: 0, riverRefused: 0, riverRefusedM: 0,
     clipRefused: 0, clipRefusedM: 0, regRefused: 0, regRefusedM: 0,
     delivered: 0, builtM: 0, runGapM: 0, endGapM: 0, endGaps: 0,

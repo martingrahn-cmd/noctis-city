@@ -1230,6 +1230,93 @@ export function frontageFill(density, p = FRONTAGE_FILL.power) {
 }
 
 /**
+ * THE PERIMETER WALK'S REFUSALS, AS A TRACE — SESSION 39.
+ *
+ * WHY IT IS NOT ANOTHER COUNTER. Session 38's `frontage` tally answers *how
+ * many* and *how many metres*; it cannot answer *which claim* or *where*, and
+ * both of those are the question the walk's ceiling asks. `clipRefusedBy` keys
+ * on `hit.kind`, so `landmark 78` is 78 refusals by any of eight landmarks with
+ * four different shapes — and a repair to a pad has to name the pad.
+ *
+ * OFF BY DEFAULT AND INERT WHEN IT IS ON. It appends to an array; it draws no
+ * random number, takes no branch the walk did not already take, and is read by
+ * `tools/padprobe.mjs` and `tools/funnelprobe.mjs` only. `--identity` asserts
+ * the delivered city is bit-identical with it on, which is the same assertion
+ * session 38 owed for the tally itself.
+ */
+export const FRONTAGE_TRACE = { on: false, rows: [] };
+
+/** One row. Called only from the perimeter walk; a no-op unless tracing. */
+function traceFrontage(row) {
+  if (FRONTAGE_TRACE.on) FRONTAGE_TRACE.rows.push(row);
+}
+
+/**
+ * THE TWO THINGS THE WALKS DO WITH A LOT THEY CANNOT USE — SESSION 39.
+ * ====================================================================
+ *
+ * Both are arms rather than constants for the reason `DEPTH_DISTRIBUTION` is:
+ * the repair has to be measured against the thing it repairs, over regions,
+ * and a session that measures by editing this file between runs is keeping two
+ * states of one file in step by hand — CONTRACT §9.1's own failure mode.
+ * `tools/funnelprobe.mjs --overrun=` and `--refusal=` sweep them.
+ *
+ * ── `overrun` — A LOT WIDER THAN THE FRONTAGE THAT REMAINS ──────────────────
+ *
+ * `'abandon'` IS THE DEFECT AND IT SHIPPED FOR EIGHTEEN SESSIONS. The walk drew
+ * `rng.range(11, 27)` without knowing how much frontage was left, and when the
+ * draw did not fit it set `t = side.to` and ENDED THE SIDE. Every other refusal
+ * in this walk advances past the candidate and keeps going. Measured by
+ * `funnelprobe` at the shipped law over `citycheck`'s own region: **94 of 332
+ * sides, 1 591 m, 4.6% of the island edge** — and the outer guard is
+ * `t < side.to - 12` against a narrowest building of 11.0 m, so a building fits
+ * in EVERY one of them by construction. It is 4.6% at every arm of the fill law,
+ * which is what says it is not a fill question.
+ *
+ * The remainder was not left empty for a reason. LOOK.md §2 asks that an empty
+ * parcel be empty for one, and "the width roll came out large" is not one.
+ *
+ * `'clamp'` — THE LAST LOT ON A BLOCK IS WHAT IS LEFT OF IT. The drawn width is
+ * cut to the frontage that remains and the candidate goes on to the fill roll
+ * and the registry like any other. It draws the SAME single uniform for `width`
+ * that `'abandon'` does, at the same point in the stream.
+ *
+ * `'fit'` — A LOT IS NEVER DRAWN WIDER THAN WHAT IS LEFT. `rng.range(11,
+ * min(27, room))`, still one uniform at the same point, so the overrun branch
+ * becomes unreachable. It differs from `'clamp'` in changing the width of every
+ * candidate with under 27 m of room, not only the ones that would have overrun.
+ *
+ * ── `refusal` — WHERE THE WALK RESUMES AFTER THE REGISTRY REFUSES ───────────
+ *
+ * `'step'` is what shipped: `t += width + rng.range(0, 3)`, an advance that
+ * knows nothing about where the thing that refused it ENDS. Measured by
+ * `tools/padprobe.mjs` at the shipped law: of 296 clip refusals, **68 land PAST
+ * the far edge of the claim that refused them and skip 701 m of clear frontage
+ * doing it** — 2.0% of the island edge, 10.3 m at a time, given up beyond a pad
+ * rather than under one.
+ *
+ * `'resume'` lands no further than the claim's own far edge plus the same gap
+ * the step would have used. IT ONLY EVER SHORTENS THE ADVANCE — never lengthens
+ * it — and it takes the shorter landing only when that still advances `t` by at
+ * least `0.2 m`, the smallest gap this walk puts between two buildings. Both
+ * conditions are what keeps the loop's invariant: every path either advances
+ * `t` or ends the side.
+ *
+ * NEITHER ARM DRAWS A RANDOM NUMBER THE WALK DID NOT ALREADY DRAW. The
+ * re-phasing they cause is entirely downstream — a lot that becomes a building
+ * draws a depth, an era, a height and its signs, and the ones that did not
+ * exist before move every draw after them. CONTRACT §6's named streams cannot
+ * help with that: the extra draws are the BUILDINGS' own, on the chunk stream
+ * they have always come from, and moving them to a new stream would move every
+ * building in the city rather than the ones this repair adds.
+ */
+export const WALK = {
+  /** SESSION 39 SHIPS `'clamp'`; this commit is the INSTRUMENT and moves nothing. */
+  overrun: 'abandon',
+  refusal: 'step',
+};
+
+/**
  * SETBACKS — session 20, item 4's other half.
  *
  * A tower that is one width from pavement to parapet reads as a SHAPE. One that
@@ -5126,6 +5213,22 @@ export function generateChunk(rootSeed, cx, cz) {
      * "a building would have fitted" is a measurement and not an inference.
      */
     overrun: 0, overrunM: 0, overrunRoomMinM: Infinity, overrunRoomMaxM: 0,
+    /**
+     * SESSION 39, AND THE THREE OF THEM MEASURE DIFFERENT QUANTITIES ON PURPOSE.
+     *
+     *   `overrun`      candidates whose drawn width did not fit — every arm.
+     *   `overrunRoomM` the frontage that was AT RISK — every arm, and NOT a
+     *                  bucket of the length funnel, because in the repaired
+     *                  arms a building stands on it and `builtM` has it.
+     *   `clamped`      candidates the walk CUT to the frontage that remained
+     *                  rather than abandoning the side over (`WALK.overrun`).
+     *   `clampedM`     the DRAWN width given up by that cut. A width, not a
+     *                  frontage: it is metres that were never on the street.
+     *
+     * `overrunM` — the bucket — is added only where the metres actually leave
+     * the walk, which is `'abandon'` alone.
+     */
+    clamped: 0, clampedM: 0, overrunRoomM: 0,
     /** `rng.next() > fill` — the law's own refusal, and what it consumes. */
     fillRefused: 0, fillRefusedM: 0,
     /** Under `MIN_RIVER_DEPTH` between the lot line and the water. */
@@ -5564,6 +5667,39 @@ export function generateChunk(rootSeed, cx, cz) {
       { axis: 'z', at: island.x1, out: 1, from: island.z0, to: island.z1 },
     ];
 
+    /**
+     * WHERE THE WALK RESUMES AFTER THE REGISTRY REFUSED A CANDIDATE — SESSION 39.
+     *
+     * `t + width + gap` is what shipped, and it is an advance that knows
+     * nothing about the thing that refused it. A pad 6 m long and a pad 60 m
+     * long cost the same 20.5 m step, so the walk lands INSIDE the long one and
+     * refuses again (correct — the pad is still there) and PAST the short one,
+     * skipping clear frontage on the far side of it for nothing. Measured by
+     * `tools/padprobe.mjs`: 68 of 296 clip refusals land past the claim's far
+     * edge and give up **701 m — 2.0% of the island edge — beyond a pad rather
+     * than under one**.
+     *
+     * So the refusal lands at the claim's own far edge instead, when that is
+     * NEARER than the step would have been. Two guards, and both of them are
+     * the loop's invariant rather than taste:
+     *
+     *   - it only ever SHORTENS the advance, so no frontage is skipped that the
+     *     shipped walk would have walked;
+     *   - it advances `t` by at least 0.2 m — the smallest gap this walk puts
+     *     between two buildings, `rng.range(0.2, 1.4)`'s own floor — so "every
+     *     path either advances `t` or ends the side" still holds. Landing hard
+     *     against a pad that refuses on a setback would otherwise be a lot
+     *     refused at the same `t` for ever.
+     *
+     * IT DRAWS NO RANDOM NUMBER. `gap` is the draw the caller already took.
+     */
+    const afterRefusal = (t0, width, gap, side, hit) => {
+      const stepped = t0 + width + gap;
+      if (WALK.refusal !== 'resume' || !hit) return stepped;
+      const far = (side.axis === 'x' ? hit.x1 : hit.z1) + gap;
+      return far < stepped && far >= t0 + 0.2 ? far : stepped;
+    };
+
     for (const side of sides) {
       /**
        * ONE RETAIL ROLL FOR THE WHOLE FRONTAGE — session 28. Taken here, before
@@ -5591,17 +5727,41 @@ export function generateChunk(rootSeed, cx, cz) {
         const runLength = rng.int(1, 4);
         frontage.runs++;
         for (let i = 0; i < runLength && t < side.to - 12; i++) {
-          const width = rng.range(11, 27);
+          const room = side.to - t;
+          /** One uniform, whatever the arm — see `WALK`. */
+          let width = WALK.overrun === 'fit'
+            ? rng.range(11, Math.min(27, room))
+            : rng.range(11, 27);
           const tCand = t;
           frontage.candidates++;
           frontage.widthDrawnM += width;
           if (t + width > side.to) {
             frontage.overrun++;
-            frontage.overrunM += side.to - t;
-            frontage.overrunRoomMinM = Math.min(frontage.overrunRoomMinM, side.to - t);
-            frontage.overrunRoomMaxM = Math.max(frontage.overrunRoomMaxM, side.to - t);
-            t = side.to;
-            break;
+            frontage.overrunRoomM += room;
+            frontage.overrunRoomMinM = Math.min(frontage.overrunRoomMinM, room);
+            frontage.overrunRoomMaxM = Math.max(frontage.overrunRoomMaxM, room);
+            traceFrontage({
+              what: 'overrun', cx, cz, axis: side.axis, at: side.at, out: side.out,
+              t: tCand, width, room, density, arm: WALK.overrun,
+            });
+            if (WALK.overrun === 'abandon') {
+              /**
+               * THE ONLY ARM IN WHICH THESE METRES LEAVE THE FUNNEL. `overrunM`
+               * is a bucket of the length funnel and `overrunRoomM` is not: in
+               * the repaired arms the same metres are spent by the building
+               * that stands on them, and counting them twice would be a funnel
+               * that no longer closes — which is what the residual is for.
+               */
+              frontage.overrunM += room;
+              t = side.to;
+              break;
+            }
+            // The last lot on a block is what is left of it. `room` is over 12 m
+            // by the outer guard and the walk's narrowest building is 11 m, so
+            // this is always a lot the walk could have drawn.
+            frontage.clamped++;
+            frontage.clampedM += width - room;
+            width = room;
           }
 
           if (rng.next() > fill) {
@@ -5609,6 +5769,10 @@ export function generateChunk(rootSeed, cx, cz) {
             frontage.fillRefused++;
             frontage.fillRefusedM += t - tCand;
             frontage.widthFillRefusedM += width;
+            traceFrontage({
+              what: 'fill', cx, cz, axis: side.axis, at: side.at, out: side.out,
+              t: tCand, width, consumed: t - tCand, density,
+            });
             continue;
           }
 
@@ -5676,6 +5840,10 @@ export function generateChunk(rootSeed, cx, cz) {
                 frontage.riverRefused++;
                 frontage.riverRefusedM += t - tCand;
                 frontage.widthHardRefusedM += width;
+                traceFrontage({
+                  what: 'river', cx, cz, axis: side.axis, at: side.at, out: side.out,
+                  t: tCand, width, consumed: t - tCand, limit, density,
+                });
                 continue;
               }
               depth = limit;
@@ -5773,14 +5941,26 @@ export function generateChunk(rootSeed, cx, cz) {
               }
               if (lo < DEPTH_DISTRIBUTION.minM) {
                 refuse(hit);
-                t += width + rng.range(0, 3);
+                t = afterRefusal(t, width, rng.range(0, 3), side, hit);
                 frontage.clipRefused++;
                 frontage.clipRefusedM += t - tCand;
                 frontage.widthHardRefusedM += width;
                 frontage.clipRefusedBy[hit.kind] = (frontage.clipRefusedBy[hit.kind] || 0) + 1;
+                traceFrontage({
+                  what: 'clip', cx, cz, axis: side.axis, at: side.at, out: side.out,
+                  t: tCand, width, consumed: t - tCand, wanted, best: lo, density,
+                  kind: hit.kind, owner: hit.owner,
+                  hit: { x0: hit.x0, x1: hit.x1, z0: hit.z0, z1: hit.z1 },
+                });
                 continue;
               }
               frontage.clipKeptBy[hit.kind] = (frontage.clipKeptBy[hit.kind] || 0) + 1;
+              traceFrontage({
+                what: 'clipKept', cx, cz, axis: side.axis, at: side.at, out: side.out,
+                t: tCand, width, wanted, best: lo, density,
+                kind: hit.kind, owner: hit.owner,
+                hit: { x0: hit.x0, x1: hit.x1, z0: hit.z0, z1: hit.z1 },
+              });
               clip(hit.kind, wanted - lo);
               depth = lo;
             }
@@ -6146,6 +6326,14 @@ export function generateChunk(rootSeed, cx, cz) {
           frontage.delivered++;
           frontage.builtM += width;
           frontage.widthDeliveredM += width;
+          traceFrontage({
+            what: 'built', cx, cz, axis: side.axis, at: side.at, out: side.out,
+            t: tCand, width, density, depth,
+            gap: t - tCand - width,
+            gapKind: i === runLength - 1 ? 'end' : 'run',
+            /** What is left of the side after this building's own gap. */
+            roomAfter: side.to - t, sideFrom: side.from, sideTo: side.to,
+          });
           if (i === runLength - 1) {
             frontage.endGaps++;
             frontage.endGapM += t - tCand - width;
@@ -6193,8 +6381,25 @@ export function generateChunk(rootSeed, cx, cz) {
       const backstop = bank < 0 ? b.z0 + CORRIDOR : b.z1 - CORRIDOR;
       let t = b.x0 + rng.range(0, 11);
       while (t < b.x1 - 12) {
-        const width = rng.range(11, 27);
-        if (t + width > b.x1) { t = b.x1; break; }
+        /** `left` and not `room`: this walk already calls its DEPTH `room`. */
+        const left = b.x1 - t;
+        /**
+         * THE SAME OVERRUN AS THE PERIMETER WALK'S, AND IT WAS CARRIED IN
+         * STATE 38 §8 AS A KNOWN GAP THIS FUNNEL DID NOT COVER — SESSION 39.
+         *
+         * The guard is `t < b.x1 - 12` and the narrowest building is 11.0 m, so
+         * a building fits in every abandoned remainder here too. `WALK.overrun`
+         * is the same arm; the quay is not in `funnelprobe`'s length funnel, so
+         * what it costs is counted by the delivered building count instead
+         * (`tools/padprobe.mjs --quay`).
+         */
+        let width = WALK.overrun === 'fit'
+          ? rng.range(11, Math.min(27, left))
+          : rng.range(11, 27);
+        if (t + width > b.x1) {
+          if (WALK.overrun === 'abandon') { t = b.x1; break; }
+          width = left;
+        }
         /**
          * A SOFTER POWER THAN THE PERIMETER'S, AND IT IS A STATEMENT ABOUT
          * LAND VALUE RATHER THAN A KNOB.
