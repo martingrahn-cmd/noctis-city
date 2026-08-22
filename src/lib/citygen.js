@@ -1311,8 +1311,7 @@ function traceFrontage(row) {
  * building in the city rather than the ones this repair adds.
  */
 export const WALK = {
-  /** SESSION 39 SHIPS `'clamp'`; this commit is the INSTRUMENT and moves nothing. */
-  overrun: 'abandon',
+  overrun: 'clamp',
   refusal: 'step',
 };
 
@@ -5229,6 +5228,14 @@ export function generateChunk(rootSeed, cx, cz) {
      * the walk, which is `'abandon'` alone.
      */
     clamped: 0, clampedM: 0, overrunRoomM: 0,
+    /**
+     * THE QUAY WALK'S OWN COPY OF THE SAME OVERRUN, counted for the first time
+     * — STATE 38 §8 carried it as *"uncounted by this funnel"*. It is NOT in
+     * the length funnel and must not be: the funnel's parent is the ISLAND
+     * edge and the quay runs along the bank, which is a different frontage
+     * with a different length. Two lengths in one denominator is CONTRACT §9.
+     */
+    quayRuns: 0, quayOverrun: 0, quayOverrunM: 0, quayDelivered: 0,
     /** `rng.next() > fill` — the law's own refusal, and what it consumes. */
     fillRefused: 0, fillRefusedM: 0,
     /** Under `MIN_RIVER_DEPTH` between the lot line and the water. */
@@ -6396,7 +6403,10 @@ export function generateChunk(rootSeed, cx, cz) {
         let width = WALK.overrun === 'fit'
           ? rng.range(11, Math.min(27, left))
           : rng.range(11, 27);
+        frontage.quayRuns++;
         if (t + width > b.x1) {
+          frontage.quayOverrun++;
+          frontage.quayOverrunM += left;
           if (WALK.overrun === 'abandon') { t = b.x1; break; }
           width = left;
         }
@@ -6534,6 +6544,7 @@ export function generateChunk(rootSeed, cx, cz) {
           quayside: true,
         };
         buildings.push(bld);
+        frontage.quayDelivered++;
         occluders.push({
           x0: cxb - width / 2, x1: cxb + width / 2,
           z0: czb - depth / 2, z1: czb + depth / 2,
