@@ -5079,6 +5079,81 @@ export function generateChunk(rootSeed, cx, cz) {
     c.lostM += lost;
   };
 
+  /**
+   * SESSION 38 — THE FRONTAGE FUNNEL, COUNTED WHERE IT HAPPENS.
+   *
+   * `refused` and `clipped` above say what the REGISTRY did. They are the last
+   * two stages of a chain that starts at `frontageFill(density)` and ends at a
+   * metre of street standing behind a wall, and the six stages between them
+   * have never been counted at all. Session 38's brief asks whether there is a
+   * loss in that chain beyond what its own definitions explain, and the only
+   * honest way to answer is to count each stage in the walk that performs it
+   * rather than to reconstruct it in a probe — a second description of this
+   * loop living in `tools/` is CONTRACT §9.1's own arrangement, and this file
+   * has a comment about exactly that at `bodyAt`.
+   *
+   * NO RANDOM NUMBER IS DRAWN HERE AND NO BRANCH IS ADDED. Every field is a
+   * `++` or a `+=` on a quantity the walk already computed, so the delivered
+   * city is bit-identical with this object and without it. That is asserted:
+   * `tools/funnelprobe.mjs --identity` compares the delivered census against
+   * the pre-instrumentation commit.
+   *
+   * THE METRES CLOSE. For every side walked,
+   *
+   *     leadInM + (every candidate's own advance) + tailM  ==  the side length
+   *
+   * exactly, and `funnelprobe` asserts that residual is zero. An accounting
+   * identity is the only thing that makes a funnel evidence rather than a list
+   * of numbers that happen to decrease — CONTRACT §9's failure mode is a
+   * quantity mistaken for another, and a stage total that does not sum to its
+   * parent is that mistake with a length.
+   */
+  const frontage = {
+    /** `frontageFill(density)` for this chunk — the law's own output. */
+    fill: 0,
+    /** Sides walked, and the metres of island edge they cover. */
+    sides: 0, frontageM: 0,
+    /** `rng.range(0, 9)` at the head of each side, and what is left at the tail. */
+    leadInM: 0, tailM: 0,
+    /** Outer-loop runs, and every draw of `width` — one per candidate lot. */
+    runs: 0, candidates: 0,
+    /**
+     * A candidate wider than the frontage left. It ENDS THE SIDE — `t` is set
+     * to `side.to` and the run breaks, so the metres in `overrunM` are
+     * abandoned rather than walked past. The outer loop's own guard is
+     * `t < side.to - 12`, so every one of these had MORE THAN 12 m left and the
+     * walk's own minimum building is 11 m wide: the room is recorded so that
+     * "a building would have fitted" is a measurement and not an inference.
+     */
+    overrun: 0, overrunM: 0, overrunRoomMinM: Infinity, overrunRoomMaxM: 0,
+    /** `rng.next() > fill` — the law's own refusal, and what it consumes. */
+    fillRefused: 0, fillRefusedM: 0,
+    /** Under `MIN_RIVER_DEPTH` between the lot line and the water. */
+    riverRefused: 0, riverRefusedM: 0,
+    /** Clipped by the registry to under `DEPTH_DISTRIBUTION.minM`. */
+    clipRefused: 0, clipRefusedM: 0,
+    /** Refused outright by the registry at full depth with no clip available. */
+    regRefused: 0, regRefusedM: 0,
+    /** Delivered: the count, the frontage they stand on, and the gaps after them. */
+    delivered: 0, builtM: 0, runGapM: 0, endGapM: 0, endGaps: 0,
+    /**
+     * THE WIDTH DRAWN, BY OUTCOME. `width` is `rng.range(11, 27)` and its mean
+     * is 19.0 m by construction, so any outcome whose mean width is not 19.0 is
+     * SELECTING on width — and the funnel's job is to say whether a stage takes
+     * more than its definition allows. The overrun test selects on width by
+     * definition; nothing else in the walk is supposed to.
+     */
+    widthDrawnM: 0, widthDeliveredM: 0, widthFillRefusedM: 0, widthHardRefusedM: 0,
+    /**
+     * WHAT REFUSED IT, at the stage that does most of the refusing. `refused`
+     * above pools every refusal in the chunk — props and the quay walk included
+     * — so it cannot answer "what stopped a PERIMETER building", which is the
+     * question this funnel's largest drop asks. `clipKeptBy` is the other half:
+     * the same kinds, met by a candidate that survived at a shorter depth.
+     */
+    clipRefusedBy: {}, clipKeptBy: {},
+  };
+
   // --- the buildable island ------------------------------------------------
   // Roads run along every chunk boundary, so the interior is the chunk inset by
   // the corridor half-width. Buildings line its perimeter facing the roads, with
@@ -5480,6 +5555,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * BUILDING, which is the corner meeting session 35's depth created.
      */
     const fill = frontageFill(density);
+    frontage.fill = fill;
 
     const sides = [
       { axis: 'x', at: island.z0, out: -1, from: island.x0, to: island.x1 },
@@ -5497,6 +5573,9 @@ export function generateChunk(rootSeed, cx, cz) {
        */
       const retailSide = retailFrontage(retailRng, density);
       let t = side.from + rng.range(0, 9);
+      frontage.sides++;
+      frontage.frontageM += side.to - side.from;
+      frontage.leadInM += t - side.from;
       // A run of touching buildings, then a gap, then another run. The gaps are
       // where the side alleys, the yards and the blank end walls live, and they
       // are what stops the perimeter from being one continuous extruded ring.
@@ -5510,15 +5589,26 @@ export function generateChunk(rootSeed, cx, cz) {
       // rather than re-deriving.
       while (t < side.to - 12) {
         const runLength = rng.int(1, 4);
+        frontage.runs++;
         for (let i = 0; i < runLength && t < side.to - 12; i++) {
           const width = rng.range(11, 27);
+          const tCand = t;
+          frontage.candidates++;
+          frontage.widthDrawnM += width;
           if (t + width > side.to) {
+            frontage.overrun++;
+            frontage.overrunM += side.to - t;
+            frontage.overrunRoomMinM = Math.min(frontage.overrunRoomMinM, side.to - t);
+            frontage.overrunRoomMaxM = Math.max(frontage.overrunRoomMaxM, side.to - t);
             t = side.to;
             break;
           }
 
           if (rng.next() > fill) {
             t += width + rng.range(1, 7);
+            frontage.fillRefused++;
+            frontage.fillRefusedM += t - tCand;
+            frontage.widthFillRefusedM += width;
             continue;
           }
 
@@ -5583,6 +5673,9 @@ export function generateChunk(rootSeed, cx, cz) {
                   : -1;
               if (limit < MIN_RIVER_DEPTH) {
                 t += width + rng.range(0, 3);
+                frontage.riverRefused++;
+                frontage.riverRefusedM += t - tCand;
+                frontage.widthHardRefusedM += width;
                 continue;
               }
               depth = limit;
@@ -5681,8 +5774,13 @@ export function generateChunk(rootSeed, cx, cz) {
               if (lo < DEPTH_DISTRIBUTION.minM) {
                 refuse(hit);
                 t += width + rng.range(0, 3);
+                frontage.clipRefused++;
+                frontage.clipRefusedM += t - tCand;
+                frontage.widthHardRefusedM += width;
+                frontage.clipRefusedBy[hit.kind] = (frontage.clipRefusedBy[hit.kind] || 0) + 1;
                 continue;
               }
+              frontage.clipKeptBy[hit.kind] = (frontage.clipKeptBy[hit.kind] || 0) + 1;
               clip(hit.kind, wanted - lo);
               depth = lo;
             }
@@ -5743,6 +5841,9 @@ export function generateChunk(rootSeed, cx, cz) {
           const { bx: cxb, bz: czb, bw, bd, site } = bodyAt(depth);
           if (refuse(reg.conflict(site, 0, BUILDING_SETBACKS))) {
             t += width + rng.range(0, 3);
+            frontage.regRefused++;
+            frontage.regRefusedM += t - tCand;
+            frontage.widthHardRefusedM += width;
             continue;
           }
           reg.claim(site);
@@ -6042,8 +6143,18 @@ export function generateChunk(rootSeed, cx, cz) {
           }
 
           t += width + (i === runLength - 1 ? rng.range(6, 26) : rng.range(0.2, 1.4));
+          frontage.delivered++;
+          frontage.builtM += width;
+          frontage.widthDeliveredM += width;
+          if (i === runLength - 1) {
+            frontage.endGaps++;
+            frontage.endGapM += t - tCand - width;
+          } else {
+            frontage.runGapM += t - tCand - width;
+          }
         }
       }
+      frontage.tailM += side.to - t;
     }
   }
 
@@ -7300,6 +7411,12 @@ export function generateChunk(rootSeed, cx, cz) {
     propsGaveUp: propGaveUp,
     /** What the keep-out registry refused, by the category that refused it. */
     refused,
+    /**
+     * SESSION 38. Every stage of the frontage chain, counted in the walk that
+     * performs it — see `frontage` above for what each field is and for the
+     * accounting identity `tools/funnelprobe.mjs` asserts on it.
+     */
+    frontage,
     /**
      * SESSION 35. What the registry SHORTENED rather than refused, by the
      * category that shortened it, with the metres of depth given up. A clip is
