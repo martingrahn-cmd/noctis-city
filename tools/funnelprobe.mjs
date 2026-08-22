@@ -6,8 +6,12 @@
  *   node tools/funnelprobe.mjs                 the funnel at the shipped law
  *   node tools/funnelprobe.mjs --power=1.10    one arm
  *   node tools/funnelprobe.mjs --sweep         every arm, both funnels
+ *   node tools/funnelprobe.mjs --stages        the step ratios, pooled over regions
+ *   node tools/funnelprobe.mjs --laws          every gap law against its own mean
+ *   node tools/funnelprobe.mjs --quartiles     what a denser law can buy, and where
  *   node tools/funnelprobe.mjs --transfer      fill in, occupancy out, per chunk
  *   node tools/funnelprobe.mjs --identity      the instrumentation is inert
+ *   node tools/funnelprobe.mjs --depth=band    session 34's depth, no corner clip
  *
  * WHY IT EXISTS.
  *
@@ -427,6 +431,43 @@ if (args.has('laws')) {
  * If the densest quarter is already flat across the arms, then the core is not
  * fill-limited and no law can saturate it, whatever its shape.
  */
+/* ── --stages ─────────────────────────────────────────────────────────────
+ * THE COUNT FUNNEL'S STEP RATIOS OVER SEVERAL REGIONS.
+ *
+ * One region walks ~1400 candidate lots, and every step ratio below is a
+ * proportion read off that one draw. CONTRACT §0 rule 6 says a difference is
+ * not read against a fixed line until its own spread is known, and the same
+ * applies to a funnel: a stage that drops 0.696x in one region and 0.62x to
+ * 0.75x across twelve has not been measured until the range is printed. This
+ * mode prints the pooled ratio and the per-region min and max beside it.
+ */
+if (args.has('stages')) {
+  const seeds = (args.get('seeds') || '1337,1338,1339,1340,1341,1342,1343,1344,1345,1346,1347,1348').split(',');
+  const power = args.has('power') ? Number(args.get('power')) : null;
+  const runs = seeds.map((sd) => arm(power, sd));
+  const step = (num, den) => runs.map((a) => (den(a) ? num(a) / den(a) : NaN));
+  const pooled = (num, den) => runs.reduce((t, a) => t + num(a), 0) / runs.reduce((t, a) => t + den(a), 0);
+  const rows = [
+    ['survive the overrun test', (a) => a.T.candidates - a.T.overrun, (a) => a.T.candidates],
+    ['survive the fill roll', (a) => a.rollsPassed, (a) => a.rollsTaken],
+    ['survive the river depth', (a) => a.rollsPassed - a.T.riverRefused, (a) => a.rollsPassed],
+    ['survive the depth clip', (a) => a.T.delivered, (a) => a.rollsPassed - a.T.riverRefused],
+    ['DELIVERED / candidates', (a) => a.T.delivered, (a) => a.T.candidates],
+    ['OCCUPANCY = builtM / edge', (a) => a.T.builtM, (a) => a.T.frontageM],
+    ['the law itself, weighted', (a) => a.fillMeanWeighted * a.rollsTaken, (a) => a.rollsTaken],
+  ];
+  console.log(`funnelprobe --stages — ${seeds.length} regions of ${2 * R} x ${2 * R}, power ${power ?? FRONTAGE_FILL.power}`);
+  console.log(`  ${runs.reduce((t, a) => t + a.T.candidates, 0)} candidate lots pooled. `
+    + 'The per-region min and max are what say whether a step ratio is a finding.\n');
+  console.log('  step                              pooled     min     max    spread');
+  for (const [label, num, den] of rows) {
+    const v = step(num, den).filter(Number.isFinite);
+    console.log(`  ${label.padEnd(32)}${f3(pooled(num, den)).padStart(6)}  ${f3(Math.min(...v)).padStart(6)}  `
+      + `${f3(Math.max(...v)).padStart(6)}   ${f3(Math.max(...v) - Math.min(...v)).padStart(6)}`);
+  }
+  process.exit(0);
+}
+
 if (args.has('quartiles')) {
   const powers = (args.get('powers') || '1.40,1.10,0.90,0.70,0.50,0.30,0.00').split(',').map(Number);
   const seeds = (args.get('seeds') || '1337,1338,1339,1340,1341,1342,1343,1344').split(',');
