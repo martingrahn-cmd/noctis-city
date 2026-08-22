@@ -179,9 +179,14 @@ if (args.has('endgaps')) {
     console.log(`    ${String(b).padStart(3)}–${String(b + 4).padEnd(3)} m  ${'#'.repeat(Math.round((60 * hist.get(b)) / end.length))} ${hist.get(b)}`);
   }
   const alley = end.filter((r) => r.gap < 6).length;
+  const meanW = built.reduce((t, r) => t + r.width, 0) / built.length;
+  const wide = end.filter((r) => r.gap > meanW).length;
   console.log(`\n  under 6 m — the width of an alley: ${alley} of ${end.length} (${f1((100 * alley) / end.length)}%)`);
-  console.log(`  over 20 m — wider than the widest building on the side: `
-    + `${end.filter((r) => r.gap > 20).length} of ${end.length}`);
+  console.log(`  the law is \`rng.range(6, 26)\`, so a gap under 6 m is UNREACHABLE and the comment`);
+  console.log('  at it — *"where the side alleys, the yards and the blank end walls live"* — names');
+  console.log('  a thing this law cannot produce.');
+  console.log(`  wider than the MEAN DELIVERED BUILDING (${f1(meanW)} m): ${wide} of ${end.length} `
+    + `(${f1((100 * wide) / end.length)}%)`);
   process.exit(0);
 }
 
