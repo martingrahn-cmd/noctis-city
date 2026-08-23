@@ -487,8 +487,24 @@ an elongated-SSR reflection count, and the per-frame quarantine and
 cluster-overflow checks. `night_rain` has run at `wet: 0.85` for many sessions.
 
 **The narrower truth, which is the whole point.** `main.js` → `wet: 0`, so the
-running app, every `lookat` frame and every screenshot in every STATE is dry. The
-water has been measured for many sessions and never *looked at*.
+running app and every `lookat` frame is dry. The water has been measured for many
+sessions and never *looked at*.
+
+**AND "EVERY SCREENSHOT IN EVERY STATE IS DRY" STOPPED BEING TRUE IN SESSION 41.**
+That clause stood in the sentence above from session 33 to session 40 and is
+corrected in place rather than left to go stale a fourth time (§8). Session 41's
+walk was taken at `?wet=1` — six frames,
+`tools/shot-out/s41-{before,after}-{walk,turned,run}.png`, at 1.7 m, midnight, on
+the pavement, driven by real keys and a real mouse through the real pointer lock.
+`s41-after-turned.png` is a wet street doubling four shopfronts with two
+pedestrians in silhouette against them, and it is the frame this section has been
+asking for since session 33. **The default in `main.js` is unchanged and is still
+`wet: 0`** — what changed is that somebody stood in the water, which is all §6 ever
+asked for. STATE 41 §6.2.
+
+The same frame confirms §3's *"NOCTIS is currently monochrome amber"* by eye, which
+that bullet has never had a frame for: **one green pedestrian-signal dot is the only
+cold light in 1280 × 720.** A statement with a picture behind it now, per §8.
 
     localhost:5173/?player=1&wet=1&t=0.0
 

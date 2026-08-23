@@ -4254,10 +4254,14 @@ export function landmarkChunk(l) {
  * a piece, by `tools/inputcheck.mjs` (which prints the frame) — the arms are the
  * commit either side of session 35's `0f60c9a` and this repair on top of HEAD:
  *
- *     landmarkOccupies   landmarkAABB   frame       arm
- *        161 /frame       1 369 /frame  23.3 ms     528cfd9, 0f60c9a^
- *        505 /frame       4 143 /frame  65.7 ms     0f60c9a and every commit since
- *        505 /frame           8 TOTAL   see STATE   this commit
+ *     landmarkOccupies   landmarkAABB      REBUILDS OF      frame     arm
+ *      calls /frame       calls /frame   landmarkOccluders
+ *         161               1 369          1 369 /frame       23.3 ms   528cfd9, 0f60c9a^
+ *         505               4 143          4 143 /frame       65.7 ms   0f60c9a, and since
+ *         505               4 143        8 FOR THE PROCESS     5.2 ms   this commit
+ *
+ * The CALL count does not move: `landmarkAABB` is still asked 4 143 times a frame
+ * and still answers all of them. What stops is the rebuild behind the answer.
  *
  * 2 774 extra rebuilds a frame for 42.4 ms is **15.3 us per rebuild**, and at
  * that price the 1 369 the BEFORE arm already paid were 21.0 ms of its own
