@@ -470,10 +470,56 @@ async function measure() {
     const mouseDegPerCount =
       Math.abs(wrap(mouseB.yawDeg - mouseA.yawDeg)) / Math.max(1e-9, Math.abs(dxCounts));
 
-    const cfg = await page.evaluate(() => ({
-      cmPer360: window.__NOCTIS__.ctx.get('player') ? null : null,
-    }));
-    void cfg;
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE FRAME, PRINTED AND NOT ASSERTED — SESSION 41, AND IT IS THE LINE
+     * THAT WOULD HAVE SAVED FIVE SESSIONS.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * THIS GATE'S WINDOW CONTAINS DEAD TIME AND DOES NOT SUBTRACT IT. `hold()`
+     * reads `t0` BEFORE the key goes down and `t1` AFTER the position is read,
+     * and each of those is a separate round trip serviced on the page's own
+     * main thread — so it queues behind whatever frame is running. What the
+     * three speed bounds report is therefore
+     *
+     *     delivered × (1 − dead / window)
+     *
+     * and `dead` is a whole number of FRAMES. Measured over four arms spanning
+     * 5.2 ms to 64.3 ms a frame — a 12.4× range — it is **3.10 frames**, to
+     * ±0.07:
+     *
+     *     frame     window    reported   deficit   dead / frame
+     *      23.6 ms   1.587 s   3.340       4.6%       3.07
+     *      64.3 ms   1.742 s   3.106      11.3%       3.05
+     *      24.9 ms   1.587 s   3.330       4.9%       3.10
+     *       5.2 ms   1.521 s   3.462       1.1%       3.18
+     *
+     * So `3.10 × frame / 1.5 s > 0.06` — THIS GATE GOES RED BELOW ABOUT 34 fps
+     * WHATEVER THE WALK DOES, and it says "the walk is 8% slow" when it does.
+     * That is exactly what it said for five sessions while the walk delivered
+     * 3.5000 m/s to four decimal places (session 41, per-frame, position and
+     * `time.now` read in one evaluate).
+     *
+     * PRINTED RATHER THAN ASSERTED, AND THE WINDOW IS LEFT ALONE ON PURPOSE.
+     * Subtracting the dead time would make this gate measure the walk and
+     * nothing else — correct, and it would also have blinded the only alarm in
+     * the project that noticed `0f60c9a` costing 41 ms a frame for five
+     * sessions. `perfcheck` did not: its routes do not run `?player=1`, and its
+     * wall-clock has been inadmissible under load since session 33. Which of
+     * those two this gate is for is the operator's decision and it is written
+     * up in STATE 41 §5 with the numbers, not taken here.
+     *
+     * The median of the loop's OWN intervals, which is the delivered frame
+     * period including the vsync wait — `core/loop.js` explains why that is the
+     * quantity a person means by "frame time" and `--disable-gpu-vsync` is why
+     * there is no wait to include.
+     */
+    const frameMs = await page.evaluate(() => {
+      const iv = window.__NOCTIS__.loop.timing().intervals
+        .filter((v) => v > 0)
+        .sort((a, b) => a - b);
+      return iv.length ? iv[Math.floor(iv.length / 2)] : 0;
+    });
 
     const mouseCmPer360 = 360 / (mouseDegPerCount * (800 / 2.54));
     const padSweepDeg = declared.padDegPerSec * 1.0;
@@ -482,6 +528,7 @@ async function measure() {
       Math.max(padSweepDeg, mouseSweepDeg) / Math.max(1e-9, Math.min(padSweepDeg, mouseSweepDeg));
 
     return {
+      frameMs,
       m: {
         declaredWalkMps: declared.walkSpeedMps,
         declaredRunMps: declared.runSpeedMps,
@@ -517,7 +564,7 @@ try {
   process.exit(2);
 }
 
-const { m, dxCounts, pageErrors } = captured;
+const { m, dxCounts, frameMs, pageErrors } = captured;
 
 console.log('inputcheck — delivered response, through the real listeners');
 console.log(
@@ -541,6 +588,13 @@ console.log(
   `(bound ${BUDGET.look.maxDeviceAuthorityRatio})`
 );
 console.log(`  field     fov ${m.fovDeg.toFixed(2)}° / declared ${m.declaredFovDeg.toFixed(2)}°`);
+console.log(
+  `  frame     ${frameMs.toFixed(1)} ms median = ${(1000 / Math.max(1e-9, frameMs)).toFixed(0)} fps. ` +
+  `READ THE THREE SPEEDS AGAINST THIS: the window above carries 3.10 frames of dead time it does ` +
+  `not subtract, so it reports delivered × (1 − 3.10 × ${frameMs.toFixed(1)} ms / window) = ` +
+  `−${(100 * 3.10 * (frameMs / 1000) / 1.5).toFixed(1)}%, and it crosses the ` +
+  `${(BUDGET.speed.toleranceFraction * 100).toFixed(0)}% tolerance below about 34 fps whatever the walk does`
+);
 
 const failures = judgeInput(m, BUDGET);
 if (pageErrors.length) {
