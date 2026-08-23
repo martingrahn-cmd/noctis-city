@@ -4231,21 +4231,67 @@ export function landmarkChunk(l) {
  *
  * A curve is not a disc, and the union of the boxes the bake already marches
  * against is the one description of a landmark that is true by construction.
+ *
+ * ---------------------------------------------------------------------------
+ * MEMOISED PER LANDMARK — SESSION 41. THE CACHE WAS PUT ON THE BRANCH THAT
+ * RARELY RUNS AND LEFT OFF THE ONE THAT ALWAYS DOES.
+ * ---------------------------------------------------------------------------
+ *
+ * `landmarkGroundClaims` is memoised seven hundred lines up, for this exact
+ * reason and in these words: *"`viaductArc` -> `viaductLegs` -> `viaductEnds`
+ * is a few hundred trig calls and `landmarkOccupies` is called once per vehicle
+ * per frame."* True, and it fixed the wrong half.
+ *
+ * `landmarkOccupies` walks all eight landmarks and calls THIS first, as the
+ * REJECT. So eight AABBs are built before a single ground claim is consulted,
+ * and the claims — the memoised ones — are reached only by the one landmark
+ * whose box the point is inside. The memoised call happened at most once per
+ * query; the unmemoised one happened eight times, each rebuilding
+ * `landmarkOccluders(l)` from scratch: forty-odd fresh boxes, and for the
+ * viaduct the same arc the comment above the claim cache is about.
+ *
+ * MEASURED, `?player=1&seed=1337&t=0.0` at 1280 x 720, 160 vehicles, three runs
+ * a piece, by `tools/inputcheck.mjs` (which prints the frame) — the arms are the
+ * commit either side of session 35's `0f60c9a` and this repair on top of HEAD:
+ *
+ *     landmarkOccupies   landmarkAABB   frame       arm
+ *        161 /frame       1 369 /frame  23.3 ms     528cfd9, 0f60c9a^
+ *        505 /frame       4 143 /frame  65.7 ms     0f60c9a and every commit since
+ *        505 /frame           8 TOTAL   see STATE   this commit
+ *
+ * 2 774 extra rebuilds a frame for 42.4 ms is **15.3 us per rebuild**, and at
+ * that price the 1 369 the BEFORE arm already paid were 21.0 ms of its own
+ * 23.3 ms frame. This was never a cost session 35 introduced; session 35
+ * tripled a call whose price nobody had measured.
+ *
+ * KEYED ON THE OBJECT AND NEVER INVALIDATED, the same as the claim cache:
+ * `LANDMARKS` is authored data at module scope and does not depend on the seed,
+ * which is already what makes that cache sound. The cached box is handed back
+ * rather than copied, and that is checked rather than assumed — all fourteen
+ * call sites in `src/` and `tools/` read the four fields and none writes one.
  */
+const landmarkAABBCache = new Map();
+
 export function landmarkAABB(l) {
+  const hit = landmarkAABBCache.get(l);
+  if (hit) return hit;
   const boxes = landmarkOccluders(l);
+  let box;
   if (!boxes.length) {
     // A basin occludes nothing above grade, but it is still 210 m of ground you
     // cannot build on.
     const r = landmarkFootprint(l) / 2;
-    return { x0: l.x - r, x1: l.x + r, z0: l.z - r, z1: l.z + r };
+    box = { x0: l.x - r, x1: l.x + r, z0: l.z - r, z1: l.z + r };
+  } else {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const b of boxes) {
+      x0 = Math.min(x0, b.x0); x1 = Math.max(x1, b.x1);
+      z0 = Math.min(z0, b.z0); z1 = Math.max(z1, b.z1);
+    }
+    box = { x0, x1, z0, z1 };
   }
-  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-  for (const b of boxes) {
-    x0 = Math.min(x0, b.x0); x1 = Math.max(x1, b.x1);
-    z0 = Math.min(z0, b.z0); z1 = Math.max(z1, b.z1);
-  }
-  return { x0, x1, z0, z1 };
+  landmarkAABBCache.set(l, box);
+  return box;
 }
 
 /** Does a landmark actually stand at this point? Tested against its boxes, not its bounds. */
