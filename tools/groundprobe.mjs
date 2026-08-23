@@ -49,7 +49,7 @@
  */
 
 import {
-  CITY, CORRIDOR, generateChunk, lotDepthM, LOW_DETAIL_KINDS,
+  CITY, CORRIDOR, generateChunk, lotDepthM, LOW_DETAIL_KINDS, DEAD_ZONE,
 } from '../src/lib/citygen.js';
 
 const args = new Map(process.argv.slice(2).map((a) => {
@@ -201,7 +201,8 @@ if (args.has('law')) {
     if (!mine.length) continue;
     const law = k === 'park' ? '22 + 26·d'
       : k === 'construction' ? '14 + 16·d'
-        : k === 'built' ? '96·d³' : '26·d³';
+        : DEAD_ZONE[k] ? `${DEAD_ZONE[k].floor} + ${DEAD_ZONE[k].slope}·d`
+          : k === 'built' ? '96·d³' : '26·d³';
     const dens = mine.map((r) => r.density).sort((a, b) => a - b);
     const ask = mine.map((r) => r.asked).sort((a, b) => a - b);
     console.log(`  ${pad(k, 13)} ${pad(law, 30)} ${lpad(mine.length, 5)} ${lpad(f3(q(dens, 0.5)), 12)} ${lpad(f1(q(ask, 0.5)), 11)} ${lpad(`${ask[0]}/${ask[ask.length - 1]}`, 14)}`);

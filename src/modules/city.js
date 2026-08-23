@@ -90,6 +90,7 @@ import {
   AD_PILLAR,
   BUS_STOP,
   busStopAt,
+  DEAD_ZONE,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -682,6 +683,25 @@ export function createCity(options = {}) {
      * surface is lower than the pavement around it rather than higher.
      */
     site: GROUND.carriageway,
+    /**
+     * SESSION 40 — THE THREE SURFACES THAT DID NOT EXIST.
+     *
+     * `parking`, `yard` and the `built` block's own CORE emitted no ground
+     * rectangle at all before this session, so all three read as `earth`: the
+     * plane `block.js` draws under everything, 20 mm below the carriageway,
+     * which is the surface under a road where there is no road. A car park
+     * with no floor is not a sparse car park, it is a hole.
+     *
+     * ALL THREE SIT AT THE CARRIAGEWAY DATUM AND NONE OF THEM IS COPLANAR WITH
+     * ANYTHING. Each one is emitted INSIDE its own island, and the island is
+     * inset by `CORRIDOR` from every road and pavement this chunk draws, so
+     * there is no shared edge to z-fight over and no `crossingBias` is owed.
+     * A yard's hardstanding and a car park's asphalt are both laid ON the
+     * ground rather than kerbed into it, which is what the datum says.
+     */
+    parking: GROUND.carriageway,
+    yard: GROUND.carriageway,
+    core: GROUND.carriageway,
     /** The world's earth plane, in `block.js`. Everything not listed above. */
     earth: GROUND.earth,
   };
@@ -725,6 +745,33 @@ export function createCity(options = {}) {
    */
   /** Linear. Fresh white marking material, 0.55-0.70; the middle of the band. */
   const MARKING_ALBEDO = [0.62, 0.615, 0.60];
+
+  /**
+   * THE PAINT ON A PARKED VEHICLE — SESSION 40, six linear reflectances.
+   *
+   * WHY THEY ARE ALL DARK. LOOK.md §3 asks for cold against warm and says the
+   * city is monochrome amber, and a car park full of pale bodywork would
+   * answer that with forty grey rectangles in one frame — the market stalls'
+   * failure case (§4, *"one form, ten in a row, varying only in canopy
+   * colour"*) with cars instead of canopies. What varies here is the SHAPE
+   * (two vehicle classes, each with its own vocabulary) and the paint is held
+   * to the range real bodywork occupies at night: automotive finishes measure
+   * 0.04 (black) to 0.45 (white) diffuse, and what a car park reads as after
+   * dark is the lower half of that, because a body is lit by a 10 m column and
+   * not by the sun.
+   *
+   * The two COLD entries — the blue and the steel grey — are the §3 term this
+   * content can carry honestly: a body is one of the few surfaces in this city
+   * with a colour of its own rather than a colour borrowed from a sodium lamp.
+   */
+  const PARKED_PAINT = [
+    [0.041, 0.041, 0.044],
+    [0.088, 0.090, 0.098],
+    [0.052, 0.068, 0.104],
+    [0.118, 0.030, 0.026],
+    [0.176, 0.180, 0.188],
+    [0.036, 0.062, 0.050],
+  ];
 
   /**
    * THE ONE WALK OVER THE EMITTED GROUND RECTANGLES. Session 19.
@@ -1053,6 +1100,22 @@ export function createCity(options = {}) {
      * green channel leads the blue because the clay in it is warm.
      */
     const siteAlbedo = [0.115, 0.107, 0.092];
+    /**
+     * SESSION 40 — THREE MORE SURFACES, AND EACH REFLECTANCE IS A SENTENCE
+     * ABOUT WHAT THE SURFACE IS MADE OF.
+     *
+     *   parking   the same asphalt as a road, because that is what it is,
+     *             and the bay paint on it is the same 0.62 as a lane line —
+     *             a ratio of 7.6x, which is what makes a bay read at night.
+     *   yard      worn concrete hardstanding: paler than asphalt, dirtier
+     *             than a pavement's 0.26, and the blue channel trails because
+     *             concrete greys warm as it wears.
+     *   core      a block's service yard — asphalt patched over concrete, so
+     *             it sits between the two at 0.105 rather than being either.
+     */
+    const parkingAlbedo = [0.082, 0.082, 0.086];
+    const yardAlbedo = [0.172, 0.169, 0.160];
+    const coreAlbedo = [0.105, 0.102, 0.096];
 
     const albedoFor = (kind) => (
       kind === 'road' ? roadAlbedo
@@ -1060,7 +1123,10 @@ export function createCity(options = {}) {
           : kind === 'grass' ? grassAlbedo
             : kind === 'path' ? pathAlbedo
               : kind === 'siteGround' ? siteAlbedo
-                : walkAlbedo);
+                : kind === 'parkingGround' ? parkingAlbedo
+                  : kind === 'yardGround' ? yardAlbedo
+                    : kind === 'coreGround' ? coreAlbedo
+                      : walkAlbedo);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1074,7 +1140,22 @@ export function createCity(options = {}) {
      * returned true against everything and a park's lawn claimed nothing at
      * all. Over-claiming and under-claiming, from one missing row.
      */
-    const CATEGORY_FOR_GROUND = { siteGround: 'ground', grass: 'ground' };
+    const CATEGORY_FOR_GROUND = {
+      siteGround: 'ground',
+      grass: 'ground',
+      /**
+       * SESSION 40 — and the row is the whole of the lesson above, applied
+       * before the defect rather than after it. All three are SURFACES that
+       * things stand on, so all three are `ground`: the category that conflicts
+       * with a building, a landmark and the water and with nothing else. A car
+       * park's asphalt labelled `carriageway` would have made every parked car
+       * on it a collision, which is exactly what `siteGround` did to every
+       * container on its own site for nine sessions.
+       */
+      parkingGround: 'ground',
+      yardGround: 'ground',
+      coreGround: 'ground',
+    };
     for (const g of chunk.ground) {
       quad(g.x0, g.z0, g.x1, g.z1, Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth,
         albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
@@ -2263,6 +2344,30 @@ export function createCity(options = {}) {
             put(0, f.height * 0.5, 0, f.length * 0.96, 0.05, 0.05, [0.055, 0.055, 0.058], 0.7);
             put(0, f.height * 0.62, 0, f.length * 0.96, 0.04, 0.04, [0.055, 0.055, 0.058], 0.7);
             for (const e of [-0.48, 0, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.06, f.height, 0.06, [0.055, 0.055, 0.058], 0.7);
+          } else if (f.edge === 'rail') {
+            /**
+             * A CAR PARK'S KNEE RAIL — session 40. Two horizontals on stubby
+             * posts, galvanised rather than cast iron: this is a thing that
+             * stops a car, not a thing that encloses a garden, and the
+             * difference reads in the reflectance (0.34 against 0.055) long
+             * before it reads in the shape.
+             */
+            put(0, f.height * 0.86, 0, f.length * 0.98, 0.07, 0.07, [0.34, 0.345, 0.352], 0.6);
+            put(0, f.height * 0.48, 0, f.length * 0.98, 0.06, 0.06, [0.34, 0.345, 0.352], 0.6);
+            for (const e of [-0.46, 0.46]) put(f.length * e, f.height * 0.45, 0, 0.09, f.height * 0.9, 0.09, [0.30, 0.305, 0.312], 0.62);
+          } else if (f.edge === 'palisade') {
+            /**
+             * A YARD'S SECURITY PALISADE — session 40, and it is the one
+             * boundary in this city you cannot see over. 2.2 m of vertical
+             * pales on two rails: the pales are drawn as one slab rather than
+             * as forty boxes, because at any distance a palisade IS a slab and
+             * forty boxes per segment over four sides of an island is 5 000
+             * instances for a texture.
+             */
+            put(0, f.height * 0.52, 0, f.length, f.height * 0.96, 0.05, [0.27, 0.276, 0.284], 0.62);
+            put(0, f.height * 0.80, 0, f.length * 0.99, 0.07, 0.10, [0.31, 0.316, 0.324], 0.58);
+            put(0, f.height * 0.26, 0, f.length * 0.99, 0.07, 0.10, [0.31, 0.316, 0.324], 0.58);
+            for (const e of [-0.48, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.11, f.height, 0.11, [0.29, 0.295, 0.302], 0.6);
           } else if (f.edge === 'hedge') {
             put(0, f.height * 0.5, 0, f.length, f.height, 0.44, [0.062, 0.098, 0.052], 0.95);
             put(0, f.height * 0.88, 0, f.length * 0.94, f.height * 0.3, 0.36, [0.074, 0.112, 0.058], 0.95);
@@ -2344,6 +2449,79 @@ export function createCity(options = {}) {
           for (let k = 1; k < f.levels; k++) {
             put(0, k * f.storey, 0, half * 2 + 0.6, 0.26, half * 2 + 0.6, [0.33, 0.325, 0.31], 0.9);
           }
+        } else if (f.kind === 'parked') {
+          /**
+           * A PARKED VEHICLE — SESSION 40, and it is built to LOOK.md §4's
+           * four devices rather than to a car's proportions.
+           *
+           *   A WEDGE.            The nose block sits 0.26 m lower than the
+           *                       body and the shoulder is set back, so the
+           *                       side elevation carries one rake. §4 says the
+           *                       silhouette is the whole of what reads at
+           *                       thirty metres and this is read from further.
+           *   ENCLOSE THE WHEELS. There are none. The lowest box is a
+           *                       near-black underbody skirt closing to the
+           *                       ground — which removes the free-wheels-under-
+           *                       a-box reference AND is the dark gap at the
+           *                       ground `perfcheck`'s silhouette bar asks for.
+           *   A DIFFERENT LANGUAGE PER CLASS. The van is one unbroken volume
+           *                       with a cab notched out of its front; the car
+           *                       is three stacked masses. Two vehicles, two
+           *                       vocabularies, which is §4's fourth device.
+           *
+           * NO LIGHT SIGNATURE, DELIBERATELY. A parked car is off. §4's third
+           * device — light as form — belongs to the vehicles that are moving,
+           * and a lit parked car would be the one thing in a car park that
+           * claims to be going somewhere.
+           */
+          const paint = PARKED_PAINT[(f.chroma || 0) % PARKED_PAINT.length];
+          const dark = [paint[0] * 0.62, paint[1] * 0.62, paint[2] * 0.62];
+          const GLASS = [0.042, 0.048, 0.056];
+          const SKIRT = [0.020, 0.020, 0.022];
+          /**
+           * EVERY BOX FITS INSIDE THE HALF-EXTENTS `citygen.js` CLAIMED, AND
+           * THE MARGINS ARE WRITTEN DOWN BECAUSE THAT IS THE PAIR §9.1 IS A
+           * LIST OF. The generator claims 2.70 × 1.05 for a van and
+           * 2.30 × 0.92 for a car, rotated by the SAME `yawDeg` these boxes
+           * are drawn at, so the claim contains the delivery by construction —
+           * but only if the model does not reach past it:
+           *
+           *   van   x ∈ [−2.68, +2.65]   z ∈ [−1.03, +1.03]   y ≤ 2.44
+           *   car   x ∈ [−2.29, +2.28]   z ∈ [−0.91, +0.91]   y ≤ 1.38
+           *
+           * against claims of ±2.70 / ±1.05 / 2.45 and ±2.30 / ±0.92 / 1.48.
+           */
+          if (f.vehicle === 'van') {
+            put(0, 0.15, 0, 4.90, 0.30, 1.86, SKIRT, 0.9);
+            put(0.32, 1.32, 0, 4.66, 2.04, 2.06, paint, 0.52);
+            put(-2.02, 0.94, 0, 1.32, 1.28, 1.98, dark, 0.5);
+            put(-2.50, 1.44, 0, 0.34, 0.66, 1.80, GLASS, 0.16);
+            put(0.40, 2.39, 0, 3.40, 0.10, 1.92, dark, 0.6);
+          } else {
+            put(0, 0.13, 0, 4.10, 0.26, 1.56, SKIRT, 0.9);
+            put(0, 0.52, 0, 4.58, 0.52, 1.82, paint, 0.42);
+            put(-0.16, 0.95, 0, 3.54, 0.36, 1.72, dark, 0.44);
+            put(-0.32, 1.24, 0, 2.06, 0.28, 1.54, GLASS, 0.14);
+            put(1.85, 0.64, 0, 0.86, 0.24, 1.68, paint, 0.42);
+          }
+        } else if (f.kind === 'stub') {
+          /**
+           * THE PARTY WALL THE LAST BUILDING LEFT — session 40.
+           *
+           * What makes it read as a REMNANT rather than as a wall is the ghost
+           * of the floors: a demolished terrace leaves its neighbour's flank
+           * with the joist line, the chimney breast and the plaster of every
+           * room that used to be against it. Three ingredients, all of them one
+           * box: the mass, a band per storey, and a coping that is dirtier than
+           * the wall because it has been open to the weather since.
+           */
+          put(0, f.height / 2, 0, f.length, f.height, f.thickness, [0.148, 0.116, 0.088], 0.92);
+          for (let k = 1; k <= f.floors; k++) {
+            const y = (k / (f.floors + 1)) * f.height;
+            put(0, y, 0, f.length * 0.98, 0.16, f.thickness * 1.25, [0.108, 0.090, 0.074], 0.94);
+          }
+          put(0, f.height + 0.08, 0, f.length, 0.16, f.thickness * 1.5, [0.088, 0.080, 0.070], 0.95);
+          put(f.length * 0.30, f.height * 0.46, 0, 0.9, f.height * 0.92, f.thickness * 1.4, [0.132, 0.104, 0.080], 0.92);
         } else if (f.kind === 'flood') {
           put(0, 0.14, 0, 0.9, 0.28, 0.9, [0.30, 0.298, 0.288], 0.9);
           put(0, f.height * 0.5, 0, 0.20, f.height, 0.20, [0.34, 0.345, 0.352], 0.55);
@@ -2362,8 +2540,21 @@ export function createCity(options = {}) {
         }
         if (fx1 > fx0) {
           placed.push({
+            /**
+             * SESSION 40 — `parked` IS A `prop` AND `stub` IS A `site`, AND
+             * BOTH HAVE TO MATCH WHAT THE GENERATOR CLAIMED.
+             *
+             * This mapping and `citygen.js`'s own `claimAt` category are the
+             * two halves of one comparison (CONTRACT §9.1): the generator says
+             * what it TESTED and this says what ARRIVED, and they are only the
+             * same number if they agree on the category. A parked vehicle is an
+             * object standing on the ground entirely under `HEAD_CLEAR_M`, so
+             * it is `prop` on both sides; a surviving party wall is what a
+             * cleared site left, so it is `site` on both sides.
+             */
             kind: f.kind === 'hoarding' || f.kind === 'spoil' || f.kind === 'frame'
-              || f.kind === 'crane' || f.kind === 'flood' ? 'site' : 'feature',
+              || f.kind === 'crane' || f.kind === 'flood' || f.kind === 'stub' ? 'site'
+              : f.kind === 'parked' ? 'prop' : 'feature',
             owner: `${f.kind}:${f.edge || f.centre || ''}`,
             x0: fx0, x1: fx1, z0: fz0, z1: fz1, y0: 0, y1: Math.max(0.05, fTop),
           });
@@ -3199,7 +3390,17 @@ export function createCity(options = {}) {
           bowls.push(setMatrix(f.x, baseY + f.height, f.z, 0.52, 0.52, 0.52, 0));
           lamps.push({
             x: f.x, y: baseY + f.height, z: f.z, axis: 'x', side: 1,
-            candela: LIGHT.parkLampCandela,
+            /**
+             * SESSION 40 — TWO POST-TOP COLUMNS NOW, AND THE HEIGHT DECIDES
+             * WHICH. A park lamp is 4.20 m and a car park's column is 10.0 m,
+             * and the same peak candela at either height is not the same light
+             * — `E = I·cos³(57°)/h²` is the relation `parkLampCandela`'s own
+             * derivation uses, and h² differs by 5.7×. The two constants are
+             * derived side by side in `constants.js`; what is chosen here is
+             * which fixture this column carries, off the one field that
+             * distinguishes them.
+             */
+            candela: f.height >= DEAD_ZONE.columnHeight ? LIGHT.carParkColumnCandela : LIGHT.parkLampCandela,
             /** Post-top: straight down, no lateral tilt, because a park path
              *  has no kerb to throw the pool toward. */
             dir: [0, -1, 0],

@@ -1899,6 +1899,143 @@ export const SITE = {
   floodPerSite: 3,
 };
 
+/**
+ * THE GROUND THAT IS NOT A BUILDING — SESSION 40.
+ * ==============================================
+ *
+ * WHAT WAS HERE BEFORE, AND IT WAS A LAW RATHER THAN AN ACCIDENT. `park` and
+ * `construction` each got a count with a FLOOR under it — `22 + 26·d` and
+ * `14 + 16·d` — because a park's planting is what a park IS and a site's
+ * clutter is what a site IS. The other three low-detail kinds and the ordinary
+ * block interior fell through to `(lowDetail ? 26 : 96) · d³`, a cubic law with
+ * no floor at all.
+ *
+ * AND THE CUBIC LAW AND THE GATE THAT SELECTS THE KIND READ THE SAME FIELD,
+ * WHICH IS WHAT MAKES IT A CEILING OF ONE. A chunk is low-detail BECAUSE
+ * `density < CITY.lowDetailThreshold` = 0.34 — that is what put it there — so
+ * `26 · d³` on a `parking`, `lot` or `yard` chunk cannot exceed
+ * `26 × 0.34³ = 1.022`, and it rounds to ZERO below `d = 0.268`. The three
+ * kinds were not sparsely furnished; they were capped at one object per chunk
+ * by construction, and 84 of the 131 of them in twelve regions delivered
+ * nothing at all on 1.094 hectares of open ground (`tools/groundprobe.mjs`,
+ * seeds 1337–1348).
+ *
+ * THE FLOOR IS WHAT THE KIND IS, NOT WHAT THE DENSITY FIELD SAYS. A yard is a
+ * yard whether it stands downtown or on the edge — the same sentence `PARK`'s
+ * own 22 makes about planting — so every floor below is derived from a length
+ * that belongs to that kind, and the derivation is beside the constant.
+ *
+ * THE FORM, STATED ONCE. `104.6/√N` is the mean spacing between N objects
+ * spread evenly over the 104.6 m island, and it is the form `PARK` already
+ * uses: `104.6/√22` = 22.3 m, which is the *"one object every 22 m"* its
+ * comment quotes.
+ *
+ * > AND `SITE`'s OWN QUOTATION IS OFF BY ITS OTHER CONSTANT. That comment says
+ * > *"14 plus a density term over the 104.6 m island is one object every
+ * > 26 m"*. `104.6/√14` is **28.0 m**; 26.15 m is `104.6/√16`, the SLOPE's
+ * > spacing rather than the FLOOR's. The floor is unchanged — this is the
+ * > arithmetic beside it, corrected in the open (CONTRACT §9 rule 5).
+ *
+ * WHAT IS A PROP AND WHAT IS A FEATURE, BECAUSE THE SPLIT IS LOAD-BEARING AND
+ * IT MOVES A GATE. A thing is a `prop` if its placement is a SCATTER and a
+ * `feature` if it is a RUN, a ROW or a GRID — the distinction `park` already
+ * draws between its trees (scattered) and its edging, lamps and centre piece
+ * (structured). `objectCount` is `buildings + props + signs` and does NOT
+ * count features, so `citycheck`'s clumping CV moves with the first and not
+ * with the second. The split below is made on the placement and the CV cost of
+ * both halves is printed in STATE 40 §5, so that nobody has to take on trust
+ * that a row of parked cars is a row because a car park is rows.
+ */
+export const DEAD_ZONE = {
+  /**
+   * A CAR PARK, AND ITS FIXTURES ARE ITS LIGHTING. A surface lot is lit by
+   * columns, and a 10 m column covers about a 30 m square to the 20 lux a
+   * parking surface is lit to: `(104.6/30)² = 12.2 → 12`, spacing
+   * `104.6/√12` = 30.2 m. The bays, the cars and the columns themselves are
+   * `features` — they stand in rows — and this floor is the loose stuff
+   * between them.
+   */
+  parking: { floor: 12, slope: 16 },
+  /**
+   * A WORKS YARD, AND ITS MODULE IS THE APRON A VEHICLE NEEDS TO BACK INTO A
+   * STACK. A rigid van is 7.0 m long and a service apron is three of its own
+   * lengths — 21 m — to back and turn. One stack per apron:
+   * `(104.6/21)² = 24.8 → 24`, spacing `104.6/√24` = 21.4 m. It is the densest
+   * floor of the five because a yard is the one dead zone that is WORKED.
+   */
+  yard: { floor: 24, slope: 16 },
+  /**
+   * A CLEARED LOT, AND ITS CONTENT IS WHAT THE LAST BUILDING LEFT. There is no
+   * module to derive from because nothing operates here, so the floor is the
+   * smallest number that is a placement rather than a scatter: one object per
+   * THIRD of the island on each axis, `3 × 3 = 9`, spacing `104.6/√9` = 34.9 m.
+   * The slope is the lowest of the five for the same reason.
+   */
+  lot: { floor: 9, slope: 12 },
+  /**
+   * THE BLOCK INTERIOR — the largest bare surface in the city and the one kind
+   * here that is not a `LOW_DETAIL_KINDS` member at all.
+   *
+   * Session 35's depth takes a building 29.6 m into a 52.3 m half-block and
+   * `lotDepthM()` caps it at 40.6 m, so the central `104.6 − 2 × 40.6` =
+   * **23.4 m** square of every island is ground no perimeter building may
+   * reach BY CONSTRUCTION. 659 of 963 built chunks had nothing standing in it
+   * (`groundprobe --interiors`, twelve regions).
+   *
+   * WHAT A LIGHT-WELL CORE CONTAINS IS THE BLOCK'S SERVICING, which is the
+   * answer to *"what is it for"* rather than a decoration: bin stores, a plant
+   * enclosure, stacked material and a delivery bay. So its module is the same
+   * 21.4 m van apron the `yard` is derived from — a block interior IS a
+   * service yard — taken over the ground a built island actually has:
+   * `groundprobe` measures the median open island ground of a `built` chunk at
+   * **0.538 ha = 5 380 m²** over twelve regions, and `5 380 / 21.4² = 11.7`
+   * → **12**. The slope is 14, so a core in the densest quarter carries 26: a
+   * dense block services more.
+   */
+  core: { floor: 12, slope: 14 },
+  /**
+   * Metres. A parking bay and the aisle it is reached from. 2.5 × 5.0 m is the
+   * ordinary urban bay and 6.0 m is the aisle a car needs to turn into one, so
+   * a DOUBLE-LOADED MODULE — bay, aisle, bay — is `5.0 + 6.0 + 5.0` = 16.0 m.
+   */
+  bayW: 2.5,
+  bayL: 5.0,
+  aisleW: 6.0,
+  /**
+   * How many double-loaded modules an island carries. `floor(104.6/16.0)` is
+   * 6, and 6 is not what a block-interior lot is: a parcel reached through ONE
+   * entrance off ONE frontage does not run 500 spaces. TWO modules is 32.0 m
+   * of the 104.6 m island — four rows of bays with circulation round them —
+   * and it is the layout that reads as a car park from the air while leaving
+   * the rest of the parcel as the surface it is.
+   */
+  modules: 2,
+  /**
+   * The share of bays with a car in them, and it is the CHUNK'S OWN DENSITY.
+   *
+   * LOOK.md §2's last bullet asks for density to have causes, and this is the
+   * one surface in the city where the cause is literally the same quantity: a
+   * car park in the core is full and one on the edge is half empty. A
+   * low-detail chunk's density runs 0.10–0.34, so a lot delivers between a
+   * tenth and a third of its bays occupied — the state that reads as USED,
+   * where full reads as a showroom and empty reads as a defect. The PAINT is
+   * there at every density, which is what makes the parcel legible as a car
+   * park whatever the field says: that is the floor.
+   */
+  bayOccupancy: 'density',
+  /** Metres. Height of the boundary rail round a car park, and of a yard's palisade. */
+  railHeight: 1.10,
+  palisadeHeight: 2.20,
+  /** Metres. Segment length of a boundary run, and how far it stands inside the island. */
+  edgeSegment: 3.0,
+  edgeInset: 0.9,
+  /** Metres. Half-width of the entrance gap in a boundary run. One per parcel. */
+  gateHalf: 4.5,
+  /** Metres. A car-park lighting column and the square it covers. */
+  columnHeight: 10.0,
+  columnEvery: 30.0,
+};
+
 // ---------------------------------------------------------------------------
 // landmarks — docs/authored-city.md §6
 //
@@ -4391,6 +4528,58 @@ export const PROP_MODELS = {
     },
   ],
 
+  /**
+   * STACKED MATERIAL — SESSION 40, and it is the one kind a yard cannot be
+   * made of anything already here.
+   *
+   * `container` is a skip and a shipping box: both are things material arrives
+   * IN. What a works yard is covered in is material lying about — timber and
+   * sheet on bearers, drums, blocks under a sheet — and none of the nine kinds
+   * that existed carries that. It is the only new prop kind this session adds,
+   * and the test for adding one is LOOK.md §5's: it is derivable from what the
+   * city already has (a yard, declared by `LOW_DETAIL_KINDS` since session 4)
+   * rather than placed because it signifies.
+   *
+   * ALL THREE VARIANTS ARE UNDER `HEAD_CLEAR_M` = 2.10 m, so a stack is
+   * entirely in the `prop` band and never in `canopy`. That is what a stack IS
+   * — material you can see over — and it also keeps it off the kerb walk's
+   * awkward edge, where the across-pad decides whether a kind may stand on a
+   * pavement at all.
+   */
+  stack: [
+    /** Sawn timber and sheet on bearers, banded, weathering at the ends. */
+    {
+      boxes: [
+        bx(0, 0.06, 0, 2.40, 0.12, 1.20, TIMBER, 0.92),
+        bx(0, 0.44, 0, 2.30, 0.64, 1.08, [0.21, 0.176, 0.126], 0.9),
+        bx(0, 0.86, 0.10, 1.90, 0.22, 0.86, [0.17, 0.142, 0.104], 0.9),
+      ],
+    },
+    /** Steel drums, two rows, one on its side — the shape a yard reads by. */
+    {
+      boxes: [
+        bx(-0.62, 0.44, -0.32, 0.58, 0.88, 0.58, [0.19, 0.115, 0.055], 0.72),
+        bx(0.02, 0.44, -0.30, 0.58, 0.88, 0.58, [0.16, 0.145, 0.062], 0.74),
+        bx(0.64, 0.44, -0.28, 0.58, 0.88, 0.58, [0.13, 0.132, 0.138], 0.7),
+        bx(-0.30, 0.29, 0.52, 0.88, 0.58, 0.58, [0.19, 0.115, 0.055], 0.72),
+        bx(0.58, 0.29, 0.54, 0.88, 0.58, 0.58, [0.15, 0.14, 0.06], 0.72),
+      ],
+    },
+    /**
+     * Palletised blocks under a tarpaulin. The sheet is the one surface in the
+     * kind that is not the material: reflectance 0.13 and roughness 0.55, so it
+     * catches a lamp where the timber under it does not.
+     */
+    {
+      boxes: [
+        bx(0, 0.07, 0, 1.20, 0.14, 1.20, TIMBER, 0.92),
+        bx(0, 0.62, 0, 1.14, 0.96, 1.14, CONCRETE, 0.94),
+        bx(0, 1.16, 0, 1.30, 0.16, 1.30, [0.13, 0.128, 0.118], 0.55),
+        bx(0.55, 0.78, 0.58, 0.22, 0.60, 0.20, [0.13, 0.128, 0.118], 0.55),
+      ],
+    },
+  ],
+
   lamppost: [
     {
       boxes: [
@@ -6769,10 +6958,10 @@ export function generateChunk(rootSeed, cx, cz) {
     }
   }
 
-  // --- parks and construction sites ----------------------------------------
+  // --- the five low-detail kinds, and what each one IS ---------------------
   //
-  // BOTH ARE LOW-DETAIL BLOCKS WITH CONTENT, and they are built HERE — in the
-  // pure generator, beside the registry — rather than in `city.js`, for the
+  // ALL FIVE ARE LOW-DETAIL BLOCKS WITH CONTENT, and they are built HERE — in
+  // the pure generator, beside the registry — rather than in `city.js`, for the
   // reason the ground rectangles moved here in the same session: a park path
   // is a surface that props must not stand on and a hoarding is a solid that
   // roads must not run through, and a placement decided in the module that
@@ -6780,14 +6969,113 @@ export function generateChunk(rootSeed, cx, cz) {
   //
   // `features` is everything a low-detail block builds that is not a prop and
   // not ground: an edge segment, a centre piece, a lamp column, a hoarding
-  // panel, a crane, a flood mast. `city.js` reads the list and draws it; it
-  // decides nothing.
+  // panel, a crane, a flood mast, a boundary rail, a parked vehicle, a
+  // surviving party wall. `city.js` reads the list and draws it; it decides
+  // nothing.
+  //
+  // TWO OF THE FIVE HAD CONTENT AND THREE HAD NONE — SESSION 40. `parking`,
+  // `lot` and `yard` reached this point and fell straight through it to a prop
+  // scatter capped at ONE object per chunk (see `DEAD_ZONE` for why the cap is
+  // one and not a few). They now get what `park` and `construction` have had
+  // since session 21: a surface of their own, a boundary, and the things that
+  // belong to the kind.
+  //
+  // NO DRAW ORDER ABOVE THIS LINE MOVES. `featRng` is `chunkRng(..., 'feature')`
+  // and a chunk is exactly one kind, so the three new branches draw from a
+  // stream no park and no site has ever reached. The delivered park and
+  // construction chunks are bit-identical (STATE 40 §7's determinism digest).
   const features = [];
-  if (kind === 'park' || kind === 'construction') {
+  if (lowDetail) {
     const featRng = chunkRng(rootSeed, cx, cz, 'feature');
     const isl = island;
     const mx = (isl.x0 + isl.x1) / 2;
     const mz = (isl.z0 + isl.z1) / 2;
+    /**
+     * THE SOLIDS THIS ISLAND IS CLIPPED AGAINST. One list, four consumers —
+     * a park's grass, a site's hardcore, a car park's asphalt and a yard's
+     * hardstanding all stop at the same landmark, the same block keep-out and
+     * the same water.
+     */
+    const islandSolids = () => reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+
+    /**
+     * A BOUNDARY RUN — SESSION 40, FACTORED OUT OF THE PARK'S OWN EDGE LOOP.
+     *
+     * A park has railings, a site has hoarding, a car park has a knee rail and
+     * a yard has a palisade. All four are the same placement: segments round
+     * the island with ONE entrance gap, each set in by its own half-thickness
+     * plus the bulge its yaw jitter adds, each tested against the registry and
+     * skipped rather than squeezed. Writing it four times is CONTRACT §9.1's
+     * subject; the park's own copy is left exactly where it is, because moving
+     * it would re-order its draws and re-phase every park in the city.
+     *
+     * `gate` is the along-coordinate of the entrance on the rolled side. A
+     * boundary with no way in is a wall, which is the sentence `SITE`'s own
+     * gate makes.
+     */
+    const boundaryRun = ({ inset, seg, halfT, height, category, owner, gateSide, gateAt, gateHalf, make }) => {
+      const rx0 = isl.x0 + inset;
+      const rx1 = isl.x1 - inset;
+      const rz0 = isl.z0 + inset;
+      const rz1 = isl.z1 - inset;
+      const runs = [
+        { axis: 'x', at: rz0, from: rx0, to: rx1 },
+        { axis: 'x', at: rz1, from: rx0, to: rx1 },
+        { axis: 'z', at: rx0, from: rz0, to: rz1 },
+        { axis: 'z', at: rx1, from: rz0, to: rz1 },
+      ];
+      runs.forEach((run, i) => {
+        const gateC = run.from + (run.to - run.from) * gateAt;
+        for (let t = run.from; t + seg <= run.to; t += seg) {
+          const c = t + seg / 2;
+          if (i === gateSide && Math.abs(c - gateC) < gateHalf) continue;
+          /**
+           * The rotation's own bulge, exactly as the park's edge computes it
+           * and for the same measured reason (session 31): the claim is the
+           * ROTATED box's extent at `CITY.maxYawDeg`, so a segment turned a
+           * degree cannot hang over the pavement its centre was set back from.
+           */
+          const yawBulge = (CITY.maxYawDeg * Math.PI) / 180;
+          const halfAcross = halfT * Math.cos(yawBulge) + (seg / 2) * Math.sin(yawBulge);
+          const halfAlong = (seg / 2) * Math.cos(yawBulge) + halfT * Math.sin(yawBulge);
+          const x = run.axis === 'x' ? c : run.at;
+          const z = run.axis === 'x' ? run.at : c;
+          const box = claimAt(category, x, z,
+            run.axis === 'x' ? halfAlong : halfAcross,
+            run.axis === 'x' ? halfAcross : halfAlong,
+            { y0: 0, y1: height, owner });
+          if (reg.conflict(box)) continue;
+          features.push(make(x, z, (run.axis === 'x' ? 0 : 90) + yaw(), run.axis));
+          reg.claim(box);
+        }
+      });
+    };
+
+    /**
+     * A PARKED VEHICLE — SESSION 40, and it is the one thing a car park cannot
+     * be made of anything this project already had.
+     *
+     * `traffic.js` owns the vehicles that MOVE; they are agents on a lane
+     * graph and none of them can stand still on a parcel. A parked car is
+     * static geometry and it claims `prop` — it is an object standing on the
+     * ground, entirely under `HEAD_CLEAR_M`, and it must not overlap another
+     * object. Not `site`, which is a construction fixture, and not `feature`,
+     * which a prop is allowed to be refused by rather than to refuse.
+     */
+    const parkVehicle = (x, z, yawDeg, vehicle) => {
+      const halfL = vehicle === 'van' ? 2.70 : 2.30;
+      const halfW = vehicle === 'van' ? 1.05 : 0.92;
+      const ca = Math.abs(Math.cos((yawDeg * Math.PI) / 180));
+      const sa = Math.abs(Math.sin((yawDeg * Math.PI) / 180));
+      const hx = ca * halfL + sa * halfW;
+      const hz = sa * halfL + ca * halfW;
+      const box = claimAt('prop', x, z, hx, hz,
+        { y0: 0, y1: vehicle === 'van' ? 2.45 : 1.48, owner: `parked:${vehicle}` });
+      if (reg.conflict(box, 0, PROP_SETBACKS)) return false;
+      features.push({ kind: 'parked', x, z, yawDeg, vehicle, chroma: featRng.int(0, 5) });
+      reg.claim(box);
+      return true;
+    };
 
     if (kind === 'park') {
       /**
@@ -6956,7 +7244,7 @@ export function generateChunk(rootSeed, cx, cz) {
           reg.claim(box);
         }
       }
-    } else {
+    } else if (kind === 'construction') {
       /**
        * THE SITE. Hoarding round the outside, hardcore inside it, a part-built
        * frame, spoil, and one crane.
@@ -7066,6 +7354,272 @@ export function generateChunk(rootSeed, cx, cz) {
         features.push({ kind: 'spoil', x, z, radius: r, height: r * 0.55, yawDeg: yaw() });
         reg.claim(claimAt('site', x, z, r, r, { y0: 0, y1: r * 0.55, owner: 'site:spoil' }));
       }
+    } else if (kind === 'parking') {
+      /**
+       * A CAR PARK IS BAYS, AND THE BAYS ARE WHAT MAKE IT ONE — SESSION 40.
+       *
+       * The whole of this kind before this session was three prop names —
+       * `bollard`, `lamppost`, `planter` — drawn from a law that could ask for
+       * at most ONE of them (`DEAD_ZONE`). Not one of the three is a parked
+       * vehicle, and a car park with no cars in it is a rectangle of asphalt.
+       *
+       * FOUR THINGS, AND THE ORDER IS THE ORDER A CAR PARK IS BUILT IN:
+       * surface it, mark it out, light it, fence it. The cars go in last
+       * because they are the only part of it that is not the car park.
+       */
+      const D = DEAD_ZONE;
+      /**
+       * THE SURFACE, AND IT IS THE FIRST TIME THIS KIND HAS HAD ONE. A
+       * `parking` island emitted no ground rectangle at all, so what a car
+       * park read as was the world's earth plane — which is the ground under a
+       * road with no road on it.
+       */
+      const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'parkingGround', yKey: 'parking' };
+      for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+
+      /**
+       * THE BAYS. `DEAD_ZONE.modules` double-loaded modules across the middle
+       * of the island — bay, aisle, bay, 16.0 m deep — inset clear of the
+       * boundary rail. The paint is a `marking`: a 4 mm box like every other
+       * line in this city, claiming nothing, so a car may stand on its own bay
+       * line exactly as a wheel stands on a lane line.
+       *
+       * THE ONLY THING THIS BYPASSES IS `paint()`'s `onRoad` TEST, and it is
+       * bypassed deliberately: that test exists so no line is painted in the
+       * air over a carriageway the river or a dome took, and a bay is not on a
+       * carriageway at all. What it is clipped against instead is the same
+       * `islandSolids()` the surface under it is.
+       */
+      const moduleD = D.bayL * 2 + D.aisleW;
+      const bankD = D.modules * moduleD;
+      const bayInset = D.edgeInset + 2.0;
+      const bx0 = isl.x0 + bayInset;
+      const bx1 = isl.x1 - bayInset;
+      const nBays = Math.max(0, Math.floor((bx1 - bx0) / D.bayW));
+      const bankZ0 = mz - bankD / 2;
+      const solids = islandSolids();
+      /** Clear of every landmark, block keep-out and channel this island meets. */
+      const onLot = (x, z, hx, hz) => !solids.some((c) => (
+        x + hx > c.x0 && x - hx < c.x1 && z + hz > c.z0 && z - hz < c.z1));
+      for (let m = 0; m < D.modules; m++) {
+        for (const r of [0, 1]) {
+          const rowZ0 = bankZ0 + m * moduleD + r * (D.bayL + D.aisleW);
+          const zc = rowZ0 + D.bayL / 2;
+          for (let i = 0; i <= nBays; i++) {
+            const x = bx0 + i * D.bayW;
+            if (!onLot(x, zc, 0.05, D.bayL / 2)) continue;
+            markings.push({ x, z: zc, length: D.bayL, width: 0.10, yawDeg: 90, kind: 'bay' });
+          }
+          /**
+           * THE CARS, AND THE OCCUPANCY IS THE CHUNK'S OWN DENSITY.
+           *
+           * `DEAD_ZONE.bayOccupancy` carries the argument: LOOK.md §2 asks for
+           * density to have causes, and this is the one surface in the city
+           * where the cause and the field are literally the same quantity. A
+           * low-detail chunk's density runs 0.10–0.34, so a lot stands between
+           * a tenth and a third full — used, rather than a showroom or a
+           * defect. The PAINT is there at every density, and that is the floor.
+           *
+           * The die is drawn for every bay whether or not the bay exists on
+           * this island, so which bays a landmark took does not re-phase the
+           * ones it did not.
+           */
+          for (let i = 0; i < nBays; i++) {
+            const occupied = featRng.next() < density;
+            const nose = featRng.chance(0.5) ? 90 : 270;
+            const x = bx0 + (i + 0.5) * D.bayW;
+            if (!occupied) continue;
+            if (!onLot(x, zc, D.bayW / 2, D.bayL / 2)) continue;
+            parkVehicle(x, zc, nose + yaw(), 'car');
+          }
+        }
+      }
+
+      /**
+       * THE LIGHTING, and it is the fixture the floor in `DEAD_ZONE.parking`
+       * is derived from: a 10 m column covering a 30 m square. Three per axis
+       * over the 104.6 m island. They join the same lamp pool a park lamp and
+       * a site flood do — one pool, one reservation against `CLUSTER.maxLights`.
+       */
+      const nCol = Math.max(1, Math.floor((isl.x1 - isl.x0) / D.columnEvery));
+      const colStep = (isl.x1 - isl.x0) / nCol;
+      for (let a = 0; a < nCol; a++) {
+        for (let b = 0; b < nCol; b++) {
+          const x = isl.x0 + (a + 0.5) * colStep;
+          const z = isl.z0 + (b + 0.5) * colStep;
+          const box = claimAt('feature', x, z, 0.42, 0.42, { y0: 0, y1: D.columnHeight, owner: 'parking:column' });
+          if (reg.conflict(box)) continue;
+          features.push({ kind: 'lamp', x, z, height: D.columnHeight });
+          reg.claim(box);
+        }
+      }
+
+      /** The boundary: a knee rail with one entrance. */
+      const gateSide = featRng.int(0, 3);
+      const gateAt = featRng.range(0.25, 0.75);
+      boundaryRun({
+        inset: D.edgeInset, seg: D.edgeSegment, halfT: 0.08, height: D.railHeight,
+        category: 'feature', owner: 'parking:rail', gateSide, gateAt, gateHalf: D.gateHalf,
+        make: (x, z, yawDeg) => ({
+          kind: 'edge', edge: 'rail', x, z, length: D.edgeSegment, height: D.railHeight, yawDeg,
+        }),
+      });
+    } else if (kind === 'yard') {
+      /**
+       * A WORKS YARD — SESSION 40. Hardstanding, a palisade with a gate, two
+       * masts, and a van backed up to the material.
+       *
+       * The whole of this kind before this session was the three-name DEFAULT
+       * list `['container', 'fence', 'bollard']` shared with `lot`, drawn from
+       * a law capped at one object. A yard and a cleared lot are not the same
+       * place and they were the same three names.
+       *
+       * WHAT MAKES IT A YARD RATHER THAN A LOT IS THAT IT IS WORKED: the
+       * surface is laid, the boundary is a security fence rather than a
+       * hoarding, it is lit, and there is a vehicle in it. What is scattered
+       * over it is `DEAD_ZONE.yard`'s own floor of stacked material — 24 plus
+       * a density term, one stack per 21.4 m van apron.
+       */
+      const D = DEAD_ZONE;
+      const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'yardGround', yKey: 'yard' };
+      for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+
+      /**
+       * TWO MASTS, REUSING THE SITE'S. A yard is lit the way a site is — a
+       * mast pointing down into the working area — and `flood` is already
+       * modelled, already in the lamp pool and already claims `site`, which is
+       * the category that keeps material from being stacked on its base.
+       */
+      for (let i = 0; i < 2; i++) {
+        const a = (i / 2) * Math.PI * 2 + featRng.next();
+        const rr = featRng.range(20, 36);
+        const x = Math.min(isl.x1 - 4, Math.max(isl.x0 + 4, mx + Math.cos(a) * rr));
+        const z = Math.min(isl.z1 - 4, Math.max(isl.z0 + 4, mz + Math.sin(a) * rr));
+        const box = claimAt('site', x, z, 0.7, 0.7, { y0: 0, y1: SITE.floodHeightM, owner: 'yard:flood' });
+        if (reg.conflict(box)) continue;
+        features.push({ kind: 'flood', x, z, height: SITE.floodHeightM, aimX: mx, aimZ: mz });
+        reg.claim(box);
+      }
+
+      /**
+       * THE VAN, AND IT IS BACKED UP TO SOMETHING. A yard's vehicle stands
+       * against the material rather than in the middle of the parcel, so it is
+       * placed on a ring at two thirds of the way out and turned to face the
+       * centre — which is what backing up to a stack looks like from above.
+       */
+      const vans = featRng.int(1, 2);
+      for (let i = 0; i < vans; i++) {
+        const a = featRng.range(0, Math.PI * 2);
+        const rr = featRng.range(24, 38);
+        const x = Math.min(isl.x1 - 5, Math.max(isl.x0 + 5, mx + Math.cos(a) * rr));
+        const z = Math.min(isl.z1 - 5, Math.max(isl.z0 + 5, mz + Math.sin(a) * rr));
+        parkVehicle(x, z, (-a * 180) / Math.PI + yaw(), 'van');
+      }
+
+      /** The boundary: a palisade with one gate. A yard is a SECURED parcel. */
+      const gateSide = featRng.int(0, 3);
+      const gateAt = featRng.range(0.25, 0.75);
+      boundaryRun({
+        inset: D.edgeInset, seg: D.edgeSegment, halfT: 0.07, height: D.palisadeHeight,
+        category: 'feature', owner: 'yard:palisade', gateSide, gateAt, gateHalf: D.gateHalf,
+        make: (x, z, yawDeg) => ({
+          kind: 'edge', edge: 'palisade', x, z, length: D.edgeSegment, height: D.palisadeHeight, yawDeg,
+        }),
+      });
+    } else if (kind === 'lot') {
+      /**
+       * A CLEARED LOT — SESSION 40. Hoarding, rubble, and the party wall of
+       * the building that is not there any more.
+       *
+       * EVERY PIECE OF IT IS ALREADY MODELLED, which is the brief's own rule:
+       * prefer reusing what is there. A cleared lot IS a construction site
+       * with nothing happening on it, so it gets the site's stripped hardcore,
+       * the site's plywood hoarding and the site's spoil heaps. The one thing
+       * a site does not have is the thing a lot is defined by — what the last
+       * building left standing.
+       */
+      const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'siteGround', yKey: 'site' };
+      for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+
+      /**
+       * THE PARTY WALL. When a terrace loses one house the flank walls of its
+       * neighbours stay up, and what is left on the cleared ground is a blind
+       * wall with the ghost of the floors on it. It is placed BEFORE the
+       * hoarding so the hoarding breaks around it rather than being refused by
+       * it — a hoarding butts into a surviving wall, it does not run past one.
+       *
+       * ON A LOT LINE, WHICH IS THE ISLAND EDGE, because that is where the
+       * demolished building's flank stood. `DEPTH_DISTRIBUTION.minM` = 9 m is
+       * the shallowest building this generator admits, so a stub 9 m or more
+       * long is the flank of a building that could have existed here.
+       */
+      const side = featRng.int(0, 3);
+      const stubLen = featRng.range(DEPTH_DISTRIBUTION.minM, 22);
+      const stubH = featRng.range(3.4, 9.5);
+      const stubT = 0.45;
+      const along = featRng.range(0.25, 0.75);
+      {
+        const t0 = side < 2 ? isl.x0 : isl.z0;
+        const t1 = side < 2 ? isl.x1 : isl.z1;
+        const c = t0 + (t1 - t0) * along;
+        const at = (side % 2 === 0 ? (side < 2 ? isl.z0 : isl.x0) : (side < 2 ? isl.z1 : isl.x1))
+          + (side % 2 === 0 ? +1 : -1) * (SITE.hoardingInset + stubT);
+        const x = side < 2 ? c : at;
+        const z = side < 2 ? at : c;
+        /**
+         * THE CLAIM CONTAINS WHAT `city.js` DRAWS, AND THE THREE MARGINS ARE
+         * WRITTEN DOWN RATHER THAN ASSUMED (CONTRACT §9.1 — the generator's
+         * claim and the delivered box are the two halves of one comparison).
+         *
+         *   along   the coping is drawn at `f.length`, so `stubLen / 2`
+         *   across  the chimney breast is `thickness × 1.4` = `stubT × 2.8`,
+         *           so the half-depth claimed is `stubT × 1.6`
+         *   up      the coping's top is `height + 0.16`, so `stubH + 0.2`
+         *
+         * And the ROTATION'S OWN BULGE on top of all three, at
+         * `CITY.maxYawDeg`, the same expression `boundaryRun` above uses and
+         * for the same measured reason: a 22 m wall turned one degree reaches
+         * 0.19 m further across than its own half-thickness.
+         */
+        const bulge = (CITY.maxYawDeg * Math.PI) / 180;
+        const halfAlong = (stubLen / 2) * Math.cos(bulge) + stubT * 1.6 * Math.sin(bulge);
+        const halfAcross = stubT * 1.6 * Math.cos(bulge) + (stubLen / 2) * Math.sin(bulge);
+        const hx = side < 2 ? halfAlong : halfAcross;
+        const hz = side < 2 ? halfAcross : halfAlong;
+        const box = claimAt('site', x, z, hx, hz, { y0: 0, y1: stubH + 0.2, owner: 'lot:stub' });
+        if (!reg.conflict(box)) {
+          features.push({
+            kind: 'stub', x, z, length: stubLen, height: stubH, thickness: stubT * 2,
+            floors: Math.max(1, Math.round(stubH / 3.2)),
+            yawDeg: (side < 2 ? 0 : 90) + yaw(),
+          });
+          reg.claim(box);
+        }
+      }
+
+      /** The hoarding, reusing `SITE`'s own plywood and its own segment. */
+      const gateSide = featRng.int(0, 3);
+      const gateAt = featRng.range(0.25, 0.75);
+      boundaryRun({
+        inset: SITE.hoardingInset, seg: SITE.hoardingSegment, halfT: 0.12, height: SITE.hoardingHeight,
+        category: 'site', owner: 'lot:hoarding', gateSide, gateAt, gateHalf: 4.0,
+        make: (x, z, yawDeg) => ({
+          kind: 'hoarding', x, z, length: SITE.hoardingSegment, height: SITE.hoardingHeight,
+          yawDeg, printed: featRng.chance(0.25),
+        }),
+      });
+
+      /** What the demolition left. Fewer and flatter than a working site's. */
+      const heaps = featRng.int(1, 3);
+      for (let i = 0; i < heaps; i++) {
+        const x = featRng.range(isl.x0 + 8, isl.x1 - 8);
+        const z = featRng.range(isl.z0 + 8, isl.z1 - 8);
+        const r = featRng.range(2.4, 5.0);
+        const box = claimAt('site', x, z, r, r, { y0: 0, y1: r * 0.42, owner: 'lot:rubble' });
+        if (reg.conflict(box)) continue;
+        features.push({ kind: 'spoil', x, z, radius: r, height: r * 0.42, yawDeg: yaw() });
+        reg.claim(box);
+      }
     }
   }
 
@@ -7114,6 +7668,8 @@ export function generateChunk(rootSeed, cx, cz) {
   // 0.0456 — 7.6% clear, and deterministic in the seed rather than noisy, so it
   // is a verdict and not a coin. The sweep is here so the next session can see
   // what it is spending before it plants anything else.
+  /** `parking`, `yard` and `lot` — a floor and a slope each. `built` is absent. */
+  const deadZoneLaw = DEAD_ZONE[kind];
   const propCount = kind === 'park'
     ? Math.round(22 + 26 * density)
     : kind === 'construction'
@@ -7125,7 +7681,32 @@ export function generateChunk(rootSeed, cx, cz) {
        * is a site with room to work in rather than a scrapyard.
        */
       ? Math.round(14 + 16 * density)
-      : Math.round((lowDetail ? 26 : 96) * Math.pow(density, 3));
+      /**
+       * ───────────────────────────────────────────────────────────────────
+       * SESSION 40: THE OTHER THREE LOW-DETAIL KINDS GET A FLOOR TOO, AND THE
+       * `lowDetail ? 26` ARM IS GONE BECAUSE NOTHING REACHES IT ANY MORE.
+       *
+       * The paragraph above argues against a constant term and then makes an
+       * exception for a park; the block just above makes the same exception
+       * for a site. What neither noticed is that the cubic law and the gate
+       * that SELECTS a low-detail kind read THE SAME FIELD: `density < 0.34`
+       * is what makes a chunk `parking`, so `26 · d³` on one cannot exceed
+       * `26 × 0.34³` = 1.022 and rounds to ZERO below `d = 0.268`. The three
+       * neglected kinds were not sparsely furnished — they were capped at ONE
+       * object per chunk by construction, and 84 of 131 of them delivered
+       * nothing at all on 1.094 ha of open ground (`tools/groundprobe.mjs`,
+       * twelve regions, seeds 1337–1348).
+       *
+       * `DEAD_ZONE` carries a floor and its derivation for each of them, in
+       * the same form `PARK`'s own 22 uses. The `built` arm is UNTOUCHED:
+       * `96 · d³` is the law for an ordinary block's STREET furniture, 82% of
+       * which goes kerbside, and what the block INTERIOR gets is a separate
+       * pass at the end of this function on its own named stream
+       * (`DEAD_ZONE.core`).
+       */
+      : deadZoneLaw
+        ? Math.round(deadZoneLaw.floor + deadZoneLaw.slope * density)
+        : Math.round(96 * Math.pow(density, 3));
 
   /**
    * WHERE A PARK'S PLANTING GOES, AND IT IS NOT UNIFORM.
@@ -7300,11 +7881,34 @@ export function generateChunk(rootSeed, cx, cz) {
   let propGaveUp = 0;
   let propsKerbside = 0;
   for (let i = 0; i < propCount; i++) {
+    /**
+     * WHAT EACH KIND IS MADE OF — AND THREE OF THE FIVE ROWS ARE NEW, SESSION
+     * 40. The list used to read:
+     *
+     *     park          tree, tree, tree, bench, planter, bin
+     *     construction  container, container, fence, cabinet, bollard
+     *     parking       bollard, lamppost, planter
+     *     default       container, fence, bollard          <- yard AND lot
+     *
+     * Not one of `parking`'s three names is a parked vehicle, and `yard` and
+     * `lot` shared one three-name default — a working yard and a cleared site
+     * are not the same place and they were the same three objects. The
+     * STRUCTURED content of each kind — bays, cars, hoarding, a palisade, a
+     * party wall — is in the feature block above; this is the loose stuff that
+     * scatters over it.
+     *
+     * `lamppost` LEAVES THE PARKING ROW because a car park's lighting is now a
+     * 10 m column on a derived grid rather than a 4 m street lamp dropped at
+     * random. The same object placed twice by two rules, one of which is a
+     * scatter, is CONTRACT §9.1's arrangement.
+     */
     const propKind = lowDetail
       ? propRng.pick(
         kind === 'park' ? ['tree', 'tree', 'tree', 'bench', 'planter', 'bin']
           : kind === 'construction' ? ['container', 'container', 'fence', 'cabinet', 'bollard']
-            : kind === 'parking' ? ['bollard', 'lamppost', 'planter'] : ['container', 'fence', 'bollard'])
+            : kind === 'parking' ? ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence']
+              : kind === 'yard' ? ['stack', 'stack', 'stack', 'container', 'bin', 'cabinet', 'fence']
+                : ['fence', 'stack', 'container', 'bollard'])
       /**
        * `hydrant` and `bench` added to the built list this session. A bench on
        * an ordinary pavement is the commonest street object there is and it

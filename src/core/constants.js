@@ -244,6 +244,30 @@ export const LIGHT = {
   parkLampCandela: 870,
 
   /**
+   * cd, PEAK. A CAR PARK'S LIGHTING COLUMN — session 40, and it is the same
+   * relation `parkLampCandela` is, evaluated at a different height for a
+   * different class of surface.
+   *
+   * `DEAD_ZONE.columnHeight` is **10.0 m** — the height a column has to be for
+   * one of them to cover the 30 m square its spacing is derived from — against
+   * a park lamp's 4.20 and a street lamp's 8.08. The target level is a surface
+   * car park's: EN 12464-2 puts a public parking area between a footpath and a
+   * traffic route, so `10 lx` against `streetAverageLux` 16 and the park's 8.
+   * The batwing relation is `E = peak · cos³(peakAngle) / h²`:
+   *
+   *     I = E · h² / cos³(57°) = 10 × 100 / 0.1614 = 6 196 cd  →  6 200
+   *
+   * Both numbers and the ratio (§9 rule 4): **6 200 / 6 800 = 0.91× the street
+   * lamp's peak, delivering 0.63× its illuminance**, because the pool is 1.24×
+   * further from the ground and spread over 1.53× the area. So a car park at
+   * night is DIMMER than the street beside it and lit from higher up — which
+   * is the opposite of the park (0.128× peak, 0.50× illuminance, from half the
+   * height), and the two together are why a park and a car park read as
+   * different kinds of dark rather than as the same empty rectangle.
+   */
+  carParkColumnCandela: 6200,
+
+  /**
    * cd, PEAK. A CONSTRUCTION FLOOD MAST — session 21, and it is the one light
    * type in this city that points DOWN INTO something.
    *
