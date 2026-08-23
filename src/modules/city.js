@@ -2486,23 +2486,34 @@ export function createCity(options = {}) {
            * are drawn at, so the claim contains the delivery by construction —
            * but only if the model does not reach past it:
            *
-           *   van   x ∈ [−2.68, +2.65]   z ∈ [−1.03, +1.03]   y ≤ 2.44
-           *   car   x ∈ [−2.29, +2.28]   z ∈ [−0.91, +0.91]   y ≤ 1.38
+           *   van   x ∈ [−2.68, +2.65]   z ∈ [−1.03, +1.03]   y ≤ 2.40
+           *   car   x ∈ [−2.28, +2.28]   z ∈ [−0.91, +0.91]   y ≤ 1.42
            *
            * against claims of ±2.70 / ±1.05 / 2.45 and ±2.30 / ±0.92 / 1.48.
+           *
+           * THE FIRST VERSION OF BOTH WAS A SLAB AND THE FRAMES SAID SO. Five
+           * boxes stacked concentrically is a loaf, however carefully its
+           * heights are chosen: §4's *"more detail on a box is a detailed
+           * box"*, arrived at from the other side. What was missing is that a
+           * wedge is a thing the SIDE ELEVATION does, so the masses have to be
+           * OFFSET ALONG the length rather than centred on it — the car's body
+           * stops 1.2 m short of its own nose and a lower bonnet fills the
+           * gap, and the van's load box stops short of its cab. One step down
+           * at the front, once, reads at forty metres; four concentric steps
+           * do not read at four.
            */
           if (f.vehicle === 'van') {
             put(0, 0.15, 0, 4.90, 0.30, 1.86, SKIRT, 0.9);
-            put(0.32, 1.32, 0, 4.66, 2.04, 2.06, paint, 0.52);
-            put(-2.02, 0.94, 0, 1.32, 1.28, 1.98, dark, 0.5);
-            put(-2.50, 1.44, 0, 0.34, 0.66, 1.80, GLASS, 0.16);
-            put(0.40, 2.39, 0, 3.40, 0.10, 1.92, dark, 0.6);
+            put(0.45, 1.32, 0, 4.40, 2.00, 2.06, paint, 0.52);
+            put(-2.00, 0.92, 0, 1.36, 1.24, 1.98, paint, 0.5);
+            put(-2.30, 1.50, 0, 0.42, 0.42, 1.80, GLASS, 0.16);
+            put(0.45, 2.36, 0, 4.20, 0.09, 1.92, dark, 0.6);
           } else {
-            put(0, 0.13, 0, 4.10, 0.26, 1.56, SKIRT, 0.9);
-            put(0, 0.52, 0, 4.58, 0.52, 1.82, paint, 0.42);
-            put(-0.16, 0.95, 0, 3.54, 0.36, 1.72, dark, 0.44);
-            put(-0.32, 1.24, 0, 2.06, 0.28, 1.54, GLASS, 0.14);
-            put(1.85, 0.64, 0, 0.86, 0.24, 1.68, paint, 0.42);
+            put(0, 0.15, 0, 4.14, 0.30, 1.58, SKIRT, 0.9);
+            put(-0.55, 0.60, 0, 3.46, 0.60, 1.82, paint, 0.42);
+            put(1.42, 0.50, 0, 1.72, 0.40, 1.76, paint, 0.42);
+            put(-0.75, 1.02, 0, 2.80, 0.24, 1.78, dark, 0.44);
+            put(-0.55, 1.28, 0, 2.00, 0.28, 1.52, GLASS, 0.14);
           }
         } else if (f.kind === 'stub') {
           /**
