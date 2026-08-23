@@ -1,360 +1,354 @@
 # NOCTIS — STATE
 
-*End of session 39. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+*End of session 40. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
 **Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2 (24C101), `node v22.22.0`. The
-machine has **NOT** rebooted since session 38 — 4 d 2 h of uptime at the first command against
-session 38's 3 d 14 h, the same boot. Every gate that reads a pixel printed
+machine has **NOT** rebooted since session 39 — 4 d 18 h of uptime at the first command against
+session 39's 4 d 2 h, the same boot. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` WAS 2.17 AT THE FIRST COMMAND AND RANGED 2.17 TO 4.28 ACROSS THE SESSION***, against
+***`load1` WAS 1.77 AT THE FIRST COMMAND AND RANGED 1.77 TO 3.52 ACROSS THE SESSION***, against
 CONTRACT §0.2's bar of **1.6**, and it was never once inside it. **SO NO MILLISECOND IN THIS FILE
-IS ADMISSIBLE AS AN ABSOLUTE.** `perfcheck` DID run this session — for its COUNTS, which are
-load-independent (CONTRACT §9 rule 6's corollary) — and its three wall-clock reds are quoted in §7
-only to be refused as evidence. Everything in §0 to §5 is a COUNT, a LENGTH or a RATIO of the two,
-read off `generateChunk` with no renderer involved at all.
+IS ADMISSIBLE AS AN ABSOLUTE.** `perfcheck` ran twice for its COUNTS, which are load-independent
+(CONTRACT §9 rule 6's corollary), and its wall-clock reds are quoted in §7 only to be refused as
+evidence — with a worked example of why, because session 39's OWN code measured **19.6 ms faster
+at load 3.5 than at load 1.8**, against a change whose whole delta on that route is 1.30 ms.
 
 ---
 
-## 0. THE ONE ITEM: THE PERIMETER WALK'S CEILING
+## 0. THE ONE ITEM: THE GROUND THAT IS NOT A BUILDING
 
-**IT WAS 0.431 OF THE FRONTAGE AND IT IS NOW 0.451.** Pooled over twelve regions of 10 × 10 chunks
-(seeds 1337–1348), at `fill = 1.0` — every candidate accepted, which is the most any law of any
-shape can ask for:
+The operator's words, and they were the brief: *the density is now something he can live with; what
+is wrong is that everything which is not a building stands empty.*
 
-```
-                                      session 38      session 39     range, 12 regions
-  THE WALK'S CEILING, fill = 1.0         0.431           0.451        0.389–0.455 → 0.403–0.478
-  at the shipped law d^0.50              0.354           0.371        0.284–0.401 → 0.296–0.425
-  at seed 1337 alone, d^0.50             0.364           0.371
-  delivered buildings, 12 regions        7 640           8 016        +4.9%
-```
+### 0.1 The frames
 
-**NO CLAIM IN THE OCCUPANCY REGISTRY MOVED BY A MILLIMETRE.** The two repairs are both in the
-WALK's response to the registry, not in what the registry protects — which is the answer to the
-brief's item (c) and it is a measured answer, not a preference. See §3.
-
-**THE ARM DID NOT MOVE.** `FRONTAGE_FILL.power` stays at **0.50**, re-chosen by looking after the
-repairs exactly as session 37 chose it, from nineteen new frames over seven arms and three poses.
-The district-contrast ratio at `d^0.50` reads **1.61×** on the repaired walk against session 37's
-1.61× — the rule session 37 set (blocks read as solid AND contrast ≥ 1.61×) picks the same arm. §6.
-
-### The frames from the re-chosen arm
+Take these two first. They are the same camera over the same six blocks, at the same hour, one
+seed apart in nothing but this session's change:
 
 ```
-  tools/shot-out/s39-airB-f050-t0_5649-wet.png    950 m over the region centre, fov 50
-  tools/shot-out/s39-airA-f050-t0_5649-wet.png    session 35–37's own oblique aerial, fov 60
-  tools/shot-out/s39-street-f050-t0-wet.png       1.9 m, midnight, wet, fov 55
+  tools/shot-out/s40-airD-before-t0_5649-wet.png     oblique aerial over six dead-zone parcels
+  tools/shot-out/s40-airD-after-t0_5649-wet.png      fov 55, [330,330,250] → [560,0,400]
 ```
 
-Every arm is beside them as `f140 f110 f090 f070 f050 f030 f000`, one frame per arm per pose, taken
-with `tools/lookat.mjs --params=fill=<power>` at seed 1337. `tools/shot-out/` is gitignored and
-regenerable; the commands are in §6.
+**BEFORE: a grid of roads with flat brown earth between them.** The parcels are not sparsely
+furnished — they carry nothing at all, and they have no surface either, so what fills them is the
+world's ground plane. **AFTER: a car park with rows of cars in it, a hoarded lot with a party wall
+standing on it, a fenced yard with material stacked on it, and every ordinary block's courtyard
+paved and serviced.**
+
+The rest, in the order they answer questions:
+
+```
+  s40-carplan-after-t0_5649-wet.png     55 m over one car park — the layout, legible
+  s40-carplan-after-t0-wet.png          the same at midnight — three pools and dark between them
+  s40-carpark2-{before,after}-t0-wet.png    STREET, 1.7 m, midnight, wet, across the same car park
+  s40-carpark2-{before,after}-t0_5649-wet.png   the same pair by day, where the geometry reads
+  s40-airB-{before,after}-t0_5649-wet.png   950 m over the region centre, fov 50 — sessions
+                                            35–39's own standing aerial pose
+  s40-street-{before,after}-t0-wet.png   the road past six dead-zone parcels in a row
+```
+
+All fourteen frames have distinct md5s — the check session 37 had to add after `lookat` silently
+truncated a parameter and delivered seven copies of one city. `tools/shot-out/` is gitignored and
+regenerable; the commands are in §6. **The "before" arm of every pair was rendered from session
+39's own `src/` at `866022a`**, in this tree, at this load — not quoted from a previous session's
+file.
+
+### 0.2 The per-hectare table, before and after
+
+`tools/groundprobe.mjs` is new this session. It measures **objects per hectare of OPEN GROUND**,
+not per chunk, because every chunk is the same 128 m square and every island the same 104.6 m
+square while the ground a prop could stand on is not: a `built` island has half of itself under a
+building and a park island has a pond on it. Open ground is the island minus the **exact** union of
+every `building`, `landmark`, `water` and `block` claim standing on it — coordinate compression,
+not a raster, so a reading of 0.0 is a fact and not a sampling miss.
+
+**Pooled over twelve regions of 10 × 10 chunks, seeds 1337–1348, 1 200 chunks:**
+
+```
+  kind          chunks   open ha   objects per hectare of open ground   chunks with NOTHING
+                          median    s39      s40                        s39      →   s40
+  parking          41     1.094      0.0    180.1                       26/41    →    0/41
+  lot              45     1.094      0.0    163.6                       29/45    →    0/45
+  yard             45     1.094      0.0    149.9                       29/45    →    0/45
+  built           963     0.538      7.0     46.0                      114/963   →   12/963
+  park             47     1.094    187.4    187.4   unchanged             0/47    →    0/47
+  construction     59     1.094    174.6    174.6   unchanged             0/59    →    0/59
+
+  the block interior — the 23.4 m light well no building may reach
+    wells with nothing standing in them                              659/963   →  187/963
+    objects per hectare of open well, median                             0.0   →     54.8
+```
+
+**84 of the 131 `parking`, `lot` and `yard` chunks delivered nothing at all** on 1.094 hectares of
+open ground, and the two kinds anybody had given a floor delivered 187 and 175 per hectare.
 
 ---
 
-## 1. WHAT WAS VERIFIED BEFORE ANYTHING WAS TOUCHED — BRIEF ITEM (a)
+## 1. THE HYPOTHESIS IN THE BRIEF READS CORRECTLY OFF THE CODE, AND IT UNDERSTATES THE RESULT
 
-**SESSION 38'S FUNNEL REPRODUCES EXACTLY, EVERY BUCKET AND EVERY POOLED RATIO.** Not approximately:
-the same integers. `funnelprobe --overrun=abandon --refusal=step` is the walk as session 38
-measured it and it is still one command away, so every "before" figure in this file was re-measured
-this session rather than quoted from the last one.
+The brief carried an arithmetic claim with a warning attached to it — *"I have written a false
+premise into eighteen consecutive briefs; verify it first."* Verified. `citygen.js` computed prop
+counts exactly as the brief said:
 
 ```
-  the length funnel at d^0.50, seed 1337, 34 727 m of island edge
-                                            BEFORE (s38, re-measured)     AFTER
-    standing behind a building              12 656 m  36.4%   679      12 874 m  37.1%   684
-    refused by the fill roll                 7 017 m  20.2%   306       7 931 m  22.8%   347
-    refused by the depth clip                6 034 m  17.4%   296       6 517 m  18.8%   364
-    end-of-run gaps                          3 950 m  11.4%   261       4 001 m  11.5%   267
-    overrun — the side ABANDONED             1 591 m   4.6%    94           0 m   0.0%    94  <- repaired
-    lead-in at the head of each side          1 502 m   4.3%   332       1 653 m   4.8%   332
-    refused at the river bank                1 051 m   3.0%    54       1 165 m   3.4%    59
-    tail — the last 12 m never entered          586 m   1.7%   332         248 m   0.7%   332
-    gaps within a run                           340 m   1.0%   418         339 m   1.0%   417
-    registry refusal, no clip                     0 m   0.0%     0           0 m   0.0%     0
-    TOTAL                                    34 727 m 100.0%          34 727 m 100.0%
-    RESIDUAL                                 0.000000 m                0.000000 m
+  park          22 + 26 · density        a floor of 22
+  construction  14 + 16 · density        a floor of 14
+  everything else   (lowDetail ? 26 : 96) · density³      no floor at all
 ```
 
-The funnel closes to **0.000000 m at all six combinations of the two repair arms**, which is what
-says the freed metres went somewhere real rather than out of the accounting.
+**AND THE CUBIC LAW AND THE GATE THAT SELECTS THE KIND READ THE SAME FIELD.** `lowDetail` is
+`density < CITY.lowDetailThreshold` = **0.34** — that is what makes a chunk `parking` in the first
+place — so `26 · d³` on one of these chunks **cannot exceed `26 × 0.34³` = 1.022**, and it rounds
+to **zero** below `d = 0.268`. The three kinds were not sparsely furnished. **They were capped at
+ONE OBJECT PER CHUNK by construction**, and the delivered counts say so:
 
-**AND THE POOLED CEILING REPRODUCES: 0.431 (0.389–0.455) over twelve regions**, by
-`funnelprobe --stages --power=0`. So did the step ratios, the quartile table and the law's own
-0.771 in / 0.771 out. Nothing in session 38 disagreed with the code.
+```
+  over twelve regions, what the law ASKED FOR before this session
+    parking    0 objects on 26 chunks, 1 on 15    highest density reached 0.337
+    lot        0 on 28, 1 on 17                                          0.329
+    yard       0 on 28, 1 on 17                                          0.338
+```
 
-> **ONE FIGURE IN SESSION 38 DID DISAGREE WITH THE CODE AND THE CODE WINS.** STATE 38 §7.3 says
-> *"`landmark: 10` and the origin `block` pad extend ALONG the frontage"*.
-> `BUILDING_SETBACKS.landmark` is `CITY.sidewalkWidth` = **4.2 m**, and the comment at it records
-> the 10 as replaced in session 4 — *"strictly stricter despite being a smaller number"*, because
-> the 10 was measured to a building's CENTRE. The sentence's conclusion survives; its number did
-> not.
+So the brief's *"about three objects on a whole low-detail chunk at density 0.5"* and *"at 0.4 it
+is one and six"* describe densities these kinds **cannot have**. (At 0.4 the cubic gives 2, not 1;
+but 0.4 is unreachable for a low-detail chunk, so the whole sentence is about a case that does not
+occur.) The premise is right and the number it implies is worse than the one it quoted.
+
+### 1.1 One number in the code disagreed with its own comment, and the comment loses
+
+`SITE`'s clutter floor carries *"14 plus a density term over the 104.6 m island is one object every
+26 m"*. The form is `104.6/√N`, which is what `PARK`'s own *"one object every 22 m"* is
+(`104.6/√22` = 22.3). But `104.6/√14` is **28.0 m**; **26.15 m is `104.6/√16`, the SLOPE's spacing
+rather than the FLOOR's.** The constant is unchanged and correct; the arithmetic quoted beside it
+was one substitution out, and it is corrected in the open beside the new floors (CONTRACT §9
+rule 5).
 
 ---
 
-## 2. THE OVERRUN — BRIEF ITEM (b), AND IT IS REPAIRED IN BOTH WALKS
+## 2. THE LAW WITH A FLOOR — BRIEF ITEM (b)
 
-Session 38 §1.2: the walk drew `rng.range(11, 27)` without knowing how much frontage was left, and
-when the draw did not fit it set `t = side.to` and **ended the side**. 94 of 332 sides, 1 591 m,
-4.6% of the island edge, at every arm of the fill law. The outer guard is `t < side.to - 12` and
-the narrowest building is 11.0 m, so a building fitted in every one of them by construction.
-
-**THREE ARMS, MEASURED, POOLED OVER TWELVE REGIONS**, with the refusal arm held at what shipped so
-the comparison is one change:
+`DEAD_ZONE` in `citygen.js`, beside `PARK` and `SITE`. **The floor is what the kind IS, not what
+the density field says**, and every one is derived from a length that belongs to that kind. The
+form is stated once and it is `PARK`'s own: `104.6/√N` is the mean spacing N objects have over the
+104.6 m island.
 
 ```
-  WALK.overrun    occupancy d^0.50   the walk's CEILING   delivered   overruns
-    abandon           0.354               0.431            7 640       1 098      <- session 38
-    clamp             0.359               0.433            7 786       1 100      <- ships
-    fit               0.357               0.430            7 807           0
+  kind      law           spacing   the length it comes from
+  parking   12 + 16·d      30.2 m   the square a 10 m lighting column covers to a car park's
+                                    10 lx — a surface lot's fixtures ARE its lighting
+  yard      24 + 16·d      21.4 m   the apron a 7.0 m rigid van needs to back into a stack,
+                                    three of its own lengths. The densest of the five,
+                                    because a yard is the one dead zone that is WORKED
+  lot        9 + 12·d      34.9 m   one object per THIRD of the island on each axis. There is
+                                    no module to derive from because nothing operates here,
+                                    and 9 is the smallest number that is a placement
+  core      12 + 14·d      21.4 m   the SAME van apron, over the 0.538 ha of open island a
+                                    built chunk actually has: 5 380 / 21.4² = 11.7 → 12
 ```
 
-- **`clamp`** cuts the drawn width to the frontage that remains — *the last lot on a block is what
-  is left of it*.
-- **`fit`** never draws a lot wider than what is left: `rng.range(11, min(27, room))`.
-
-**`fit` DELIVERS 21 MORE BUILDINGS AND 0.002 LESS OCCUPANCY**, because its buildings are narrower.
-Occupancy is a LENGTH and LOOK.md §2 asks for metres of street wall, so `clamp` ships. Both arms
-draw exactly one uniform for `width`, at the same point in the stream, which is what makes this a
-repair rather than a new law.
-
-**AND AT SEED 1337 ALONE THE OVERRUN REPAIR READS THE OTHER WAY: 0.364 → 0.358.** One region is one
-draw of a proportion and the repair re-phases every chunk it touches. The twelve-region estimate is
-the one that resolves it (CONTRACT §0 rule 6). Both are printed here rather than the flattering one.
-
-### 2.1 THE QUAY WALK HAD THE SAME LINE AND IT IS COUNTED FOR THE FIRST TIME
-
-STATE 38 §8 carried *"the quay walk's own copy of §1.2's overrun at `citygen.js:6197`, uncounted by
-this funnel"*. It is repaired and counted — `frontage.quayRuns` / `quayOverrun` / `quayDelivered`,
-deliberately **not** in the length funnel, because that funnel's parent is the ISLAND edge and the
-bank is a different frontage with a different length (two lengths in one denominator is CONTRACT
-§9's own shape).
-
-```
-  over twelve regions      candidates   abandoned the run   metres at risk   delivered / region
-    abandon                   1 892           106            1 793 m          5.33   sd 2.67
-    clamp                     1 894            91            1 516 m          4.42   sd 1.51
-    fit                       1 899             0                0 m          4.58   sd 1.31
-```
-
-**106 of 1 892 bank candidates — 5.6% — abandoned the run.** The delivered count moves 5.33 → 4.42
-per region, **1.0 se on twelve regions: inside the spread, and not evidence in either direction**.
-The abandonment is not inside anything.
+The `lowDetail ? 26` arm of the old law is gone, because nothing reaches it any more. The `built`
+arm — `96 · d³` — is **untouched**: that is the law for an ordinary block's STREET furniture, 82%
+of which goes kerbside, and what the block interior gets is a separate pass (§4).
 
 ---
 
-## 3. THE PADS — BRIEF ITEM (c), AND THE PAD WAS NEVER THE THING
+## 3. WHAT EACH KIND IS MADE OF — BRIEF ITEM (c)
 
-STATE 38 §1.5 named the pads: *"`landmark` refuses 87% of what it meets and `block` refuses 100%,
-because both pads extend ALONG the frontage."* `tools/padprobe.mjs` is new this session and reads
-the walk's own refusals **by owner and by geometry** rather than by kind, off an inert trace in
-`citygen.js` (`FRONTAGE_TRACE`, off by default; the delivered city is bit-identical with it on).
-
-```
-  WHO REFUSES A PERIMETER CANDIDATE — citycheck's 10 x 10, seed 1337, d^0.50
-    kind       refused  kept   refused%    metres   % of edge   owners
-    building      143     91      61%      2 891.6     8.3%      70 chunks
-    landmark       78     12      87%      1 597.8     4.6%       9
-    water          34     10      77%        699.7     2.0%       1
-    block          29      0     100%        609.8     1.8%       1
-    deck           12      1      92%        235.5     0.7%       1
-    TOTAL         296    114      72%      6 034.4    17.4%
-
-    the five largest single owners
-    landmark weir       46   2    96%   912.5 m   2.6%   <- the largest pad in the city
-    water    river      34  10    77%   699.7 m   2.0%
-    block    origin     29   0   100%   609.8 m   1.8%
-    deck     viaduct    12   1    92%   235.5 m   0.7%
-    landmark exchange    8   0   100%   186.0 m   0.5%
-```
-
-### 3.1 EACH OPTION THE BRIEF NAMED, MEASURED, AND THE FIRST TWO REJECTED WITH A NUMBER
-
-**A NARROWER PAD — worth 6 refusals of 296.** `BUILDING_SETBACKS.landmark` is 4.2 m, one pavement
-wide, so a landmark can be walked around rather than pressed against. **290 of 296 clip refusals
-(98.0%) overlap the claim ALONG THEIR OWN FRONTAGE** — they are refused by the thing, not by the
-margin around it. Taking the setback to zero could rescue at most the other six, and it would give
-up the walkable ring the setback exists for. Rejected.
-
-**A PAD THAT MATCHES ITS OWN SHAPE — worth 3 refusals and 54 m, 0.2% of the island edge.** The weir
-is a 210 m disc claimed as a 210 m square and it is the largest single refuser in the city, so
-claiming the disc looked like the repair: 21.5% of that claim, **9 464 m²**, is ground the basin is
-not standing on. Measured, only **3 of its 46 refusals** have a footprint that clears the disc plus
-the setback — the frontage that meets the weir meets it square on, not at a corner. Rejected, with
-the number rather than on the argument.
-
-> **AND THE OTHER ROUND LANDMARKS WERE DELIBERATELY NOT DECIDED.** A `cone` (the dish) overhangs a
-> 13 m base with a 44 m crown, a `dome` (the exchange) sits on a drum, and a `hyperboloid` (the
-> condenser) has a ground claim of half-width 50.8 m against its own 62 m base radius, because
-> `landmarkOccluders` scales by 0.82 for the canyon bake. **That last one is an UNDER-claim and it
-> is a question, not a finding**: it is the registry claiming less ground than the tower stands on.
-> It goes on §11's list rather than into a repair at 02:00, because the conservative direction for
-> an under-claim is to make it larger and this session had no mandate to remove frontage.
-
-**A WALK THAT RESUMES ON THE FAR SIDE OF A PAD — worth 68 refusals and 701 m, 2.0% of the edge, and
-it is what ships.** After a refusal the walk advanced `t += width + rng.range(0, 3)`, an advance
-that knows nothing about where the thing that refused it ENDS. A 6 m pad and a 60 m pad cost the
-same 20.5 m step, so the walk lands INSIDE the long one and refuses again — correct, the pad is
-still there — and **PAST the short one, skipping clear frontage on the far side of it for nothing:
-68 of 296 refusals, 701 m, 10.3 m at a time.**
-
-It now lands at the claim's own far edge plus the gap it had already drawn, when that is NEARER
-than the step would have been. Two guards, and both are the loop's invariant rather than taste:
-
-- it only ever SHORTENS the advance, so no frontage is skipped that the shipped walk would walk;
-- it must still advance `t` by at least **0.2 m** — the floor of `rng.range(0.2, 1.4)`, the smallest
-  gap this walk puts between two buildings. Landing hard against a pad that refuses on a setback
-  would otherwise refuse the same lot at the same `t` for ever.
+The tables the brief quoted, and what they are now. **The structured content is `features`; the
+scatter is `props`. A thing is a feature if its placement is a RUN, a ROW or a GRID** — the
+distinction `park` has always drawn between its trees (scattered) and its edging, lamps and centre
+piece (structured). §5 prices that split, because it moves a gate.
 
 ```
-  WALK.refusal    occupancy d^0.50   the walk's CEILING   delivered
-    step              0.359               0.433            7 786
-    resume            0.371               0.451            8 016     +3.0%
+  parking   was  bollard, lamppost, planter — not one of them a parked vehicle
+            now  ASPHALT, first surface this kind has ever had
+                 BAYS: two double-loaded 16.0 m modules (5.0 bay + 6.0 aisle + 5.0 bay)
+                       across the middle of the island, painted as `markings` — a 4 mm box
+                       like every other line in the city, claiming nothing, so a car may
+                       stand on its own bay line
+                 CARS: occupancy is the CHUNK'S OWN DENSITY. LOOK.md §2's "density has
+                       causes", on the one surface in the city where the cause and the
+                       field are literally the same quantity. The PAINT is there at every
+                       density; that is the floor
+                 COLUMNS: 10 m, on the 30 m grid the prop floor is derived from
+                 A KNEE RAIL with one entrance
+                 props  bollard, bollard, cabinet, bin, planter, fence
+
+  yard      was  container, fence, bollard — the three-name DEFAULT, shared with `lot`
+            now  CONCRETE HARDSTANDING
+                 A 2.2 m PALISADE with a gate — a yard is a SECURED parcel, and that is
+                       what distinguishes it from a lot
+                 TWO FLOOD MASTS, reusing the site's own
+                 ONE OR TWO VANS backed up to the material on a ring two thirds out
+                 props  stack, stack, stack, container, bin, cabinet, fence
+
+  lot       was  container, fence, bollard — the same three
+            now  THE SITE'S OWN STRIPPED HARDCORE, its PLYWOOD HOARDING and its SPOIL
+                       HEAPS, all reused: a cleared lot IS a site with nothing happening
+                       on it
+                 A PARTY WALL — the one thing a site does not have. The flank the last
+                       building left, with the ghost of its floors and a chimney breast,
+                       on a lot line, placed BEFORE the hoarding so the hoarding breaks
+                       around it
+                 props  fence, stack, container, bollard
 ```
 
-After the repair, refusals landing past the claim fall from **68 × 10.3 m to 119 × 3.5 m**, and the
-3.5 m that remains is the walk's own gap draw, which is there so a building does not stand hard
-against a pad.
+**ONE NEW PROP KIND, AND THE TEST FOR ADDING ONE IS LOOK.md §5's.** `stack` — sawn timber and sheet
+on bearers, steel drums, palletised blocks under a tarpaulin. `container` is a skip and a shipping
+box, and both are what material arrives *in*; nothing in the nine kinds that existed was material
+lying about. It is derivable from what the city already has (a `yard`, declared since session 4)
+rather than placed because it signifies.
 
-### 3.2 WHAT IS STILL ON THE TABLE AND WAS NOT TAKEN
-
-**A CANDIDATE THAT COULD BE NARROWED OR SLID.** The clip can only SHORTEN a building — never narrow
-it, never slide it along the frontage — so a 19 m lot with 4 m of pad under one end is refused
-whole. Measured: **51 of 296 refusals have 11 m or more of clear frontage before or after the claim
-— 26 before (446 m) and 25 after (399 m), 845 m in all, 2.4% of the island edge.** That is an upper
-bound on what a narrowing verdict could return, before the registry takes its share of it, and it
-is the honest form of STATE 38 §7.3's *"missing verdict"*. Not attempted: it needs a second
-registry query and a bounded retry inside the walk, and this session had two repairs and an arm to
-re-choose. §11 item 2.
+**ONE NEW CONSTANT.** `LIGHT.carParkColumnCandela` = 6 200, derived exactly the way
+`parkLampCandela` was: `E = I·cos³(57°)/h²` at `h` = 10.0 m for a 10 lx surface car park.
+**0.91× a street lamp's peak delivering 0.63× its illuminance**, against the park lamp's 0.128×
+delivering 0.50× from half the height. So a park and a car park now read as different kinds of dark
+rather than as the same empty rectangle — which is the point of the constant and is in LOOK.md §4.
 
 ---
 
-## 4. THE END-OF-RUN GAPS — BRIEF ITEM (d). THEY ARE A DEFINITION, AND IT CANNOT MAKE THE THING ITS OWN COMMENT NAMES
+## 4. THE BLOCK INTERIOR — BRIEF ITEM (d)
 
-`rng.range(6, 26)` after the last building of every run of 1–4. Nobody had looked at them. Measured
-at seed 1337 with both repairs in, by `padprobe --endgaps`:
+`lotDepthM()` is **40.6 m**, so the central `104.6 − 2 × 40.6` = **23.4 m** square of every island
+is ground no perimeter building may reach by construction. **659 of 963 built chunks had nothing
+standing in it.**
+
+**AND A BUILT ISLAND EMITTED NO GROUND RECTANGLE AT ALL.** The courtyard was the world's earth
+plane, `GROUND.earth` = −0.02 m, which is what is under a road where there is no road. **There was
+no floor under the block interior**, and that is why it read as nothing from the air even where
+something stood in it. It now carries one: the island minus every solid on it, which is *exactly*
+the quantity `groundprobe` calls open ground, so the surface and the measurement are the same
+rectangle set.
+
+**WHAT A LIGHT-WELL CORE CONTAINS IS THE BLOCK'S OWN SERVICING** — bin stores, plant, stacked
+material, a skip, and a delivery bay with a van on it. That is the answer to *"what is this ground
+for"* rather than a decoration, and it is what makes the count derivable at all.
+
+**SCATTERED OVER THE WHOLE ISLAND AND NOT OVER THE 23.4 m WELL**, and the registry is what makes
+that right: `reg.conflict` refuses every spot a building stands on, so what is left is the
+courtyard AND the gaps in the perimeter run. Session 39 measured those gaps — 188 of 267 fall
+mid-side and *"every one of them is a yard"* — so a service yard is exactly what belongs in them,
+and confining this to the well would have left the part a walker can actually see empty.
 
 ```
-  runs that ended with a gap      267    15.0 m mean    4 001 m    11.5% of the island edge
-    mid-side, the walk goes on    188                   2 662 m     7.7%   <- a hole in a street wall
-    at the end, the side stops     79                   1 338 m     3.9%   <- the last parcel before a corner
-
-  the gap itself, in 4 m bins
-     6–8   33      8–12  62     12–16  62     16–20  48     20–24  41     24–28  21
+                                          s39        s40
+  built, objects per ha of open ground    7.0        46.0
+  built chunks with nothing on them     114/963     12/963
+  light wells with nothing in them      659/963    187/963
+  objects per ha of open light well       0.0        54.8
+  core props asked / given up                    18 930 / 1 386   (7.3%)
 ```
-
-**THEY ARE A DEFINITION.** The walk's own comment says they are *"where the side alleys, the yards
-and the blank end walls live"*, and they are deliberate: without them the perimeter is one
-continuous extruded ring.
-
-**AND THE DEFINITION DOES NOT MATCH ITS OWN COMMENT. NOT ONE OF THE 267 IS UNDER 6 m, BECAUSE 6 m
-IS THE LAW'S OWN FLOOR.** An alley is 3–6 m; this law cannot produce one. Every gap in this city is
-a yard, 78 of the 267 (29%) are wider than the mean delivered building of 18.8 m, and the width
-that decides how many metres of street wall the city has is a constant with no derivation beside
-it.
-
-**WHAT IS NEW AND USABLE IS THE SPLIT.** STATE 37 §7.2 prices this knob at *"11.4% of the island
-edge"* and calls it the one to spend. **7.7% is the part that reads as a hole in a street wall**;
-the other 3.9% is the last parcel before a corner, where the side was going to stop anyway. So the
-prize is smaller than the bucket, and a sweep should be judged against 7.7%.
-
-**NOT CHANGED.** It is a look decision, STATE 37 §7.2 asks for the sweep first, and it would have
-re-phased the city a third time in one session while the arm was already being re-chosen from
-frames. §11 item 3.
 
 ---
 
-## 5. THE RE-PHASE, HANDLED OPENLY — AND CONTRACT §6's NAMED STREAM DOES NOT REACH IT
+## 5. THE RE-PHASE — AND THIS TIME THE NAMED STREAM DOES REACH IT
 
-The brief required this to be decided deliberately rather than discovered.
-
-**NEITHER REPAIR DRAWS A RANDOM NUMBER THE WALK DID NOT ALREADY DRAW.** The clamp reuses the
-`rng.range(11, 27)` the walk had drawn and cuts it; the resume reuses the `rng.range(0, 3)` the
-refusal had drawn and lands earlier with it. There is no new draw at either decision point, and
-that is asserted by the funnel closing to 0.000000 m at every arm.
-
-**WHAT RE-PHASES THE CITY IS THE BUILDINGS THE REPAIR ADDS.** A lot that becomes a building draws a
-depth, an era, a height and its signs from the chunk's own stream, and the ones that did not exist
-before move every draw after them. **A named stream cannot help with that**: those draws have come
-from the chunk stream since session 4, and moving them to a new stream would move every building in
-the city rather than the ones this repair adds — which is the opposite of what CONTRACT §6's
-guarantee is for. So the honest answer to *"draw new numbers on a named stream where the structure
-allows it"* is that **the structure does not allow it here, and the reason is that the new numbers
-are not the repair's, they are the buildings' own.**
-
-**THE DETERMINISM CONTROL, RUN EITHER WAY.** Same seed twice, over `citycheck`'s own region,
-digesting geometry, era, material, condition, facing, yaw and the retail/pillar/display flags of
-every building, then every sign and every prop:
+**NOT ONE BUILT CHUNK MOVED.** Session 39 had to re-phase the whole city and said so; this session
+did not, and the digest is the proof. Over `citycheck`'s own 10 × 10 at seed 1337, before and after
+the whole change:
 
 ```
-  run 1   b2e968ffb028e4d7cf76b08bab6034b920ff3ee35b333e63e7c6c1c77e467ecd   687 buildings
-  run 2   b2e968ffb028e4d7cf76b08bab6034b920ff3ee35b333e63e7c6c1c77e467ecd   687 buildings
-  IDENTICAL
+                       session 39 tip        session 40          verdict
+  built buildings      3085ddbfc3a768c1      3085ddbfc3a768c1    IDENTICAL   687 buildings
+  built signs          2a653e66aa1bcc55      2a653e66aa1bcc55    IDENTICAL   976 signs
+  built STREET props   8fd12075147a7c24      8fd12075147a7c24    IDENTICAL   1 483 props
+  built road ground    5ad528912f5c4c43      5ad528912f5c4c43    IDENTICAL
+  low-detail props     6c5f741edbe606b6      632ea65f29ded2b3    changed     106 → 316
 ```
 
-And the instrument commit that opened the session is bit-identical to session 38's city:
-`funnelprobe --identity` printed session 38's own pre-tally digest `bc693636…c0b8b76`, so the trace
-and the arms were provably inert before either repair moved anything.
+**WHY IT WORKED HERE AND NOT IN SESSION 39.** CONTRACT §6: *"Streams are independent, so adding a
+new system cannot shift an existing one's sequence."* Session 39 recorded that a named stream could
+NOT help with the walk's re-phase, because the extra draws there belonged to the added BUILDINGS
+and had always come from the chunk stream. Here the opposite holds — **every draw belongs to an
+object that did not exist** — so `chunkRng(rootSeed, cx, cz, 'core')` and its own yaw leave
+everything above them untouched. `featRng` needed no new stream at all: it is per chunk, a chunk is
+exactly one kind, and the three new branches draw where no park has ever reached.
+
+`citycheck`'s registry-refusal line is the same evidence from the other side: **building 190,
+landmark 102, block 40, water 31, pavement 9, deck 9, carriageway 6 — every one of them identical
+to session 39.** So is `walkability`, at 54 511 of 54 653.
+
+### 5.1 THE PRICE, AND IT IS THE CLUMPING GATE
+
+**`citycheck`'s prop-density CV fell 0.566 → 0.431** against a floor of 0.60 it has been under for
+six sessions, and the twelve-region population went from **9 of 12 below the floor to 12 of 12**:
+
+```
+  s39   median 0.574   min 0.249   max 0.964    9 of 12 below 0.60
+  s40   median 0.437   min 0.217   max 0.576   12 of 12 below 0.60
+        0.431 0.310 0.471 0.222 0.448 0.471 0.472 0.576 0.435 0.217 0.361 0.439
+```
+
+**THIS IS THE PREDICTED COST AND IT WAS MEASURED BEFORE ANYTHING WAS BUILT.** The park's own
+comment already says it: *"filling a low-density chunk is exactly what a coefficient of variation
+punishes"*, and it prices the three parks in the region at 0.046 of CV. This change fills the
+emptiest chunks in the city on purpose.
+
+**THE STATISTIC CORRELATES 0.92 WITH HOW MANY CHUNKS IN THE WINDOW ARE EMPTY** (STATE 37 §4.2), and
+what this change did is make fewer chunks empty. Its own second assertion moved the other way:
+**`populatedFraction` 94% → 99% against a floor of 55%**, and the gate's own message for that
+conjunct reads *"a high CV bought by emptiness is not clumping"*.
+
+**NO THRESHOLD WAS MOVED** (CONTRACT §0 rule 5) and **no re-derivation was attempted**, because
+LOOK.md §7 and STATE 39 §10 both say the same thing: a threshold re-derived by the session whose
+change breached it is indistinguishable from a threshold tuned green. It is item 2 on §11's list.
+
+**AND THE FEATURE/PROP SPLIT IS DECLARED RATHER THAN LEFT TO BE INFERRED, because it moves this
+number.** `objectCount` is `buildings + props + signs` and does **not** count features, so a row of
+parked cars (a feature) does not enter the CV while a scatter of stacks (a prop) does. The split
+was made on the PLACEMENT — run, row or grid is a feature; scatter is a prop — which is the rule
+`park` already followed. Both halves are printed above so nobody has to take it on trust.
 
 ---
 
-## 6. THE ARM, RE-CHOSEN BY LOOKING — AND IT DID NOT MOVE
-
-Nineteen frames, seven arms, three poses, one seed, by `lookat --params=fill=`, the same three
-poses session 37 used so that five sessions now stand in the same places:
+## 6. THE FRAMES, AND WHAT THEY SAY
 
 ```
-A  node tools/lookat.mjs --pos=-180,230,700 --target=-330,0,460 --fov=60 --t=0.5649 --wet=1 \
-     --name=s39-airA   --tag=f<power> --params=fill=<power>
-B  node tools/lookat.mjs --pos=0,950,0      --target=-200,0,-200 --fov=50 --t=0.5649 --wet=1 \
-     --name=s39-airB   --tag=f<power> --params=fill=<power>
-C  node tools/lookat.mjs --pos=-250,1.9,256 --target=-60,10,256  --fov=55 --t=0.0    --wet=1 \
-     --name=s39-street --tag=f<power> --params=fill=<power>
+D  node tools/lookat.mjs --pos=330,330,250 --target=560,0,400 --fov=55 --t=0.5649 --wet=1 \
+     --name=s40-airD --tag=<before|after>
+B  node tools/lookat.mjs --pos=0,950,0 --target=-200,0,-200 --fov=50 --t=0.5649 --wet=1 \
+     --name=s40-airB --tag=<before|after>
+P  node tools/lookat.mjs --pos=576,55,86 --target=576,0,196 --fov=60 --t=0.5649,0 --wet=1 \
+     --name=s40-carplan --tag=after
+C  node tools/lookat.mjs --pos=521,1.7,168 --target=605,2.0,196 --fov=60 --t=0,0.5649 --wet=1 \
+     --name=s40-carpark2 --tag=<before|after>
+S  node tools/lookat.mjs --pos=505,1.9,100 --target=512,6,560 --fov=55 --t=0 --wet=1 \
+     --name=s40-street --tag=<before|after>
 ```
 
-The seven aerial frames at pose B have seven distinct md5s, which is the check session 37 had to
-add after `lookat` silently truncated `--params=fill=0.90` and delivered seven copies of one city.
+The `before` arms were taken with `git checkout 866022a -- src/` in place and the tree restored
+after each; `git status --short` was read clean before every commit.
 
-### 6.1 THE NUMBER THE FRAMES ARE READ AGAINST, ON THE REPAIRED WALK
+- **(D) is the pair the item is judged on and it is not close.** Before: six parcels of flat brown
+  earth in a grid of roads, the parks and the construction sites the only ground in frame with
+  anything on it. After: a car park with four rows of cars behind a rail, two hoarded lots, two fenced
+  yards, and every ordinary block's courtyard a paved service yard instead of a hole.
+- **(P) is what says the car park is a car park**: bay lines, rows, columns, and the parcel's own
+  circulation round the outside.
+- **(B), 950 m straight down over the dense core, barely moves — and that is honest.** In the core
+  the block interiors are small and mostly roofed over; what changes is a slight greying and a
+  speckle. The change reads where the cores are big, which is where the operator's complaint was.
+- **(C) from the pavement**: before, an empty wet plain to the horizon. After, a knee rail, bay
+  paint, and rows of parked bodywork. At MIDNIGHT the same parcel is three pools of light with dark
+  between them, which is what 10 lx from 10 m columns at 3× mounting-height spacing looks like —
+  the derivation is in `LIGHT.carParkColumnCandela` and the frame is the check on it.
 
-`fillprobe --districts` over the 963 `built` chunks of twelve regions — the median delivered island
-coverage of the densest quarter over that of the sparsest:
+### 6.1 Three things the frames say that no number here does
 
-```
-  power   cov Q1 sparse   cov Q4 dense   CONTRAST      session 37's contrast
-   1.40       14.8%          42.1%        2.84x              2.77x
-   1.10       18.6%          45.1%        2.42x              2.38x
-   0.90       22.9%          46.5%        2.03x              2.12x
-   0.70       26.3%          49.4%        1.88x              1.93x
-   0.50       32.4%          52.1%        1.61x              1.61x    <- SHIPS
-   0.30       36.8%          53.8%        1.46x              1.43x
-   0.15       42.0%          55.4%        1.32x
-   0.00       48.0%          56.8%        1.18x              1.19x
-```
-
-**EVERY COVERAGE ROSE AND THE CONTRAST AT `d^0.50` DID NOT MOVE.** Q1 30.5% → 32.4%, Q4 49.3% →
-52.1%, ratio 1.61× → 1.61×. The repair gave the sparse quarter and the core the same proportional
-lift, which is what a repair to a REFUSAL should do and is the opposite of what the fill law does.
-
-### 6.2 WHAT THE FRAMES SAY
-
-Session 37's rule, unchanged: **the arm is the densest one at which the blocks still read as solid
-AND the dense-over-sparse contrast stays at or above 1.61×.**
-
-- **From the air (B), `f140` and `f110` are a loose scatter** — separate roofs with bare ground
-  between neighbours, no block reading as a block. `f070` closes the south-west core but the north
-  bank is still unfinished scatter.
-- **`f050` is where nearly every block carries a near-continuous ring of roof around a courtyard,
-  and the gradient still reads**: the far bank is visibly looser, the weir apron and the park strip
-  are clear ground, the south-west core is the densest thing in frame.
-- **`f030` flattens it** — the far bank fills in at the same rate as the core — and **`f000` is one
-  carpet**, every block packed to the same degree, the only variation left being chunk KIND.
-- **From the pavement (C) denser is better all the way to `f000`**, exactly as session 37 found: the
-  street wall closes monotonically and there is no arm at which it stops improving. At `f050` the
-  left side of the frame carries an unbroken lit wall to the mid-distance that `f110` does not.
-
-**Two cameras, two answers, and 0.50 is where both still hold.** The contrast rule excludes 0.30
-(1.46×) and everything below it; the frames exclude 0.70 and above. **The arm survives the repair.**
+1. **THE PARKED VEHICLES WERE SLABS ON THE FIRST TRY AND THE FRAME IS WHAT CAUGHT IT.** Five boxes
+   stacked concentrically is a loaf however carefully the heights are chosen — LOOK.md §4's *"more
+   detail on a box is a detailed box"*, from the other side. The repair is that **a wedge is
+   something the SIDE ELEVATION does**, so the masses are offset ALONG the length: the car's body
+   stops 1.2 m short of its own nose and a bonnet 0.20 m lower fills the gap. One step down at the
+   front reads at forty metres; four concentric steps do not read at four.
+2. **THE YARD IS THE WEAKEST OF THE THREE FROM THE AIR.** Its 24 stacks are scattered uniformly over
+   the island by the low-detail scatter, and a real works yard stacks its material AGAINST THE
+   BOUNDARY with a clear apron in the middle. The count is derived and was not changed to flatter a
+   frame; the PLACEMENT is the thing worth changing and it is §11 item 4.
+3. **A CAR PARK'S NEAR TWO THIRDS IS BARE FROM THE PAVEMENT.** `DEAD_ZONE.modules` is 2, using
+   32.0 m of the 104.6 m island, and the rest is circulation. It reads from the air and it is empty
+   at eye level. Also §11 item 4.
 
 ---
 
@@ -363,182 +357,216 @@ AND the dense-over-sparse contrast stays at or above 1.61×.**
 Run individually, because `npm run gates` is `&&`-joined and stops at the first red.
 
 ```
-  parsecheck   GREEN   110 files (109 + tools/padprobe.mjs), contract-clean
-  faultcheck   GREEN   7 cases; quarantine surgical, frame survives all seven
+  parsecheck   GREEN   111 files (110 + tools/groundprobe.mjs), contract-clean
   windcheck    GREEN
-  gateaudit    RAN — first time in three sessions. Every perturbation case passes and all four
-               --falsify suites are green. Its ONLY failure is the CONTROL, which is lookcheck's
-               own four reds restated: "the unperturbed frames do not pass their own gate".
-               NO THRESHOLD DRIFT was found.
-  citycheck    RED at 4 — was RED at 2. §7.1
-  lookcheck    RED at 4 — was RED at 3. §7.2
-  inputcheck   RED at 4 — carried, unrepaired by instruction. §7.3
-  perfcheck    RAN for its COUNTS on highway_speed, the binding route. Its three wall-clock reds
-               are INADMISSIBLE: load1 was 4.28 against a bar of 1.6. §7.4
+  faultcheck   GREEN   7 cases; quarantine surgical, frame survives all seven
+  gateaudit    RAN. Every perturbation case passes and all four --falsify suites are green
+               (perfcheck 74/74, citycheck 61/61, inputcheck 13/13, thresholds). Its ONLY
+               failure is the CONTROL, which is lookcheck's own four reds restated:
+               "the unperturbed frames do not pass their own gate". NO THRESHOLD DRIFT.
+  citycheck    RED at 3 — was RED at 4. §7.1
+  lookcheck    RED at 4 — byte-identical to session 39 in all four bands. §7.2
+  inputcheck   RED at 4 — carried, unrepaired by instruction. FIFTH session. §7.3
+  perfcheck    RAN for its COUNTS on highway_speed, twice, on both arms. Its wall-clock
+               reds are INADMISSIBLE and §7.4 shows why with a number.
 ```
 
-### 7.1 `citycheck` — RED AT FOUR, AND TWO OF THEM ARE NEW
+### 7.1 `citycheck` — RED AT THREE, AND ONE OF SESSION 39's FOUR IS NOW GREEN
 
 ```
-                                  session 38        session 39
-  clumping CV                       0.568             0.566      RED, floor 0.60, carried
-  forbidden overlaps, delivered       2                 3        RED, max 0
-  sign quads inside a building        0                 2        RED, max 0 — NEW
-  bright reserve                    6.37%             6.00%      RED, floor 6.00% — NEW
-  generator claims                  5 672             5 670
-  delivered claims                  4 455             4 458
-  walkability                  55 109 / 55 325   54 511 / 54 653
-  registry refusals    building 157 → 190, landmark 79 → 102, block 29 → 40, water 34 → 31,
-                       pavement 2 → 9, deck 12 → 9, carriageway 5 → 6
+                                   session 39        session 40
+  clumping CV                        0.566             0.431      RED, floor 0.60, WORSE — §5.1
+  forbidden overlaps, delivered        3                 3        RED, max 0 — carried, §7.1.1
+  sign quads inside a building         2                 2        RED, max 0 — carried
+  bright reserve                     6.00%             6.14%      GREEN, floor 6.00% — was RED
+  generator claims                   5 670             9 276
+  delivered claims                   4 458             9 457
+  props inside a building footprint  0 of 1 589        0 of 3 340
+  walkability                    54 511 / 54 653   54 511 / 54 653   identical
+  registry refusals   building 190, landmark 102, block 40, water 31, pavement 9, deck 9,
+                      carriageway 6 — every one identical to session 39
 ```
 
-**THE TWO SIGN REDS ARE ONE DEFECT AND IT IS NOT THIS SESSION'S.** STATE 37 §3.1 established that
-**the generator's occupancy registry contains no `sign` claims at all**, and that is verified again
-here by grep: `citygen.js` has eight `claimBox` sites and their kinds are `building` ×2, `water`,
-`path`, `landmark`, `feature`, `deck`, `block` — no sign, no prop. Nothing tests a sign against
-anything, so WHICH signs collide is decided by wherever the stream happens to put them, and session
-37 already recorded this gate as red *"on two of three seeds tested"* at the shipped law. **The
-repair re-rolls it; it did not create the mechanism.** The third overlap is
-`sign(adpillar) × prop(tree) 0.013 m²` beside the two session 38 carried.
+**THE GENERATOR'S OWN REGISTRY IS CLEAN: 0 forbidden overlaps over 9 276 claims and 53 forbidden
+pairs**, which is brief item (e) answered with a number. Everything this session placed — a bay
+marking, a parked car, a palisade segment, a party wall, a core bin store — was tested before it
+was placed and refused rather than moved.
 
-**THE BRIGHT RESERVE IS AT ITS FLOOR AND THE MOVE IS BARELY RESOLVABLE.** `citycheck` pools it as
-the median of three runs' means and printed **[6.32 6.00 6.00], spread 0.32 points**. The fall from
-6.37% is **1.2× that spread**, and the breach of the floor is 0.00 points at the printed
-resolution. **No threshold was moved** (CONTRACT §0 rule 5), and the re-derivation LOOK.md §7
-allows was not attempted unattended on a floor this session's own change pushed against — but the
-same §7 already lists this floor first among the ones *"derived under a camera veil session 27
-removed"*, so it is on §11's list rather than accepted as a verdict.
+**THE BRIGHT RESERVE WENT GREEN AND THE MECHANISM IS PLAUSIBLY THIS SESSION'S.** Its history:
+red for six sessions to s36 (5.67% at s35, 5.33% at s36), green at s37 on session 37's fill raise
+(6.37%), red again at s39 (6.00%). Three surfaces that were the earth plane are now lit ground and
+**39 luminaires were added over the region** — 33 ten-metre car-park columns and 6 yard flood
+masts, against the 37 park lamps that were already there — so a rise is the expected direction. Per-run means
+`[6.52 6.00 6.14]` against session 39's `[6.32 6.00 6.00]`. **The margin over the floor is 0.14
+points against a printed spread of 0.53, so it is inside the noise and is reported as a colour
+change rather than as a result** (CONTRACT §0 rule 6). No number moved.
 
-### 7.2 `lookcheck` — RED AT FOUR, THREE RUNS, ZERO SPREAD
+#### 7.1.1 The delivered overlaps: two were mine, and repairing them found a defect from session 21
 
-**THREE RUNS, BYTE-IDENTICAL IN ALL FOUR BANDS.** The brief asked for three and they resolve to
-0.0000, better than the 0.0001 CONTRACT §0.2 quotes:
+The first run after the content landed read **5** forbidden overlaps against session 39's 3, and
+the two new ones were `prop(container) × site(hoarding)` at 0.133 and 0.105 m². The generator's own
+registry said 0, so the claim and the delivery disagreed — CONTRACT §9.1's arrangement.
+
+**MEASURED: `city.js` draws a hoarding panel 0.06 m thick AND TWO FEET.** `put(±0.42·L, 0.06, 0.18,
+0.34, 0.12, 0.5)` — a 0.5 m brace offset 0.18 m to one side — so the delivered footprint runs
+`z ∈ [−0.07, +0.43]` about the panel's centreline. **The claim was a symmetric ±0.12. It did not
+contain the feet at all**, and a hoarding's feet are the part of it something stands next to.
+
+> **STATE 22 DIAGNOSED THIS TO THE FEET AND COULD NOT CLOSE IT.** It computed `0.34 × 0.5` =
+> 0.170 m² against 0.173 measured, built two candidate repairs on the generator's claim, measured
+> both as changing nothing, and reverted them. Session 24 then found the delivered census reading a
+> 2.4 × 0.06 panel as a 2.4 × 2.4 SQUARE and repaired that — which removed the false half of the
+> pair and left the true half standing for sixteen sessions. **The measurement that closes it is
+> the one both sessions already had in front of them: the claim is 3.6× narrower than the boxes.**
+
+`SITE.hoardingHalfDepth` = 0.43, read by the site's own run and by the cleared lot's. Symmetric, so
+it over-claims on the panel side, which is `occupancy.js`'s stated safe direction. **Delivered
+overlaps 5 → 3, and no hoarding panel was lost** (984 delivered, 495 construction + 489 lot, both
+unchanged): a hoarding runs first on an empty parcel, so a wider claim refuses no panel and only
+refuses the props that come after it.
+
+The three that remain are all `sign × prop` and `sign × sign` — `sign(adpillar) × prop(tree)`
+0.013 m², `sign(pylon) × sign(pylon)` 0.095 m², `sign(adpillar) × prop(planter)` 0.094 m². That is
+STATE 39 §11 item 6 unchanged: **the generator's registry contains no `sign` claims and no `prop`
+claims**, so which signs collide is a lottery on the stream, and this session re-rolled it with
+more props.
+
+### 7.2 `lookcheck` — RED AT FOUR, THREE RUNS, ZERO SPREAD, AND IDENTICAL TO SESSION 39
 
 ```
-              run 1     run 2     run 3     band            session 38
-  midnight    0.0752    0.0752    0.0752    [0.072, 0.112]   green
-  dawn        0.3023    0.3023    0.3023    [0.299, 0.353]   green
-  noon        0.4278    0.4278    0.4278    [0.428, 0.482]   0.4281 GREEN -> RED by 0.0002
-  dusk        0.1392    0.1392    0.1392    [0.140, 0.180]   0.1395 RED   -> RED by 0.0008
+              run 1     run 2     run 3     band             session 39
+  midnight    0.0752    0.0752    0.0752    [0.072, 0.112]   0.0752  green
+  dawn        0.3023    0.3023    0.3023    [0.299, 0.353]   0.3023  green
+  noon        0.4278    0.4278    0.4278    [0.428, 0.482]   0.4278  RED by 0.0002
+  dusk        0.1392    0.1392    0.1392    [0.140, 0.180]   0.1392  RED by 0.0008
 ```
 
-**`band:noon` IS A NEW RED AND IT IS RESOLVABLE.** −0.0003 against an instrument whose run-to-run
-spread this session is 0.0000. That is a real movement and it is reported as one.
+**ALL FOUR BANDS MOVED BY 0.0000 ON A CHANGE THAT ADDED 39 LUMINAIRES AND THREE NEW GROUND
+SURFACES OVER THE REGION.** That is not a surprise and it is worth recording as a confirmation:
+`lookcheck` stands in the ORIGIN BLOCK, which `block.js` authors and the generator never touches
+(STATE 35). It is the cleanest demonstration this project has had that the four look bands are
+blind to the generated city. `facadeAlbedo` and `facadeNeighbours` are the other two reds, both
+carried from session 31 and both about the origin block's own walls.
 
-**IT ALSO CONTRADICTS THE MECHANISM THREE BRIEFS CARRIED AND SESSION 37 WITHDREW.** Session 36
-claimed more buildings mean more noon shadow; session 37 added 161 buildings and moved this band
-by 0.0000. This session added far fewer and moved it by 0.0003. **So the band is not monotone in
-building count** — it moves with which buildings stand where in one frame, and neither the old
-mechanism nor its withdrawal explains this. It is a question, on §11's list, and **no number was
-moved to make it green.** `facadeAlbedo` and `facadeNeighbours` are unchanged and carried from
-session 31.
+### 7.3 `inputcheck` — RED AT FOUR, FIFTH SESSION, STILL NOT THIS SESSION'S
 
-### 7.3 `inputcheck` — RED AT FOUR, FOURTH SESSION, STILL NOT THIS SESSION'S
-
-Carried forward unrepaired by instruction, and the numbers are the same to within 0.002 m/s and
-0.12 °/s of session 38's, session 37's and session 36's:
+Carried forward unrepaired by instruction. The numbers are within 0.03 m/s and 0.08 °/s of session
+39's, session 38's, session 37's and session 36's:
 
 ```
   ✗ keyboard:walk   3.238 m/s   against PLAYER.walkSpeedMps 3.500      7.5% off, tol 6%
-  ✗ keyboard:run    6.180 m/s   against PLAYER.runSpeedMps 7.000      11.7% off
-  ✗ gamepad:walk    3.231 m/s   against 3.500
-  ✗ gamepad:look  160.24 °/s    against PLAYER.maxLookRateDegPerS 180
+  ✗ keyboard:run    6.210 m/s   against PLAYER.runSpeedMps 7.000      11.3% off
+  ✗ gamepad:walk    3.238 m/s   against 3.500
+  ✗ gamepad:look  160.16 °/s    against PLAYER.maxLookRateDegPerS 180
 ```
 
 Bisected in session 36 to **`0f60c9a`**, machine and collision ruled out, mechanism still unknown.
-**Carried four times now.**
+**Carried five times now.** See §11 item 1.
 
-### 7.4 `perfcheck` — THE COUNTS ARE ADMISSIBLE AND THE MILLISECONDS ARE NOT
+### 7.4 `perfcheck` — THE COUNTS, AND A WORKED EXAMPLE OF WHY THE MILLISECONDS ARE NOT
 
-`--route=highway_speed`, the binding route, at `load1 = 4.28` against a bar of 1.6:
+`--route=highway_speed`, the binding route. **Both arms were run in this tree at this load**, the
+"before" arm with `git checkout 866022a -- src/` in place, so the comparison is paired rather than
+quoted:
 
 ```
-  ADMISSIBLE (counts; CONTRACT §9 rule 6's corollary)      session 37       session 39
-    draw calls          ceiling 440, floor 300                436              434
-    triangles           ceiling 2 360 000, floor 940 000   2 086 042          2.09 M
-    visible instances   floor 115 000                       289 587          295 103
-    distinct materials  floor 48                                                 67
+  ADMISSIBLE (counts; CONTRACT §9 rule 6's corollary)      s39 arm      s40 arm      bound
+    draw calls                                               434          434        ceiling 440
+    triangles                                            2 090 000    2 130 000      ceiling 2 360 000
+    visible instances                                      295 103      309 095      floor 115 000
+    distinct materials                                          67           67      floor 48
+    chunk memory                                          66.69 MB     68.45 MB      ceiling 96 MB
 
   INADMISSIBLE — quoted only to be refused
-    gpu p95 27.65 ms, gpu max 47.48 ms, wall p95 71.50 ms against 12.5 ms
+    wall p95                                               71.60 ms     72.90 ms
 ```
 
-**THE TRIANGLE CEILING DID NOT BIND.** The brief warned it might: session 37 re-derived it from
-2 000 000 to **2 360 000** with the delivered worst route at 2 086 042, leaving 13% of headroom.
-The repaired city reads **2.09 M — unchanged at this instrument's printed resolution of 0.01 M** —
-so the headroom is still 13%, and the +4.9% of buildings did not reach this route's visible set.
-Draw calls fell by two.
+**THE TRIANGLE CEILING DOES NOT BIND.** +40 000 triangles is **+1.9%**, and the headroom against
+session 37's honestly re-derived 2 360 000 goes from **13.0% to 9.8%**. **DRAW CALLS DID NOT MOVE
+AT ALL** — every prop, feature and marking rides in the chunk's own box mesh, which is the
+arrangement that makes this affordable. Instances +4.7%, chunk memory +2.6% of its ceiling.
 
-**TWO SILHOUETTE REDS ARE ON CONTENT THIS SESSION DID NOT TOUCH.** *"68% of 71 vehicles have a dark
-gap at the ground (min 75%)"* and *"52% carry a non-monotone tone profile (min 75%)"* — LOOK.md §4
-records these as red at 73% and 63%. They are read off whichever vehicles the sampler caught in a
-frame, on a machine at load 4.28, and the generator change cannot move a vehicle. Not attributed.
+**AND HERE IS WHY NO MILLISECOND IS QUOTED AS A RESULT.** The FIRST `perfcheck` of the session, on
+session 39's own code at `load1 ≈ 1.8`, measured **wall p95 91.20 ms**. The paired arm of the SAME
+code two hours later at `load1 ≈ 3.5` measured **71.60 ms** — **19.6 ms faster on identical code**,
+against a bar this session never met. The change's own delta over that arm is 1.30 ms, i.e. **7% of
+the spread the same code produced against itself.** CONTRACT §0.2 in one table.
+
+#### 7.4.1 The silhouette bars have a spread nobody had printed, and it is larger than the arms
+
+`highway_speed` reports two vehicle-silhouette bars LOOK.md §4 tracks. Three observations this
+session:
+
+```
+   arm        load1     vehicles   ground contrast   ground-gap %   tone-profile %
+   s39 code    ~1.8        71          0.885           (green)          59%
+   s39 code    ~3.5        68          0.7339          (green)          57%
+   s40 code    ~3.4        70          0.7011           70% RED         51%
+```
+
+**THE SAME CODE PRODUCED 0.885 AND 0.7339 — a spread of 0.151 — while the two ARMS differ by
+0.033.** The sampled population itself moves with the load: 71 vehicles at `load1` 1.8 and 68 at
+3.5, on identical code, and the route delivered a different number of frames at the two loads
+(1 877 against 1 867 GPU queries issued). **The two PAIRED arms issued the same 1 867 and still
+sampled 68 against 70**, which this session cannot attribute either way. So the honest reading is
+that these percentages are read off whichever vehicles a sampler caught, against a spread larger
+than any difference anybody has compared with them, and **neither bar is evidence about this change
+in either direction.** This is the first session to print the population that says so. CONTRACT §0
+rule 6, applied to a statistic nobody had pooled. §11 item 5.
 
 ---
 
-## 8. THE INSTRUMENT THAT WENT STALE THE MOMENT THE WALK WAS REPAIRED
+## 8. WHAT THE INSTRUMENT IS AND WHAT IT ASSERTS
 
-**`funnelprobe --laws` PRINTED A FINDING THAT WAS AN ARTEFACT, AND IT WAS CAUGHT BY READING ITS OWN
-OUTPUT.** After the overrun repair the row *"width of an overrun candidate"* read **4.878 m against
-a definition of 19.0**, and the paragraph under it concluded *"Something else selects on width"*.
+`tools/groundprobe.mjs`, **and it asserts nothing about the city — `citycheck` owns the verdicts.**
 
-Both were one subtraction. The row was
-`widthDrawnM − delivered − fillRefused − hardRefused`, which is the overrun's width **only while an
-overrun candidate lands in no other bucket**. Under `clamp` it lands in one, so the subtraction
-silently became the clamp's own loss. **This is CONTRACT §9's failure mode inside the instrument
-written to name it.** The walk now stores `widthOverrunDrawnM` and the row reads **21.998 m against
-19.0** — session 38's own +3.00.
+```
+  node tools/groundprobe.mjs               objects per hectare of open ground, by block kind
+  node tools/groundprobe.mjs --law         the prop-count law, arm by arm, with the ceiling
+  node tools/groundprobe.mjs --interiors   the built block's own light well
+  node tools/groundprobe.mjs --vocab       what each kind is actually made of
+  node tools/groundprobe.mjs --seeds=a,b   pooled over regions
+```
 
-Three rows are now outside their definitions BY DESIGN and the instrument says so before the table
-rather than leaving it to be inferred:
+Three things about it are worth carrying forward:
 
-- `refusal = resume` — a hard refusal advances to the LESSER of `width + rng.range(0, 3)` and the
-  pad's far edge, so 20.5 m is an upper bound and the −2.333 m is **what the repair returns**;
-- `overrun = clamp` — a clamped candidate carries a narrower width into whichever bucket it lands
-  in, so every width row reads under 19.0. Exactly: **1 140 candidates cut by 5 561 m in total,
-  394 of them delivered, carrying 1 981 m of that cut into the delivered row.**
-
-And `--stages`'s row `survive the overrun test` is now `drawn width fitted, no clamp`, because
-nothing is refused there any more.
-
-> **THE POOLED LEAD-IN IS WHY THAT TABLE IS POOLED, AGAIN.** At seed 1337 the lead-in reads
-> 4.98 m against a definition of 4.50 on 332 draws — **3.4 se, which read as a defect in the
-> largest per-side law in the walk**. Over twelve regions it is **4.539, delta +0.039 against 3 se
-> of 0.126**. Session 38 caught the same shape on the end-of-run gap. CONTRACT §0 rule 6, caught
-> before it was written down as a finding rather than after.
+- **PER HECTARE AND NOT PER CHUNK**, for the reason §0.2 gives. A per-chunk count made `built` and
+  `parking` look comparable when their usable ground differs by 2×.
+- **THE OPEN AREA IS EXACT, NOT SAMPLED.** Coordinate compression over the solid claims clipped to
+  the island. A raster fine enough to be trusted here would be 4.4 M point queries per region; this
+  is a few hundred rectangles per chunk and it cannot miss a gap.
+- **IT REPORTS THE DISTRIBUTION, NOT A MEAN** — min, p25, median, p75, p90, max and the count of
+  chunks delivering ZERO, which is the column the whole finding lives in.
 
 ---
 
 ## 9. WHAT WENT ON THE BRANCH
 
-Branch `claude/noctis-39-walk-ceiling`, cut from `2c7de8d` (the tip of session 38's
-`claude/noctis-38-fill-funnel`), pushed after every commit. **No merge to main.**
+Branch `claude/noctis-40-ground`, cut from `866022a` (the tip of session 39's
+`claude/noctis-39-walk-ceiling`), pushed after every commit. **No merge to main.**
 
 ```
-  72d1267  funnelprobe --stages: 'survive the overrun test' is not what that row measures any more
-  052ef3f  funnelprobe --laws went stale the moment the walk was repaired, and it said so wrongly
-  2e0e6c3  LOOK.md §2: the ceiling is 0.451, the pad was never the thing, and one of my own
-           sentences was wrong
-  8551e3b  padprobe --endgaps: the end-of-run gap cannot make the thing its comment names
-  e642735  The walk resumes on the far side of a pad instead of stepping blindly past it
-  935a138  The overrun no longer ends the side: the last lot on a block is what is left
-  9766b3b  padprobe: which pad refuses a building, by name — and the walk is unmoved
-  2c7de8d  <- session 38's tip, the branch point
+  5d0e6b4  the parked vehicles were slabs, and the frames said so before any number did
+  94f2760  LOOK.md §2: the reason a parcel is empty was declared and never drawn
+  214c46c  the hoarding's claim was 3.6x narrower than its own feet, and had been since s21
+  f523445  the block interior: a light well is a service yard, and it had nothing in it
+  9dd7148  parking, yard and lot: a law with a floor, and the things that belong to the kind
+  901df4f  groundprobe: what stands on the ground that is not a building, per hectare
+  866022a  <- session 39's tip, the branch point
 ```
 
-**ONE REVERTIBLE COMMIT PER REPAIR**, and the two repairs are `935a138` and `e642735`: each is a
-one-line change of a default in `WALK`, so either can be reverted on its own and the arms are still
-there to measure with.
-
-**No threshold moved. No budget file was touched.** `budget.json`, `city-budget.json`,
-`look-budget.json` and `input-budget.json` are byte-identical to session 38. The occupancy registry
-was not touched — not a claim, not a setback, not a forbidden pair. `clumping` stays red at 0.566
-and no value was proposed for it.
+**ONE REVERTIBLE COMMIT PER STAGE.** `f523445` (the block interiors) can be reverted on its own
+without touching the three dead-zone kinds, and `214c46c` (the hoarding claim) on its own without
+touching either.
 
 **STAGED BY NAME AT EVERY COMMIT.** `git status --short` was read before each one and never showed
-more than the files named in it; **`git add -A` was not used**, and `parsecheck` counted 110 files
-where session 38 counted 109 — the one file being `tools/padprobe.mjs`. That count is the only
+more than the files named in it; **`git add -A` was not used**, and `parsecheck` counted 111 files
+where session 39 counted 110 — the one file being `tools/groundprobe.mjs`. That count is the only
 thing that caught the iCloud sync-conflict copy of `citygen.js` in session 37.
+
+**NO THRESHOLD MOVED. NO BUDGET FILE WAS TOUCHED.** `budget.json`, `city-budget.json`,
+`look-budget.json` and `input-budget.json` are byte-identical to session 39. `clumping` stays red
+and no value was proposed for it.
 
 `origin/main` still carries session 34's `b2ad696` and nothing after it — the repair STATE 34 §10
 names is still one command and still the operator's:
@@ -551,75 +579,84 @@ git push --force-with-lease origin 2b04ace:main
 
 ## 10. WHAT WAS NOT BUILT, AND WHY
 
-- **The narrowed / slid candidate.** §3.2 — 51 refusals, 845 m, 2.4% of the island edge as an upper
-  bound. It needs a bounded retry and a second registry query inside the walk; the session had two
-  repairs, an arm to re-choose and a gate battery. Priced, not attempted.
-- **The end-of-run gap.** §4 — measured and diagnosed, not changed, because it is a look decision
-  and the arm was already being re-chosen.
-- **The weir's disc, the setback, and every other pad change.** §3.1 — measured and rejected on the
-  numbers. The registry is exactly as session 38 left it.
-- **The condenser's under-claim.** §3.1 — a question about a solid, in the direction that would
-  REMOVE frontage. Not touched at 02:00 by an unattended session.
-- **`band:noon` and the bright reserve.** §7 — both red, both left red. LOOK.md §7's re-derivation
-  is available and was not used, because a threshold re-derived by the session whose change
-  breached it is indistinguishable from a threshold tuned green.
-- **No quiet battery, no admissible millisecond.** `load1` ran 2.17–4.28 against a bar of 1.6.
+- **The yard's placement.** §6.1 item 2 — its stacks scatter uniformly where a works yard stacks
+  against its boundary. The COUNT is derived and was not touched to flatter a frame; the placement
+  is the thing worth changing and it is not this item's floor.
+- **More bay modules.** §6.1 item 3 — `DEAD_ZONE.modules` is 2 with an argument beside it, and
+  raising it to fill the parcel would be a number chosen from a frame rather than derived.
+- **The clumping statistic.** §5.1 — measured, printed, made worse on purpose, and left exactly
+  where it was. A re-derivation by the session that breached it is a threshold tuned green.
+- **Anything about signs.** §7.1.1 — the three remaining delivered overlaps are all `sign ×`
+  something and the mechanism is that signs are not in the registry. Not this item.
+- **A pedestrian that a palisade stops.** §12 — the walkability mask blocks buildings, landmark
+  ground blockers, the origin block and the water, and nothing else. A yard is secured in the
+  geometry and open in the mask, exactly as a park railing has been since session 21. Recorded, not
+  repaired.
+- **No quiet battery, no admissible millisecond.** `load1` ran 1.77–3.52 against a bar of 1.6.
 - **Nothing else was started.**
 
 ---
 
 ## 11. WHAT TO DO FIRST NEXT TIME
 
-1. **`inputcheck`, AND IT HAS NOW BEEN CARRIED FOUR TIMES.** §7.3. Red since `0f60c9a`, which STATE
-   35 reported as green; bisected in session 36, machine and collision ruled out, reproducible to
-   0.002 m/s across four sessions, mechanism unknown. **It is the only gate in this project that
-   went from green to red without anybody noticing.** It has outranked everything on this list
-   three times without being done.
+1. **`inputcheck`, AND IT HAS NOW BEEN CARRIED FIVE TIMES. IT MUST BE THE NEXT SESSION'S ONLY
+   ITEM.** §7.3. Red since `0f60c9a`, which STATE 35 reported as green; bisected in session 36,
+   machine and collision ruled out, reproducible to 0.03 m/s across five sessions, mechanism
+   unknown. **It is the only gate in this project that went from green to red without anybody
+   noticing, it is a shipped control regression, and it has now outranked everything on this list
+   four times without being done.** Nothing below this line should be started before it.
 
-2. **THE NARROWING VERDICT — the largest remaining honest gain in the walk.** §3.2. 51 refusals
-   with 11 m or more of clear frontage beside the claim, 845 m, 2.4% of the island edge, and the
-   pads stay exactly as they are. `padprobe` prints the population and `WALK` is where the arm
-   goes. It is STATE 38 §7.3's *"a candidate that could be narrowed or slid"*, now with a number.
+2. **THE CLUMPING STATISTIC, REPLACED RATHER THAN RE-NUMBERED — and this session made the case
+   unavoidable.** §5.1. It correlates 0.92 with how many chunks in the window are EMPTY (STATE 37
+   §4.2), and a change whose entire purpose was to make fewer chunks empty took it from 9 of 12
+   regions below the floor to 12 of 12 while its own populated-fraction conjunct moved 94% → 99%.
+   **A statistic that gets worse when the thing it measures gets better is not measuring it.** The
+   gate's own message for the second conjunct already says so: *"a high CV bought by emptiness is
+   not clumping"*. STATE 37 §4.2 hands over the twelve-region population and the reason a number
+   cannot fix it.
 
-3. **THE END-OF-RUN GAP, AND THE PRIZE IS 7.7% AND NOT 11.5%.** §4. Sweep `rng.range(6, 26)`
-   through `funnelprobe --sweep` before choosing a number, judge it against the MID-SIDE share, and
-   do it in the same session as an arm re-choice because it re-phases the city.
+3. **THE NARROWING VERDICT — the largest remaining honest gain in the walk.** Carried from STATE 39
+   §11 item 2, untouched. 51 refusals with 11 m or more of clear frontage beside the claim, 845 m,
+   2.4% of the island edge, and the pads stay exactly as they are. `padprobe` prints the population
+   and `WALK` is where the arm goes.
 
-4. **`band:noon` HAS NO SURVIVING MECHANISM IN EITHER DIRECTION.** §7.2. Session 36's *"more
-   buildings mean more noon shadow"* was withdrawn by session 37 on +161 buildings moving it
-   0.0000; this session moved it −0.0003 on far fewer. The band is 0.0002 below a floor whose own
-   margin has been under its noise floor for four sessions. **Ask what it is actually measuring
-   before moving anything.**
+4. **THE YARD STACKS AGAINST ITS BOUNDARY, AND A CAR PARK'S APRON IS TWO THIRDS OF IT.** §6.1.
+   Both are PLACEMENT questions with the counts already derived, and both are what the frames say
+   is left. `groundprobe --vocab` is the instrument; judge it from (D) and (C), not from a number.
 
-5. **The bright reserve at its floor.** §7.1. [6.32 6.00 6.00] against a floor of 6.00 and a spread
-   of 0.32. LOOK.md §7 already lists this floor as derived under a camera veil session 27 removed.
-   A re-derivation is owed, in the open, by a session that is not also the one that pushed it.
+5. **THE TWO VEHICLE-SILHOUETTE BARS HAVE A SPREAD LARGER THAN ANY ARM ANYBODY HAS COMPARED WITH
+   THEM.** §7.4.1 — the same code measured ground contrast 0.885 and 0.7339, and the sampled
+   population moved 71 / 68 / 70 vehicles. LOOK.md §4 quotes these as 73% and 63%, STATE 39 quoted
+   68% and 52%, this session read 70% and 51%. **Pool them or stop quoting them**, and note that
+   `perfcheck` already pools its COUNTS worst-case and does not pool these.
 
-6. **The two delivered sign overlaps and the two sign quads inside a building, and the reason under
-   all four.** §7.1 — **the generator's registry contains no `sign` claims and no `prop` claims**,
-   verified by grep this session: eight `claimBox` sites, kinds `building` ×2, `water`, `path`,
-   `landmark`, `feature`, `deck`, `block`. Until a sign is a claim, this gate's count is a lottery
-   on the stream.
+6. **`band:noon` AND `band:dusk` HAVE NO SURVIVING MECHANISM, AND THIS SESSION IS THE STRONGEST
+   EVIDENCE YET.** §7.2 — 39 new luminaires and three new lit ground surfaces moved all four bands
+   by **0.0000**. The bands are blind to the generated city because `lookcheck` stands in the
+   origin block. Ask what they are actually measuring before moving anything.
 
-7. **The condenser's ground claim is NARROWER than the tower it stands for.** §3.1 —
-   `landmarkOccluders` scales a hyperboloid's radius by 0.82 for the canyon bake and the registry
-   claims those same boxes, so the claim's half-width is 50.8 m against a 62 m base radius. A
-   building may stand where the tower is. **A question, not a finding**: it needs the solid's real
-   footprint, and the answer removes frontage rather than adding it.
+7. **The two sign quads inside a building and the three delivered `sign ×` overlaps.** §7.1.1 —
+   **the generator's registry contains no `sign` claims and no `prop` claims.** Until a sign is a
+   claim, this gate's count is a lottery on the stream, and every session that adds props re-rolls
+   it.
 
-8. **The clumping statistic, replaced rather than re-numbered.** STATE 37 §4.2 hands over twelve
-   regions, a correlation of 0.92 with how many chunks in the window are empty, and the reason a
-   number cannot fix it. `citycheck` printed the twelve-region population again this session:
-   median 0.574, min 0.249, max 0.964, **9 of 12 below the floor**.
+8. **The condenser's ground claim is NARROWER than the tower it stands for.** Carried from STATE 39
+   §11 item 7, untouched. `landmarkOccluders` scales a hyperboloid's radius by 0.82 for the canyon
+   bake, so the claim's half-width is 50.8 m against a 62 m base radius. A question, not a finding.
 
-9. **A quiet battery.** Every millisecond in the last seven STATE files is inadmissible. This one
-   needs the operator and `tools/quiet-gates.sh`.
+9. **The end-of-run gap.** Carried from STATE 39 §11 item 3, untouched, and it is now **partly
+   answered from the other side**: every one of those gaps is a yard, and a yard now has a surface
+   and things standing on it, so the gap reads as a parcel rather than as a hole. The sweep STATE 37
+   §7.2 asks for is still unrun.
+
+10. **A quiet battery.** Every millisecond in the last eight STATE files is inadmissible. This one
+    needs the operator and `tools/quiet-gates.sh`.
 
 ---
 
 ## 12. KNOWN GAPS CARRIED FORWARD
 
-**Unchanged from s8–s38**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
+**Unchanged from s8–s39**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
 `saturation-peak.png` overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the
 sky, rain streaks near-invisible wide at night, `rain_spray` 0 static, **right turns only**, sun
 shadows to ~170 m, the bake blind to elevated slabs, the PMREM hitch, the too-red dawn horizon, one
@@ -638,43 +675,41 @@ of the city is an empty concrete bowl**, `landmarkBlocks` still exported and sti
 the registry two ways, **the basin is walkable in the mask and unwalkable in the geometry**, the two
 `walkableAt` sites still blind to a basin, the dish delivering 88 m of structure against a 62 m
 keep-out, the quay walk's ulp exposure on four named chunks, **`walkability` unreachable cells at
-216 with no threshold reading it**, **`tone profile` red on every reading for seven sessions**, and
+216 with no threshold reading it**, **`tone profile` red on every reading for eight sessions**, and
 a gate message frozen in the present tense of the session that wrote it.
 
 **CLOSED THIS SESSION:**
 
-- **The quay walk's own copy of the overrun at `citygen.js:6197`** — repaired and counted. §2.1.
+- **`prop(container) × site(hoarding)`**, on the gate since session 22 and half-repaired in session
+  24. The hoarding's claim was ±0.12 against a delivered `z ∈ [−0.07, +0.43]`. §7.1.1.
+- **The bright reserve**, red at s39 and for six sessions before s37. 6.14% against a floor of
+  6.00% — inside the printed spread, reported as a colour change rather than as a result. §7.1.
 
 **NEW THIS SESSION — all of it measured, none of it inferred:**
 
-- **THE WALK'S CEILING IS 0.451, NOT 0.431**, pooled over twelve regions (0.403–0.478), and the
-  shipped law delivers 0.371 against 0.354. **No claim in the registry moved.** §0.
-- **THE PAD WAS NEVER WHAT COST THE FRONTAGE.** 290 of 296 clip refusals (98.0%) overlap the claim
-  along their own frontage, so a narrower setback is worth 6 refusals; the weir's disc instead of
-  its bounding square is worth 3 refusals and 54 m. §3.1.
-- **THE WALK'S RESPONSE TO A PAD IS.** 68 of 296 refusals landed past the claim that refused them
-  and skipped 701 m — 2.0% of the island edge — beyond a pad rather than under one. §3.1.
-- **`clamp` BEATS `fit` ON FRONTAGE AND LOSES ON COUNT**: 7 786 buildings at 0.359 against 7 807 at
-  0.357. Occupancy is a length. §2.
-- **THE QUAY WALK ABANDONED 106 OF 1 892 BANK CANDIDATES** over twelve regions, 1 793 m; its
-  delivered count moves 1.0 se, inside the spread. §2.1.
-- **NOT ONE END-OF-RUN GAP IS UNDER 6 m, BECAUSE 6 m IS THE LAW'S OWN FLOOR** — so the *"side
-  alleys"* its comment names cannot exist, and **188 of 267 gaps (2 662 m, 7.7% of the edge) fall
-  mid-side**, which is the part that reads as a hole. §4.
-- **NEITHER REPAIR DRAWS A NUMBER THE WALK DID NOT ALREADY DRAW**, and CONTRACT §6's named stream
-  cannot help with the re-phase, because the extra draws are the added BUILDINGS' own. §5.
-- **THE ARM SURVIVES THE REPAIR.** Contrast at `d^0.50` is 1.61× before and 1.61× after, on twelve
-  regions, while both quartiles' coverage rose. §6.1.
-- **`funnelprobe --laws` PRINTED AN ARTEFACT AS A FINDING** and was repaired: an overrun candidate's
-  width was recovered by subtraction, which stopped being that quantity the moment the walk clamped
-  instead of abandoning. §8.
-- **THE LEAD-IN READS 3.4 se HIGH AT SEED 1337 AND IS EXACT OVER TWELVE.** 4.98 m against 4.50 on
-  one region; 4.539 pooled, delta +0.039 against 3 se of 0.126. §8.
-- **`gateaudit` FOUND NO THRESHOLD DRIFT**, and its only failure is `lookcheck`'s own reds restated
-  as its control. §7.
-- **THE TRIANGLE CEILING DID NOT BIND**: 2.09 M against 2 360 000, 434 draws of 440, 295 103
-  instances. §7.4.
-- **`band:noon` IS RED BY 0.0002 ON AN INSTRUMENT WITH ZERO SPREAD OVER THREE RUNS**, and neither
-  session 36's mechanism nor session 37's withdrawal of it explains the move. §7.2.
-- **STATE 38 §7.3's `landmark: 10` IS STALE.** `BUILDING_SETBACKS.landmark` is 4.2 m and has been
-  since session 4. §1.
+- **THE THREE NEGLECTED KINDS WERE CAPPED AT ONE OBJECT PER CHUNK BY CONSTRUCTION**, because the
+  cubic prop law and the gate that selects the kind read the same density field: `26 × 0.34³` =
+  1.022, zero below `d = 0.268`. 84 of 131 delivered nothing at all on 1.094 ha. §1.
+- **A `built` ISLAND EMITTED NO GROUND RECTANGLE AT ALL** — the block interior was the world's earth
+  plane, and there was no floor under the largest bare surface in the city. §4.
+- **659 OF 963 LIGHT WELLS WERE EMPTY**, and the well is 23.4 m square by construction from
+  `lotDepthM()`. Now 187 of 963. §4.
+- **`SITE`'s OWN COMMENT QUOTES THE SLOPE'S SPACING AS THE FLOOR'S.** `104.6/√14` is 28.0 m, not the
+  26 m it claims; 26.15 m is `104.6/√16`. The constant is right. §1.1.
+- **NOT ONE BUILT CHUNK MOVED**, and CONTRACT §6's named stream is why — the opposite of session
+  39's finding, and for a stateable reason: here the new draws belong to objects that did not exist.
+  Four digests identical. §5.
+- **THE CLUMPING CV FELL 0.566 → 0.431 AND 12 OF 12 REGIONS ARE NOW BELOW ITS FLOOR**, while the
+  populated fraction it is paired with moved 94% → 99%. No threshold moved. §5.1.
+- **THE HOARDING'S CLAIM WAS 3.6× NARROWER THAN ITS OWN FEET**, and sessions 22 and 24 both had the
+  measurement that closes it. §7.1.1.
+- **THE FOUR LOOK BANDS MOVED BY 0.0000 ON 39 NEW LUMINAIRES AND THREE NEW LIT SURFACES.** §7.2.
+- **THE TRIANGLE CEILING DID NOT BIND**: 2.13 M against 2 360 000, **0 extra draw calls**, 309 095
+  instances. Headroom 13.0% → 9.8%. §7.4.
+- **THE SAME CODE MEASURED wall p95 91.20 ms AND 71.60 ms TWO HOURS APART**, and the change's own
+  delta is 7% of that spread. §7.4.
+- **THE VEHICLE-SILHOUETTE BARS HAVE A LARGER SPREAD THAN THE ARMS ANYBODY COMPARES WITH THEM**:
+  ground contrast 0.885 and 0.7339 on identical code, sampled population 71 / 68 / 70. §7.4.1.
+- **A PALISADE DOES NOT STOP A PEDESTRIAN.** The walkability mask blocks buildings, landmark ground
+  blockers, the origin block and the water, so a secured yard is open in the mask — the same gap
+  the park railings have had since session 21. §10.
