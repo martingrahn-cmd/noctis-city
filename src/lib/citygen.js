@@ -1873,6 +1873,29 @@ export const SITE = {
   /** Metres the hoarding stands in from the island edge, leaving the pavement clear. */
   hoardingInset: 1.0,
   /**
+   * Metres. HALF THE DEPTH A HOARDING PANEL ACTUALLY OCCUPIES — session 40,
+   * and it was 0.12 for nineteen sessions against a delivered 0.43.
+   *
+   * `city.js` draws a panel 0.06 m thick AND TWO FEET: `put(±0.42·L, 0.06,
+   * 0.18, 0.34, 0.12, 0.5)`, a 0.5 m brace offset 0.18 m to one side, so the
+   * delivered footprint runs z ∈ [−0.07, +0.43] about the panel's centreline.
+   * The claim was a symmetric ±0.12 — it did not contain the feet at all, and
+   * a hoarding's feet are the part of it something stands next to.
+   *
+   * IT IS WHY `prop(container) × site(hoarding)` HAS BEEN ON THIS GATE SINCE
+   * SESSION 22. STATE 22 diagnosed it TO THE FEET (0.34 × 0.5 = 0.170 m²
+   * against 0.173 measured) and built two candidate repairs on the generator's
+   * claim that changed nothing; session 24 found the delivered census reading a
+   * 2.4 × 0.06 panel as a 2.4 × 2.4 square and repaired THAT, which removed the
+   * false half of the pair and left this one. The measurement that closes it is
+   * the same one both sessions had: the claim is 3.6× narrower than the boxes.
+   *
+   * 0.43 IS SYMMETRIC AND THEREFORE AN OVER-CLAIM ON THE PANEL SIDE, which is
+   * `occupancy.js`'s stated safe direction: an over-claim shows up as a
+   * conflict a reader can see, an under-claim shows up as nothing at all.
+   */
+  hoardingHalfDepth: 0.43,
+  /**
    * Metres. The tower crane's mast height above the ground.
    *
    * A tower crane clears the building it is putting up by about 15 m of hook
@@ -7276,7 +7299,8 @@ export function generateChunk(rootSeed, cx, cz) {
           const z = run.axis === 'x' ? run.at : c;
           const printed = featRng.chance(0.25);
           const box = claimAt('site', x, z,
-            run.axis === 'x' ? seg / 2 : 0.12, run.axis === 'x' ? 0.12 : seg / 2,
+            run.axis === 'x' ? seg / 2 : SITE.hoardingHalfDepth,
+            run.axis === 'x' ? SITE.hoardingHalfDepth : seg / 2,
             { y0: 0, y1: SITE.hoardingHeight, owner: 'site:hoarding' });
           if (reg.conflict(box)) continue;
           features.push({
@@ -7601,7 +7625,8 @@ export function generateChunk(rootSeed, cx, cz) {
       const gateSide = featRng.int(0, 3);
       const gateAt = featRng.range(0.25, 0.75);
       boundaryRun({
-        inset: SITE.hoardingInset, seg: SITE.hoardingSegment, halfT: 0.12, height: SITE.hoardingHeight,
+        inset: SITE.hoardingInset, seg: SITE.hoardingSegment, halfT: SITE.hoardingHalfDepth,
+        height: SITE.hoardingHeight,
         category: 'site', owner: 'lot:hoarding', gateSide, gateAt, gateHalf: 4.0,
         make: (x, z, yawDeg) => ({
           kind: 'hoarding', x, z, length: SITE.hoardingSegment, height: SITE.hoardingHeight,
