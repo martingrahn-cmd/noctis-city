@@ -35,6 +35,62 @@ It is that the street wall is broken.
 - **Buildings meet the lot line.** A block's frontage is continuous. Where a
   parcel is empty, it is empty *for a reason* — a yard, a site, a park — not
   because a noise field came out low.
+- **AND THE REASON WAS DECLARED AND NOT DRAWN, WHICH IS THE OPERATOR'S OWN
+  READ OF SESSION 39's FRAMES: *"everything which is not a building stands
+  empty."*** The bullet above has been satisfied since session 32 — a chunk is
+  a `yard`, a `lot`, a `parking`, a `park` or a `construction` site and it says
+  so — and until session 40 three of those five names bought the parcel
+  nothing at all.
+
+  **THE CAP WAS ONE OBJECT PER CHUNK AND IT WAS BY CONSTRUCTION.** `park` and
+  `construction` each had a count with a FLOOR under it — `22 + 26·d` and
+  `14 + 16·d`. The other three fell through to `26 · d³`, and a chunk is
+  low-detail BECAUSE `density < CITY.lowDetailThreshold` = 0.34, so the law and
+  the gate that selects the kind read the same field: `26 × 0.34³` = **1.022**,
+  rounding to zero below `d = 0.268`. Measured by `tools/groundprobe.mjs` over
+  twelve regions of 10 × 10 chunks (seeds 1337–1348), as objects per hectare of
+  OPEN GROUND — the 104.6 m island minus the exact union of every building,
+  landmark, water and block claim standing on it, because a per-chunk count
+  hides that a built island has half of itself under a wall:
+
+  ```
+    kind          chunks   objects per hectare of open ground   chunks with
+                            s39    s40      s39 → s40 zero      NOTHING on them
+     parking         41      0.0   180.1                         26/41 →  0/41
+     lot             45      0.0   163.6                         29/45 →  0/45
+     yard            45      0.0   149.9                         29/45 →  0/45
+     built           963     7.0    46.0                        114/963 → 12/963
+     park            47    187.4   187.4    unchanged              0/47
+     construction    59    174.6   174.6    unchanged              0/59
+  ```
+
+  **84 of the 131 parking, lot and yard chunks delivered nothing at all** on
+  1.094 hectares of open ground, and the two kinds anybody had given a floor
+  delivered 187 and 175. The repair is `DEAD_ZONE` in `citygen.js`: a floor and
+  a slope for each of the three, each floor derived from a length that belongs
+  to the kind — a car park's 30 m lighting square, a yard's 21.4 m van apron, a
+  third of the island for a cleared lot — plus the content itself. **None of it
+  is a preference: the derivation is beside every constant.**
+- **THE BLOCK INTERIOR IS THE LARGEST BARE SURFACE IN THE CITY AND IT HAD NO
+  FLOOR UNDER IT — LITERALLY.** `lotDepthM()` is 40.6 m, so the central
+  `104.6 − 2 × 40.6` = **23.4 m** square of every island is ground no perimeter
+  building may reach by construction. **659 of 963 built chunks had nothing
+  standing in it**, and a `built` island emitted **no ground rectangle at all**
+  — the courtyard was the world's earth plane, the surface under a road where
+  there is no road. A light-well core is the block's own service yard, so it
+  now carries one (`DEAD_ZONE.core`, 12 + 14·d, from the same van apron) and a
+  surface to stand it on. Empty wells: **659/963 → 187/963.**
+
+  **IT COST THE CLUMPING GATE AND THE NUMBER IS PRINTED RATHER THAN ARGUED
+  AWAY.** `citycheck`'s prop-density CV fell **0.566 → 0.430** against a floor
+  of 0.60 it has been under for six sessions, and the twelve-region population
+  went from 9 of 12 below the floor to **12 of 12**. That statistic correlates
+  0.92 with how many chunks in the window are EMPTY (STATE 37 §4.2), and this
+  change is precisely a change to how many chunks are empty — its own populated
+  fraction moved 94% → 99% against a floor of 55%. **No threshold was moved**
+  (CONTRACT §0 rule 5) and no re-derivation was attempted by the session whose
+  change breached it (§7 below). It is the first item on STATE 40's list after
+  `inputcheck`.
 - **THE EMPTY CHUNKS ARE NOT THE DEFECT, AND THE CLAIM THAT THEY WERE WAS MINE.**
   This bullet used to read *"23 of 100 chunks carry zero buildings, one of them at
   density 0.715 — that is the defect"*, and STATE 31, this file and session 32's
@@ -342,6 +398,15 @@ is judged from about 1.7 m.
 - **Parks and planting.** Green in a dense city is punctuation — small squares,
   a strip of trees, a fenced garden between two blocks. Parks exist as a block
   type; they read as dark empty ground at night.
+- **THE FIVE DEAD-ZONE KINDS NOW READ AS FIVE DIFFERENT KINDS OF DARK, AND
+  THAT IS A LIGHTING FACT BEFORE IT IS A GEOMETRY ONE.** A park lamp is 4.2 m
+  at 870 cd — 0.128× a street lamp's peak delivering 0.50× its illuminance — and
+  a car park's column is 10.0 m at 6 200 cd, **0.91× the peak delivering 0.63×
+  the illuminance** (`LIGHT.carParkColumnCandela`, session 40, derived from
+  `E = I·cos³(57°)/h²` at a 10 lx surface-car-park class). So a park is a small
+  soft pool with a lit column in it, a car park is a dimmer wash from higher up
+  over rows of parked bodywork, and a yard is two site floods pointing down into
+  it. Three parcels that used to be one empty rectangle.
 - **Layered depth.** Three planes in every frame: a dark foreground shape, a lit
   mid-ground, a hazed distance. Frames with only two planes read flat.
 - **Variation over repetition.** The market stalls are the current failure case
