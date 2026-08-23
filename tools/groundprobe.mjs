@@ -148,7 +148,7 @@ function measure(seed, cx, cz) {
     islandM2, openM2, wellM2, wellOpenM2,
     objects: interior.length + feats.length,
     props: interior.length, features: feats.length, kerbside, inWell,
-    asked: c.propsAsked, gaveUp: c.propsGaveUp,
+    asked: c.propsAsked + (c.coreAsked || 0), gaveUp: c.propsGaveUp + (c.coreGaveUp || 0),
     buildings: c.buildings.length,
     vocab,
   };
@@ -202,7 +202,7 @@ if (args.has('law')) {
     const law = k === 'park' ? '22 + 26·d'
       : k === 'construction' ? '14 + 16·d'
         : DEAD_ZONE[k] ? `${DEAD_ZONE[k].floor} + ${DEAD_ZONE[k].slope}·d`
-          : k === 'built' ? '96·d³' : '26·d³';
+          : k === 'built' ? `96·d³  + core ${DEAD_ZONE.core.floor} + ${DEAD_ZONE.core.slope}·d` : '26·d³';
     const dens = mine.map((r) => r.density).sort((a, b) => a - b);
     const ask = mine.map((r) => r.asked).sort((a, b) => a - b);
     console.log(`  ${pad(k, 13)} ${pad(law, 30)} ${lpad(mine.length, 5)} ${lpad(f3(q(dens, 0.5)), 12)} ${lpad(f1(q(ask, 0.5)), 11)} ${lpad(`${ask[0]}/${ask[ask.length - 1]}`, 14)}`);

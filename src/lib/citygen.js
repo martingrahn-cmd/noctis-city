@@ -8186,6 +8186,138 @@ export function generateChunk(rootSeed, cx, cz) {
     });
   }
 
+  /**
+   * THE BLOCK INTERIOR — SESSION 40, BRIEF ITEM (d).
+   * ================================================
+   *
+   * THE LARGEST BARE SURFACE IN THE CITY, AND IT WAS NOTHING. Session 35's
+   * depth takes a building 29.6 m into a 52.3 m half-block and `lotDepthM()`
+   * caps it at 40.6 m, so the central `104.6 − 2 × 40.6` = **23.4 m** square
+   * of every island is ground no perimeter building may reach BY CONSTRUCTION.
+   * `groundprobe --interiors` over twelve regions: **659 of 963 built chunks
+   * had nothing standing in it at all**, and the median built island carried
+   * 7.0 objects per hectare of open ground against a park's 187.
+   *
+   * WHAT A LIGHT-WELL CORE CONTAINS IS THE BLOCK'S OWN SERVICING. That is the
+   * answer to *"what is this ground for"* rather than a decoration: bin
+   * stores, a plant enclosure, stacked material, and a delivery bay with a van
+   * on it. The count and its derivation are `DEAD_ZONE.core` — the same 21.4 m
+   * van apron the `yard` kind is derived from, because a block interior IS a
+   * service yard.
+   *
+   * IT DRAWS FROM ITS OWN NAMED STREAM AND THAT IS THE WHOLE REASON IT IS
+   * SAFE. CONTRACT §6: *"Streams are independent, so adding a new system
+   * cannot shift an existing one's sequence."* Session 39 recorded that a
+   * named stream could NOT help with the walk's re-phase, because the extra
+   * draws there were the added BUILDINGS' own. Here the opposite holds: every
+   * draw below belongs to an object that did not exist, nothing above it is
+   * re-ordered, and the delivered buildings, signs and street props of every
+   * `built` chunk are bit-identical to session 39's. STATE 40 §7 prints the
+   * digest either way.
+   *
+   * ITS OWN YAW, TOO, for the same reason: `yaw()` reads `yawRng`, which every
+   * building and prop above has already drawn from, and borrowing it here
+   * would make a core object's existence a fact about the street furniture's
+   * angles. `CITY.offAxisFraction` and `CITY.maxYawDeg` are §3's numbers and
+   * are read rather than copied.
+   *
+   * SCATTERED OVER THE WHOLE ISLAND AND NOT OVER THE 23.4 m WELL, and the
+   * registry is what makes that the right choice: `reg.conflict` refuses every
+   * spot a building already stands on, so what is left is the courtyard AND
+   * the gaps in the perimeter run. Session 39 measured those gaps — 188 of 267
+   * fall mid-side and *"every one of them is a yard"* — so a service yard is
+   * exactly what belongs in them, and confining this to the well would have
+   * left the thing a walker actually sees empty.
+   */
+  let coreAsked = 0;
+  let coreGaveUp = 0;
+  if (!lowDetail) {
+    const coreRng = chunkRng(rootSeed, cx, cz, 'core');
+    const C = DEAD_ZONE.core;
+    coreAsked = Math.round(C.floor + C.slope * density);
+    const coreYaw = () => (coreRng.next() < CITY.offAxisFraction
+      ? coreRng.gauss() * (CITY.maxYawDeg / 3) : 0);
+    /**
+     * THE DELIVERY BAY. One per block, and it is the one piece of core content
+     * that is a PLACE rather than a thing: a van standing where a block is
+     * serviced from. Tried first, so that the clutter is placed around it
+     * rather than in it.
+     */
+    {
+      const a = coreRng.range(0, Math.PI * 2);
+      const rr = coreRng.range(6, 26);
+      const x = island.x0 + (island.x1 - island.x0) / 2 + Math.cos(a) * rr;
+      const z = island.z0 + (island.z1 - island.z0) / 2 + Math.sin(a) * rr;
+      const yawDeg = (-a * 180) / Math.PI + coreYaw();
+      const ca = Math.abs(Math.cos((yawDeg * Math.PI) / 180));
+      const sa = Math.abs(Math.sin((yawDeg * Math.PI) / 180));
+      const box = claimAt('prop', x, z, ca * 2.70 + sa * 1.05, sa * 2.70 + ca * 1.05,
+        { y0: 0, y1: 2.45, owner: 'parked:van' });
+      if (!reg.conflict(box, 0, PROP_SETBACKS)) {
+        features.push({ kind: 'parked', x, z, yawDeg, vehicle: 'van', chroma: coreRng.int(0, 5) });
+        reg.claim(box);
+      }
+    }
+    /**
+     * THE SERVICING ITSELF. `bin` is a refuse store, `cabinet` is plant — a
+     * substation or a chiller — `stack` is material and `container` is a skip.
+     * `bollard` is what keeps a van off the rest of it. Every one of them is
+     * already modelled; `stack` is the session's one new kind and it is here
+     * for the same reason it is in a yard.
+     */
+    const CORE_KINDS = ['bin', 'cabinet', 'stack', 'container', 'bollard', 'stack'];
+    for (let i = 0; i < coreAsked; i++) {
+      const propKind = CORE_KINDS[coreRng.int(0, CORE_KINDS.length - 1)];
+      const scale = coreRng.range(PROP_SCALE.min, PROP_SCALE.max);
+      const variants = propVariantCount(propKind);
+      const variant = variants > 0 ? coreRng.int(0, variants - 1) : 0;
+      const half = propHalfWidth(propKind, variant) * scale;
+      let placed = false;
+      for (let t = 0; t < PROP_TRIES && !placed; t++) {
+        const x = island.x0 + 2 + coreRng.next() * (island.x1 - island.x0 - 4);
+        const z = island.z0 + 2 + coreRng.next() * (island.z1 - island.z0 - 4);
+        /**
+         * The circumscribing square, exactly as the island scatter above
+         * claims it — the yaw is free, so the claim is the conservative one.
+         */
+        const spot = claimAt('prop', x, z, half, half, { owner: propKind });
+        if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+        reg.claim(spot);
+        props.push({
+          x, z, yawDeg: coreYaw(), refDeg: 0, kerb: false, kind: propKind, scale, variant,
+          soil: coreRng.range(0.52, 0.94),
+          lean: coreRng.range(-1, 1),
+          leanAzDeg: coreRng.range(0, 360),
+          /** So the census can tell a service yard from a street. */
+          core: true,
+        });
+        placed = true;
+      }
+      if (!placed) coreGaveUp++;
+    }
+
+    /**
+     * AND THE CORE GETS A SURFACE, WHICH IS THE HALF THE OBJECTS CANNOT DO.
+     *
+     * A `built` island emitted no ground rectangle at all, so the ground
+     * between and behind its buildings was the world's EARTH PLANE — the
+     * surface `block.js` draws under everything, at `GROUND.earth`, which is
+     * what is under a road where there is no road. That is why a block
+     * interior reads as nothing from the air even when there is something
+     * standing in it: there is no floor under it.
+     *
+     * It is the island minus every solid on it, which is exactly the quantity
+     * `groundprobe` calls OPEN GROUND, so the surface and the measurement are
+     * the same rectangle set. Clipped by `subtractBoxes` against the same
+     * claims a park's grass is clipped against, plus the buildings — a
+     * courtyard stops at its own back wall.
+     */
+    const coreSolids = reg.all().filter((c) => c.kind === 'building' || c.kind === 'landmark'
+      || c.kind === 'block' || c.kind === 'water');
+    const yardRect = { x0: island.x0, z0: island.z0, x1: island.x1, z1: island.z1, kind: 'coreGround', yKey: 'core' };
+    for (const g of subtractBoxes([yardRect], coreSolids)) ground.push(g);
+  }
+
   for (const l of touching) {
     for (const o of landmarkOccluders(l)) occluders.push(o);
   }
@@ -8245,6 +8377,14 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     propsAsked: propCount,
     propsGaveUp: propGaveUp,
+    /**
+     * SESSION 40. The block interior's own pass, counted separately from the
+     * street's, because they are two laws over two surfaces and one number for
+     * both is CONTRACT §9's subject. `props` holds them together; these say how
+     * many of them the core asked for and how many found no room.
+     */
+    coreAsked,
+    coreGaveUp,
     /** What the keep-out registry refused, by the category that refused it. */
     refused,
     /**
