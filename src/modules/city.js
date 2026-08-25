@@ -5071,9 +5071,8 @@ export function createCity(options = {}) {
         {
           const floorY = -l.depth - 0.4;          // the floor at the pond's rim
           const ledgeY = -1.2;                    // the 3 m ledge
-          const ledgeR = l.radius - 1.5;          // its middle
           const innerR = l.radius - 3;            // where the 7.80 m drop stands
-          const drop = -l.depth - ledgeY;         // 7.80 m, ledge to floor
+          const drop = ledgeY - -l.depth;         // 7.80 m, ledge down to floor
 
           /**
            * THE PERMANENT POOL. `basinPond` owns the arithmetic — 20% of the
@@ -5155,16 +5154,34 @@ export function createCity(options = {}) {
            * the same green.
            */
           const grass = [0.062, 0.094, 0.045];
-          for (let i = 0; i < 24; i++) {
-            const a = (i / 24) * Math.PI * 2;
-            push(l.x + Math.cos(a) * ledgeR, ledgeY + 0.45, l.z + Math.sin(a) * ledgeR,
-              2.2, 0.9, 8.0, (-a * 180) / Math.PI, grass, 0.95);
-          }
           /**
-           * The long axis rides local Z, as the ledge planters above do,
-           * because a yaw of `-a` maps local +z to the tangent `(-sin a, cos a)`
-           * and local +x to the radius. Beds laid the other way round read as
-           * spokes pointing at the outlet rather than as terraces round it.
+           * EVERYTHING STAYS INSIDE r = 83.6 m, AND THAT IS A DRAW-CALL BOUND
+           * RATHER THAN A DESIGN ONE — SESSION 42, and it cost a ring of ledge
+           * planters that was built and then removed.
+           *
+           * `addInstanced` emits ONE `InstancedMesh` PER CHUNK that owns a box,
+           * so a park spread over a 210 m bowl costs one draw call per chunk it
+           * reaches. The chunk boundaries near this landmark are x = -384 and
+           * -256 (84 m and 44 m from the axis) and z = 128 and 256 (22 m and
+           * 106 m), so anything past r = 84 to the west enters a SIXTH chunk.
+           * A ledge ring at r = 103.5 did: it took the park from 4 chunks to 6,
+           * and with the pond's own mesh `highway_speed` measured **441 draw
+           * calls against a ceiling of 440** — measured, in `perfcheck`, and a
+           * count rather than a millisecond, so it is admissible whatever the
+           * load. Content that breaches a ceiling does not ship (§0 rule 5), and
+           * the ceiling does not move.
+           *
+           * Four chunks is the floor for anything that fills this bowl at all,
+           * because z = 128 passes 22 m from the axis. The way to get those
+           * five draw calls back is in STATE §10: the landmark's boxes and the
+           * chunk's own building masses use the SAME geometry and the SAME
+           * material and are two meshes only because they are assembled in two
+           * places.
+           *
+           * The long axis rides local Z, because a yaw of `-a` maps local +z to
+           * the tangent `(-sin a, cos a)` and local +x to the radius. Beds laid
+           * the other way round read as spokes pointing at the outlet rather
+           * than as terraces round it.
            */
           /**
            * FOUR METRES AND NOT A SLAB, because from directly overhead a bed's
