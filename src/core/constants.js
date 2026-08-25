@@ -1122,6 +1122,19 @@ export const SURFACE = {
  * from there today is that a constant nobody can vary is honest and a coupling
  * to a value that does not exist is not.
  */
+/**
+ * Water's own diffuse. Almost all of what a river returns is specular; the body
+ * colour is what comes back out of the top few centimetres, and in an urban
+ * river that is silt rather than the deep-ocean blue. 0.024 photopic,
+ * green-biased.
+ *
+ * IT LIVED IN `river.js` UNTIL SESSION 42, when the weir's outlet pool became
+ * the second water surface in the project and `city.js` may not import a module
+ * (CONTRACT §2.2). Two literals in two files is `pierEvery: 34` beside
+ * `i % 3 === 0` with a colour, so it is declared once here and both read it.
+ */
+export const WATER_BODY = [0.019, 0.026, 0.023];
+
 export const WATER = {
   /** m/s at 12.5 m. See above. */
   windSpeed: 3.0,

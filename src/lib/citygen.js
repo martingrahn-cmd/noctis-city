@@ -2247,6 +2247,23 @@ export const LANDMARKS = [
      * A stormwater basin and sunken park, 210 m across and 9 m below grade.
      * A landmark made of absence — negative space at the scale of a district,
      * which is the thing that makes the density around it feel dense.
+     *
+     * IT IS NOT A WEIR. THE NAME IS THE ONLY THING ABOUT IT THAT SAYS SO, AND
+     * IT HAS COST A SESSION. A weir is a river structure; this claim's nearest
+     * point is **417.04 m from the nearest river bank** and 468.70 m from the
+     * centreline, with 3.26 chunk widths of city in between (measured session
+     * 42 from `riverEdges` over the claim's own x range). That is not a
+     * misplacement: `kind` is `basin`, and a detention basin belongs in its
+     * catchment rather than on a channel, so the PLACEMENT is right and the
+     * word is wrong. The name stays because twenty sessions of registry owner
+     * strings, `landmark:weir` mesh names, gate output and STATE files key on
+     * it; the correction lives here, where a reader meets it.
+     *
+     * AND IT IS DRY, WHICH THE PROFILE DECIDES RATHER THAN THE WORD. The floor
+     * falls 0.40 m over its 102 m — 0.39% — so a permanent pool a metre deep
+     * would stand at r = 255 m, four times the bowl. This cannot hold a pond;
+     * it is a dry detention basin, and `city.js` builds the park that follows
+     * from that, plus the 25.5 m outlet pool the same slope gives it.
      */
     x: -300, z: 150, height: 6, radius: 105, depth: 9,
     material: 'concrete',
@@ -3633,7 +3650,15 @@ export function landmarkGroundClaims(l) {
      * under this" gets a box that starts where the floor ends.
      */
     const a = landmarkAABB(l);
-    out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: a.z1, y0: -l.depth, y1: l.height, owner: l.name });
+    /**
+     * `y0` is the LOWEST POINT OF THE DELIVERED SECTION and not `-l.depth`,
+     * which was the floor's edge and stopped 0.40 m above the outlet even
+     * before session 42 dug the pond 1.50 m below that. A claim that starts
+     * where the floor ends is exactly the reader-gets-a-box-that-starts-at-the-
+     * wrong-place this comment was written against.
+     */
+    const y0 = Math.min(...basinProfile(l).map((p) => p[1]));
+    out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: a.z1, y0, y1: l.height, owner: l.name });
   }
   landmarkGroundClaimCache.set(l, out);
   return out;
@@ -3721,11 +3746,54 @@ export const BASIN_LATHE_SEGMENTS = 40;
  *     r = 0.02         y = −depth − 0.40   the floor, falling to the outlet
  */
 export function basinProfile(l) {
+  const p = basinPond(l);
   return [
     [l.radius, 0.4], [l.radius, -0.6],
     [l.radius - 3, -1.2], [l.radius - 3, -l.depth],
-    [0.02, -l.depth - 0.4],
+    [p.radius, p.rimY],
+    [p.radius - p.bankRun, p.floorY],
+    [0.02, p.floorY],
   ];
+}
+
+/**
+ * THE PERMANENT POOL AT THE OUTLET — SESSION 42, and it is a change to the
+ * section rather than a decoration laid on it.
+ *
+ * WHY THE SECTION HAD TO MOVE. The floor above falls 0.40 m over its 102 m — a
+ * slope of 0.39% — so standing water 0.10 m deep reaches r = 25.5 m and water
+ * 1.00 m deep would stand at r = 255 m, four times the bowl. The first attempt
+ * put a 0.10 m sheet on that floor and it TORE: a 40-gon cone's chords sag
+ * `r(1 − cos(pi/40))` = 0.077 m at r = 25, which is the same order as the water
+ * was deep, so the floor surfaced through it in alternating sectors. A depth
+ * under the mesh's own faceting is not a depth.
+ *
+ * So the outlet is dug into a pool the section can actually hold, which is what
+ * a wet detention basin has anyway — the dry floor is the storage that fills in
+ * a storm, and the permanent pool sits at the outlet and does not.
+ *
+ *   AREA      20% of the basin floor, the usual permanent-pool share of a wet
+ *             detention basin, so `r = floorR x sqrt(0.20)` = 102 x 0.4472 =
+ *             **45.6 m** and the pool is 6 538 m² of the floor's 32 685.
+ *   DEPTH     1.50 m. A permanent pool shallower than about a metre roots over
+ *             and stops being open water; 1.5 m is the ordinary minimum.
+ *   BANK      1:4, the steepest side slope a public water's edge is given, so
+ *             the bank runs 6.0 m in from the rim before the bottom is flat.
+ *
+ * The water surface `city.js` draws sits at `rimY`, so the pool is 1.50 m deep
+ * at the middle and meets the ground exactly at r = 45.6 m — 24x the faceting
+ * sag there, which is the number the first attempt did not have.
+ */
+export function basinPond(l) {
+  const floorR = l.radius - 3;
+  const depthM = 1.5;
+  return {
+    radius: floorR * Math.sqrt(0.2),
+    bankRun: depthM * 4,
+    rimY: -l.depth - 0.4,
+    floorY: -l.depth - 0.4 - depthM,
+    depthM,
+  };
 }
 
 /**

@@ -33,7 +33,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, WATER, WATER_BODY } from '../core/constants.js';
 /**
  * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
  * occupancy*. The advertising pillar's placement test asks this rather than
@@ -60,6 +60,7 @@ import {
   landmarkFootprint,
   landmarkAABB,
   basinProfile,
+  basinPond,
   BASIN_LATHE_SEGMENTS,
   riverEnvelope,
   riverEdges,
@@ -4215,7 +4216,7 @@ export function createCity(options = {}) {
      * for the most legible objects in the city, and they are frustum-culled like
      * everything else.
      */
-    const lathe = (profile, segments, y0 = 0, floodNits = 0, suffix = '') => {
+    const lathe = (profile, segments, y0 = 0, floodNits = 0, suffix = '', alb = albedo, rgh = rough) => {
       // A lathe is one mesh, so it cannot be split between chunks: the chunk
       // holding its axis owns it.
       if (!owns(l.x, l.z)) return 0;
@@ -4244,8 +4245,8 @@ export function createCity(options = {}) {
       // The albedo of a non-instanced mesh cannot ride in instanceColor, so it
       // gets its own material clone. Eight of them, once, at init.
       const m = materials.facade.clone();
-      m.color.setRGB(albedo[0], albedo[1], albedo[2], THREE.LinearSRGBColorSpace);
-      m.roughness = rough;
+      m.color.setRGB(alb[0], alb[1], alb[2], THREE.LinearSRGBColorSpace);
+      m.roughness = rgh;
       /**
        * THE FLOODLIT BAND — session 19, item 12, and it rides on THIS CLONE
        * rather than on a shared emissive material for one reason: the band is
@@ -4267,7 +4268,7 @@ export function createCity(options = {}) {
        * it until something dimmer than the sun needs one.
        */
       if (floodNits > 0) {
-        m.emissive.setRGB(albedo[0], albedo[1], albedo[2], THREE.LinearSRGBColorSpace);
+        m.emissive.setRGB(alb[0], alb[1], alb[2], THREE.LinearSRGBColorSpace);
         m.emissiveIntensity = floodNits;
       }
       /**
@@ -5013,6 +5014,157 @@ export function createCity(options = {}) {
          * in this project has shown. See `basinProfile` for the measurement.
          */
         bytes += lathe(basinProfile(l), BASIN_LATHE_SEGMENTS);
+
+        /**
+         * AND THE SUNKEN PARK ITS OWN ENTRY PROMISES — SESSION 42.
+         * =====================================================
+         *
+         * The operator, from the air: *"an enormous empty disc"*. LOOK.md has
+         * carried the other half since session 34 — *"Its own LANDMARKS comment
+         * calls it a stormwater basin and sunken park; there is no park in it"*
+         * — and STATE has carried `44 100 m² of the city is an empty concrete
+         * bowl` as an open defect ever since. It is 63% of all landmark ground.
+         *
+         * IT IS NOT A WEIR AND THE NAME IS THE ONLY THING THAT SAYS IT IS.
+         * Measured session 42 from the generator's own river: the claim's
+         * nearest point is **417.04 m** from the nearest bank and 468.70 m from
+         * the centreline — 3.26 chunk widths of city in between. A weir is a
+         * river structure and this is nowhere near the river, which the brief
+         * called a placement finding outranking the appearance. It is not:
+         * `kind` is `basin` and a detention basin belongs in its catchment
+         * rather than on a channel, so the placement is right and the NAME is
+         * what misleads. Kept as `weir` because twenty sessions of registry
+         * owners, mesh names and STATE files key on it; corrected where a
+         * reader meets it, in the LANDMARKS entry.
+         *
+         * WHAT THE GEOMETRY SAYS TO BUILD, rather than what the word suggests.
+         * `basinProfile` falls 0.40 m from the floor's edge at r = 102 to the
+         * outlet at r = 0 — a slope of 0.39%. A wet pond needs a permanent pool
+         * about a metre deep; a metre of water on this floor would stand at
+         * r = 102 x 1.00/0.40 = 255 m, four times the bowl. So this floor
+         * CANNOT hold a pond, and the thing it describes is a DRY detention
+         * basin: empty most of the year, flooded in a storm, and a park in
+         * between. That is what goes in it.
+         *
+         * EVERY PIECE BELOW RIDES THE LANDMARK'S OWN INSTANCED MESH, so the
+         * whole park costs ZERO new draw calls. `highway_speed` measures 437 of
+         * 440 at the top of the fill law (LOOK.md §2) and there is no room to
+         * spend; the one exception is the outlet pool, which is a lathe because
+         * a disc made of boxes is a polygon made of boxes.
+         */
+        {
+          const floorY = -l.depth - 0.4;          // the floor at the pond's rim
+          const ledgeY = -1.2;                    // the 3 m ledge
+          const ledgeR = l.radius - 1.5;          // its middle
+          const innerR = l.radius - 3;            // where the 7.80 m drop stands
+          const drop = -l.depth - ledgeY;         // 7.80 m, ledge to floor
+
+          /**
+           * THE PERMANENT POOL. `basinPond` owns the arithmetic — 20% of the
+           * floor's area, 1.50 m deep, a 1:4 bank — and the section in
+           * `basinProfile` is dug to hold it, because the dry floor could not:
+           * see that function for the 0.077 m of faceting sag that tore the
+           * first attempt apart.
+           */
+          const pond = basinPond(l);
+          const poolR = pond.radius;
+          /**
+           * A CIRCLE AND NOT A LATHE, AND THE FIRST TRY IS WHY. A lathe over a
+           * profile of constant y is degenerate — every generating segment has
+           * zero length in y, `computeVertexNormals` returns normals of zero
+           * length, and the disc rendered as a fan of BLACK SHARDS over the
+           * floor. `CircleGeometry` has one normal by construction, which is
+           * CONTRACT §9.1's own rule about a surface's normal and its winding
+           * being two statements that must agree.
+           */
+          if (owns(l.x, l.z)) {
+            const geo = track(new THREE.CircleGeometry(poolR, 24));
+            geo.rotateX(-Math.PI / 2);
+            /**
+             * REAL WATER, AND IT IS ONE ARGUMENT. `lights.patch(m, { water:
+             * true })` is the same call `river.js` makes: the define carries
+             * the Cox-Munk wave slope, the Fresnel and the SSR march, and
+             * `uNoctisTime` is a SHARED uniform `lights.js` advances once a
+             * frame, so a second water surface needs no hookup of its own.
+             * Drawn without it, at this albedo and at the bottom of a 9 m bowl
+             * with almost no sky in view, the disc rendered as a black rip in
+             * the floor — which is a worse answer than the blank disc it
+             * replaced, and is what the first frame of this repair showed.
+             */
+            const m = new THREE.MeshStandardMaterial({
+              roughness: WATER.baseRoughness, metalness: 0, envMapIntensity: 1,
+            });
+            m.color.setRGB(WATER_BODY[0], WATER_BODY[1], WATER_BODY[2], THREE.LinearSRGBColorSpace);
+            if (lightsApi) lightsApi.patch(m, { water: true });
+            track(m);
+            const mesh = new THREE.Mesh(geo, m);
+            mesh.position.set(l.x, pond.rimY, l.z);
+            mesh.receiveShadow = true;
+            mesh.name = `landmark:${l.name}:pool`;
+            group.add(mesh);
+            bytes += geo.attributes.position.count * 24;
+          }
+
+          /**
+           * FOUR FLIGHTS OF STEPS, one per cardinal, from the ledge to the
+           * floor. `PLAYER.stepUpM` is 0.20 m and `BLOCK.kerbHeight` is 0.160,
+           * so a 0.17 m riser is a stair this city's own controller can climb
+           * and its going is 0.30 m — 46 risers over the 7.80 m drop, running
+           * 13.8 m inward from r = 102. Until now the only way into this park
+           * was a 7.80 m vertical face, which is what STATE means by *"walkable
+           * in the mask and unwalkable in the geometry"*. This does not close
+           * that item — the mask still says the whole bowl is walkable — but it
+           * makes the geometry agree with it at four points instead of none.
+           */
+          const riser = 0.17;
+          const going = 0.3;
+          const steps = Math.round(drop / riser);
+          for (let s = 0; s < 4; s++) {
+            const a = (s / 4) * Math.PI * 2 + Math.PI / 4;
+            const ux = Math.cos(a);
+            const uz = Math.sin(a);
+            for (let i = 0; i < steps; i++) {
+              const r = innerR - i * going;
+              const y = ledgeY - (i + 1) * riser;
+              push(l.x + ux * r, y + riser / 2, l.z + uz * r, going, riser, 6.0,
+                (-a * 180) / Math.PI, [0.30, 0.295, 0.285], 0.80);
+            }
+          }
+
+          /**
+           * PLANTING. A ring of beds on the ledge, where a terraced basin puts
+           * them, and beds on the floor between the stairs — the green that
+           * makes a bowl read as a park rather than as a lid. The albedo is
+           * `city.js`'s own grass, so a bed here and a park two blocks away are
+           * the same green.
+           */
+          const grass = [0.062, 0.094, 0.045];
+          for (let i = 0; i < 24; i++) {
+            const a = (i / 24) * Math.PI * 2;
+            push(l.x + Math.cos(a) * ledgeR, ledgeY + 0.45, l.z + Math.sin(a) * ledgeR,
+              2.2, 0.9, 8.0, (-a * 180) / Math.PI, grass, 0.95);
+          }
+          /**
+           * The long axis rides local Z, as the ledge planters above do,
+           * because a yaw of `-a` maps local +z to the tangent `(-sin a, cos a)`
+           * and local +x to the radius. Beds laid the other way round read as
+           * spokes pointing at the outlet rather than as terraces round it.
+           */
+          /**
+           * FOUR METRES AND NOT A SLAB, because from directly overhead a bed's
+           * plan area is the same at any height and its SHADOW is not. At 0.6 m
+           * the floor read as flat paint on a lid; a stand of trees is 4 m to
+           * the crown and throws a shadow across the concrete that is what tells
+           * an aerial the bowl has a bottom.
+           */
+          const bedH = 4.0;
+          for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2 + Math.PI / 16;
+            const r = poolR + 12 + (i % 3) * 13;
+            push(l.x + Math.cos(a) * r, floorY + bedH / 2, l.z + Math.sin(a) * r,
+              9.0, bedH, 14.0, (-a * 180) / Math.PI, grass, 0.95);
+          }
+        }
         break;
       }
       case 'mast': {

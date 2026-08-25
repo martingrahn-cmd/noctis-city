@@ -43,7 +43,7 @@
  */
 
 import * as THREE from 'three';
-import { WATER, GROUND, waterWaves } from '../core/constants.js';
+import { WATER, WATER_BODY, GROUND, waterWaves } from '../core/constants.js';
 import {
   CITY,
   CORRIDOR,
@@ -87,13 +87,8 @@ const COPING = [0.30, 0.297, 0.288];
 const PAVING = [0.26, 0.257, 0.248];
 const ASPHALT = [0.082, 0.082, 0.086];
 const PAINTED_STEEL = [0.20, 0.205, 0.212];
-/**
- * Water's own diffuse. Almost all of what a river returns is specular; the
- * body colour is what comes back out of the top few centimetres, and in an
- * urban river that is silt rather than the deep-ocean blue. 0.024 photopic,
- * green-biased.
- */
-const WATER_BODY = [0.019, 0.026, 0.023];
+// `WATER_BODY` moved to core/constants.js in session 42 — the weir's outlet
+// pool is the second water surface and a module may not import another.
 
 export function createRiver(options = {}) {
   const cfg = { buildRadius: BUILD_RADIUS, ...options };
