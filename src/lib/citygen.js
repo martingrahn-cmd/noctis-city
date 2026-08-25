@@ -188,11 +188,45 @@ export const CITY = {
    * noise; the draw call, which is the only tight budget in this project, does
    * not move at all.
    *
-   * WHY 4 AND NOT MORE. `detailRadius` is 4 and the predicate is
+   * ~~WHY 4 AND NOT MORE. `detailRadius` is 4 and the predicate is
    * `detail && ring <= groundRadius`, so 4 is where this stops binding — a
    * larger value here would be a number the code cannot read, which is §9.1's
-   * own subject. It moves the pavement's end from 256–395.7 m to
+   * own subject.~~ It moves the pavement's end from 256–395.7 m to
    * **512.0–651.7 m**.
+   *
+   * **5 SINCE SESSION 42 (2026-08-25), AND THE `detail &&` WENT WITH IT.**
+   * The sentence above was right about the code and wrong about which half to
+   * change: the coupling was the defect, not the number. `city.js`'s own header
+   * has said since it was written that the geometry ring draws *"massing only —
+   * the building boxes AND THE ROAD SURFACE"*, and it drew the boxes. So a ring
+   * of city 128 m wide stood on the world's earth plane, with no carriageway,
+   * no pavement and no courtyard under any of it.
+   *
+   * WHAT THAT WAS WORTH, from `tools/bareprobe.mjs --why --camera=0,0
+   * --radius=7`, which attributes every square metre of an aerial's ground to
+   * one owner: **48.39 ha — 21.3% of all the ground a 950 m frame can see —
+   * was bare BECAUSE A BUILDING WAS DRAWN THERE AND ITS GROUND WAS NOT.** It is
+   * the operator's *"a surface that reads as a road but does not look like one:
+   * wide, pale, no markings, no kerbs"*, and it is not a road at all: it is
+   * `block.js`'s earth plane, whose albedo (0.069 linear) is 84% of asphalt's
+   * (0.082), lying exactly where the carriageway belongs.
+   *
+   * THE COST, by the same annulus walk as the table above:
+   *
+   *     ring <= 4   81 chunks   2411 rects   4822 tris   520 776 B
+   *     ring <= 5  121 chunks   3459 rects   6918 tris   747 144 B
+   *     delta      +40 chunks  +1048 rects  +2096 tris  +226 368 B = 0.216 MiB
+   *
+   * +2 096 triangles against `ceilings.triangles` 2 000 000 with
+   * `highway_speed` at 1.40M, and +0.216 MiB against `ceilings.chunkMemoryMB`
+   * 96. **Zero draw calls, at any radius**, for the reason the paragraph above
+   * this one gives: `rebuildGroundMesh` concatenates every resident chunk's
+   * ground into one `city:ground` mesh.
+   *
+   * It is now `geometryRadius`'s equal and not its own free number, which is
+   * the honest bound: ground exists exactly where a building can be drawn
+   * standing on it. Past that ring nothing is drawn at all and the earth plane
+   * is the correct answer rather than a gap.
    *
    * WHAT IT DOES NOT FIX, STATED SO NOBODY READS MORE INTO IT: the pavement
    * still ENDS, 256 m further out, and it still ends as a zero-thickness slab.
@@ -204,7 +238,7 @@ export const CITY = {
    * `GROUND.earth` (−0.020) = **0.180 m**, which is under `PLAYER.stepUpM` 0.20
    * so it is a visual defect and not a collision one.
    */
-  groundRadius: 4,
+  groundRadius: 5,
 
   /**
    * The canyon field, per chunk.

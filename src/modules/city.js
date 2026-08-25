@@ -13,9 +13,17 @@
  *
  * THE THREE RINGS, AND WHY THEY ARE DIFFERENT SIZES
  *
- *   detail (3)    everything: facades, windows, signage, props, street lighting
- *   geometry (6)  massing only — the building boxes and the road surface
+ *   detail (4)    everything: facades, windows, signage, props, street lighting
+ *   geometry (5)  massing only — the building boxes and the road surface
  *   field (2)     a baked canyon field; beyond it, the analytic default
+ *
+ * The three numbers were 3, 6 and 2 in this comment and 4, 5 and 2 in
+ * `CITY` — stale in the direction that matters, since the whole point of the
+ * list is which ring is larger than which. Corrected session 42, in the change
+ * that made the middle line true: the geometry ring has claimed *"and the road
+ * surface"* since this was written and drew only the boxes, so a 128 m band of
+ * city stood on the earth plane. `CITY.groundRadius` is now `geometryRadius`'s
+ * equal and the two lines agree.
  *
  * The field ring is the smallest and that is not a compromise, it is the right
  * answer. Indirect light is a low-frequency term on surfaces near the camera; at
@@ -1395,7 +1403,15 @@ export function createCity(options = {}) {
      * the ground was paying the lamps' draw-call bound. See `CITY.groundRadius`.
      */
     const near = detail && ring <= CITY.nearRadius;
-    const groundNear = detail && ring <= CITY.groundRadius;
+    /**
+     * NO `detail &&` — SESSION 42. The ground ring is the GEOMETRY ring's
+     * equal now (`CITY.groundRadius` = 5), and coupling it to `detail` was what
+     * kept 21.3% of an aerial's ground bare: a building drawn at ring 5 stood
+     * on the earth plane because the surface under it was gated on a ring that
+     * stops at 4. This module's own header has promised the road surface out to
+     * the geometry ring since it was written.
+     */
+    const groundNear = ring <= CITY.groundRadius;
     let ground = null;
     if (groundNear) {
       ground = buildGround(chunk);
