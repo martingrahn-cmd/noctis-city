@@ -52,6 +52,7 @@ import {
   CITY_ERAS,
   CITY_MATERIALS,
   LANDMARKS,
+  ZIGGURAT_STEP_YAW_DEG,
   landmarkOccluders,
   landmarkGroundBlockers,
   landmarkGroundClaims,
@@ -4373,9 +4374,13 @@ export function createCity(options = {}) {
           const hz = l.footprint[1] - i * l.setback * 2;
           if (hx <= 6 || hz <= 6) break;
           const h = l.height / l.steps;
-          push(l.x, h * (i + 0.5), l.z, hx, h, hz, i % 2 ? 0.8 : -0.6);
+          // The yaw comes from citygen because the CLAIM needs the same angle to
+          // state this step's plan silhouette — two literals in two files is
+          // what made the stack's claim 0.4 m a side too small. Session 42.
+          const yaw = ZIGGURAT_STEP_YAW_DEG[i % 2];
+          push(l.x, h * (i + 0.5), l.z, hx, h, hz, yaw);
           // The planted terrace on each setback.
-          push(l.x, h * (i + 1) + 0.5, l.z, hx - 1.5, 1.0, hz - 1.5, i % 2 ? 0.8 : -0.6,
+          push(l.x, h * (i + 1) + 0.5, l.z, hx - 1.5, 1.0, hz - 1.5, yaw,
             [0.07, 0.11, 0.05], 0.95);
         }
         break;

@@ -3080,16 +3080,62 @@ export function landmarkFootprint(l) {
 }
 
 /**
+ * The two yaws the ziggurat's steps alternate between, in degrees.
+ *
+ * ONE NUMBER, TWO READERS. `city.js` turns each step by these to break the
+ * stack's silhouette; `landmarkOccluders` needs the same angle to state the
+ * plan silhouette of a turned rectangle. They were two literals in two files
+ * until session 42 — `pierEvery: 34` beside `i % 3 === 0`, in degrees — and the
+ * claim was the one that was wrong by 0.4 m a side.
+ */
+export const ZIGGURAT_STEP_YAW_DEG = [-0.6, 0.8];
+
+/**
  * Occluders a landmark contributes to the canyon bake, as axis-aligned boxes.
  *
  * Approximations of the real silhouette, and deliberately so: the bake marches
  * against boxes (lib/canyon.js) and a hyperboloid is not one. Three stacked
  * boxes at the base, waist and crown radii is within a couple of metres of the
  * real profile everywhere, and the field's voxels are two metres.
+ *
+ * EACH BOX CARRIES TWO EXTENTS AND THE SECOND ONE IS SESSION 42 — CONTRACT §9.
+ * =========================================================================
+ *
+ * `x0..z1` is the BAKE extent, unchanged, and it is deliberately INSCRIBED: a
+ * square at a round tower's true radius over-occludes its corners by 4/pi, so
+ * the shrink factors below (0.82 for a hyperboloid, 0.70 for a cone) match the
+ * box's AREA to the circle's. That is a defensible approximation for a march
+ * against two-metre voxels.
+ *
+ * It is not defensible as a KEEP-OUT, and since session 34 this one list has
+ * been both. An area-matched box used as the ground a landmark takes is
+ * `landmarkOccluders` answering a third question it was never asked — the same
+ * habit `landmarkGroundBlockers` was split out for, which its own comment
+ * records: *"one list stand[ing] for two questions"*. What it cost, measured by
+ * `tools/landmarkcensus.mjs` with every landmark resident (session 42; session
+ * 35 had two of these three off-camera and never measured them):
+ *
+ *     landmark    claim      delivered      del/claim
+ *     dish        62 x 62    88.0 x 88.0      2.041     radiusTop x 0.70
+ *     mast         9 x 9     12.0 x 11.7      1.726     baseWidth/2, no diagonals
+ *     condenser  102 x 102  124.0 x 124.0     1.487     radiusBase x 0.82
+ *
+ * The dish is the one the operator photographed: an inverted cone 26 m across
+ * at grade and 88 m across at 56.8 m, leaning out over the carriageways of
+ * x = -128 and z = -128 with traffic driving under it, because the claim that
+ * clips those roads is 61.6 m wide and the object is 88 m wide.
+ *
+ * `gx0..gz1` is therefore the GROUND extent: the object's own plan silhouette,
+ * which is what "the ground a landmark takes" means and what a claim has to
+ * contain. It is CIRCUMSCRIBED where the bake extent is inscribed. Nothing is
+ * weakened — every ground extent here is >= the bake extent it sits beside —
+ * and the bake reads `x0..z1` exactly as before, so the canyon field is
+ * untouched by this change.
  */
 export function landmarkOccluders(l) {
-  const box = (cx, cz, halfX, halfZ, top) => ({
+  const box = (cx, cz, halfX, halfZ, top, groundHalfX = halfX, groundHalfZ = halfZ) => ({
     x0: cx - halfX, x1: cx + halfX, z0: cz - halfZ, z1: cz + halfZ, top, landmark: l.name,
+    gx0: cx - groundHalfX, gx1: cx + groundHalfX, gz0: cz - groundHalfZ, gz1: cz + groundHalfZ,
   });
   switch (l.kind) {
     case 'hyperboloid': {
@@ -3103,8 +3149,12 @@ export function landmarkOccluders(l) {
           const w = 2 * t - 1;
           return l.radiusWaist + (w < 0 ? (l.radiusBase - l.radiusWaist) * w * w : (l.radiusTop - l.radiusWaist) * w * w);
         };
-        const r = Math.max(rAt(t0), rAt(t1)) * 0.82;
-        out.push(box(l.x, l.z, r, r, l.height * t1));
+        // The bake takes the area-matched box; the ground takes the profile's
+        // own widest radius over this segment, which for the base segment is
+        // `radiusBase` = 62 and is the 124.0 m the census measures delivered.
+        const rTrue = Math.max(rAt(t0), rAt(t1));
+        const r = rTrue * 0.82;
+        out.push(box(l.x, l.z, r, r, l.height * t1, rTrue, rTrue));
       }
       return out;
     }
@@ -3114,7 +3164,14 @@ export function landmarkOccluders(l) {
         const hx = l.footprint[0] / 2 - i * l.setback;
         const hz = l.footprint[1] / 2 - i * l.setback;
         if (hx <= 2 || hz <= 2) break;
-        out.push(box(l.x, l.z, hx, hz, (l.height * (i + 1)) / l.steps));
+        // The steps are drawn TURNED (`ZIGGURAT_STEP_YAW_DEG`), so the plan
+        // silhouette of a turned rectangle is `hx·|cos| + hz·|sin|` on x and the
+        // transpose on z — the 78.8 m the census measures against this 78 m.
+        const t = (Math.max(...ZIGGURAT_STEP_YAW_DEG.map(Math.abs)) * Math.PI) / 180;
+        const c = Math.cos(t);
+        const s = Math.sin(t);
+        out.push(box(l.x, l.z, hx, hz, (l.height * (i + 1)) / l.steps,
+          hx * c + hz * s, hx * s + hz * c));
       }
       return out;
     }
@@ -3210,10 +3267,28 @@ export function landmarkOccluders(l) {
       // A hole in the ground occludes nothing above grade, and saying so is the
       // whole reason this switch is explicit rather than a bounding box.
       return [];
-    case 'mast':
-      return [box(l.x, l.z, l.baseWidth / 2, l.baseWidth / 2, l.height)];
+    case 'mast': {
+      /**
+       * A LATTICE IS WIDER THAN ITS LEGS. `city.js` stands the legs at
+       * `w0 = baseWidth·(1 − 0.62·t)/2` — 4.5 m at the base — and then draws one
+       * diagonal per bay CENTRED at `w0 · 0.7` and `w0 · 2` long at an arbitrary
+       * yaw, so the furthest a bay can reach from the axis is
+       * `w0·0.7 + w0 = 1.7·w0` = 7.65 m. That is an upper bound over every yaw;
+       * the delivered maximum at the yaws the mast actually uses is 6.0 m
+       * (`landmarkcensus`: 12.0 x 11.7 against this 9 x 9). The bound is used
+       * rather than the reading because a claim that tracks a measurement is a
+       * claim that goes wrong the next time a yaw changes, and over-claiming
+       * 1.65 m on a mast whose nearest carriageway is 42 m away costs nothing.
+       */
+      const legHalf = l.baseWidth / 2;
+      return [box(l.x, l.z, legHalf, legHalf, l.height, legHalf * 1.7, legHalf * 1.7)];
+    }
     case 'cone':
-      return [box(l.x, l.z, l.radiusTop * 0.7, l.radiusTop * 0.7, l.height)];
+      // `city.js`'s lathe reaches `radiusTop` at `height − 1.2` — 44 m, i.e. the
+      // 88.0 m the census measures — while the bake box is area-matched at 0.7
+      // of it. The overhang starts at about 32.8 m up and every metre of it is
+      // over ground this claim is what clips.
+      return [box(l.x, l.z, l.radiusTop * 0.7, l.radiusTop * 0.7, l.height, l.radiusTop, l.radiusTop)];
     default:
       return [];
   }
@@ -3453,7 +3528,14 @@ export const VIADUCT_DECK_CLEARANCE_M = 4.0;
  * it is a third question with a third answer.
  */
 export function landmarkGroundBlockers(l) {
-  if (l.kind !== 'viaduct') return landmarkOccluders(l);
+  // Ground extents, not bake extents — session 42. A person is stopped by the
+  // object's plan silhouette, and the bake box is an area match that is 0.70 of
+  // it under the dish. Same list, the other pair of numbers.
+  if (l.kind !== 'viaduct') {
+    return landmarkOccluders(l).map((o) => ({
+      ...o, x0: o.gx0, x1: o.gx1, z0: o.gz0, z1: o.gz1,
+    }));
+  }
   const arc = viaductArc(l);
   const half = arc.legHalf + 0.3;
   return viaductLegs(arc, l).map((p) => ({
@@ -3517,7 +3599,9 @@ export function landmarkGroundClaims(l) {
     // A deck flies over the street rather than standing in it, and a viaduct's
     // ground contact is its legs — both handled below.
     if (o.deck || l.kind === 'viaduct') continue;
-    out.push({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: 0, y1: o.top, owner: l.name });
+    // The GROUND extent — the plan silhouette. Session 42; see the header of
+    // `landmarkOccluders` for the three landmarks this moved and by how much.
+    out.push({ x0: o.gx0, x1: o.gx1, z0: o.gz0, z1: o.gz1, y0: 0, y1: o.top, owner: l.name });
   }
   if (l.kind === 'viaduct') {
     for (const g of landmarkGroundBlockers(l)) {
@@ -4287,10 +4371,13 @@ export function landmarkAABB(l) {
     const r = landmarkFootprint(l) / 2;
     box = { x0: l.x - r, x1: l.x + r, z0: l.z - r, z1: l.z + r };
   } else {
+    // The GROUND extents: this AABB is the fast reject for `landmarkOccupies`,
+    // which is a question about ground, so a bound taken off the inscribed bake
+    // boxes would reject points the claims below it accept. Session 42.
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const b of boxes) {
-      x0 = Math.min(x0, b.x0); x1 = Math.max(x1, b.x1);
-      z0 = Math.min(z0, b.z0); z1 = Math.max(z1, b.z1);
+      x0 = Math.min(x0, b.gx0); x1 = Math.max(x1, b.gx1);
+      z0 = Math.min(z0, b.gz0); z1 = Math.max(z1, b.gz1);
     }
     box = { x0, x1, z0, z1 };
   }
@@ -4306,7 +4393,8 @@ export function landmarkBlocks(l, x, z, pad = 0) {
     return Math.hypot(x - l.x, z - l.z) < r;
   }
   for (const b of boxes) {
-    if (x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad) return true;
+    // Ground extents — "does a landmark stand here" is a ground question.
+    if (x > b.gx0 - pad && x < b.gx1 + pad && z > b.gz0 - pad && z < b.gz1 + pad) return true;
   }
   return false;
 }
