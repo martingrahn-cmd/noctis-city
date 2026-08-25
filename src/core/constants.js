@@ -625,6 +625,50 @@ export const GROUND = {
    * the end with the rendering evidence.
    */
   earth: -0.02,
+
+  /**
+   * The earth plane's albedo, LINEAR — session 42, and it is a derivation
+   * replacing a value that had none.
+   *
+   * WHAT IT WAS AND WHY IT SHOWED. `block.js` drew this plane at 0x4a4640 =
+   * **[0.0685, 0.0612, 0.0513]** linear with no comment beside it, in a file
+   * where every other surface carries one (*"asphalt 0.09 linear weathered"*,
+   * *"cast concrete paving: 0.26 linear, mid-range for a weathered slab"*). It
+   * is a guess, which §9 rule 5 forbids, and it is 8 km square: it is what an
+   * aerial sees everywhere the streamed city has not reached, which
+   * `tools/bareprobe.mjs` measures at **41.1% of all the ground a 950 m frame
+   * can see** even after the ground ring was extended to the geometry ring.
+   *
+   * THE OPERATOR'S WORDS ARE *"WIDE BROWN FIELDS"* AND BOTH HALVES WERE TRUE.
+   * Against this city's OWN ground, area-weighted over `citycheck`'s 10x10 at
+   * seed 1337 by `bareprobe` and coloured by `city.js`'s `albedoFor`:
+   *
+   *     core        40.96%  [0.105, 0.102, 0.096]
+   *     carriageway 28.58%  [0.082, 0.082, 0.086]
+   *     pavement    15.22%  [0.260, 0.257, 0.248]
+   *     site         5.75%  [0.115, 0.107, 0.092]
+   *     parking      5.07%  [0.082, 0.082, 0.086]
+   *     yard         3.08%  [0.172, 0.169, 0.160]
+   *     grass        1.34%  [0.062, 0.094, 0.045]
+   *     ------------------------------------------
+   *     mean               [0.1229, 0.1211, 0.1168]     over 106.35 ha
+   *
+   * So the plane the city stands on was **1.80x, 1.98x and 2.28x darker** than
+   * the city's own ground, and a third warmer — R/B 1.34 against 1.05. Dark and
+   * red beside grey is a field beside a city, and that is what it read as.
+   *
+   * THE PRECEDENT IS THIS PROJECT'S OWN, one system over. CONTRACT §8.1 says of
+   * the canyon field's analytic default: *"The default's job is to agree with
+   * the bake about the average; where they disagree, the ring boundary becomes
+   * visible."* This plane is the ground's analytic default and had never been
+   * calibrated against the ground it stands in for. It is now that mean.
+   *
+   * WHAT IT IS NOT: content. It adds no surface, no object and no draw call,
+   * and it does not make the far field a city — it stops the far field claiming
+   * to be a ploughed one. Past the geometry ring nothing is drawn and that is
+   * the residency ring working, not a gap to be filled with a colour.
+   */
+  earthAlbedo: [0.1229, 0.1211, 0.1168],
 };
 
 /** Exposure model. CONTRACT §5.4. */

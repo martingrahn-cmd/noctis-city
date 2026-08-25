@@ -504,7 +504,17 @@ export function createBlock(options = {}) {
       /** Cast concrete paving: 0.26 linear, mid-range for a weathered slab. */
       const matPavement = surfaceMaterial(ctx, { color: 0x8b8780, roughness: 0.9 });
       const matKerb = surfaceMaterial(ctx, { color: 0x99958e, roughness: 0.84 });
-      const matGround = surfaceMaterial(ctx, { color: 0x4a4640, roughness: 0.95 });
+      /**
+       * The world's earth plane. `GROUND.earthAlbedo` is LINEAR and carries the
+       * derivation — it is the area-weighted mean of the city's own drawn
+       * ground, and it replaced 0x4a4640, which had none and was half as bright
+       * and a third redder. Session 42.
+       */
+      const matGround = surfaceMaterial(ctx, { color: 0xffffff, roughness: 0.95 });
+      matGround.color.setRGB(
+        GROUND.earthAlbedo[0], GROUND.earthAlbedo[1], GROUND.earthAlbedo[2],
+        THREE.LinearSRGBColorSpace,
+      );
 
       /**
        * ONE facade material, and it is white.
