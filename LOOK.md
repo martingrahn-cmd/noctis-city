@@ -91,6 +91,50 @@ It is that the street wall is broken.
   (CONTRACT §0 rule 5) and no re-derivation was attempted by the session whose
   change breached it (§7 below). It is the first item on STATE 40's list after
   `inputcheck`.
+- **AND THE EMPTINESS THAT WAS LEFT AFTER ALL OF THAT WAS NEVER THE GENERATOR'S
+  — SESSION 42.** The operator's read of session 41's frames is *"still too much
+  empty land, and it is not realistic"*, and the two bullets above had spent two
+  sessions filling parcels. `tools/bareprobe.mjs` attributes every square metre
+  of a frame's ground to ONE owner — solids, then the surface rectangles
+  `city.js` triangulates, then BARE, which is `block.js`'s earth plane — exactly,
+  by coordinate compression. Over 14 × 14 chunks at seed 1337:
+
+  ```
+    bare ground, as a share of all the ground a 950 m aerial can see
+      what the GENERATOR leaves bare                              0.7%
+      what the FRAME showed at the end of session 41             62.6%
+      what the FRAME shows now                                   41.5%
+  ```
+
+  **The generator leaves 0.7%.** The two bullets above are finished, and the
+  instrument that says so is not the one that made them: a per-hectare object
+  count divides by OPEN GROUND, which is exactly the quantity that says nothing
+  about whether a SURFACE was drawn under those objects.
+
+  **21.3% OF THE GROUND AN AERIAL SHOWS WAS A BUILDING STANDING ON NO GROUND.**
+  `city.js` drew massing to `geometryRadius` (5) and ground to `groundRadius`
+  (4), so a band of city 128 m wide stood on the earth plane, whose albedo
+  (0.069 linear) is **84% of asphalt's** (0.082) and which lay exactly where the
+  carriageway belonged. That is the operator's fourth defect — *"a surface that
+  reads as a road but does not look like one: wide, pale, no markings, no
+  kerbs"* — and it is not a road at all. The ring is now the geometry ring's
+  equal, at **zero draw calls**, because `rebuildGroundMesh` merges every
+  resident chunk's ground into one mesh; measured in both arms at 364 draws.
+
+  **AND THE PLANE ITSELF WAS A GUESS.** 0x4a4640, with no derivation beside it
+  in a file where every other surface has one, is **1.80×, 1.98× and 2.28×
+  darker than this city's own area-weighted ground** and a third warmer — R/B
+  1.34 against 1.05. Dark and red beside grey is a field beside a city. It is
+  now that mean (`GROUND.earthAlbedo`), which is CONTRACT §8.1's rule for the
+  canyon field's analytic default — *"the default's job is to agree with the
+  bake about the average; where they disagree, the ring boundary becomes
+  visible"* — applied to the one surface nobody had ever applied it to.
+
+  **WHAT IS LEFT IS THE RESIDENCY RING AND IT IS NOT A DEFECT.** 41.1% of an
+  aerial's ground is past `geometryRadius`, where nothing is drawn and nothing
+  should be. At 950 m the frame is about 1 575 m wide and the streamed city is
+  1 280 m. **From high enough, the honest answer is that you are looking past
+  the edge of the city**, and no ground colour and no fill law changes that.
 - **THE EMPTY CHUNKS ARE NOT THE DEFECT, AND THE CLAIM THAT THEY WERE WAS MINE.**
   This bullet used to read *"23 of 100 chunks carry zero buildings, one of them at
   density 0.715 — that is the defect"*, and STATE 31, this file and session 32's
@@ -407,6 +451,36 @@ is judged from about 1.7 m.
   soft pool with a lit column in it, a car park is a dimmer wash from higher up
   over rows of parked bodywork, and a yard is two site floods pointing down into
   it. Three parcels that used to be one empty rectangle.
+- **AND THE LARGEST GREEN IN THE CITY IS THE ONE NOBODY HAD READ THE NAME OF —
+  SESSION 42.** The `weir` is 44 100 m², **63% of all landmark ground**, and it
+  read from the air as a blank pale lid: **100.0% of its own disc lay within ten
+  code values of that disc's median.** Its own LANDMARKS comment has called it
+  *"a stormwater basin and sunken park"* since session 4, and there was no park
+  in it.
+
+  **IT IS ALSO NOT A WEIR, AND THE NAME IS THE ONLY THING THAT SAYS IT IS.**
+  Measured from the generator's own river: **417.04 m from the nearest bank**,
+  468.70 m from the centreline, 3.26 chunk widths of city in between. That is
+  not a misplacement — `kind` is `basin` and a detention basin belongs in its
+  catchment rather than on a channel — so the PLACEMENT is right and the WORD
+  misleads. It cost one session an item, asking for *"water, a spillway, a
+  channel, banks"*.
+
+  **WHAT WENT IN IT CAME OUT OF THE SECTION AND NOT OUT OF THE WORD.** The floor
+  falls 0.40 m over its 102 m, a slope of 0.39%, so a metre of water would stand
+  at r = 255 m — four times the bowl. This is a DRY detention basin, and the
+  first pool derived at the depth the floor allows (0.10 m, r = 25.5 m) TORE,
+  because a 40-gon cone's chords sag 0.077 m at r = 25 and **a depth under the
+  mesh's own faceting is not a depth**. So the outlet was dug to hold a
+  permanent pool at 20% of the floor area, 1.50 m deep on a 1:4 bank, and it
+  carries the river's own water shader at one `lights.patch(m, { water: true })`.
+  With four flights of steps and sixteen stands of planting at 4 m, the disc now
+  reads **47.3%** within ten code values of its median against 100.0%.
+
+  **AND IT COST FIVE OF THE SIX DRAW CALLS THIS PROJECT HAD SPARE**, because
+  `addInstanced` emits one mesh per CHUNK that owns a box and a 210 m bowl spans
+  four of them. `highway_speed` stands at **439 of 440**. A ring of ledge
+  planters that would have made it six was built, measured at 441, and removed.
 - **Layered depth.** Three planes in every frame: a dark foreground shape, a lit
   mid-ground, a hazed distance. Frames with only two planes read flat.
 - **Variation over repetition.** The market stalls are the current failure case
