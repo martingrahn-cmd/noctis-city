@@ -19,12 +19,33 @@
  *   3. CONTRACT    the structural rules from CONTRACT.md that can be checked
  *                  statically. Chiefly: modules never import each other. A rule
  *                  nobody enforces is a rule that decays.
+ *   4. CONSTANTS   every `NAMESPACE.key` naming an object imported from
+ *                  `core/constants.js` exists on that object. SESSION 42.
+ *
+ * WHY PASS 4 EXISTS, AND IT IS ONE LINE OF EVIDENCE.
+ *
+ * `moving.js` set the train's window emitter from `LIGHT.windowLitNits` from
+ * session 21 to session 42. No such constant has ever existed — `constants.js`
+ * has `windowNits` — so the assignment delivered `undefined`, three.js made the
+ * emissive uniform NaN, and the clamp in `lights.js` resolved it to 60 000
+ * cd/m²: every window on the elevated train blew out to a solid white band, 273x
+ * the 220 the line's own comment computes with, in every night frame for
+ * twenty-one sessions.
+ *
+ * Nothing could have caught it. It is CONTRACT §9.1's *"a value written in
+ * config that the code does not read"* with the two halves swapped — a NAME the
+ * config does not have — and JavaScript answers `undefined` rather than
+ * throwing, exactly as §9.1's forwarder hands `undefined` to arithmetic that
+ * yields NaN. The check is a string scan and it costs nothing: over `src/` it
+ * reads 324 references in 19 files and, once that one line is repaired, all 324
+ * resolve.
  */
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import * as CONSTANTS from '../src/core/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const VERBOSE = process.argv.includes('--verbose');
@@ -323,6 +344,63 @@ function contractCheck(rel, src) {
     }
   }
 
+  // §9.1 — a constant reference that resolves to nothing. See the header.
+  if (inSrc) fails.push(...constantsCheck(src, code));
+
+  return fails;
+}
+
+// ---------------------------------------------------------------------------
+// pass 4 — constants references
+
+/** The exported objects of constants.js that are plain namespaces of values. */
+const CONSTANT_NAMESPACES = Object.fromEntries(
+  Object.entries(CONSTANTS).filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v))
+);
+
+const CONSTANTS_IMPORT_RE = /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*core\/constants\.js['"]/g;
+
+/**
+ * Which constants.js namespaces this file actually imports. It has to be the
+ * import and not the bare name, because `citygen.js` has a local `SITE` of its
+ * own that has nothing to do with `constants.js`'s — checking by name alone
+ * reports 28 references that are not references to this object at all.
+ */
+function constantsImportedBy(src) {
+  const live = [];
+  CONSTANTS_IMPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = CONSTANTS_IMPORT_RE.exec(src))) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().split(/\s+as\s+/).pop().trim();
+      if (name && CONSTANT_NAMESPACES[name]) live.push(name);
+    }
+  }
+  return live;
+}
+
+/**
+ * `code` is the comment- and literal-stripped source: a doc comment naming a
+ * constant that has since moved is prose, not a read, and a checker that fires
+ * on prose teaches people to stop reading it (the same reasoning the pattern
+ * bans above are written with).
+ */
+function constantsCheck(src, code) {
+  const fails = [];
+  for (const ns of constantsImportedBy(src)) {
+    const re = new RegExp(`\\b${ns}\\.([A-Za-z_$][A-Za-z0-9_$]*)`, 'g');
+    const missing = new Set();
+    let m;
+    while ((m = re.exec(code))) {
+      if (!Object.prototype.hasOwnProperty.call(CONSTANT_NAMESPACES[ns], m[1])) missing.add(m[1]);
+    }
+    for (const key of missing) {
+      fails.push(
+        `${ns}.${key} does not exist on the ${ns} imported from core/constants.js — `
+        + 'it reads as undefined and JavaScript will not say so (the train\'s windows were NaN for 21 sessions)'
+      );
+    }
+  }
   return fails;
 }
 
@@ -481,7 +559,45 @@ function contractDocSelfTest() {
   return bad;
 }
 
-const selfTestFails = contractDocSelfTest();
+/**
+ * §7.3 again, for pass 4, and the positive direction is the one that matters:
+ * a name check that rejected everything would be as useless as one that
+ * rejected nothing, and this project has shipped a check that rejected
+ * everything (the walkability flood fill, one cell of 67 568).
+ *
+ * The fixtures name a REAL key and a fabricated one off the same real
+ * namespace, so the two arms differ in exactly the property under test. The
+ * third arm is the reason the scan reads stripped code: a module's own local
+ * object of the same name must not be checked against constants.js's.
+ */
+function constantsSelfTest() {
+  const bad = [];
+  const ns = Object.keys(CONSTANT_NAMESPACES)[0];
+  const realKey = Object.keys(CONSTANT_NAMESPACES[ns])[0];
+  if (!ns || !realKey) return ['constants.js exported no namespace with a key — nothing to check against'];
+
+  const imp = `import { ${ns} } from '../core/constants.js';\n`;
+  const good = `${imp}const a = ${ns}.${realKey};\n`;
+  const bad1 = `${imp}const a = ${ns}.thisKeyDoesNotExist;\n`;
+  const localOnly = `const ${ns} = { thisKeyDoesNotExist: 1 };\nconst a = ${ns}.thisKeyDoesNotExist;\n`;
+
+  if (constantsCheck(good, strip(good)).length !== 0) {
+    bad.push(`a file reading the real ${ns}.${realKey} was rejected`);
+  }
+  if (constantsCheck(bad1, strip(bad1)).length === 0) {
+    bad.push(`a file reading ${ns}.thisKeyDoesNotExist was accepted`);
+  }
+  if (constantsCheck(localOnly, strip(localOnly)).length !== 0) {
+    bad.push(`a file with its OWN local ${ns} was checked against constants.js's`);
+  }
+  const inComment = `${imp}/** ${ns}.thisKeyDoesNotExist was renamed in session 9 */\nconst a = ${ns}.${realKey};\n`;
+  if (constantsCheck(inComment, strip(inComment)).length !== 0) {
+    bad.push('a constant named only in a doc comment was reported as a read');
+  }
+  return bad;
+}
+
+const selfTestFails = [...contractDocSelfTest(), ...constantsSelfTest()];
 if (selfTestFails.length) {
   console.error('parsecheck: the CONTRACT.md row-count check failed its own self-test —');
   for (const f of selfTestFails) console.error(`      ${f}`);

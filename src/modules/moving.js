@@ -381,16 +381,29 @@ export function createMoving() {
       lightMat.emissive.setRGB(1, 1, 1, THREE.LinearSRGBColorSpace);
       /**
        * A LIT TRAIN WINDOW IS AN OFFICE WINDOW SEEN THROUGH GLASS, not a sign.
-       * `LIGHT.windowLitNits` is what `block.js` puts behind a pane and is the
-       * right order for a saloon interior; the crane's obstruction light rides
-       * the same material at a gain in `instanceColor`, exactly as a traffic
-       * signal's lit lens does — one material, two radiances, one draw call.
-       * §9 rule 4, both numbers: 220 x 74.1 = 16 300 cd/m², which is
-       * `LIGHT.aviationRedNits`, because a crane's head light IS an obstruction
-       * light under the same ICAO Annex 14 §6.3 the condenser's are derived
-       * from.
+       * `LIGHT.windowNits` is what `city.js` puts behind every pane in the
+       * streamed city and is the right order for a saloon interior; the crane's
+       * obstruction light rides the same material at a gain in `instanceColor`,
+       * exactly as a traffic signal's lit lens does — one material, two
+       * radiances, one draw call. §9 rule 4, both numbers: 220 x 74.1 =
+       * 16 300 cd/m², which is `LIGHT.aviationRedNits`, because a crane's head
+       * light IS an obstruction light under the same ICAO Annex 14 §6.3 the
+       * condenser's are derived from.
+       *
+       * THE NAME WAS `LIGHT.windowLitNits` FROM SESSION 21 TO SESSION 42 AND NO
+       * SUCH CONSTANT HAS EVER EXISTED. `constants.js` has `windowNits` and has
+       * had only that, so this line assigned `undefined`; three.js refreshes the
+       * emissive uniform as `emissive.multiplyScalar(emissiveIntensity)`, which
+       * made every fragment of `moving:lights` NaN, and `lights.js`'s
+       * `min(rgb, HDR_CLAMP)` resolved it to **60 000 cd/m² on this GPU** — 273x
+       * the 220 the comment above computes with. Measured session 42, in the
+       * page: `emissiveIntensity` not finite, `emissive` (1,1,1). The two gains
+       * below are stated against 220 and were therefore also wrong by the same
+       * factor, which is why one name repairs three emitters at once. The class
+       * — a constant reference that resolves to nothing — is now machine-checked
+       * by `tools/parsecheck.mjs`, which found this was the only one in `src/`.
        */
-      lightMat.emissiveIntensity = LIGHT.windowLitNits;
+      lightMat.emissiveIntensity = LIGHT.windowNits;
       if (lights) {
         lights.patch(bodyMat, { prevInstance: true });
         lights.patch(lightMat, { prevInstance: true });
