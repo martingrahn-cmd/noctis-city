@@ -2402,6 +2402,20 @@ export function createHarness(options = {}) {
         },
 
         /**
+         * AND IT PINS, SINCE SESSION 44 — the same trap `setWetness` was given
+         * `override()` for. `weather.js` now drives rainfall from a shower
+         * cycle every frame, so a setter that merely wrote the value would be
+         * overwritten on the next `update()` and every caller would read its
+         * own label back over the cycle's own phase. `setRainfall` takes the
+         * state; this hands it back.
+         */
+        releaseRainfall() {
+          const w = ctx.get('weather');
+          if (!w || !w.releaseRainfall) throw new Error('weather module is quarantined');
+          return w.releaseRainfall();
+        },
+
+        /**
          * Pedestrians, counted per chunk off the live scene. Null until 4b.
          *
          * Null is a FAILURE and not a pass. `city-budget.json` carries a

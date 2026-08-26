@@ -232,6 +232,43 @@ const DEFAULTS = {
    * shipped law exactly as they have for thirty-seven sessions.
    */
   fill: -1,
+  /**
+   * RAINFALL, 0..1, WHERE 1 IS 10 mm/h — AND NOTHING IN THIS PROJECT HAD EVER
+   * SET IT. SESSION 44.
+   *
+   * `weather.js` has modelled rainfall since session 4: three particle layers,
+   * a Marshall-Palmer drop-size split, a rain extinction of 1.5556e-3 /m that
+   * takes the meteorological visibility from 8.7 km to 1.95 km, and a wetting
+   * law that drives the wetness this file's `wet` default is the tail of. It
+   * has a setter, a harness method and a HUD readout. STATE 43 §1.3 found that
+   * it had no caller: `night_rain` is a route carrying `wet: 0.85` with no rain
+   * in it, and every frame this project has taken in forty-three sessions is a
+   * frame in clear air.
+   *
+   * That matters beyond the water, and it is why this is the session's item.
+   * LOOK.md §3's haze-around-light integral landed in session 43 at ZERO draw
+   * calls and delivered 1.6%, and its own finding says why: at a meteorological
+   * visibility of 8.7 km a street lamp has no halo. The air's density is the
+   * lever and `weather.js` already multiplies it by up to 4.457x from rainfall
+   * alone. The mechanism was built, the air was never given to it.
+   *
+   * **-1 DEFERS TO THE SHOWER CYCLE**, `>= 0` PINS. The same shape `fill`,
+   * `fieldDrip`, `ui` and `hud` use. The cycle is `weather.js`'s own, derived
+   * there from this module's two time constants and one citation, and it is
+   * PHASED SO THAT `now = 0` IS THIRTY MINUTES PAST A SHOWER — which is
+   * precisely where the `wet: 0.55` above comes from, so the two defaults now
+   * say the same thing about the same city rather than being two numbers that
+   * can drift apart. The next shower is 872 simulated seconds away and the
+   * longest measurement window in this project is 100, so every gate still
+   * renders clear air and every threshold still measures what it was derived
+   * against. `?rainfall=0.6` is how you look at a shower without waiting for
+   * one, in exactly the relation `?t=0` has to midnight.
+   *
+   * IT IS NOT PASSED BY ANY GATE. `budget.json`'s `capture.params` does not
+   * carry it and `lookcheck`, `citycheck` and `perfcheck` render the shipped
+   * cycle, exactly as `fill` records for the frontage law.
+   */
+  rainfall: -1,
 };
 
 function readConfig() {
@@ -385,7 +422,7 @@ register(createPost());
  * particle layers and the missing traffic role exactly as it should.
  */
 if (on('traffic')) register(createTraffic());
-if (on('rain')) register(createWeather());
+if (on('rain')) register(createWeather({ rainfall: config.rainfall }));
 if (on('streetlife')) register(createStreetlife());
 /**
  * Aircraft — session 20, item 5. An ordinary CONTRACT §6 bisecting switch:

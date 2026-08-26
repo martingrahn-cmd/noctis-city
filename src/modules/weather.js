@@ -231,6 +231,178 @@ const DRY_TAU_S = WET_FILM_MM / (EVAPORATION_MMH / 3600);
 const WET_EQUILIBRIUM_EXPONENT = 0.6;
 
 // ---------------------------------------------------------------------------
+// THE SHOWER CYCLE. Session 44, LOOK.md §3 and §1.
+//
+// FOR FORTY-THREE SESSIONS `rainfall` HAD A SETTER, A DEFAULT OF 0 AND NO
+// CALLER. STATE 43 §1.3 found it and this is the answer: not a rainfall that
+// is always on, which is as wrong as one that is never on, but a rainfall that
+// is a FUNCTION OF THE CLOCK — so the city has weather in the sense that it
+// has a time of day.
+//
+// IT IS A PURE FUNCTION OF `time.now` AND NOT AN INTEGRATED STATE, and that is
+// the same decision `update()` already records one level down. An integrated
+// shower would depend on how many frames a machine happened to render between
+// two captures, which is the determinism defect that put `citycheck`'s
+// saturation peak 1.64 points apart on three identical runs. A pure function
+// of the simulated clock is the same in every arm, restartable, and needs no
+// warm-up.
+//
+// FOUR NUMBERS, AND THREE OF THEM ARE ALREADY IN THIS FILE.
+//
+//   HOW LONG A SHOWER LASTS is the geometric mean of this module's own two
+//   time constants, sqrt(WET_TAU_FULL_S * DRY_TAU_S) = sqrt(18 * 3000) =
+//   232.4 s. Nothing else in this project has a claim on the length of a
+//   shower, and these two bound it from both ends: a shower much shorter than
+//   the 18 s WETTING constant never wets the road at all, and one much longer
+//   than the 3000 s DRYING constant is not a shower, it is a climate — the
+//   road would never see the dry end of its own state. The geometric mean is
+//   the one duration that is as long against the first as it is short against
+//   the second, and the film depth cancels out of it exactly as it cancels out
+//   of the 166.7:1 asymmetry above.
+//
+//   HOW FAST A SHOWER ARRIVES AND LEAVES is the column between the cloud base
+//   and the street divided by the drops' own terminal velocity,
+//   RAIN_CLOUD_BASE_M / DROP_TERMINAL_MS = 800 / 8.378 = 95.5 s. A shower
+//   cannot start faster than the time it takes that column to fill, and it
+//   cannot stop faster than the time it takes to empty. So the profile is a
+//   TRAPEZOID and its edges are not a taste — the square wave is the shape
+//   that claims the sky can switch.
+//
+//   HOW OFTEN IT RAINS is the one number from outside, and it is stated as a
+//   citation so the next session can disagree with the climatology rather than
+//   with the code. `SITE.latitudeDeg` is 40.0 and LOOK.md §1's density
+//   reference is lower Manhattan; New York takes about 1200 mm a year, and
+//   about 8% of hours carry measurable precipitation. Both are printed at boot
+//   beside what they deliver.
+//
+//   HOW HARD IT RAINS follows from those two by conservation and is not chosen
+//   at all. The long-run mean of `rainfall(t)` must reproduce the annual
+//   total: 1200 mm/yr over 8766 h at RAIN_FULL_MMH = 10 mm/h is a duty-cycle
+//   mean of 0.0137, i.e. the city is at 1.37% of full rain averaged over all
+//   time. Divided by the 8% of hours it is raining and by the trapezoid's own
+//   mean, that fixes the MEAN PEAK of a shower at 0.29 — 2.9 mm/h. So a
+//   typical shower here is moderate rain, full rain is rare, and neither of
+//   those is a decision: they are what an annual total and a wet-hour fraction
+//   imply once the rate is fixed at 10 mm/h.
+//
+// AND THE PEAKS ARE A DISTRIBUTION RATHER THAN A CONSTANT, because a city
+// where every shower is identical is a city with one shower in it. Rain rate
+// over rain-hours is close to exponential, so the peak is the exponential's
+// inverse CDF sampled at an equidistributed sequence in the SHOWER INDEX —
+// deterministic, stateless and reproducible from `now` alone, which an
+// `rng.next()` per shower would not be under a capture that skips one.
+//
+// WHAT THIS EXPOSES, AND IT IS A FINDING RATHER THAN A DEFECT IN THE CYCLE:
+// THE WATER'S CLOCK AND THE SUN'S CLOCK DISAGREE BY 72x. `time.js` runs a
+// 1200 s day, so the 3000 s drying constant is TWO AND A HALF SIMULATED DAYS
+// and this 2905 s shower period is a shower every 2.4 simulated days. A cycle
+// scaled to the sun instead would rain every 20 minutes of wall clock onto a
+// road that takes 50 minutes to dry, and the city would be permanently wet.
+// Rainfall and wetness are two halves of one water budget and have to agree
+// with EACH OTHER before either agrees with the sun, so both are on `now`.
+// `?rainfall=` is how you look at a shower without waiting for one, in exactly
+// the relation `?t=` has to midnight.
+
+/** mm/yr at SITE.latitudeDeg = 40.0. New York, LOOK.md §1's density reference. */
+const CLIMATE_MM_PER_YEAR = 1200;
+
+/** Fraction of hours carrying measurable precipitation at the same site. */
+const CLIMATE_WET_HOUR_FRACTION = 0.08;
+
+/**
+ * The duty-cycle mean of `rainfall(t)` the annual total implies, at this
+ * module's one rate. 1200 mm / (365.25 * 24 h * 10 mm/h) = 0.01369.
+ */
+const CLIMATE_MEAN_RAINFALL = CLIMATE_MM_PER_YEAR / (365.25 * 24 * RAIN_FULL_MMH);
+
+/** s. sqrt(18 * 3000) = 232.4 s. See the block above. */
+const SHOWER_S = Math.sqrt(WET_TAU_FULL_S * DRY_TAU_S);
+
+/** s. 232.4 / 0.08 = 2905 s, 48 minutes. */
+const SHOWER_PERIOD_S = SHOWER_S / CLIMATE_WET_HOUR_FRACTION;
+
+/** s. 800 m of column / 8.378 m/s = 95.5 s. The trapezoid's rise and fall. */
+const SHOWER_EDGE_S = RAIN_CLOUD_BASE_M / DROP_TERMINAL_MS;
+
+/**
+ * The trapezoid's own mean as a fraction of its peak: (S - a)/S with a rise
+ * and a fall of `a` each. 1 - 95.5/232.4 = 0.589. Asserted positive at boot,
+ * because an edge over half the duration is a triangle and this expression
+ * would be lying about it.
+ */
+const SHOWER_SHAPE_MEAN = 1 - SHOWER_EDGE_S / SHOWER_S;
+
+/** The mean PEAK a shower must have for the long-run mean to come out right. */
+const SHOWER_PEAK_MEAN =
+  CLIMATE_MEAN_RAINFALL / (CLIMATE_WET_HOUR_FRACTION * SHOWER_SHAPE_MEAN);
+
+/**
+ * The exponential's mean, solved so that the CLIPPED variable has the mean
+ * above. `rainfall` is bounded at 1 by definition — 10 mm/h is the rate every
+ * particle count in `tools/budget.json` was derived at and a peak above it
+ * would be a population sized for a rate it never reaches — and clipping an
+ * exponential lowers its mean, so the parameter is not the target. For
+ * X ~ Exp(mu), E[min(X, 1)] = mu * (1 - exp(-1/mu)); bisected here rather than
+ * written as a literal so that changing the climate above carries.
+ */
+const SHOWER_MU = (() => {
+  let lo = 1e-4;
+  let hi = 100;
+  for (let i = 0; i < 80; i++) {
+    const m = 0.5 * (lo + hi);
+    if (m * (1 - Math.exp(-1 / m)) < SHOWER_PEAK_MEAN) lo = m;
+    else hi = m;
+  }
+  return 0.5 * (lo + hi);
+})();
+
+/** frac(phi). The equidistributed sequence the shower peaks are sampled at. */
+const SHOWER_GOLDEN = 0.6180339887498949;
+
+/**
+ * s. WHERE IN THE CYCLE `now = 0` SITS, AND IT IS NOT A NEW NUMBER.
+ *
+ * `main.js` -> `wet: 0.55` is this module's drying law evaluated at THIRTY
+ * MINUTES after the rain stopped, and its own comment says the thirty minutes
+ * is the argument and the 0.55 is the consequence. So the cycle is phased so
+ * that a boot lands exactly there: the last shower ended 1800 s ago, the road
+ * is at exp(-1800/3000) = 0.55 and drying, and the two defaults say the same
+ * thing about the same city instead of being two numbers that can drift.
+ *
+ * IT ALSO DECIDES WHAT EVERY GATE MEASURES, so it is worth stating: the next
+ * shower is SHOWER_PERIOD_S - SHOWER_S - SHOWER_REST_S = 872 s away, and the
+ * longest measurement window in this project is `perfcheck`'s `player` route
+ * at 6000 frames = 100 simulated seconds. Every gate therefore runs in clear
+ * air with `rainfall` exactly 0, which is the state all of them were derived
+ * in. Nothing about that is an accident and nothing about it is permanent —
+ * `?rainfall=` overrides it, and a gate that wants rain says so.
+ */
+const SHOWER_REST_S = 1800;
+
+/**
+ * The peak of shower `k`. Exponential inverse CDF at the golden-ratio
+ * sequence, clipped to full rain. Stateless in `k`.
+ */
+function showerPeak(k) {
+  const u = ((k + 1) * SHOWER_GOLDEN) % 1;
+  return Math.min(1, -SHOWER_MU * Math.log(Math.max(1e-12, 1 - u)));
+}
+
+/**
+ * Rainfall at simulated second `t`. The shower occupies [0, SHOWER_S) of each
+ * period and the phase is shifted so that t = 0 is SHOWER_REST_S past the end
+ * of one.
+ */
+function rainfallAt(t) {
+  const u = t + SHOWER_S + SHOWER_REST_S;
+  const k = Math.floor(u / SHOWER_PERIOD_S);
+  const tau = u - k * SHOWER_PERIOD_S;
+  if (tau >= SHOWER_S) return 0;
+  const edge = Math.min(tau, SHOWER_S - tau) / SHOWER_EDGE_S;
+  return showerPeak(k) * Math.min(1, edge);
+}
+
+// ---------------------------------------------------------------------------
 // The three layers. Counts and clamps are `tools/budget.json` -> particles.
 
 const STREAK_COUNT = 500;
@@ -622,16 +794,53 @@ void main() {
 
 export function createWeather(options = {}) {
   const cfg = {
-    /** Rainfall at boot. 0, and the whole first block comment is why. */
-    rainfall: 0,
+    /**
+     * Rainfall at boot. **-1 DEFERS TO THE SHOWER CYCLE**; `>= 0` pins it and
+     * the cycle does not run. The same shape `fill`, `fieldDrip`, `ui` and
+     * `hud` use, and for the same reason those give: the useful default is
+     * "whatever the module already decided", and the override exists so that a
+     * session can pin it without arguing with that decision.
+     *
+     * IT WAS `0` FOR FORTY-THREE SESSIONS AND NOTHING EVER SET IT — STATE 43
+     * §1.3. The header above is right that a rainfall tied to wetness would
+     * move eight look assertions for a reason that has nothing to do with what
+     * they measure; what it did not say is that a rainfall tied to NOTHING is a
+     * setter with no caller. `SHOWER_REST_S` is where the two meet: the cycle
+     * runs, and it is phased so that every gate's window is inside the dry part
+     * of it.
+     */
+    rainfall: -1,
     ...options,
   };
 
   const root = new THREE.Group();
   root.name = 'weather';
 
-  /** 0..1, how hard it is raining. */
-  let rainfall = Math.max(0, Math.min(1, Number(cfg.rainfall) || 0));
+  /**
+   * 0..1, how hard it is raining. Driven by `rainfallAt(time.now)` unless
+   * pinned — see `rainPinned`.
+   */
+  let rainfall = 0;
+  /**
+   * WHILE TRUE THE CYCLE DOES NOT WRITE `rainfall` AT ALL, AND THIS IS THE
+   * HEADER'S OWN LESSON MET A SECOND TIME.
+   *
+   * `override()` exists because a module that writes `lights.setWetness` every
+   * frame silently wins over `harness.setWetness`, and every frame the look
+   * gate believed was wet was captured dry. Session 44 added a driver for the
+   * OTHER state, so `harness.setRainfall` acquired exactly the same hazard on
+   * exactly the same day: it would have written a value that the next
+   * `update()` overwrote, and a probe sweeping rainfall would have measured
+   * clear air five times and printed five different labels for it.
+   *
+   * So `setRainfall` PINS, `releaseRainfall` resumes, and a config `rainfall`
+   * of 0 or more pins from boot. Not "writes the same value": does not write.
+   */
+  let rainPinned = false;
+  if (Number.isFinite(Number(cfg.rainfall)) && Number(cfg.rainfall) >= 0) {
+    rainfall = Math.max(0, Math.min(1, Number(cfg.rainfall)));
+    rainPinned = true;
+  }
   /** 0..1, how much water is on the surfaces. Seeded from lights at init. */
   let wetness = 0;
   /** While true this module does not write lights.setWetness at all. */
@@ -1360,6 +1569,10 @@ export function createWeather(options = {}) {
      * `update()` never resets anything.
      */
     setRainfall(r) {
+      // PINS. See `rainPinned`: without this the shower cycle would overwrite
+      // the value on the next update() and every caller would be measuring the
+      // cycle's own phase while reading its own label back.
+      rainPinned = true;
       const next = Math.max(0, Math.min(1, Number(r) || 0));
       const jumped = Math.abs(next - rainfall) >= RAINFALL_HISTORY_STEP;
       rainfall = next;
@@ -1369,6 +1582,28 @@ export function createWeather(options = {}) {
       }
       return rainfall;
     },
+    /** Hand rainfall back to the shower cycle. Idempotent, the mirror of `release()`. */
+    releaseRainfall() {
+      rainPinned = false;
+      return rainfall;
+    },
+    /** True while a caller or `?rainfall=` holds rainfall off the cycle. */
+    rainfallPinned: () => rainPinned,
+    /**
+     * The shower cycle, evaluated anywhere on the simulated clock. Exposed so
+     * a probe can plot it without stepping 2905 seconds of frames, and so the
+     * boot log can integrate it.
+     */
+    rainfallAt,
+    showerCycle: () => ({
+      periodS: SHOWER_PERIOD_S,
+      showerS: SHOWER_S,
+      edgeS: SHOWER_EDGE_S,
+      restS: SHOWER_REST_S,
+      peakMean: SHOWER_PEAK_MEAN,
+      mu: SHOWER_MU,
+      targetMean: CLIMATE_MEAN_RAINFALL,
+    }),
     rainfall: () => rainfall,
     wetness: () => wetness,
     /** True while `override()` holds wetness. */
@@ -1386,6 +1621,7 @@ export function createWeather(options = {}) {
           active: l.active,
         })),
         rainfall,
+        rainPinned,
         wetness,
         hazeDensity,
         visibilityM: KOSCHMIEDER / hazeDensity,
@@ -1546,6 +1782,47 @@ export function createWeather(options = {}) {
         `Drops at D >= ${DROP_MM} mm carry 1.1% of that extinction, so the billboards and the veil ` +
         `double-count by 1.1%, under the spread of the drop-size fit.`
       );
+      /**
+       * THE CYCLE, WITH ITS OWN CONSERVATION CHECK IN THE SAME LINE.
+       *
+       * The peak distribution is solved so that the long-run mean of
+       * `rainfall(t)` reproduces the annual total, and the way to find out
+       * whether it did is to INTEGRATE THE DELIVERED FUNCTION rather than to
+       * re-state the algebra that produced it — §7.3's habit applied to a
+       * scalar. 4096 showers at 64 samples each, trapezoid rule, against
+       * CLIMATE_MEAN_RAINFALL. A disagreement over a per cent is a defect in
+       * the shape or in the clip and the log says so rather than a session
+       * finding it in a frame.
+       */
+      let cycleSum = 0;
+      const cycleN = 4096 * 64;
+      for (let i = 0; i < cycleN; i++) {
+        cycleSum += rainfallAt(((i + 0.5) / cycleN) * 4096 * SHOWER_PERIOD_S);
+      }
+      const cycleMean = cycleSum / cycleN;
+      ctx.log(
+        `weather: shower cycle ${SHOWER_S.toFixed(1)} s of rain every ${SHOWER_PERIOD_S.toFixed(0)} s ` +
+        `(${(SHOWER_PERIOD_S / 60).toFixed(1)} min), duty ${(100 * CLIMATE_WET_HOUR_FRACTION).toFixed(0)}%; ` +
+        `length = sqrt(${WET_TAU_FULL_S.toFixed(0)} x ${DRY_TAU_S.toFixed(0)}) s, the geometric mean of ` +
+        `this module's own wetting and drying constants. Trapezoid edges ` +
+        `${SHOWER_EDGE_S.toFixed(1)} s = ${RAIN_CLOUD_BASE_M} m of column / ` +
+        `${DROP_TERMINAL_MS.toFixed(2)} m/s, so the shape's own mean is ` +
+        `${SHOWER_SHAPE_MEAN.toFixed(3)} of its peak. Peaks ~ Exp(${SHOWER_MU.toFixed(4)}) clipped at 1, ` +
+        `mean peak ${SHOWER_PEAK_MEAN.toFixed(4)} = ${(SHOWER_PEAK_MEAN * RAIN_FULL_MMH).toFixed(2)} mm/h; ` +
+        `${(100 * Math.exp(-1 / SHOWER_MU)).toFixed(1)}% of showers clip at full rain. ` +
+        `DELIVERED long-run mean ${cycleMean.toFixed(5)} against ${CLIMATE_MEAN_RAINFALL.toFixed(5)} ` +
+        `required by ${CLIMATE_MM_PER_YEAR} mm/yr at ${RAIN_FULL_MMH} mm/h ` +
+        `(${((cycleMean / CLIMATE_MEAN_RAINFALL - 1) * 100).toFixed(2)}%), integrated over 4096 showers.`
+      );
+      ctx.log(
+        `weather: ${rainPinned ? `rainfall PINNED at ${rainfall.toFixed(3)}` : 'rainfall follows the cycle'}; ` +
+        `now = 0 is ${SHOWER_REST_S} s past a shower, which is where main.js's wet ` +
+        `${(Math.exp(-SHOWER_REST_S / DRY_TAU_S)).toFixed(4)} comes from, and the next shower is ` +
+        `${(SHOWER_PERIOD_S - SHOWER_S - SHOWER_REST_S).toFixed(0)} s away — every gate window in this ` +
+        `project is under 100 simulated seconds, so all of them run at rainfall 0. ` +
+        `The water's clock is time.now and the sun's is ${(DRY_TAU_S / 1200).toFixed(1)} days of it per ` +
+        `drying constant: rainfall and wetness are one water budget and agree with each other first.`
+      );
       ctx.log(
         `weather: 1 px = ${theta.toExponential(4)} rad at ${RENDER.internalHeight} lines and ` +
         `${ctx.camera.fov} deg fov, so a ${DROP_MM} mm drop is 1 px at ` +
@@ -1596,6 +1873,22 @@ export function createWeather(options = {}) {
       if (disposed) return;
       lastCtx = ctx;
       const lights = ctx.get('lights');
+
+      /**
+       * RAINFALL FOLLOWS THE CLOCK, AND IT IS READ RATHER THAN INTEGRATED.
+       *
+       * `rainfallAt` is a pure function of the simulated second, so this line
+       * is idempotent: two calls at the same `now` give the same weather, a
+       * capture that steps a different number of frames arrives in the same
+       * state, and there is nothing to warm up. That is the same property
+       * `dt` is taken off `time.now` for six lines above, one level out.
+       *
+       * The ramp cannot trip `RAINFALL_HISTORY_STEP`: the steepest the
+       * trapezoid gets is 1/SHOWER_EDGE_S = 0.0105 per second, so the largest
+       * step a 0.1 s clamped frame can take is 0.0010 against a threshold of
+       * 0.09. `setRainfall` is the discontinuous door and it keeps the reset.
+       */
+      if (!rainPinned && noctisTime) rainfall = rainfallAt(noctisTime.now);
 
       /**
        * WETNESS FOLLOWS RAINFALL, WITH exp(-dt/tau) AND NOT A LERP.
