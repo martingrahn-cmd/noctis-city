@@ -775,9 +775,51 @@ export const SIGN_BLADE = {
    * The ceiling reaches what §3 asks for: 2.2 × 7.0 = **15.4 m**, against four
    * storeys at the shortest era's 3.05 m floor = 12.2 m. Clamped per building
    * to what the elevation can actually carry — see `bladeHeightM`.
+   *
+   * ═══ RAISED 7.0 → 9.0, SESSION 43, AND THE TARGET MOVED FROM FOUR STOREYS
+   * TO SIX. The brief's words are that session 34 *"was a start, not the
+   * finish"* and that the reference has signs *"several storeys tall"*.
+   * MEASURED FIRST, straight out of this generator over `citycheck`'s own
+   * 10 × 10 at seed 1337, before anything was changed:
+   *
+   *     958 signs, 111 of them taller than wide (11.6%)
+   *     tallest sign in the city                      14.24 m
+   *     >= 12.2 m — the four storeys §3 asked for       9 of 958   0.9%
+   *     >= 18.3 m — six storeys                         0 of 958   0.0%
+   *
+   * So session 34's four-storey target was REACHED and only just: nine signs of
+   * 958. Six storeys at the shortest era's 3.05 m floor is 18.3 m.
+   *
+   * ═══ THE CEILING IS SOLVED, NOT PICKED, AND SETTING IT AT THE TARGET IS THE
+   * MISTAKE THIS AVOIDS. A first arm put it at 9.0, where the widest blade
+   * reaches 2.2 × 9.0 = 19.8 m and six storeys is therefore *reachable* — and
+   * the generator delivered **0 of 975 signs at 18.3 m**, because only a corner
+   * of the (width, aspect) square gets there and that corner has near-zero
+   * measure. A band whose top touches the target delivers the target never.
+   *
+   * So the ceiling is solved from HOW OFTEN the target has to arrive. §3 asks
+   * for *"several at different depths in one frame"*, and `pTrading` below
+   * already answers the same question with the same population: a frame down a
+   * retail street sees SIX TO TEN FRONTAGES. For such a frame to hold a
+   * several-storey blade, about one blade in eight has to be one. Over
+   * w ~ U(0.9, 2.2) and a ~ U(2.6, A), solving P(w·a ≥ 18.3) = 1/8 gives
+   *
+   *     A =  9.0   P = 0.007    A = 12.0   P = 0.114    A = 14.0   P = 0.201
+   *
+   * so **12.0**, delivering 0.114 — one blade in 8.8. The widest blade at the
+   * ceiling is 2.2 × 12.0 = 26.4 m, which is eight and a half storeys and is
+   * what a vertical hotel or cinema blade actually is.
+   *
+   * THE WALL IS NOT THE LIMIT AND THAT IS MEASURED TOO. Over the same
+   * population the median building under a sign is 38.7 m tall, so the wall
+   * between a blade's 3.05 m clear height and its parapet is **34.6 m at the
+   * median and 74.3 m at p90** — `bladeHeightM`'s clamp does not bite on a
+   * typical building at 12.0, and where it does bite the blade stays a blade at
+   * a smaller size rather than becoming something else. What bounds a blade is
+   * the pavement it hangs over, through `widthMaxM`, and that is unchanged.
    */
   aspectMin: 2.6,
-  aspectMax: 7.0,
+  aspectMax: 12.0,
   /**
    * Metres from the pavement to the blade's LOWER edge.
    *
@@ -803,6 +845,74 @@ export const SIGN_BLADE = {
    */
   pTrading: 0.34,
   pFrontage: 0.12,
+};
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE BUILDING-SCALE SIGN — A FRACTION OF THE WALL, AND WHERE THE TRADE IS.
+ * SESSION 43, LOOK.md §3.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * MEASURED FIRST, same region and seed as `SIGN_BLADE`'s table:
+ *
+ *     building-scale signs                          22 of 958   2.3%
+ *     width / its own frontage, median                    0.71
+ *     width / its own frontage, worst                     1.37
+ *     OF WHICH OVERHANG THEIR OWN FRONTAGE (> 1.00)     2 of 22
+ *
+ * TWO SIGNS WERE WIDER THAN THE BUILDINGS THEY ARE BOLTED TO, and the cause is
+ * that `width` was an ABSOLUTE `range(9, 17)` on an elevation whose own width
+ * is a `range(11, 27)` roll. Two independent draws, one of which is supposed to
+ * fit inside the other — CONTRACT §9's shape with two widths, and it is the
+ * same pair `city.js` had when a building's CENTRE stood in for its ELEVATION.
+ *
+ * SO THE WIDTH IS A FRACTION OF THE FRONTAGE, WHICH IS ALSO WHAT §3 ASKED FOR:
+ * *"some spanning half a wall"*. `ROOF_SIGN` above already does exactly this,
+ * with exactly these numbers, for exactly this reason — a roof sign is
+ * `frontage · widthFrac` clamped to a min and a max — so this is the file's own
+ * construction applied to the elevation instead of to the roofline, and the two
+ * now cannot say different things about the same quantity. A median roll of
+ * 0.66 IS half a wall, and 0.86 is a sign that spans the elevation and leaves
+ * 7% of it clear at each end.
+ *
+ * IT CANNOT OVERHANG ANY MORE, BY CONSTRUCTION AND NOT BY LUCK. `along` is
+ * scaled by `1 − width/frontage` so that the sign's own half-width plus its
+ * offset never leaves the wall — the claim discipline taken as a bound on where
+ * it may stand rather than as a shrink applied after the fact.
+ */
+export const SIGN_BIG = {
+  /** Fraction of the elevation. `ROOF_SIGN.widthFracMin/Max`, deliberately. */
+  widthFracMin: 0.46,
+  widthFracMax: 0.86,
+  /** Metres. Also `ROOF_SIGN`'s, and the narrowest building here is 11 m, so
+   *  the floor cannot itself produce an overhang. */
+  minWidthM: 6.0,
+  maxWidthM: 26.0,
+  /**
+   * WHERE THE BIG ONES GO, AND IT IS SESSION 28's RETAIL ROLL. §5's test for
+   * anything added here is that it be derivable from something the city already
+   * has: a building-scale sign is ADVERTISING, advertising is bought where the
+   * people are, and `bld.retail` / `bld.retailFrontage` already record which
+   * frontages trade. The blade got this conditioning in session 34 and the
+   * building-scale sign never did — it was a flat 0.07 on any building over
+   * 30 m, which puts a nine-storey sign on a quiet residential street.
+   *
+   * `pQuiet` IS NOT ZERO AND THAT IS THE DERIVATION RATHER THAN A HEDGE. A
+   * corporate tower carries its own name over the door whether or not the
+   * street trades, and that is identification rather than advertising — so it
+   * is rare and it is not absent.
+   *
+   * WHAT IT DELIVERS AGAINST THE OLD FLAT ROLL. Over the same region the
+   * building population is 64.8% trading, 13.4% on a retail frontage without
+   * trading and 21.8% neither, so the population-weighted probability is
+   * 0.648·0.20 + 0.134·0.09 + 0.218·0.02 = **0.146 against 0.07** — about twice
+   * as many, and clustered on the streets that have shops rather than sprinkled
+   * over every tall building. §3 asks for *"several at different depths in one
+   * frame"*, and a frame down a trading street is where that now happens.
+   */
+  pTrading: 0.20,
+  pFrontage: 0.09,
+  pQuiet: 0.02,
 };
 
 /**
@@ -6616,7 +6726,22 @@ export function generateChunk(rootSeed, cx, cz) {
              * only on buildings over 30 m — a twelve-metre sign on a
              * fourteen-metre building is a shopfront with delusions.
              */
-            const big = height > 30 && signRng.next() < 0.07;
+            /**
+             * ONE DRAW ON EVERY PATH, unchanged: only the line it is compared
+             * against moved. See `SIGN_BIG` for the roll and for the two signs
+             * that were wider than their own buildings before it.
+             */
+            const bigP = bld.retail ? SIGN_BIG.pTrading
+              : bld.retailFrontage ? SIGN_BIG.pFrontage : SIGN_BIG.pQuiet;
+            const big = height > 30 && signRng.next() < bigP;
+            /**
+             * THE ELEVATION'S OWN WIDTH, which for a side running along x is
+             * `bld.width` and for one running along z is `bld.depth` — the same
+             * pair `city.js`'s `halfTanOf` picks between, written here rather
+             * than inferred, because both are a width in metres on the same axis
+             * convention and that is CONTRACT §9's whole table.
+             */
+            const frontageM = side.axis === 'x' ? bld.width : bld.depth;
             /**
              * MOUNTING, SESSION 14, AND IT IS THE AXIS THE SIGNAGE NEVER HAD.
              *
@@ -6697,7 +6822,8 @@ export function generateChunk(rootSeed, cx, cz) {
               ? bladeRoll < SIGN_BLADE.pTrading
               : bld.retailFrontage && bladeRoll < SIGN_BLADE.pFrontage);
             const width = big
-              ? signRng.range(9, 17)
+              ? Math.min(SIGN_BIG.maxWidthM, Math.max(SIGN_BIG.minWidthM,
+                frontageM * signRng.range(SIGN_BIG.widthFracMin, SIGN_BIG.widthFracMax)))
               : bladeWanted
                 ? SIGN_BLADE.widthMinM + (SIGN_BLADE.widthMaxM - SIGN_BLADE.widthMinM) * u
                 : 0.9 + 5.3 * u * u;
@@ -6788,8 +6914,20 @@ export function generateChunk(rootSeed, cx, cz) {
               buildingHeight: height,
               buildingWidth: bld.width,
               buildingDepth: bld.depth,
-              /** Where along the elevation, as a fraction of its half-width. */
-              along: signRng.range(-0.62, 0.62),
+              /**
+               * Where along the elevation, as a fraction of its half-width.
+               *
+               * SCALED FOR A BUILDING-SCALE SIGN so that the sign's own half
+               * plus its offset stays on the wall: at `width = f · frontage` the
+               * offset may reach `1 − f` of the half-width and no further, which
+               * at the widest roll (0.86) is 0.14 and at the narrowest (0.46) is
+               * 0.54. THE DRAW IS THE SAME DRAW IN THE SAME PLACE — the scale is
+               * applied to it rather than replacing it — so `signRng`'s phase is
+               * a function of the sign COUNT exactly as the `width` line above
+               * has required since session 20.
+               */
+              along: signRng.range(-0.62, 0.62) *
+                (big ? Math.min(1, Math.max(0, 1 - width / frontageM) / 0.62) : 1),
               state: r < deadP ? 'dead' : r < deadP + 0.1 ? 'half' : 'lit',
               chroma: signRng.int(0, 5),
               yawDeg: yaw(),
