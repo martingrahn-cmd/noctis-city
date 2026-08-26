@@ -610,10 +610,112 @@ const WATER_FRESNEL_0 = Math.pow((1.333 - 1) / (1.333 + 1), 2);
  * the glint has rain everywhere. This module draws the second, scaled by a
  * scintillation term, and says so rather than quietly picking one.
  */
-const STREAK_NITS =
+const STREAK_GLINT_NITS =
   WATER_FRESNEL_0 * LAMP_BOWL.streamedNits *
   (DROP_MM / (STREAK_LENGTH_M * 1000)) *
   (DROP_MM / (STREAK_WIDTH_M * 1000));
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SESSION 45 — THE RAIN DID NOT FALL, AND TWO FACTORS ABOVE THIS LINE SAY WHY.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator's own observation, three times: `?rainfall=1` moves the frame
+ * time and nothing is visible. Measured at HEAD before a line was changed, on
+ * `x=384 z=300` at midnight, wet, with the clock paused: **500 of 500 streaks
+ * live and inside the frustum**, at 0.88 to 12.0 m with a median of 9.4 m, gain
+ * mean 0.497, `uGain` 1. So the layer is fed, seeded, unsheltered and drawn —
+ * and it delivers a frame you cannot tell from `rainfall = 0`. The uniform was
+ * then swept live at ×1, ×8, ×25, ×70, ×180, ×400 in one boot: nothing at ×8,
+ * a light shower at ×25, a heavy one at ×70, a downpour at ×400.
+ *
+ * TWO FACTORS, BOTH ARITHMETIC, AND NEITHER IS A PREFERENCE.
+ *
+ * ── 1. THE COVERAGE PROFILE WAS NEVER NORMALISED ──────────────────────────
+ *
+ * `STREAK_GLINT_NITS` is a MEAN radiance — the drop's flux divided by the
+ * quad's whole area, which is what the two dilution factors above compute. The
+ * fragment shader then multiplies it by `coverage`, a SHAPE whose mean over
+ * that same quad is not 1:
+ *
+ *     across   mean of exp(-6·q.x²)                over q.x in [-1,1]   0.36152
+ *     along    mean of smoothstep(1, 0.55, |q.y|)  over q.y in [-1,1]   0.77481
+ *     product                                                           0.28011
+ *
+ * So the quad emitted **28.0% of the drop's flux** and the missing 72% went
+ * into the profile's own falloff. A shape may redistribute energy; it may not
+ * remove it. Computed here by the same 4001-sample quadrature that produced
+ * the numbers above rather than quoted, so it cannot drift from the GLSL — and
+ * the GLSL string is passed in beside it at the `makeLayer` call for the same
+ * reason (§9.1: one quantity, two files).
+ *
+ * ── 2. THE BILLBOARDS ARE 1.1% OF THE RAIN'S GLINTING CROSS-SECTION ───────
+ *
+ * `budget.json` splits at `DROP_MM` and says of everything below it: *"it is
+ * not missing, it is the veil"*. That is true of EXTINCTION, which is what
+ * light passing through the small drops loses. It is not true of BACK-SCATTER,
+ * which is what a drop 3 m from the eye sends into it — the 3 164 drops per m³
+ * below the split are inside the same 12 m volume and are glinting at the same
+ * lamps, sub-pixel each and 4 000 to one.
+ *
+ * The share is the D² moment of the same Marshall-Palmer distribution the
+ * counts came from, because a glint's flux is proportional to the drop's
+ * projected disc:
+ *
+ *     all D          integral(D²·N0·e^(-ΛD) dD) = N0·2/Λ³            = 990.3
+ *     D >= 3.28 mm   e^(-ΛD)·(D²/Λ + 2D/Λ² + 2/Λ³)·N0               =  10.83
+ *     ratio                                                          = 91.41
+ *
+ * The numerator is `RAIN_SIGMA_FULL`'s own integral with `Qext·π/4` divided
+ * back out, so the two terms cannot disagree about the distribution.
+ *
+ * WHAT THIS CHANGES ABOUT WHAT THE LAYER MEANS, said plainly: a streak was the
+ * image of one drop above the split and is now that drop CARRYING ITS COLUMN'S
+ * WATER. The compromise is in the shape rather than the energy — small drops
+ * fall slower and streak shorter, so the honest rendering of their share would
+ * be a denser field of shorter streaks, and 500 is the instance ceiling
+ * `budget.json` sets. It is written here so the next session can disagree with
+ * the compromise rather than with the code.
+ *
+ * ── WHAT SHIPS, AND THE TWO ANSWERS AGREE ─────────────────────────────────
+ *
+ * 3.570 × 91.41 = **326.3**, and the arm chosen by LOOKING at six rendered
+ * frames was 70–400. The derivation lands inside the bracket the eye picked,
+ * which is the only reason it ships rather than the number 70.
+ *
+ * NO COUNT MOVES. 500 instances, 168 px² clamp, one draw call already in the
+ * frame at `rainfall = 0` — `budget.json` → particles is untouched, because
+ * this is a radiance and every bound there is a count or an area.
+ */
+const STREAK_COVERAGE_MEAN = (() => {
+  const N = 4001;
+  let ax = 0;
+  let ay = 0;
+  for (let i = 0; i < N; i++) {
+    const q = -1 + (2 * i) / (N - 1);
+    ax += Math.exp(-6 * q * q);
+    const t = Math.min(1, Math.max(0, (1 - Math.abs(q)) / 0.45));
+    ay += t * t * (3 - 2 * t);
+  }
+  return (ax / N) * (ay / N);
+})();
+
+/**
+ * The D² moment of Marshall-Palmer over the whole distribution divided by the
+ * same moment above `DROP_MM`. Analytic on both ends: the integral of
+ * D²·e^(-ΛD) is 2/Λ³ over [0, ∞) and e^(-Λa)(a²/Λ + 2a/Λ² + 2/Λ³) over [a, ∞).
+ */
+const STREAK_POPULATION_SHARE = (() => {
+  const L = MP_LAMBDA_FULL;
+  const a = DROP_MM;
+  const all = 2 / (L * L * L);
+  const above = Math.exp(-L * a) * ((a * a) / L + (2 * a) / (L * L) + 2 / (L * L * L));
+  return all / above;
+})();
+
+/** cd/m². What the layer is actually given. 1.889 × 3.570 × 91.41 = 616.3. */
+const STREAK_NITS =
+  (STREAK_GLINT_NITS / STREAK_COVERAGE_MEAN) * STREAK_POPULATION_SHARE;
 
 /**
  * cd/m^2. A splash crown is AERATED water — a thin sheet full of entrained
@@ -1754,6 +1856,14 @@ export function createWeather(options = {}) {
         // Across: a gaussian core about one pixel wide inside a three-pixel
         // quad. Along: tapered at both ends, because a motion-blurred drop
         // fades in and out of its own smear rather than starting square.
+        //
+        // ITS MEAN OVER THE QUAD IS `STREAK_COVERAGE_MEAN` AND THE TWO ARE
+        // WRITTEN TOGETHER ON PURPOSE — session 45. A shape multiplied into a
+        // MEAN radiance has to integrate to 1 over the quad or it deletes
+        // energy, and this one integrated to 0.280 for eleven sessions. The JS
+        // quadrature beside `STREAK_NITS` is a transcription of this string,
+        // which is §9.1's two-copies hazard; keeping them in one call is the
+        // whole mitigation, so an edit to either without the other is visible.
         coverage: 'exp(-q.x * q.x * 6.0) * smoothstep(1.0, 0.55, abs(q.y))',
       });
       splashLayer = makeLayer({
@@ -1913,8 +2023,10 @@ export function createWeather(options = {}) {
         `${SPLASH_COUNT}x${SPLASH_MAX_AREA_PX} + ${SPRAY_COUNT}x${SPRAY_MAX_AREA_PX} = ` +
         `${STREAK_COUNT * STREAK_MAX_AREA_PX + SPLASH_COUNT * SPLASH_MAX_AREA_PX + SPRAY_COUNT * SPRAY_MAX_AREA_PX} px ` +
         `= ${((STREAK_COUNT * STREAK_MAX_AREA_PX + SPLASH_COUNT * SPLASH_MAX_AREA_PX + SPRAY_COUNT * SPRAY_MAX_AREA_PX) / RENDER.pixels * 100).toFixed(3)}% of ` +
-        `${RENDER.internalWidth}x${RENDER.internalHeight}. Nits: streak ${STREAK_NITS.toFixed(3)} ` +
-        `(the glint case; the ensemble mean is 2.55e-3 and draws nothing), splash ` +
+        `${RENDER.internalWidth}x${RENDER.internalHeight}. Nits: streak ${STREAK_NITS.toFixed(1)} ` +
+        `= glint ${STREAK_GLINT_NITS.toFixed(3)} / coverage mean ${STREAK_COVERAGE_MEAN.toFixed(5)} ` +
+        `x population share ${STREAK_POPULATION_SHARE.toFixed(2)} ` +
+        `(the ensemble mean is 2.55e-3 and draws nothing), splash ` +
         `${SPLASH_NITS.toFixed(3)}, spray ${SPRAY_NITS.toFixed(3)} cd/m2. Wind ${WIND_10M_MS} m/s at ` +
         `10 m, u* ${WIND_USTAR.toFixed(3)}, so a streak leans ` +
         `${(Math.atan(windSpeedAt(12) / DROP_TERMINAL_MS) / RAD).toFixed(1)} deg at 12 m and ` +
