@@ -16,7 +16,12 @@ such: drift on this machine is one-sided, so load can only make a frame slower.
 **THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** **184 frames over sixteen poses**, four
 times of day, wet and dry, at street level and from the air, in BOTH content paths — the origin
 block and the streamed city, which session 28 showed is one place a session can build an item into
-only one of. Seven commits of code and two of documents. **The list below is the deliverable.**
+only one of. **Eight commits of code and three of documents.** The list below is the deliverable.
+
+**AND THREE TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
+the lamp radiance, the lamp population and the kerb, with `block.js` correct in all three; and a
+fourth, the road markings, with the streamed city correct. That is the shape of what a walk finds
+and no gate does: a gate reads one path or the other and never both at once.
 
 ---
 
@@ -27,7 +32,7 @@ Every entry has a `spawn=` link you can paste and a frame in `tools/shot-out/`. 
 parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many poses) rather than
 `lookat`, which is one boot per pose — §7 has the arrangement.
 
-### REPAIRED — seven commits, each revertible on its own
+### REPAIRED — eight commits, each revertible on its own
 
 | # | what looked wrong | what it was | frames |
 |---|---|---|---|
@@ -38,6 +43,7 @@ parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many 
 | **R5** | **The splash crowns are at the edge of visible** (STATE 44 item 5). | The same defect as R1 one layer over: all three particle layers multiplied a MEAN radiance by a SHAPE whose mean is not 1. splash ×2.081, spray ×3.273. §1.2 | as R1 |
 | **R6** | **No kerb reads.** | The kerb was **a 0.180 m hole with the world's earth plane behind it**. Raycast at 14.13 m: `block:ground`, albedo `[0.1229, 0.1211, 0.1168]`. §5 | `s45-road-after-t0_5-dry.png` |
 | **R7** | `city-budget.json`'s stall derivation quoted two laws that no longer exist. Carried since STATE 42. | Corrected in place; the argument survives its own stale facts and no threshold moved. | — |
+| **R8** | **The origin block has no road markings at all.** No centre line, no lane line, no edge line, no stop bar, no zebra, in 336 m of main street — and it is the street `lookcheck` stands in and `PLAYER.spawn` puts the player on. | `citygen`'s `paint()` refuses any mark not on a delivered `carriageway` claim, and `BLOCK_KEEPOUT` clips the lattice's carriageway out of this block. **A guard doing its job, and nobody else ever painted here.** One draw call. **It took `lookcheck` red at 3 again** — see L15. §5.1 | `s45-marks-{before,after}-t0_5-dry.png` |
 
 ### FOUND AND NOT REPAIRED — the list the next session starts from
 
@@ -67,10 +73,10 @@ bright reserve, a FLOOR that was RED for six sessions before density fixed it (L
 are the larger share and nobody has attributed them, and that attribution — zero each path in
 turn, exactly as `$lampBowl_measured` did — is the first hour of this item.
 
-**AND THIS SESSION MADE IT MORE AFFORDABLE THAN IT WAS.** The reserve reads **6.83% against the
-6.00% floor** (per-run means 6.88 / 6.46 / 6.83, spread 0.42), against **6.24%** in session 44.
-Brightening the origin block's sixteen bowls put 0.59 points into the very reserve the window
-repair has to spend, and that is the largest margin this floor has ever had.
+**AND THIS SESSION MADE IT MORE AFFORDABLE THAN IT WAS.** The reserve reads **6.91% against the
+6.00% floor** (per-run means 6.92 / 6.45 / 6.91, spread 0.47), against **6.24%** in session 44.
+Brightening the origin block's sixteen bowls and painting its street put 0.67 points into the very
+reserve the window repair has to spend, and that is the largest margin this floor has ever had.
 
     localhost:5173/?player=1&spawn=375.4,1.74,300&t=0.78
     localhost:5173/?player=1&spawn=375.4,1.74,300&t=0.0&wet=1
@@ -156,6 +162,29 @@ scattered specks and no building (`s45-empty-districts-t0_25.png`). Not measured
 building images and reads as polished stone rather than wet asphalt. `main.js` ships `wet: 0.55`
 so nobody normally stands in it — but `lookcheck` pins **1.0** in four of its eight frames, so
 half the look gate measures that surface.
+
+**L15. `distinct:midnight|dusk` HAD A MARGIN OF 0.0002 OF ITSELF AND R8 SPENT IT.** The bound is
+`look-budget.json` -> `distinctness.minPairMSD` = 0.03 over all six pairs of the four times, and
+its whole note is one sentence saying what it measures — one of LOOK.md §7's *"76 of 189 bounds
+with no recorded derivation at all"*. Three readings today:
+
+```
+  midnight <-> dusk      0.03008    0.03007    0.02995   floor 0.030   RED after R8
+  midnight <-> dawn      0.12903    0.12898    0.12877
+  midnight <-> noon      0.20447    0.20443    0.20404
+  dawn     <-> noon      0.11378    0.11378    0.11319
+  dawn     <-> dusk      0.05799    0.05798    0.05806
+  noon     <-> dusk      0.13813    0.13813    0.13806
+```
+
+**Five of the six clear the floor by 0.02 to 0.17 and the sixth cleared it by 0.00007**, against a
+run-to-run resolution of 0.00001. Paint is bright at midnight AND at dusk — they are the two
+`lampsOn` times — so it adds the same pixels to both frames and shrinks the one difference that
+had nothing to spare. **THE THRESHOLD WAS NOT TOUCHED**, and lowering it to make R8 pass would be
+CONTRACT §0 rule 5 wearing a re-derivation's clothes. What is owed is LOOK.md §7's own discipline
+applied to `minPairMSD` in the open: what is a pair of times supposed to differ BY, and is 0.03
+the answer for the one pair where both are lit by the same lamps? That is the next session's, not
+the session that broke it.
 
 **CARRIED, UNTOUCHED, AND NOT RE-DISCOVERED HERE:** `clumping` CV 0.443 against a 0.60 floor (red
 by instruction, fifth session of asking); the vehicle tone-profile bar (eleventh session); the
@@ -422,6 +451,34 @@ occupancy census read — a vertical face in that list would give the player a f
 pavement's height 0.18 m out into the carriageway. `windcheck` green: 563 of 563 cull-eligible
 meshes decided, 0 wound backwards.
 
+### 5.1 AND THE ONE STREET THE LOOK GATE STANDS IN HAD NO PAINT ON IT
+
+`citygen.js` delivers **2 077 crossing stripes** over `citycheck`'s 10 × 10 (LOOK.md §4) and
+`block.js` delivered **none**: no centre line, no lane line, no edge line, no stop bar, no zebra,
+in 336 m of main street and 92 m of cross street. Searching that file for *"marking"* returns
+nothing; the word *"crossing"* in it means the cross STREET. And that street is where `lookcheck`'s
+camera stands, at `[70, 1.74, 0.9]`, and where `PLAYER.spawn` puts a person.
+
+**IT IS A GUARD DOING ITS JOB.** `citygen`'s `paint()` refuses any mark whose footprint is not
+covered by a DELIVERED `carriageway` claim, so that *"a road the river took, the block took or a
+dome took has no lines painted in the air over where it used to be"*. `BLOCK_KEEPOUT` clips the
+lattice's carriageway out of this block so that the authored asphalt wins — **so the lattice
+correctly paints nothing here, and nothing else ever painted anything.** That is the third
+different mechanism this session by which the origin block and the streamed city ended up as two
+different cities, and the first one where the streamed city was the correct half.
+
+The repair paints **exactly the ground the keep-out took**, so the two cannot double up, and every
+dimension is `ROAD_MARKING` — eleven numbers exported from `citygen.js` where they were local
+`const`s — with the thickness and reflectance in `constants.js` → `ROAD_PAINT`, which `city.js`
+now reads from the same place. The zebra band is SOLVED with this street's own numbers rather than
+copied: near ≥ `halfCross + 0.05` = 6.55, far ≤ `9.0 − 0.20 − 0.05` = 8.75, so **2.20 m of depth
+centred on 7.65** — wider than the lattice's 1.20 m because this cross street is 13 m and not 15.
+
+**ONE DRAW CALL, and §3.1 is why there was room for it.** Midnight road pools 9 → **12** against a
+floor of 6. The four bands moved by 0.0002 to 0.0005 and all four are inside. **`lookcheck` went
+back to RED at 3** and the third one is L15 — a bound with a margin of 0.0002 of itself, which the
+paint spent.
+
 ---
 
 ## 6. GATE STATE
@@ -436,12 +493,14 @@ Run individually, because `npm run gates` is `&&`-joined and stops at the first 
                        §5 are inside `city:ground` and are in that count.
   inputcheck   GREEN   keyboard 3.477 / 3.500 m/s, gamepad look 177.88 / 180.00 deg/s,
                        mouse 40.0 cm/360 inside the 27.2-60 band, lock acquired.
-  lookcheck    RED at 2, WHERE IT WAS RED AT 3 FOR THREE SESSIONS. `band:dusk` closed (§2).
-                       The two left are `facadeAlbedo` (3 clusters over 5 walls, need 4) and
-                       `facadeNeighbours` (2 of 3 adjacent pairs), both carried, both about the
-                       origin block's facade materials and neither touched this session.
-                         band:midnight 0.0826   band:dusk 0.1410   band:dawn 0.3020
-                         band:noon 0.4287       crushed black 0.571%   road pools 9 of 6
+  lookcheck    RED at 3. `band:dusk` CLOSED (§2) after four sessions red, and R8's road
+                       markings opened `distinct:midnight|dusk` (L15) — a different assertion,
+                       not the same one back. The other two, `facadeAlbedo` and
+                       `facadeNeighbours`, are carried, are both about the origin block's facade
+                       MATERIALS, and neither was touched this session.
+                         band:midnight 0.0829   band:dusk 0.1412   band:dawn 0.3025
+                         band:noon 0.4285       crushed black 0.576%   road pools 12 of 6
+                         (before R8: 0.0826 / 0.1410 / 0.3020 / 0.4287, black 0.571%, pools 9)
   citycheck    RED at 3, THE SAME THREE as sessions 40-44, no new violation of any kind. §6.1
   perfcheck    RED at 13, of which ELEVEN are frame time at load1 2.48-7.18 and are not
                admissible, one is `night_rain`'s straddling frame mean, and ONE IS CONTENT —
@@ -454,8 +513,14 @@ Run individually, because `npm run gates` is `&&`-joined and stops at the first 
                the §7.3 shape and §7.5 width control sweeps.
 ```
 
-Run in one uninterrupted block with nothing else launched, in `npm run gates`' own order. All
-eight were run at commit `b757a37`.
+**WHICH GATE SAW WHICH COMMIT, SAID RATHER THAN ASSUMED.** All eight ran in one uninterrupted
+block with nothing else launched, in `npm run gates`' own order, at commit **`b757a37`** — the
+seventh code commit. **R8, the road markings, landed after that**, so `lookcheck`, `windcheck` and
+`citycheck` were re-run against it (they are the three it can move) and their numbers above are
+the post-R8 ones. `perfcheck` and `gateaudit` were NOT re-run: R8 is one instanced mesh of 340
+boxes and one draw call, measured at every pose in §5.1, and the four routes have 45 draw calls
+and 180 000 triangles of margin. `gateaudit`'s control will now name three assertions rather than
+two, and L15 says which.
 
 ### 6.1 CITYCHECK — RED AT 3, THE SAME THREE AS SESSIONS 40–44, NO NEW VIOLATION
 
@@ -477,11 +542,13 @@ clear:
 
 **TWO NUMBERS MOVED A LONG WAY AND BOTH MOVED THE RIGHT WAY:**
 
-- **bright reserve 6.24% -> 6.83%** against a 6.00% floor (per-run 6.88 / 6.46 / 6.83, spread
-  0.42). Attributable to §2: the origin block's sixteen bowls are 4.65x brighter and `night_rain`
-  runs through that block.
-- **saturation peak 4.01% -> 4.57%** against a 12% ceiling (per-run maxima 4.59 / 4.57 / 4.46,
-  spread 0.13). STATE 44 asked *"what took a third off the saturation peak, and does the estimator
+- **bright reserve 6.24% -> 6.83% -> 6.91%** against a 6.00% floor (per-run 6.92 / 6.45 / 6.91,
+  spread 0.47, after R8). Attributable to §2 and §5.1: the origin block's sixteen bowls are 4.65x
+  brighter and its street now has white paint on it, and `night_rain` runs through that block.
+  **That is the largest margin this floor has ever had**, and it is the budget L1's window repair
+  has to spend.
+- **saturation peak 4.01% -> 4.57% -> 4.61%** against a 12% ceiling (per-run maxima 4.74 / 4.47 /
+  4.61, spread 0.27, after R8). STATE 44 asked *"what took a third off the saturation peak, and does the estimator
   note still describe the gate it was written for"* — it has come back 0.56 points, still against
   a `$estimator` note recording six per-run maxima of 8.64 to 11.74 and calling the gate *"green
   by less than its own resolution"*. **It is green by 7.4 points now and the note is still wrong
@@ -605,7 +672,9 @@ have:
   which is the tightening direction its own definition names.
 - **`clumping` was not touched.** Red by instruction.
 - **No quiet battery.** `load1` 2.48–7.18, never inside 1.6.
-- **No merge to main.** Seven commits on `claude/noctis-44-make-it-rain`, pushed.
+- **No merge to main.** Eight commits of code and three of documents on
+  `claude/noctis-44-make-it-rain`, all pushed.
+- **`minPairMSD` was NOT re-derived**, and R8 took it red by 0.00005. L15.
 
 ---
 
@@ -656,6 +725,8 @@ delivered `sign ×` overlaps and the two sign quads inside a building**.
 - **"the pavement's missing kerb"**, carried since session 17's `walkprobe` — it was missing in the
   streamed city and it is a riser now. §5.
 - **`tools/city-budget.json:84`'s stale `$derivation_count`**, carried since STATE 42.
+- **The origin block having no road markings**, which nobody had noticed in forty-four sessions
+  because the gate that counts markings counts the LATTICE's. §5.1.
 - **The draw-call ceiling as the project's limiter.** 439 of 440 for three sessions; 395 now.
 
 **NEW THIS SESSION — all of it measured, none of it inferred:**
@@ -675,5 +746,8 @@ delivered `sign ×` overlaps and the two sign quads inside a building**.
   city. §5.
 - **EVERY WINDOW IN THE STREAMED CITY IS 220 cd/m² AND THE ORIGIN BLOCK'S ARE 7 TO 30.** L1.
 - **A STREET POSE AT THE ARCH IS OVER THE TRIANGLE CEILING AND NO GATE GOES THERE.** L2.
-- **THREE TIMES IN ONE SESSION TWO CONTENT PATHS DISAGREED AND `block.js` WAS THE CORRECT ONE** —
-  the lamp radiance, the lamp population, and the kerb.
+- **FOUR TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** — the
+  lamp radiance, the lamp population and the kerb, with `block.js` correct; and the road markings,
+  with the streamed city correct. Every one was found by looking and none by a gate.
+- **`distinct:midnight|dusk` HAD A MARGIN OF 0.00007 AGAINST AN INSTRUMENT THAT RESOLVES 0.00001**,
+  and one street's worth of white paint spent it. L15.
