@@ -271,6 +271,21 @@ async function measureRoute(page, route, { renderScale = 1, silhouettes: wantSil
   const traffic = await page.evaluate(() =>
     (window.__APEX_HARNESS__.trafficStats ? window.__APEX_HARNESS__.trafficStats() : null)
   );
+  /**
+   * THE WEATHER AT THE END OF THE ROUTE — session 44, and it asserts nothing.
+   *
+   * `rainfall` became a state driven by `time.now` this session, so EVERY
+   * threshold in this file now depends on the route finishing inside the
+   * cycle's dry stretch. That dependency is real, it is 872 simulated seconds
+   * wide, and until this line nothing printed it — which is CONTRACT §7.1's
+   * own shape: a check gone quiet is indistinguishable from one that passed.
+   * `nextShowerS` and the layers' active counts are the two numbers that say
+   * whether a route rained, and they now appear beside every measurement made
+   * during it.
+   */
+  const weather = await page.evaluate(() =>
+    (window.__APEX_HARNESS__.weatherStats ? window.__APEX_HARNESS__.weatherStats() : null)
+  );
   const shot = await page.screenshot({ type: 'png' });
 
   /**
@@ -335,7 +350,7 @@ async function measureRoute(page, route, { renderScale = 1, silhouettes: wantSil
     );
   }
 
-  return { route, report, shot, memory, routeInfo, particles, motion, roles, traffic, silhouettes, silhSamples, paletteRaw };
+  return { route, report, shot, memory, routeInfo, particles, weather, motion, roles, traffic, silhouettes, silhSamples, paletteRaw };
 }
 
 /**
@@ -1168,7 +1183,7 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets =
     Object.prototype.hasOwnProperty.call(perRoute, key) ? ` [${route}'s own ceiling]` : '';
   const fails = [];
   const last = runs[runs.length - 1];
-  const { shot, memory, routeInfo, particles, motion, roles, traffic } = last;
+  const { shot, memory, routeInfo, particles, weather, motion, roles, traffic } = last;
   /**
    * THE LEVEL STATISTICS ARE A SAMPLE OF ONE AND EVERY MILLISECOND BESIDE THEM
    * IS POOLED OVER THREE. SESSION 17 MEASURED THAT AND DID NOT REPAIR IT.
@@ -1388,6 +1403,17 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets =
   const p = assertParticles(route, particles, BUDGET, BUDGET.capture.viewport);
   fails.push(...p.fails);
   metrics.particleLayers = p.layers.length;
+  // Session 44. Reported, never asserted: this is a description of the state
+  // the route was measured in, and the numbers above are what get asserted.
+  metrics.weather = weather
+    ? {
+        rainfall: weather.rainfall,
+        pinned: !!weather.rainPinned,
+        nowS: weather.nowS,
+        nextShowerS: weather.nextShowerS,
+        activeParticles: weather.layers.reduce((a, l) => a + l.active, 0),
+      }
+    : null;
   metrics.particleFill = p.fill != null ? +p.fill.toFixed(5) : null;
 
   fails.push(...assertMotion(route, motion, BUDGET));
@@ -2430,6 +2456,12 @@ try {
       `froxel ${checked.metrics.clusterPeak}/${checked.metrics.clusterMax} ` +
       `(margin ${checked.metrics.clusterMargin}, ${checked.metrics.trafficLights} traffic)  ` +
       `${checked.metrics.particleLayers} particle layers  ` +
+      `${checked.metrics.weather
+        ? `rain ${checked.metrics.weather.rainfall.toFixed(2)}` +
+          `${checked.metrics.weather.pinned ? ' pinned' : ` (now ${checked.metrics.weather.nowS.toFixed(0)}s, next shower ` +
+            `${checked.metrics.weather.nextShowerS == null ? '—' : `${checked.metrics.weather.nextShowerS.toFixed(0)}s`})`}` +
+          `, ${checked.metrics.weather.activeParticles} drops  `
+        : ''}` +
       `mv ${checked.metrics.motionWritten}/${(checked.metrics.motionWritten || 0) + (checked.metrics.motionSuppressed || 0)} ` +
       `(${checked.metrics.motionLayers} layers, ${checked.metrics.swapViolations} swap viol)  ` +
       `roles ${checked.metrics.lightRoles ? Object.entries(checked.metrics.lightRoles).map(([k, v]) => k + ':' + v).join(' ') : '—'}` +

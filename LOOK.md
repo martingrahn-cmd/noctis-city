@@ -25,6 +25,13 @@ ground between them. Sky is something you see a strip of, looking up.
 The mood reference is **rain-lit neon at street level** — the class of image
 where the road is a mirror and every light counts twice.
 
+**AND FOR FORTY-THREE SESSIONS THE "RAIN-LIT" HALF OF THAT SENTENCE HAD NEVER
+BEEN RENDERED.** The water on the road landed in session 4 and the app started
+standing in it in session 33; the rain in the AIR had a module, three particle
+layers, a drop-size distribution and no caller. Session 44 turned it on —
+`?rainfall=`, and a shower cycle behind it — so the reference's own weather is
+now something this city can be in rather than something it is described as.
+
 ---
 
 ## 2. Density — what it concretely means
@@ -485,11 +492,46 @@ Light is the city's main material. Geometry is what the light lands on.
 
   **THE LEVER IS THE AIR'S DENSITY AND THE CITY ALREADY DRIVES IT.** Rain
   multiplies `hazeDensity` by up to 4.46× (`weather.js` → `hazeFor`), and this
-  bullet's own *"denser where the air is dirtier"* is that mechanism. **Nothing
-  in this project has ever set rainfall**: `night_rain` is a route with
-  `wet: 0.85` and no rain in it, and `rainfall` is not a §6 parameter, so it is
-  0 in every frame anybody has ever taken. That is the open question this
-  bullet leaves.
+  bullet's own *"denser where the air is dirtier"* is that mechanism. Session
+  43 found that **nothing in this project had ever set rainfall** — `night_rain`
+  is a route with `wet: 0.85` and no rain in it — and left it as this bullet's
+  open question.
+
+  **SESSION 44 ANSWERED IT, AND THE ANSWER IS A TABLE.** `rainfall` is a §6
+  parameter now and `weather.js` runs a shower cycle derived from its own two
+  time constants. The in-scatter is linear in the medium's density, so what a
+  ray passing 9 m from a 6 800 cd lantern collects is exactly the 0.022 cd/m²
+  above scaled by `hazeFor(r).density / ATM.hazeDensity`:
+
+  ```
+    rainfall   mm/h    sigma /m    visibility   x clear    against a road at 1.4
+      0        0.0     4.500e-4      8.69 km     1.000            1.6%
+      0.17     1.7     9.595e-4      4.08 km     2.132            3.3%   mean instant of rain
+      0.29     2.9     1.163e-3      3.36 km     2.585            4.1%   mean shower peak
+      0.60     6.0     1.578e-3      2.48 km     3.506            5.5%
+      1.00    10.0     2.006e-3      1.95 km     4.457            7.0%   full rain
+  ```
+
+  **SO THE HONEST HEADLINE IS 1.6% → 7.0%, AND EVEN THAT IS AN UPPER BOUND.**
+  The integral gives the rain's whole extinction to an isotropic phase, and
+  `weather.js`'s own note says half of a raindrop's `Qext = 2` is diffraction
+  into a forward lobe of λ/D = 1.7e-4 rad, which a halo never sees. Discounting
+  that half puts full rain at **4.4%** instead of 7.0%, and the honest figure is
+  the bracket. Neither end is a halo you would call a halo.
+
+  **WHAT IT DOES DELIVER IS STRUCTURE, AND STRUCTURE IS WHAT SURVIVES THE
+  EXPOSURE.** Measured on delivered frames as a RATIO INSIDE ONE FRAME, which
+  is the only exposure-invariant thing a screenshot carries (§5.4 pays for
+  anything added, so 76% of pixels go darker at full rain): the air in a
+  lantern's beam goes from **0.201 to 0.238 of the lit road beside it, +18.5%**,
+  while a dark wall with no lamp near it goes 0.0891 → 0.0906, **+1.7%**. The
+  glow is where the lamps are and nowhere else, which is what this bullet asks
+  for and the opposite of a lift. Frames:
+  `tools/shot-out/s44-{rain,lamp}-{before,after}-t0-wet.png`, **294 and 329 draw
+  calls in both arms of both pairs.**
+
+  It still cannot light the air around a SIGN, unchanged and for the same
+  reason.
 
   It also cannot light the air around a SIGN, and that is a fact about the
   light list rather than a choice: the 958 signs and every window are emissive
@@ -660,6 +702,18 @@ film it came from is set dressing, and it will read as set dressing.
 
 `weather.js` implements wet film, puddle roughness, Fresnel reflectance for
 water and a screen-space reflection gate. `ssr` defaults to 1.
+
+**AND IT IMPLEMENTED THE RAIN ITSELF, WHICH IS THE SAME SENTENCE ONE LAYER OUT
+AND TOOK ELEVEN MORE SESSIONS TO NOTICE.** Session 44: 500 streaks, 130 splash
+crowns and 70 spray puffs, a Marshall–Palmer split at D = 3.28 mm deciding
+which drops are billboards and which are the veil, and an extinction that takes
+the meteorological visibility from 8.69 km to 1.95 km — all of it gated on
+`rainfall`, which had a setter, a harness method, a HUD readout and no caller.
+Every one of those layers renders, at **zero draw calls**, because the three
+meshes are `frustumCulled = false` and are in the count whether it is raining or
+not: 294 draws at rainfall 0 and 294 at full rain, measured in five arms of one
+sweep. Delivered at r ≥ 0.15: **streaks 500 of 500, splashes 130 of 130, spray 0
+to 4 of 70** depending on whether a vehicle is in the near field.
 
 **THIS SECTION USED TO SAY "never seen", AND THAT WAS WRONG — MINE, AND CORRECTED
 IN SESSION 33.** It read *"every frame in this project's history — every gate

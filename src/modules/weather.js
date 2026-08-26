@@ -49,6 +49,43 @@
  * the correct model rather than a cheaper one. `lights.setHaze(density,
  * scaleHeight)` has been fully wired to the uniform since session 5 and has had
  * no caller. This module is its caller.
+ *
+ * A HAZE THAT OUTLASTS THE ROAD. The session-44 brief asked for a city where
+ * "the air stays thick longer than the ground stays shiny", and the three time
+ * constants this city already contains say the opposite by a factor of
+ * thirty-one. They are written down because the request is a reasonable one
+ * and the answer is arithmetic rather than taste:
+ *
+ *   THE DROPS FALL OUT in RAIN_CLOUD_BASE_M / DROP_TERMINAL_MS = 800/8.378 =
+ *   95.5 s. That is not a missing term — it is SHOWER_EDGE_S, the trailing
+ *   edge of every shower below, so the air already stays thick for exactly as
+ *   long as the column between the cloud and the street takes to empty.
+ *
+ *   THE STREET'S AIR EXCHANGES in about 329 s. `canyon.roadSkyVis` is 0.51,
+ *   and for an infinite canyon the sky view factor at the road centre is
+ *   sin(a) with tan(a) = (W/2)/H, so 0.51 at CORRIDOR = 11.7 m of half-width
+ *   puts the walls at 19.7 m. Skimming flow exchanges across the roof shear
+ *   layer at about 0.02 of the roof wind and WIND_10M_MS is 3 m/s, so
+ *   19.7/0.06.
+ *
+ *   THE ROAD DRIES in DRY_TAU_S = 3000 s.
+ *
+ * So the ground is shiny 31x longer than the air is thick, and the only
+ * mechanism that could reverse it is the wet road humidifying its own canyon.
+ * That was computed rather than assumed. The film is 0.05 mm = 50 g/m2 of
+ * water, and the saturation deficit at the 15 C and 80% RH that
+ * EVAPORATION_MMH's own Penman figure is stated at is 2.56 g/m3 — so the film
+ * holds enough water to saturate a 19.5 m column of its own street's air,
+ * against a canyon measured at 19.7 m, which is the closest coincidence in
+ * this file and is why the mechanism is worth taking seriously at all. It
+ * still fails: 0.06 mm/h of supply against 0.06 m/s of exchange is a steady
+ * excess of 0.28 g/m3, which raises the street from 80.0% to 82.2% RH, and a
+ * (1 - RH)^-0.65 hygroscopic growth on that is +7.8% of the aerosol =
+ * 3.5e-5 /m. That is 2.2% of the rain's own 1.5556e-3; it costs eight look
+ * assertions to introduce, because `lookcheck` pins wetness to 1.0 in every
+ * wet frame it captures; and it decays with the wetted fraction, i.e. WITH the
+ * road rather than after it. It buys 2% of the term it was meant to reinforce
+ * and none of the property it was wanted for, so it is not here.
  */
 
 import * as THREE from 'three';
@@ -386,6 +423,18 @@ const SHOWER_REST_S = 1800;
 function showerPeak(k) {
   const u = ((k + 1) * SHOWER_GOLDEN) % 1;
   return Math.min(1, -SHOWER_MU * Math.log(Math.max(1e-12, 1 - u)));
+}
+
+/**
+ * Seconds from `t` to the leading edge of the next shower, 0 while it is
+ * raining. Reported rather than derived by a reader, because every gate in
+ * this project depends on being inside the dry stretch and a dependency that
+ * nothing prints is a check gone quiet (CONTRACT §7.1).
+ */
+function nextShowerIn(t) {
+  if (rainfallAt(t) > 0) return 0;
+  const k = Math.ceil((t + SHOWER_S + SHOWER_REST_S) / SHOWER_PERIOD_S);
+  return k * SHOWER_PERIOD_S - SHOWER_S - SHOWER_REST_S - t;
 }
 
 /**
@@ -837,6 +886,8 @@ export function createWeather(options = {}) {
    * of 0 or more pins from boot. Not "writes the same value": does not write.
    */
   let rainPinned = false;
+  /** The simulated second this module last saw. The cycle's only input. */
+  let nowS = 0;
   if (Number.isFinite(Number(cfg.rainfall)) && Number(cfg.rainfall) >= 0) {
     rainfall = Math.max(0, Math.min(1, Number(cfg.rainfall)));
     rainPinned = true;
@@ -1622,6 +1673,14 @@ export function createWeather(options = {}) {
         })),
         rainfall,
         rainPinned,
+        nowS,
+        /**
+         * Seconds to the next shower. A gate that ran long enough to rain
+         * would report 0 here and non-zero `layers[].active`, so the thing
+         * every threshold in this project quietly depends on is a printed
+         * number rather than an argument in a comment.
+         */
+        nextShowerS: rainPinned ? null : nextShowerIn(nowS),
         wetness,
         hazeDensity,
         visibilityM: KOSCHMIEDER / hazeDensity,
@@ -1901,7 +1960,8 @@ export function createWeather(options = {}) {
        * step a 0.1 s clamped frame can take is 0.0010 against a threshold of
        * 0.09. `setRainfall` is the discontinuous door and it keeps the reset.
        */
-      if (!rainPinned && noctisTime) rainfall = rainfallAt(noctisTime.now);
+      if (noctisTime) nowS = noctisTime.now;
+      if (!rainPinned) rainfall = rainfallAt(nowS);
 
       /**
        * WETNESS FOLLOWS RAINFALL, WITH exp(-dt/tau) AND NOT A LERP.
