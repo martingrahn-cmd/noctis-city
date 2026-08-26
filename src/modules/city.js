@@ -1120,7 +1120,69 @@ export function createCity(options = {}) {
      * placement file is a number in the wrong file.
      */
     const Y = GROUND_Y;
-    const roadAlbedo = chunk.roadMaterials[0] === 'concrete' ? [0.19, 0.19, 0.185] : [0.082, 0.082, 0.086];
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * SESSION 45 — THE CONCRETE CARRIAGEWAY. 0.19 -> 0.1171, AND IT IS WHY A
+     * THIRD OF THIS CITY'S STREETS READ AS A PLAZA AT NOON.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The operator's third repeated observation: *"the road is the same pale
+     * tone as the pavement — no kerb reads, markings barely visible, the whole
+     * street reads as a plaza with vehicles on it."* Measured on a noon frame
+     * standing on the carriageway at x = 384, z = 300, seed 1337, as a scanline
+     * across the section rather than as patches:
+     *
+     *     pavement      202 code values
+     *     kerb face     158        the pavement slab's own shaded edge
+     *     carriageway   188        14 cv below the pavement, 1.176x in
+     *                              display-linear
+     *     lane line     230
+     *
+     * FOURTEEN CODE VALUES OUT OF 255 IS NOT A ROAD. And it is not the tone
+     * curve: 0.19 against the pavement's 0.26 is 1.368x, and ACES at that
+     * exposure turns 1.368x into exactly the 202/188 delivered — predicted 204,
+     * measured 202. **The albedo is the whole of it.**
+     *
+     * THE SAME MEASUREMENT IN THE ORIGIN BLOCK IS 212 AGAINST 151, a 61 cv
+     * step, because `block.js` draws its carriageway at 0.0908. Two content
+     * paths, one of which reads as a road.
+     *
+     * AND IT IS A THIRD OF THE CITY, IN DISTRICTS RATHER THAN SCATTERED.
+     * `citygen.js` picks `concrete` on `age < 0.36` where `age` is a SMOOTH
+     * noise field, so it comes in patches: over an 11 x 11 region at seed 1337,
+     * **42 of 121 chunks (34.7%)** carry a concrete carriageway, and the pose
+     * above stands on chunk (3,2) with all eight of its neighbours concrete
+     * too. A walker in one of those districts sees no road anywhere.
+     *
+     * WHERE 0.1171 COMES FROM. 0.19 had no derivation beside it, in a block
+     * where every other surface carries one (§9 rule 5). The ratio is CIE's own
+     * standard road-surface classes, which exist precisely to say how much
+     * brighter one carriageway is than another under the same lighting
+     * geometry: **R1** (cement concrete) Q0 = 0.10 against **R3** (asphalt with
+     * dark aggregate, rough after some months of use — a city street) Q0 =
+     * 0.07. Only the RATIO is borrowed, not the level: pi*Q0 would put R3 at
+     * 0.22, and this project's asphalt is 0.082, so the anchor is this city's
+     * own road and the concrete one is 1.4286x it.
+     *
+     *     0.082 * 10/7 = 0.11714, and the channels keep the 0.19/0.185 ratio.
+     *
+     * IT ALSO LANDS WHERE THIS FILE'S OWN NEIGHBOURS SAY IT SHOULD. `core` is
+     * 0.105 (*"asphalt patched over concrete ... between the two"*) and `yard`
+     * is 0.172 (*"worn concrete hardstanding"* — concrete that is not driven on
+     * lane by lane). A trafficked concrete carriageway between them, nearer the
+     * patched road than the yard, is the sentence those two already imply.
+     *
+     * AND IT FIXES THE MARKINGS THE SAME OBSERVATION COMPLAINS ABOUT. This
+     * file's own parking note says the 0.62 bay paint against asphalt is *"a
+     * ratio of 7.6x, which is what makes a bay read at night"*. On a 0.19 road
+     * that ratio was 3.3x; it is now 5.3x.
+     *
+     * PREDICTED DELIVERY at the same noon exposure: carriageway 188 -> 155 cv,
+     * a 47 cv step against the pavement instead of 14. Measured in STATE 45.
+     */
+    const roadAlbedo = chunk.roadMaterials[0] === 'concrete'
+      ? [0.11714, 0.11714, 0.11405]
+      : [0.082, 0.082, 0.086];
     const walkAlbedo = [0.26, 0.257, 0.248];
     /**
      * Mown grass integrates to about 0.10 photopic with a strong green bias,
