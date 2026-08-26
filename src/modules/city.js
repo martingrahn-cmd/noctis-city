@@ -322,6 +322,25 @@ export function createCity(options = {}) {
   /** The one merged signage mesh, same arrangement. */
   let signMesh = null;
   let signsDirty = false;
+  /**
+   * THE TWO MERGED STREET-LIGHTING MESHES — session 45, and they are what pays
+   * for the poles on the far kerb.
+   *
+   * `lampStationsFor` used to emit eight stations a chunk and now emits twenty,
+   * and the frame that showed the difference also showed `highway_speed` at
+   * **441 draws of 440**: not new meshes (the scene walk reads 430 either way)
+   * but more of the SAME 70 per-chunk lamp meshes passing the frustum test,
+   * because each one's bounding sphere now reaches the other pavement.
+   *
+   * The near ring is 35 chunks and each emitted a `:lamps` and a `:bowls`
+   * mesh, so street lighting alone could ask for **70 of the 440**. Merged
+   * city-wide it asks for **2**, which is the same move `rebuildGroundMesh`
+   * and `rebuildSignMesh` already make and for the same ceiling. Delivered:
+   * `highway_speed` 441 -> see STATE 45 §3.
+   */
+  let lampMesh = null;
+  let bowlMesh = null;
+  let lampsDirty = false;
 
   const tmpMatrix = new THREE.Matrix4();
   const tmpQuat = new THREE.Quaternion();
@@ -1298,6 +1317,56 @@ export function createCity(options = {}) {
   }
 
   /**
+   * The whole city's street lighting in two meshes — session 45.
+   *
+   * Two and not one because a column is `materials.metal` and a bowl is
+   * `materials.lampBowl`, and one material is one mesh. The bowl material is
+   * the one `harness.lampBowlCensus()` reads for the radiance ratchet
+   * (`city-budget.json` → lampBowl), and it is the same material object it has
+   * always been — merging changes which mesh carries it, not what it is.
+   *
+   * `nearVisible` IS THE FILTER AND IT REPLACES A `.visible` FLAG. The old
+   * per-chunk meshes were hidden and shown as a chunk crossed `nearRadius`
+   * (`m.visible = near` in `update`); a merged mesh has no per-chunk half to
+   * hide, so the same transition marks this dirty instead and the chunk drops
+   * out of the rebuild. That is the one behavioural difference and it is
+   * strictly cheaper: hiding a mesh still costs the frustum test.
+   *
+   * The census labels are preserved as CITY-WIDE totals rather than per-chunk
+   * ones. `harness.sceneCensus()` sums `lampColumns` and `lampBowls` over every
+   * labelled mesh, so the totals it reports are unchanged; what is lost is the
+   * per-chunk breakdown, which nothing reads.
+   */
+  function rebuildLampMesh() {
+    for (const m of [lampMesh, bowlMesh]) {
+      if (!m) continue;
+      root.remove(m);
+      m.dispose();
+    }
+    lampMesh = null;
+    bowlMesh = null;
+    lampsDirty = false;
+
+    const bodies = [];
+    const bowls = [];
+    for (const rec of resident.values()) {
+      if (!rec.lampParts || rec.nearVisible === false) continue;
+      for (const m of rec.lampParts.bodies) bodies.push(m);
+      for (const m of rec.lampParts.bowls) bowls.push(m);
+    }
+    if (bodies.length) {
+      addInstanced(root, geometries.lamp, materials.metal, bodies, 'city:lamps', null, true,
+        { chunk: 'city', lampColumns: bodies.length });
+      for (const o of root.children) if (o.name === 'city:lamps') lampMesh = o;
+    }
+    if (bowls.length) {
+      addInstanced(root, geometries.bowl, materials.lampBowl, bowls, 'city:bowls', null, false,
+        { chunk: 'city', lampBowls: bowls.length });
+      for (const o of root.children) if (o.name === 'city:bowls') bowlMesh = o;
+    }
+  }
+
+  /**
    * The resident roof-sign population, summed off the chunks that are actually
    * in the scene. Session 20.
    *
@@ -1451,14 +1520,88 @@ export function createCity(options = {}) {
    * declared. Measured before this existed: **14 of 155 declared shelters had
    * an 8.4 m lamp column standing inside the roof they claim.**
    */
+  /**
+   * m. Pole pitch along ONE kerb. Unchanged from every session before this —
+   * what changes is that the other kerb now has poles too, offset by half of
+   * it, which is what makes the EFFECTIVE pitch along the carriageway
+   * `LAMP_PITCH_M / 2` = 15 m.
+   */
+  const LAMP_PITCH_M = 30;
+  /** m. The pole's stand-off from the kerb line, on the pavement. Unchanged. */
+  const LAMP_KERB_INSET_M = CITY.roadHalfWidth + 1.3;
+  /**
+   * Poles per kerb per chunk edge. `ceil(128 / 30)` = 5, where it was a
+   * hard-coded 4 — see below. The `off >= chunkSize` guard is what keeps the
+   * fifth from landing on the next chunk's first.
+   */
+  const LAMP_PER_EDGE = Math.ceil(CITY.chunkSize / LAMP_PITCH_M);
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * SESSION 45 — EVERY STREET IN THIS CITY WAS LIT FROM ONE SIDE, AND THE LAST
+   * 29 m OF EVERY BLOCK WAS LIT FROM NEITHER.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * The operator's words about a daylight frame: *"an entire pavement runs its
+   * whole length with no lamp on it at all."* It is not a frame artefact and it
+   * is not a stream gap. Both stations this loop emitted were at
+   * `b.x0 + roadHalfWidth + 1.3` and `b.z0 + roadHalfWidth + 1.3` — the **+x
+   * and +z** pavement of the chunk's own two roads. A road runs on the chunk
+   * BOUNDARY, so its other pavement belongs to the neighbour, and the
+   * neighbour's loop puts its lamps on ITS +x edge, 128 m away. **No road in
+   * the streamed city has ever had a lamp on its −x or −z pavement.**
+   *
+   * AND THE CONSTANTS THIS CITY ALREADY DECLARES SAY OTHERWISE, IN WORDS.
+   * `constants.js` → `LUMINAIRE` derives the whole elongated optic from *"a
+   * Type II semi-cutoff lantern, which is what a 15 m street with **staggered
+   * poles both sides** is lit with"*, and its own paragraph says *"the lamps
+   * are **staggered at an effective 15 m**, so consecutive pools overlap along
+   * the road ... and stop short of each other across it (which is what makes
+   * the two kerbs read as two rows instead of one carpet)"*. Two kerbs. The
+   * distribution was derived for a street this city has never built.
+   *
+   * THE SECOND DEFECT IS THE LOOP BOUND AND IT IS ARITHMETIC. `i < 4` at a
+   * 30 m pitch reaches `phase + 90`, and `phase` is 0–9, so the poles cover
+   * 90–99 m of a 128 m edge: **29 to 38 m of every block front, 23–30% of the
+   * city's kerb length, had no pole by construction.** The guard beside it
+   * (`off > chunkSize`) could never fire — 99 < 128 — which is CONTRACT §7.1's
+   * shape, a guard that has never once been reached.
+   *
+   * THE THIRD IS THE MODULO AND IT IS ONE LINE. `(cx * 7 + cz * 13) % 10` is
+   * NEGATIVE for half the city: at `cx = -1, cz = 0` it is −7, so that chunk's
+   * first pole stands 7 m inside its northern neighbour and the guard above,
+   * which only tests the upper end, lets it. Floored here.
+   *
+   * WHAT IT COSTS, AND THE POOL IS THE PART THAT IS NOT FREE. Stations per
+   * chunk go 8 → 20 (2.5×) and the delivered lamp geometry with it. The lamps
+   * are instances in a mesh that already exists, so it is zero draw calls —
+   * but `lampPool` is a fixed 96 slots handed to the NEAREST candidates, so
+   * 2.5× the poles is a lit radius of 1/sqrt(2.5) = 0.63× what it was. That is
+   * the trade and it is the right way round for a person standing on a
+   * pavement: within the pool's reach BOTH kerbs now lay a pool, and past it
+   * the bowls are emissive geometry and still read as a receding line of
+   * lights, which is what they already were at 250 m.
+   */
   function lampStationsFor(cx, cz) {
     const b = chunkBounds(cx, cz);
     const out = [];
-    for (let i = 0; i < 4; i++) {
-      const off = ((cx * 7 + cz * 13) % 10) + i * 30;
-      if (off > CITY.chunkSize) continue;
-      out.push({ x: b.x0 + CITY.roadHalfWidth + 1.3, z: b.z0 + off, axis: 'x', side: 1 });
-      out.push({ x: b.x0 + off, z: b.z0 + CITY.roadHalfWidth + 1.3, axis: 'z', side: 1 });
+    const phase = (((cx * 7 + cz * 13) % 10) + 10) % 10;
+    const inset = LAMP_KERB_INSET_M;
+    for (let i = 0; i < LAMP_PER_EDGE; i++) {
+      const off = phase + i * LAMP_PITCH_M;
+      if (off < CITY.chunkSize) {
+        out.push({ x: b.x0 + inset, z: b.z0 + off, axis: 'x', side: 1 });
+        out.push({ x: b.x0 + off, z: b.z0 + inset, axis: 'z', side: 1 });
+      }
+      // The far kerb, half a pitch along it. Staggered rather than opposed:
+      // `LUMINAIRE`'s 36 x 13 m ellipse is sized so consecutive pools overlap
+      // ALONG the road and stop short of each other ACROSS it, and two poles
+      // facing each other would put both pools in the same 36 m of street.
+      const offFar = off + LAMP_PITCH_M / 2;
+      if (offFar < CITY.chunkSize) {
+        out.push({ x: b.x0 - inset, z: b.z0 + offFar, axis: 'x', side: -1 });
+        out.push({ x: b.x0 + offFar, z: b.z0 - inset, axis: 'z', side: -1 });
+      }
     }
     return out;
   }
@@ -3426,6 +3569,8 @@ export function createCity(options = {}) {
 
     // --- street lighting ---------------------------------------------------
     const lamps = [];
+    /** The chunk's own street-lighting matrices; `rebuildLampMesh` merges them. */
+    let lampParts = null;
     if (near) {
       const b = chunkBounds(cx, cz);
       const lampBodies = [];
@@ -3459,7 +3604,14 @@ export function createCity(options = {}) {
            */
           if (landmarkOccupies(spot.x, spot.z, 0.6)) continue;
           const yawJitter = (((spot.x * 31 + spot.z * 17) % 100) / 100 - 0.5) * 1.6;
-          const rot = spot.axis === 'x' ? 0 : 90;
+          /**
+           * THE FAR KERB'S POLE IS TURNED ROUND — session 45. The column mesh
+           * carries its arm toward −x at rot 0, which reaches the carriageway
+           * from the +x pavement and reaches a shopfront from the −x one. Both
+           * this and the head offset below take their sign from `spot.side`,
+           * which is the same field `slot.beam.direction` has always read.
+           */
+          const rot = (spot.axis === 'x' ? 0 : 90) + (spot.side < 0 ? 180 : 0);
           /**
            * THE COLUMN STANDS ON ITS OWN PAVEMENT — session 19. The base was
            * the literal 0 and the mounting height 8.08 was measured from it, so
@@ -3481,8 +3633,8 @@ export function createCity(options = {}) {
           const baseY = worldSurface(ctx, spot.x, spot.z).y;
           lampBodies.push(setMatrix(spot.x, baseY, spot.z, 1, 1, 1, rot + yawJitter));
           const head = spot.axis === 'x'
-            ? { x: spot.x - 2.1, z: spot.z }
-            : { x: spot.x, z: spot.z - 2.1 };
+            ? { x: spot.x - spot.side * 2.1, z: spot.z }
+            : { x: spot.x, z: spot.z - spot.side * 2.1 };
           bowls.push(setMatrix(head.x, baseY + 8.08, head.z, 1, 1, 1, 0));
           lamps.push({ x: head.x, y: baseY + 8.08, z: head.z, axis: spot.axis, side: spot.side });
         }
@@ -3571,14 +3723,15 @@ export function createCity(options = {}) {
           });
         }
       }
-      bytes += addInstanced(
-        group, geometries.lamp, materials.metal, lampBodies, `${rngKey}:lamps`, null, true,
-        { chunk: rngKey, lampColumns: lampBodies.length }
-      );
-      bytes += addInstanced(
-        group, geometries.bowl, materials.lampBowl, bowls, `${rngKey}:bowls`, null, false,
-        { chunk: rngKey, lampBowls: bowls.length }
-      );
+      /**
+       * NOT `addInstanced` ANY MORE — session 45. The matrices go on the chunk
+       * record and `rebuildLampMesh` merges every resident near chunk's into
+       * two meshes. The byte accounting is unchanged, deliberately: the
+       * instance buffers exist either way and the ceiling is a memory ceiling,
+       * so moving where they are DRAWN from must not move what they cost.
+       */
+      lampParts = { bodies: lampBodies, bowls };
+      bytes += (lampBodies.length + bowls.length) * BYTES_PER_INSTANCE;
     }
 
     /**
@@ -3629,13 +3782,11 @@ export function createCity(options = {}) {
      * free and a rebuild is not.
      */
     let massMesh = null;
-    const nearMeshes = [];
     group.traverse((o) => {
       if (o.name === `${rngKey}:masses`) massMesh = o;
-      if (o.name === `${rngKey}:lamps` || o.name === `${rngKey}:bowls`) nearMeshes.push(o);
     });
     return {
-      group, bytes, lamps, chunk, ground, massMesh, nearMeshes,
+      group, bytes, lamps, chunk, ground, massMesh, lampParts,
       signs: signQuads.length ? { matrices: signQuads, skin: signTint } : null,
       roofSignFaces,
       roofSignArea,
@@ -5872,6 +6023,7 @@ export function createCity(options = {}) {
     // chunk that had either means that mesh no longer describes the ring.
     if (rec.ground) groundDirty = true;
     if (rec.signs) signsDirty = true;
+    if (rec.lampParts) lampsDirty = true;
     bytesResident -= rec.bytes;
     resident.delete(key);
     evictions++;
@@ -6698,7 +6850,13 @@ export function createCity(options = {}) {
             || (groundNear && !rec.groundNear)) generateQueue.push(w);
           // Both directions, every frame, no rebuild. See `casts` in buildChunk.
           if (rec.massMesh) rec.massMesh.castShadow = w.detail && w.ring <= CAST_RADIUS;
-          if (rec.nearMeshes) for (const m of rec.nearMeshes) m.visible = near;
+          /**
+           * The merged lamp mesh's own version of `m.visible = near`, session
+           * 45. There is no per-chunk mesh to hide any more, so a chunk
+           * crossing `nearRadius` marks the merged pair for a rebuild and
+           * drops out of (or back into) it there.
+           */
+          if (rec.nearVisible !== near) { rec.nearVisible = near; lampsDirty = true; }
         } else {
           generateQueue.push(w);
         }
@@ -6725,13 +6883,20 @@ export function createCity(options = {}) {
         const made = buildChunk(ctx, w.cx, w.cz, w.detail, w.ring);
         if (made.ground) groundDirty = true;
         if (made.signs) signsDirty = true;
+        if (made.lampParts) lampsDirty = true;
         resident.set(key, {
           cx: w.cx, cz: w.cz,
           group: made.group,
           ground: made.ground,
           signs: made.signs,
           massMesh: made.massMesh,
-          nearMeshes: made.nearMeshes,
+          lampParts: made.lampParts,
+          /**
+           * Whether this chunk's poles are in the merged mesh. Session 45 —
+           * `buildChunk` only emits them when the chunk is near, and this is
+           * what tracks a chunk that has since drifted out of `nearRadius`.
+           */
+          nearVisible: w.detail && w.ring <= CITY.nearRadius,
           bytes: made.bytes,
           detail: w.detail,
           /** What `buildChunk` decided about the street lamps. See above. */
@@ -6760,6 +6925,7 @@ export function createCity(options = {}) {
       // After eviction, so a chunk dropped this frame is out of the mesh too.
       if (groundDirty) rebuildGroundMesh();
       if (signsDirty) rebuildSignMesh();
+      if (lampsDirty) rebuildLampMesh();
       reportRoofSigns(ctx);
 
       // --- the canyon field ring ---
@@ -6794,14 +6960,19 @@ export function createCity(options = {}) {
       for (const key of [...resident.keys()]) unbuild(key);
       // The two merged meshes are owned by the module rather than by a chunk,
       // so `unbuild` above cannot reach them.
-      for (const m of [groundMesh, signMesh]) {
+      for (const m of [groundMesh, signMesh, lampMesh, bowlMesh]) {
         if (!m) continue;
         root.remove(m);
-        m.geometry.dispose();
+        // The lamp pair shares `geometries.lamp` and `geometries.bowl` with
+        // nothing else, but those are module-owned and disposed below with
+        // every other shared geometry — disposing here would double-free.
+        if (m !== lampMesh && m !== bowlMesh) m.geometry.dispose();
         if (m.dispose) m.dispose();
       }
       groundMesh = null;
       signMesh = null;
+      lampMesh = null;
+      bowlMesh = null;
       ctx.scene.remove(root);
       for (const d of disposables) if (d && d.dispose) d.dispose();
       disposables.length = 0;
