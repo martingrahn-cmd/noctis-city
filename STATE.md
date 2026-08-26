@@ -682,17 +682,26 @@ have:
 
 1. **L1, THE WINDOW.** 220 against 7–30, one quantity in two files, and the same class session 28
    spent a session on for the lamp bowl. The first hour is the attribution: zero each path in turn
-   and read the bright reserve, exactly as `$lampBowl_measured` did.
-2. **L2, THE TRIANGLE CEILING OFF-ROUTE.** A street pose at the arch is over it and no gate goes
+   and read the bright reserve, exactly as `$lampBowl_measured` did. **This session left it 0.91
+   points of margin where session 44 left 0.24.**
+2. **L15, `minPairMSD`.** R8 took it red by 0.00005 and it is owed a derivation, not a number: what
+   is a pair of times supposed to differ BY, and is one figure right for `midnight ↔ dusk` — the
+   only pair where both frames are lit by the same lamps — as well as for `midnight ↔ noon`? Five
+   of the six pairs clear 0.03 by 0.02 to 0.17 and this one has never cleared it by more than
+   0.0002 of itself. **Do not lower it to 0.029.**
+3. **L2, THE TRIANGLE CEILING OFF-ROUTE.** A street pose at the arch is over it and no gate goes
    there. Either the four routes are not a sample of this city or the ceiling is not a ceiling.
-3. **L4, THE BLEND MODE.** Daylight rain cannot work additively. This is a decision about what the
+4. **L4, THE BLEND MODE.** Daylight rain cannot work additively. This is a decision about what the
    layer is, not a measurement.
-4. **THE DRAW-CALL BUDGET IS NO LONGER THE LIMITER.** 395 of 440. Five sessions of items have been
-   deferred with *"it costs a draw call"* beside them — the landmark/mass split (five calls), the
-   hologram's transparency, the weir's ledge planters. They are affordable now.
-5. **L12, COLOUR OPPOSITION.** Still the biggest unspent lever in LOOK.md §3 and now with a frame
+5. **THE DRAW-CALL BUDGET IS NO LONGER THE LIMITER.** 395 of 440, and 44 of the 45 spare were
+   bought by ONE structural change (§3.1) rather than by cutting anything. Five sessions of items
+   have been deferred with *"it costs a draw call"* beside them — the landmark/mass split (five
+   calls, STATE 44 §9 item 11), the hologram's transparency (LOOK.md §3), the weir's ledge planters
+   (LOOK.md §4, built and removed at 441). **They are affordable now, and the same merge is
+   available again**: `#,#:masses` is 116 meshes and `#,#:windows` is 50.
+6. **L12, COLOUR OPPOSITION.** Still the biggest unspent lever in LOOK.md §3 and now with a frame
    behind it.
-6. Everything else in §0's list, then STATE 44 §9 items 3, 4, 6, 7, 8, 9, 10 and 11, all carried.
+7. Everything else in §0's list, then STATE 44 §9 items 3, 4, 6, 7, 8, 9, 10 and 11, all carried.
 
 ---
 

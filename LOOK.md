@@ -35,12 +35,14 @@ now something this city can be in rather than something it is described as.
 **AND SESSION 45 MADE THE DROPS VISIBLE, WHICH IS NOT THE SAME SENTENCE.** For
 three sessions `?rainfall=1` changed the frame time and changed nothing you
 could see. It was not dormancy: measured at HEAD, **500 of 500 streaks live and
-inside the frustum**, at 0.88 to 12.0 m, median 9.4 m. They arrived at **8.15%
-of the radiance the module's own derivation names**, through three stacked
-dilutions of which two are not in the derivation at all — a coverage profile
-whose mean over its own quad is 0.280, and a drawn population that is 1.1% of
-the rain's glinting cross-section because `budget.json`'s split at 3.28 mm is
-about EXTINCTION and a drop three metres from the eye is BACK-SCATTER. The two
+inside the frustum**, at 0.88 to 12.0 m, median 9.4 m. A median streak arrived at **0.136 cd/m²
+against a lit road at 1.4 — 0.097× the surface it is seen against**, which is
+7.2% of the radiance the module's own derivation names. Two of the three
+factors behind that are the model doing what it says; the third is a defect —
+a coverage profile whose mean over its own quad is 0.280. The other correction
+is a drawn population that is 1.1% of the rain's glinting cross-section,
+because `budget.json`'s split at 3.28 mm is about EXTINCTION and a drop three
+metres from the eye is BACK-SCATTER. The two
 corrections multiply to 326.3 and the arm chosen by looking at six live-swept
 frames was 70–400, so the derivation lands inside the bracket the eye picked.
 `tools/shot-out/s45-rain-{before,after}-t0-wet.png` is the pair, 118 draws in
@@ -630,9 +632,24 @@ is judged from about 1.7 m.
   Delivered after both: a 35 code-value step at the kerb line and a face at 82.
   `tools/shot-out/s45-road-{before,after}-t0_5-dry.png`.
 
-  What is still missing is on STATE 45's list: the ORIGIN BLOCK has no road
-  markings at all, and its 61-value step still reads as a plaza from some angles
-  because nothing draws the boundary.
+  **AND THE ORIGIN BLOCK HAD NO ROAD MARKINGS AT ALL**, which is why its
+  61-value step still read as a plaza from some angles: nothing drew the
+  boundary. No centre line, no lane line, no edge line, no stop bar, no zebra,
+  in 336 m of main street — and it is the street `lookcheck` stands in and
+  `PLAYER.spawn` puts a person on. It is a GUARD doing its job rather than an
+  oversight: `citygen`'s `paint()` refuses any mark not covered by a delivered
+  `carriageway` claim, and `BLOCK_KEEPOUT` clips the lattice's carriageway out
+  of this block so the authored asphalt wins. The block paints exactly the
+  ground the keep-out took now, from the same `ROAD_MARKING` and `ROAD_PAINT`
+  the lattice reads. One draw call.
+  `tools/shot-out/s45-marks-{before,after}-t0_5-dry.png`.
+
+  **IT TOOK A LOOK ASSERTION RED AND THE THRESHOLD WAS NOT TOUCHED.**
+  `distinct:midnight|dusk` reads 0.02995 against a floor of 0.03 — paint is
+  bright at both of those times, so it adds the same pixels to both frames.
+  Five of the six pairs clear that floor by 0.02 to 0.17 and this one has never
+  cleared it by more than **0.00007**, against an instrument that resolves
+  0.00001. It is §7's case exactly, and STATE 45's list carries it.
 - **Parks and planting.** Green in a dense city is punctuation — small squares,
   a strip of trees, a fenced garden between two blocks. Parks exist as a block
   type; they read as dark empty ground at night.
