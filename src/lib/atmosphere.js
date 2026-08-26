@@ -136,6 +136,34 @@ export const ATM = {
    */
   hazeDensity: 4.5e-4, // 1/m at ground level
   hazeScaleHeight: 550, // m
+
+  /**
+   * A NUMERICAL FLOOR ON THE PERPENDICULAR DISTANCE FROM A VIEW RAY TO A LOCAL
+   * LIGHT, in metres. IT IS A GUARD AND NOT A LOOK KNOB — session 43.
+   *
+   * `lights.js` integrates the air between the eye and the surface against each
+   * of the froxel's own lights (LOOK.md §3, "haze around light"). For a point
+   * source at perpendicular distance h from the ray, that integral is
+   *
+   *     ∫₀^d dt / (h² + (t − t₀)²) = (1/h)·[atan((d − t₀)/h) + atan(t₀/h)]
+   *
+   * and the 1/h diverges as the ray passes through the source. A real source
+   * does not diverge: inside a sphere of radius R the irradiance stops growing,
+   * so h is clamped to the light's OWN declared `sourceRadius` — which is
+   * exactly that number, is already texel 3 of the light data, and needs no
+   * constant here at all.
+   *
+   * THIS VALUE THEREFORE BINDS ON NOTHING IN THIS PROJECT, AND THAT IS THE
+   * POINT. Every light anything registers declares a source radius: 0.42 m the
+   * lamp bowl (`city.js`, `block.js`), 0.5–1.3 m the block's shopfronts, 0.18 m
+   * the aircraft nav (`aircraft.js`), 0.07 m the headlamp (`traffic.js`),
+   * 0.06 m the stall lamp (`streetlife.js`). The smallest is 0.06, so 0.05 sits
+   * under every one of them and can only ever catch a light that declares none
+   * — where `lights.add`'s own default is 0 and the alternative is a divide by
+   * zero. A guard that decides a frame is a threshold wearing a guard's
+   * clothes; this one is checkable against the list above and does not.
+   */
+  hazeMinSourceRadiusM: 0.05,
 };
 
 const INV_4PI = 1 / (4 * Math.PI);

@@ -246,6 +246,29 @@ export function createLights(options = {}) {
   float offset = oc.r;
   int count = int(oc.g + 0.5);
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE VIEW RAY, FOR THE HAZE-AROUND-LIGHT INTEGRAL BELOW. LOOK.md §3.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * The camera is the origin in view space, so the segment the air occupies is
+   * simply 0 → geometryPosition and its length is the distance to the surface
+   * this fragment is. Hoisted out of the loop because it is a property of the
+   * fragment and not of any light.
+   *
+   * noctisHazeWy is the ray's WORLD vertical component, which is the only
+   * part of the world direction the integral needs: the aerosol density has an
+   * exponential height profile and the scattering that matters happens near the
+   * light, so the density is evaluated at the height of the ray's closest
+   * approach rather than at the camera's. At street level the two agree to
+   * under a per cent over a whole block (H = 550 m); from 950 m up they do not,
+   * and it is the lower one that is right.
+   */
+  float noctisHazeD = length(geometryPosition);
+  vec3 noctisHazeV = geometryPosition / max(noctisHazeD, 1e-4);
+  float noctisHazeWy = (uNoctisViewRotInv * noctisHazeV).y;
+  gNoctisLightHaze = vec3(0.0);
+
   for (int ci = 0; ci < NOCTIS_MAX_CLUSTER_LIGHTS; ci++) {
     if (ci >= count) break;
 
@@ -259,6 +282,126 @@ export function createLights(options = {}) {
     vec4 d2 = texture2D(uNoctisLightData, vec2(${TEXEL_U[2]}, lv));
     vec4 d3 = texture2D(uNoctisLightData, vec2(${TEXEL_U[3]}, lv));
     vec4 d4 = texture2D(uNoctisLightData, vec2(${TEXEL_U[4]}, lv));
+
+    /**
+     * ═════════════════════════════════════════════════════════════════════
+     * HAZE AROUND LIGHT — THIS LIGHT'S SHARE OF THE AIR BETWEEN THE EYE AND
+     * THIS SURFACE. LOOK.md §3, session 43.
+     * ═════════════════════════════════════════════════════════════════════
+     *
+     * IT IS ATMOSPHERE AND NOT BLOOM, and the distinction is structural rather
+     * than a matter of degree. Bloom is a screen-space convolution of whatever
+     * is bright — session 27 measured the frame at 61% camera glow and cut it,
+     * and nothing here puts that back. This is the SAME single-scattering
+     * integral the block below already runs against the sky, evaluated against
+     * the lights instead: it has a source position, a candela figure, a
+     * physical extinction coefficient and a path length, and it falls off with
+     * distance from the source because the source's own irradiance does.
+     *
+     * THE INTEGRAL, EXACTLY AND NOT NUMERICALLY. Along the ray x(t) = t·v with
+     * the camera at t = 0 and the surface at t = d, a source at L contributes
+     *
+     *     L_in = ρ_s · p · I · ∫ dt / |x(t) − L|²
+     *          = ρ_s · p · I · (1/h)·[atan((t₁ − t₀)/h) − atan((t₀₀ − t₀)/h)]
+     *
+     * with t₀ = L·v the source's projection onto the ray, h = |L − t₀·v| its
+     * perpendicular distance from it, and [t₀₀, t₁] the part of the segment
+     * that is inside the light's own declared radius — see the bound below. ρ_s is 1/m, I is candela, the integral is
+     * 1/m and p is 1/sr, so the product is cd/m² — the units the rest of this
+     * shader is in. Two atans and a divide, no march, no step count to budget.
+     *
+     * WHERE THE HALO COMES FROM, because this is the part that reads: it is the
+     * 1/h. A ray that passes close to a lamp integrates a large 1/r² over its
+     * whole length and one that passes wide does not, so the glow is tight
+     * around the source and falls off with the angle you look away from it.
+     * That is a geometric fact about the air, and it is why no separate falloff
+     * is authored anywhere here.
+     *
+     * ISOTROPIC PHASE, 1/4π, AND IT IS A CONSISTENCY ARGUMENT AND NOT A
+     * SIMPLIFICATION. The sky in-scatter forty lines below mixes the sky's
+     * radiance in with no phase function at all, i.e. isotropically. Two halves
+     * of one haze with two phase functions would be two atmospheres, and the
+     * closed form above is exact only for a phase that does not vary along the
+     * path. A Mie lobe would sharpen the halo the 1/h already produces; it
+     * would not produce it.
+     *
+     * THE CONE IS EVALUATED AT THE CLOSEST POINT, and without it a street
+     * lantern would glow as a sphere — air above a downlight that the lantern
+     * cannot reach. At the closest approach the direction to the source is
+     * perpendicular to the ray, which for a horizontal ray under a downlight is
+     * straight up the beam axis (full attenuation, correctly) and for a ray
+     * passing above the lantern is straight down it (zero, correctly). The
+     * batwing is applied there too: min(1, (peakCos/cosγ)³) is a REDUCTION
+     * toward nadir, and dropping it would put the glow directly under every
+     * lantern up to (1/peakCos)³ too bright.
+     *
+     * WHAT IT DOES NOT DO, said rather than discovered later:
+     *
+     *   - NO OCCLUSION. A lamp behind a wall still lights the air in front of
+     *     it. This is the same simplification §5.6 records for the direct term
+     *     ("a streetlight can spill through a wall") and it is bounded here by
+     *     the froxel: a light has to reach this fragment's own froxel to be in
+     *     the list at all.
+     *   - ONLY THE FROXEL'S LIGHTS, not every light along the ray. A light near
+     *     the camera is not in a distant surface's froxel and contributes
+     *     nothing to it. That is a limit and it is also the reason this cannot
+     *     become a global lift: each pixel is lit by the air near ITS OWN
+     *     depth, which is exactly the term LOOK.md §3 asks for and not a veil
+     *     over the frame.
+     *   - NOTHING FOR AN EMISSIVE SURFACE. The 692 signs and the windows are
+     *     emissive materials with no photometry attached — they are not in this
+     *     list, they have no candela, and a number cannot be integrated that
+     *     nobody wrote down. The air glows around the 192 lanterns, the 96
+     *     headlamps, the stall lamps and the block's shopfronts, and not around
+     *     a sign. That is a finding about the light list, not a choice.
+     *
+     * IT IS COMPUTED BEFORE THE RANGE REJECT ON PURPOSE. d0.w is the falloff
+     * radius of the light ON A SURFACE; the air between here and there is lit
+     * whether or not this particular surface is inside it.
+     */
+    {
+      float hzT0 = dot(d0.xyz, noctisHazeV);
+      float hzH = sqrt(max(dot(d0.xyz, d0.xyz) - hzT0 * hzT0, 0.0));
+      // Clamped to the source's own size: inside a sphere of radius R the
+      // irradiance stops growing. ATM.hazeMinSourceRadiusM is a divide-by-zero
+      // guard under every declared radius in the project — see its derivation.
+      hzH = max(hzH, max(d3.y, ${ATM.hazeMinSourceRadiusM.toFixed(2)}));
+      /**
+       * BOUNDED BY THE LIGHT'S OWN DECLARED REACH, so the air this light lights
+       * is the air the SURFACES it lights are in. The direct term twenty lines
+       * below windows at d0.w and stops; an in-scatter that integrated 1/r² to
+       * the horizon would be the same light with two different ranges, which is
+       * CONTRACT §9's shape with a falloff radius. The ray is inside the sphere
+       * for (t − t₀)² ≤ R² − h², so the exact integral is taken between those
+       * two roots clipped to the segment, and it is exact rather than windowed:
+       * three's quartic taper has no closed form here, and a hard bound
+       * over-counts only the last few metres, where the taper is near zero.
+       */
+      float hzM2 = d0.w * d0.w - hzH * hzH;
+      float hzLine = 0.0;
+      if (hzM2 > 0.0) {
+        float hzM = sqrt(hzM2);
+        float hzLo = max(0.0, hzT0 - hzM);
+        float hzHi = min(noctisHazeD, hzT0 + hzM);
+        if (hzHi > hzLo) {
+          hzLine = (atan((hzHi - hzT0) / hzH) - atan((hzLo - hzT0) / hzH)) / hzH;
+        }
+      }
+      float hzShape = 1.0;
+      if (d1.w > 0.5) {
+        vec3 hzToLight = normalize(d0.xyz - noctisHazeV * hzT0);
+        float hzCos = dot(hzToLight, d2.xyz);
+        hzShape = getSpotAttenuation(d2.w, d3.x, hzCos);
+        if (d4.w > 0.0) hzShape *= min(1.0, pow(d4.w / max(hzCos, 1e-3), 3.0));
+      }
+      if (hzShape > 0.0 && hzLine > 0.0) {
+        // The aerosol density where the scattering actually happens.
+        float hzY = max(uNoctisCamHeight + noctisHazeWy * hzT0, 0.0);
+        float hzRho = uNoctisHaze.x * exp(-hzY / uNoctisHaze.y);
+        // 1/4π = 0.07957747, the isotropic phase, named rather than folded in.
+        gNoctisLightHaze += d1.rgb * (hzRho * hzShape * hzLine * 0.07957747);
+      }
+    }
 
     vec3 lVector = d0.xyz - geometryPosition;
     float lDist = length(lVector);
@@ -422,6 +565,25 @@ export function createLights(options = {}) {
   float openness = mix(uNoctisHazeOpen, 1.0, clamp(wdir.y * 5.0, 0.0, 1.0));
   vec3 inscatter = texture2D(uNoctisSky, equirectUv(wdir)).rgb * openness;
   gl_FragColor.rgb = mix(gl_FragColor.rgb, inscatter, f);
+
+  /**
+   * AND THE OTHER HALF OF THE SAME MEDIUM — the air lit by the city's own
+   * lamps rather than by the sky. LOOK.md §3, session 43. The cluster block
+   * above accumulated it in cd/m²; see the derivation there.
+   *
+   * ADDED, WHERE THE SKY TERM IS MIXED, and the two are not the same operation
+   * for a reason. mix() is what conserves energy over a path that ENDS at the
+   * sky: the fraction f of the surface's radiance that the medium has
+   * absorbed is the fraction the sky replaces. The lamps add radiance into a
+   * path that already exists; they do not stand behind it. The lamp term's own
+   * extinction over the remaining path is second order — τ is 0.132 at 300 m by
+   * this block's own arithmetic — and is not applied.
+   *
+   * AT NOON AND DAWN THIS IS EXACTLY ZERO, because the photocell has the street
+   * lighting off and there is no local light to scatter. The two bands that can
+   * move are the two with lamps in them.
+   */
+  gl_FragColor.rgb += gNoctisLightHaze;
 }
 // CONTRACT §5.3: the half-float target tops out at 65504. A smooth surface
 // under a 100 klx sun can produce a specular lobe well past that, and one Inf
@@ -1028,6 +1190,15 @@ float gNoctisWetFilm;
 /** Standing water, not the film: zero on anything that is not near-level. */
 float gNoctisWetPond;
 float gNoctisPuddle;
+/**
+ * IN-SCATTERED RADIANCE FROM THE LOCAL LIGHTS, cd/m². LOOK.md §3.
+ *
+ * Accumulated over the fragment's own froxel in the cluster block and spent in
+ * the haze block, which are two different points in three's chain — a global
+ * for exactly the reason gNoctisSkyBent above is one, and initialised in the
+ * cluster block rather than left to GLSL's undefined global.
+ */
+vec3 gNoctisLightHaze;
 #ifdef NOCTIS_WATER
   /** d(height)/dx and d(height)/dz of the wind sea. See WATER_GLSL. */
   vec2 gNoctisWaterSlope;
