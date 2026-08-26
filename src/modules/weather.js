@@ -713,9 +713,13 @@ const STREAK_POPULATION_SHARE = (() => {
   return all / above;
 })();
 
-/** cd/m². What the layer is actually given. 1.889 × 3.570 × 91.41 = 616.3. */
-const STREAK_NITS =
-  (STREAK_GLINT_NITS / STREAK_COVERAGE_MEAN) * STREAK_POPULATION_SHARE;
+/**
+ * cd/m². The layer's MEAN QUAD RADIANCE — 1.889 × 91.41 = 172.6. The other
+ * factor, 1/0.28011, is applied by `makeLayer` from `STREAK_COVERAGE_MEAN`,
+ * because it is not a property of the rain: it is a property of the SHAPE the
+ * shader draws, and all three layers were losing energy to their own.
+ */
+const STREAK_NITS = STREAK_GLINT_NITS * STREAK_POPULATION_SHARE;
 
 /**
  * cd/m^2. A splash crown is AERATED water — a thin sheet full of entrained
@@ -1046,7 +1050,30 @@ export function createWeather(options = {}) {
    * degenerate quad rasterises no fragments, which costs the vertex shader and
    * nothing else, and it keeps the allocated number honest.
    */
-  function makeLayer({ name, count, maxAreaPx, nits, coverage }) {
+  /**
+   * `coverageMean` IS NOT OPTIONAL AND IT IS WHY THIS SIGNATURE CHANGED —
+   * SESSION 45.
+   *
+   * Every `nits` handed in here is a MEAN radiance over the quad: the drop's,
+   * the crown's or the puff's flux divided by the whole billboard's area. The
+   * fragment shader then multiplies it by `coverage`, which is a SHAPE. A shape
+   * whose mean over the quad is not 1 does not redistribute the energy, it
+   * DELETES it, and all three of this module's shapes did:
+   *
+   *     streak  exp(-6q.x^2) * smoothstep(1, 0.55, |q.y|)          0.28011
+   *     splash  two smoothsteps making an annulus, over its phase   0.48064
+   *     spray   exp(-|q|^2 * mix(3.4, 1.6, phase)), over its phase  0.30554
+   *
+   * So the three layers shipped 28%, 48% and 31% of the flux their own
+   * derivations computed, for eleven sessions, and the streak layer's share is
+   * half the answer to *"the rain does not fall"*. Dividing here rather than in
+   * each constant is what makes it impossible to add a fourth layer and forget:
+   * the parameter has no default.
+   */
+  function makeLayer({ name, count, maxAreaPx, nits, coverage, coverageMean }) {
+    if (!(coverageMean > 0)) {
+      throw new Error(`weather: layer '${name}' has no coverageMean — see makeLayer`);
+    }
     const geometry = new THREE.PlaneGeometry(1, 1);
     /** x: radiance gain, y: life phase. One vec2 per instance. */
     const attr = new Float32Array(count * 2);
@@ -1076,7 +1103,7 @@ export function createWeather(options = {}) {
         uViewportPx: { value: new THREE.Vector2(RENDER.internalWidth, RENDER.internalHeight) },
         uGain: { value: 0 },
         uChroma: { value: new THREE.Vector3(WATER_CHROMA[0], WATER_CHROMA[1], WATER_CHROMA[2]) },
-        uNits: { value: nits },
+        uNits: { value: nits / coverageMean },
       },
       vertexShader: PARTICLE_VERTEX,
       fragmentShader: particleFragment(coverage),
@@ -1853,6 +1880,7 @@ export function createWeather(options = {}) {
         count: STREAK_COUNT,
         maxAreaPx: STREAK_MAX_AREA_PX,
         nits: STREAK_NITS,
+        coverageMean: STREAK_COVERAGE_MEAN,
         // Across: a gaussian core about one pixel wide inside a three-pixel
         // quad. Along: tapered at both ends, because a motion-blurred drop
         // fades in and out of its own smear rather than starting square.
@@ -1871,6 +1899,18 @@ export function createWeather(options = {}) {
         count: SPLASH_COUNT,
         maxAreaPx: SPLASH_MAX_AREA_PX,
         nits: SPLASH_NITS,
+        /**
+         * 0.48064, over the quad AND over the crown's own phase, by the same
+         * quadrature `STREAK_COVERAGE_MEAN` uses — see `makeLayer`. STATE 44
+         * item 5 recorded the crowns as *"present and very faint ... at the
+         * edge of visible"* and measured 130 of 130 rendering; this is half of
+         * why. It is not all of it: the crown count, like the streak count, is
+         * the population above `DROP_MM` and every smaller drop also splashes.
+         * That share is NOT applied here — a crown's radiance is diffuse foam
+         * rather than a glint, so the D² moment is the wrong integral for it
+         * and the right one is over the impact FLUX. STATE 45's list.
+         */
+        coverageMean: 0.48064,
         // A ring, not a disc: a crown is a hollow sheet of water and the middle
         // of it is the hole the drop went through. The annulus narrows over the
         // crown's life because the sheet's water is conserved while the ring
@@ -1884,6 +1924,8 @@ export function createWeather(options = {}) {
         count: SPRAY_COUNT,
         maxAreaPx: SPRAY_MAX_AREA_PX,
         nits: SPRAY_NITS,
+        /** 0.30554, over the quad and over the puff's phase. See `makeLayer`. */
+        coverageMean: 0.30554,
         // A soft ball, flattening as turbulence mixes it out. No structure: at
         // 12 px across there is none to see.
         coverage: 'exp(-dot(q, q) * mix(3.4, 1.6, vPhase))',
@@ -2023,9 +2065,10 @@ export function createWeather(options = {}) {
         `${SPLASH_COUNT}x${SPLASH_MAX_AREA_PX} + ${SPRAY_COUNT}x${SPRAY_MAX_AREA_PX} = ` +
         `${STREAK_COUNT * STREAK_MAX_AREA_PX + SPLASH_COUNT * SPLASH_MAX_AREA_PX + SPRAY_COUNT * SPRAY_MAX_AREA_PX} px ` +
         `= ${((STREAK_COUNT * STREAK_MAX_AREA_PX + SPLASH_COUNT * SPLASH_MAX_AREA_PX + SPRAY_COUNT * SPRAY_MAX_AREA_PX) / RENDER.pixels * 100).toFixed(3)}% of ` +
-        `${RENDER.internalWidth}x${RENDER.internalHeight}. Nits: streak ${STREAK_NITS.toFixed(1)} ` +
-        `= glint ${STREAK_GLINT_NITS.toFixed(3)} / coverage mean ${STREAK_COVERAGE_MEAN.toFixed(5)} ` +
-        `x population share ${STREAK_POPULATION_SHARE.toFixed(2)} ` +
+        `${RENDER.internalWidth}x${RENDER.internalHeight}. Nits: streak ` +
+        `${(STREAK_NITS / STREAK_COVERAGE_MEAN).toFixed(1)} = glint ${STREAK_GLINT_NITS.toFixed(3)} ` +
+        `x population share ${STREAK_POPULATION_SHARE.toFixed(2)} / coverage mean ` +
+        `${STREAK_COVERAGE_MEAN.toFixed(5)} ` +
         `(the ensemble mean is 2.55e-3 and draws nothing), splash ` +
         `${SPLASH_NITS.toFixed(3)}, spray ${SPRAY_NITS.toFixed(3)} cd/m2. Wind ${WIND_10M_MS} m/s at ` +
         `10 m, u* ${WIND_USTAR.toFixed(3)}, so a streak leans ` +
