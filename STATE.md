@@ -7,14 +7,16 @@ has **NOT** rebooted since session 40 — 8 d 2 h of uptime at the last command 
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
 ***`load1` RANGED 2.48 TO 7.18 ACROSS THE SESSION*** against CONTRACT §0.2's bar of **1.6**, and
-the session was almost entirely browser work — nine `walkshot` boots, three `perfcheck`
+the session was almost entirely browser work — seventeen browser boots, three `perfcheck`
 invocations and a full gate run. **NO RED MILLISECOND IN THIS FILE IS ADMISSIBLE.** What is
 quoted is COUNTS (draw calls, triangles, instances, populations), PIXEL STATISTICS off delivered
 PNGs, and arithmetic with no browser in it. One green absolute is quoted as green and marked as
 such: drift on this machine is one-sided, so load can only make a frame slower.
 
-**THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** 116 frames over eleven poses, four times
-of day, wet and dry, in both content paths. Seven commits. The list below is the deliverable.
+**THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** **184 frames over sixteen poses**, four
+times of day, wet and dry, at street level and from the air, in BOTH content paths — the origin
+block and the streamed city, which session 28 showed is one place a session can build an item into
+only one of. Seven commits of code and two of documents. **The list below is the deliverable.**
 
 ---
 
@@ -29,7 +31,7 @@ parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many 
 
 | # | what looked wrong | what it was | frames |
 |---|---|---|---|
-| **R1** | **The rain does not fall.** `?rainfall=1` changes the frame time and nothing is visible. | 500 of 500 streaks live and INSIDE the frustum. They delivered **28.0%** of their own derived flux through an un-normalised coverage profile, and the drawn population is **1.1%** of the rain's glinting cross-section. ×326.3. §1 | `s45-rain-{before,after}-t0-wet.png` |
+| **R1** | **The rain does not fall.** `?rainfall=1` changes the frame time and nothing is visible. | 500 of 500 streaks live and INSIDE the frustum. A median streak arrived at **0.136 cd/m² against a lit road at 1.4 — 0.097× the surface it is seen against**, and the drawn population is **1.1%** of the rain's glinting cross-section. ×326.3. §1 | `s45-rain-{before,after}-t0-wet.png` |
 | **R2** | **Street level is too dark at night.** | The origin block's lamp bowl was **0.2151× its own derivation** — 420 against 1952.19 cd/m² — and `PLAYER.spawn` is on that block's pavement. The thing that blocked the repair in session 30 stopped existing in session 31. **It also closed `band:dusk`, red since session 40.** §2 | `s45-lamp-{before,after}-t0-wet.png` |
 | **R3** | **An entire pavement runs its whole length with no lamp on it at all.** | Every street in the streamed city was lit from **one side**, and the last **29–38 m of every block** from neither. `block.js` has always done it correctly. Merging the per-chunk lamp meshes paid for the repair and **46 draw calls** on top. §3 | `s45-junction-t0-wet.png`, `s45-viaduct-t0-wet.png` |
 | **R4** | **The carriageway does not read as a road in daylight.** | Where the road is **concrete** — 34.7% of chunks, in districts — it delivered **14 code values** from its own pavement. 0.19 → 0.11714 from CIE's own R1/R3 classes. §4 | `s45-road-{before,after}-t0_5-dry.png` |
@@ -60,10 +62,15 @@ blue-grey slab with no structure (`s45-window-slab-t0_78.png`) because a 0.05-ro
 is a mirror and what it mirrors is the sky.
 
 **NOT REPAIRED, and the reason is a number.** Dimming it is a subtraction from `citycheck`'s
-bright reserve, which stands at **6.24% against a 6.00% floor** and was RED for six sessions
-before density fixed it (LOOK.md §7). `constants.js` records that the streamed lamp bowls alone
-carry 0.96 points of that reserve; the windows are the larger share and nobody has attributed
-them. That attribution is the first hour of this item.
+bright reserve, a FLOOR that was RED for six sessions before density fixed it (LOOK.md §7).
+`constants.js` records that the streamed lamp bowls alone carry 0.96 points of it; the windows
+are the larger share and nobody has attributed them, and that attribution — zero each path in
+turn, exactly as `$lampBowl_measured` did — is the first hour of this item.
+
+**AND THIS SESSION MADE IT MORE AFFORDABLE THAN IT WAS.** The reserve reads **6.83% against the
+6.00% floor** (per-run means 6.88 / 6.46 / 6.83, spread 0.42), against **6.24%** in session 44.
+Brightening the origin block's sixteen bowls put 0.59 points into the very reserve the window
+repair has to spend, and that is the largest margin this floor has ever had.
 
     localhost:5173/?player=1&spawn=375.4,1.74,300&t=0.78
     localhost:5173/?player=1&spawn=375.4,1.74,300&t=0.0&wet=1
@@ -435,18 +442,94 @@ Run individually, because `npm run gates` is `&&`-joined and stops at the first 
                        origin block's facade materials and neither touched this session.
                          band:midnight 0.0826   band:dusk 0.1410   band:dawn 0.3020
                          band:noon 0.4287       crushed black 0.571%   road pools 9 of 6
-  citycheck    see §6.1
-  perfcheck    see §6.2
-  gateaudit    see §6.1
+  citycheck    RED at 3, THE SAME THREE as sessions 40-44, no new violation of any kind. §6.1
+  perfcheck    RED at 13, of which ELEVEN are frame time at load1 2.48-7.18 and are not
+               admissible, one is `night_rain`'s straddling frame mean, and ONE IS CONTENT —
+               the carried vehicle tone-profile bar, eleventh session. NOT ONE IS A COUNT. §6.2
+  gateaudit    RED at 1, AND IT IS TWO NAMES WHERE IT WAS THREE. "the unperturbed frames do not
+               pass their own gate" now names facadeAlbedo and facadeNeighbours only —
+               `band:dusk` is out of that list. Everything else green: `ok control — every
+               assertion ran` (nothing suppressed), 74/74 perfcheck falsify cases at 100%
+               coverage over 72 failure sites, 61/61 citycheck, 13/13 inputcheck, and both
+               the §7.3 shape and §7.5 width control sweeps.
 ```
 
-### 6.1 CITYCHECK AND GATEAUDIT
+Run in one uninterrupted block with nothing else launched, in `npm run gates`' own order. All
+eight were run at commit `b757a37`.
 
-*(filled in from the session's final gate run — see `tools/perf-out/` and the run log.)*
+### 6.1 CITYCHECK — RED AT 3, THE SAME THREE AS SESSIONS 40–44, NO NEW VIOLATION
 
-### 6.2 PERFCHECK
+```
+  clumping             CV 0.443    floor 0.60    untouched by instruction, fifth session
+  sign quads inside    2 of 2720   max 0         the same two
+  delivered overlaps   2           max 0         sign(adpillar) x prop(tree) 0.013 m2 and
+                                                 sign(adpillar) x prop(planter) 0.086 m2
+```
 
-*(filled in from the session's final gate run.)*
+**AND THE LAMP-BOWL RATCHET PASSED AT ITS NEW BOUND**, which is the assertion §2's change had to
+clear:
+
+```
+  lamp bowls   derived 1952.2 cd/m2 = phi/(pi*A) over a 0.42 m bowl, photocell on
+               origin     delivered 1952.2 = 1.0000x derived, 16 meshes   ratchet [0.9999, 4.611]
+               streamed   delivered 9000.0 = 4.6102x derived,  1 mesh     ratchet [0.9999, 4.611]
+```
+
+**TWO NUMBERS MOVED A LONG WAY AND BOTH MOVED THE RIGHT WAY:**
+
+- **bright reserve 6.24% -> 6.83%** against a 6.00% floor (per-run 6.88 / 6.46 / 6.83, spread
+  0.42). Attributable to §2: the origin block's sixteen bowls are 4.65x brighter and `night_rain`
+  runs through that block.
+- **saturation peak 4.01% -> 4.57%** against a 12% ceiling (per-run maxima 4.59 / 4.57 / 4.46,
+  spread 0.13). STATE 44 asked *"what took a third off the saturation peak, and does the estimator
+  note still describe the gate it was written for"* — it has come back 0.56 points, still against
+  a `$estimator` note recording six per-run maxima of 8.64 to 11.74 and calling the gate *"green
+  by less than its own resolution"*. **It is green by 7.4 points now and the note is still wrong
+  about which gate it describes.** Carried, unanswered, and the question is unchanged.
+
+Everything else green: 0 of 3333 props inside a building, 5 sign mountings over 975 signs, 195
+stalls of a floor of 60, 8 landmarks placed and 8 visible and 0 unreachable on foot, worst detour
+1.46x, 5 eras, 3 road materials, 74.1% of 4982 objects off-axis, 341 instanced meshes with 341
+labelled and 0 not.
+
+### 6.2 PERFCHECK — EVERY COUNT, AND THE MILLISECONDS ARE NOT ADMISSIBLE
+
+```
+                       draws   draws s44      tris   tris s44   instances    inst s44
+   downtown_dense        317         343     1.91M      1.87M     238 242     237 836
+   highway_speed         395         439     2.18M      2.13M     312 306     312 006
+   night_rain            316         342     1.88M      1.84M     292 561     292 225
+   player                306         330     1.86M      1.81M     238 242     237 836
+```
+
+**THE DRAW-CALL CEILING IS NO LONGER THE LIMITER.** `highway_speed` reads **395 of 440** where it
+read 439 for three sessions — **45 spare where there was one** — and every other route fell by
+24 to 44. §3.1 is where that came from and it is one structural change, not a content cut: 2.5×
+the street lamps went IN at the same time. **Every one of the four routes is down and every one
+of the four carries more content than it did.**
+
+The triangle ceiling is what moved the other way: 2.13 M -> **2.18 M of 2 360 000**, 7.6% spare,
+because a city-wide merged mesh is effectively never culled. L2 is the pose where that matters.
+
+`night_rain`'s frame ENTROPY went green on its own — 4.933 -> **5.184** against a floor of 5.0 —
+and its frame MEAN is 0.0793 against a floor of 0.08 with per-run values 0.0793 / 0.0782 / 0.0813,
+which is `$screenshotEntropy_s17`'s own straddling statistic doing exactly what that note says it
+does. Neither has anything to do with rain: every route printed `rain 0.00 (now 5s, next shower
+868s), 0 drops`, which is session 44's own print and §4 of that STATE explaining why.
+
+**THIRTEEN VIOLATIONS, SORTED BY WHAT THEY ARE, AND NOT ONE IS A COUNT:**
+
+- **ELEVEN ARE FRAME TIME** — four cpu p95, four wall p95, three "frames over 33 ms" — measured at
+  `load1` 2.48 to 7.18 with a browser rendering. None is admissible in either direction. The
+  closest to a real reading is `highway_speed` wall p95 **12.70 against 12.5**, which is 0.20 ms
+  over: CONTRACT §0.1's founding incident is 0.10 ms over against a measured noise floor of
+  0.40-0.80, and this run's own three-run spread on that statistic is 0.2.
+- **ONE IS A FRAME-LEVEL STATISTIC**, `night_rain` mean luminance, above.
+- **ONE IS CONTENT**, and it is the carried vehicle bar: *"only 63% of 70 vehicles carry a
+  non-monotone tone profile (min 75%)"*. **Eleventh session.** Session 44's population went 23 ->
+  68 -> 78 between runs of one gate; this run reads 70 and 63%, which is inside that spread.
+- **NOT ONE IS A DRAW CALL, A TRIANGLE, AN INSTANCE OR A CLUSTER SLOT.** The 441 of 440 this
+  session created at §3 is gone, and so are 44 draw calls that were there before it.
 
 ---
 
@@ -495,9 +578,11 @@ is the first time in several sessions, and two of them are true with a mechanism
 have:
 
 1. **"The rain does not fall."** True, and the reason is not that the layers are dormant — STATE
-   44's *"500 of 500 delivered"* is also true. They render at **8.15% of the radiance the module's
-   own derivation names**: 0.56 scintillation × 0.518 min-extent widening × 0.280 un-normalised
-   profile. §1.
+   44's *"500 of 500 delivered"* is also true. A median streak renders at **7.2% of the radiance the
+   module's own derivation names** — 0.497 scintillation × 0.517 min-extent widening × 0.280
+   un-normalised profile = **0.136 cd/m² against a lit road at 1.4**, i.e. **0.097× the surface
+   it is seen against**. Only the third of those three is a defect; the other two are the model
+   doing what it says it does. §1.
 2. **"The street lamps are four and a half times too dim."** True of the origin block exactly:
    0.2151× is 4.65×. **The brief's instruction to move the ratchet toward 1.0 "as far as the bands
    allow" allows ONE END AND NOT THE OTHER**, and the reason is printed in `constants.js`: the
@@ -575,8 +660,8 @@ delivered `sign ×` overlaps and the two sign quads inside a building**.
 
 **NEW THIS SESSION — all of it measured, none of it inferred:**
 
-- **THE RAIN RENDERED AT 8.15% OF ITS OWN DERIVED RADIANCE**, through three stacked dilutions of
-  which two are not in the derivation at all. §1.
+- **A MEDIAN STREAK RENDERED AT 0.136 cd/m² AGAINST A ROAD AT 1.4** — 0.097× the surface it is
+  seen against, and 7.2% of the radiance its own derivation names. §1.
 - **ALL THREE PARTICLE LAYERS WERE DELETING ENERGY WITH THEIR OWN SHAPE** — 0.280, 0.481, 0.306.
   §1.2.
 - **THE BILLBOARDS ARE 1.1% OF THE RAIN'S GLINTING CROSS-SECTION**, because `budget.json`'s split
