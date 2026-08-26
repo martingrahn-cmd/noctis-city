@@ -638,6 +638,36 @@ All at seed 1337, all `?paused=1`, all at 1.70–1.74 m on the street unless the
                   kerb is `block:ground`, and the white rectangle is a window at 220 cd/m².
 ```
 
+**THE TWENTY-ONE FRAMES THIS FILE CITES**, all in `tools/shot-out/` and all regenerable from the
+`spawn=` links in §0 (the directory is gitignored, so a fresh clone has to take them again):
+
+```
+  s45-rain-before-t0-wet.png        rainfall=1 at HEAD, and you cannot tell it from
+  s45-rain-dry-air-t0-wet.png       rainfall=0, which is beside it for exactly that reason
+  s45-rain-after-t0-wet.png         the same pose and the same parameter, after R1/R5
+  s45-rain-daylight-t0_5.png        L4 — rainfall=1 at noon, and still nothing
+
+  s45-lamp-before-t0-wet.png        the origin block's pavement at midnight, one lamp in frame
+  s45-lamp-after-t0-wet.png         after R2, R3, R4, R6 and R8
+  s45-junction-t0-wet.png           a streamed junction: the staggered line on BOTH kerbs
+  s45-viaduct-t0-wet.png            the main street under the deck — the session's best frame
+  s45-city-road-after-t0-wet.png    the §4 pose at midnight, wet
+
+  s45-road-before-t0_5-dry.png      noon, the concrete district: pavement 202, road 188
+  s45-road-after-t0_5-dry.png       after R4 and R6: 206, 170, and a kerb at 82
+  s45-marks-before-t0_5-dry.png     the origin block's cross street as one flat plane
+  s45-marks-after-t0_5-dry.png      after R8
+  s45-marks-junction-t0_5-dry.png   the same street looking along it
+
+  s45-window-blown-t0-wet.png       L1 — a 220 cd/m2 window at 5.87 m owning a fifth of the frame
+  s45-window-slab-t0_78.png         L1 at dusk, the same panel as a flat pale slab
+  s45-arch-triangles-t0_5.png       L2 — 2 396 028 triangles at street level
+  s45-weir-lid-t0_5.png             L3 — 44 100 m2 of pale nothing from the pavement
+  s45-empty-districts-t0_25.png     L13 — five blocks of paving with nothing on them
+  s45-one-hue-dusk.png              L12 — one colour, 180 m up
+  s45-pillar-slivers-t0-wet.png     L9 — a correct 748 cd/m2 panel seen edge-on at 2.6 m
+```
+
 **EVERY FRAME WAS CHECKED FOR ITS SUBJECT BEFORE ANYTHING WAS MEASURED OFF IT**, which is STATE 43
 §6's lesson. Three poses from the first batch were discarded for being blocked by a stall or a
 sign panel at the lens, and they are why `walkshot` prints its counts per frame.
