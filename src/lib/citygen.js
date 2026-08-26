@@ -931,6 +931,149 @@ export function bladeHeightM(width, aspect, buildingHeightM) {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE HOLOGRAM — SESSION 43, LOOK.md §3, AND IT COSTS NO DRAW CALL BECAUSE IT
+ * IS NOT A TRANSPARENT SURFACE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * §3 asks for something "emissive, semi-transparent, above the street and at
+ * junctions", and says what makes one read: *"it hangs in air nothing supports,
+ * it is brighter than the wall behind it, and you can see through it to the
+ * wall"*. It also says what makes one fail: *"a hologram that reads as a lit
+ * billboard is a lit billboard, and this project already has 692 of those"*.
+ *
+ * THE BUDGET IS WHY THE FORM IS WHAT IT IS, AND THE ARITHMETIC WAS DONE BEFORE
+ * ANYTHING WAS BUILT. `highway_speed` stands at **439 draw calls of 440** after
+ * session 42's weir park. A transmissive surface needs `transparent: true` and
+ * a blend mode, which is a second material, which is a second mesh even when it
+ * is merged city-wide the way `city:signs` is — so alpha would cost EXACTLY ONE
+ * DRAW CALL and take the last spare in the project. The brief's instruction is
+ * to stop and report rather than take it.
+ *
+ * SO THE THIRD PROPERTY IS DELIVERED LITERALLY INSTEAD OF THROUGH ALPHA: the
+ * panel is a RASTER OF EMISSIVE BARS with air between them, and you see the
+ * wall through the gaps because there is nothing there. It is also the honest
+ * form for the thing — a projected image in air has no substrate, so what a
+ * volumetric display is made of is stacked planes of light and not a sheet.
+ * The bars ride in the EXISTING merged `city:signs` mesh at a tint gain, the
+ * same trick `LIGHT.roofSignNits` uses to put two radiances on one material, so
+ * the whole system costs no material, no mesh and no draw call.
+ *
+ * WHERE, AND IT IS SESSION 28's ROLL AGAIN. A hologram is advertising, so it
+ * belongs where advertising is: over a CORNER SHOP at a junction, which is the
+ * one retail position `RETAIL.corner` already models and the one place on a
+ * street where people stand still long enough to read something. Not scattered.
+ *
+ * IT HANGS OFF THE END OF THE ELEVATION, over the junction rather than over the
+ * frontage, and that is a placement argument as well as a look one: a blade
+ * sign occupies the elevation from `SIGN_BLADE.clearM` up to 24 m and the two
+ * would meet. Off the end, they cannot.
+ */
+export const HOLOGRAM = {
+  /**
+   * p(a corner shop's junction carries one), as `base + density · slope` — the
+   * same shape every other roll in this file uses, so a downtown junction is
+   * far more likely to carry one than a junction a kilometre out. At the
+   * region's quietest frontage (density 0.30) that is 0.25 and at its busiest
+   * (0.72) 0.38, so a hologram is a thing some junctions have rather than a
+   * thing junctions have.
+   */
+  pBase: 0.16,
+  pDensity: 0.30,
+  /**
+   * Metres, the panel. Wider than a blade because it is not bolted to anything
+   * and narrower than a building-scale sign because it is read from the corner
+   * you are standing on rather than from down the street.
+   */
+  widthMinM: 2.6,
+  widthMaxM: 5.4,
+  /** Height / width. A hologram stands up; below 1.0 it is a billboard again. */
+  aspectMin: 1.1,
+  aspectMax: 2.2,
+  /**
+   * Metres from the pavement to the panel's LOWER edge. 7.0 is above the
+   * shopfront fascia and above `SIGN_BLADE.clearM` = 3.05, so the panel is
+   * clear of everything the frontage carries and — the point of the section —
+   * it is over the heads of the people at the crossing with nothing under it.
+   */
+  clearM: 7.0,
+  /**
+   * The raster. `barM` is the bar and `pitchM` is the spacing centre to centre,
+   * so the panel is 16% light and 84% air: you see the wall through it, which
+   * is §3's third property. A pitch of 0.62 m puts about nine bars in a 5.4 m
+   * panel, which is a raster you can see rather than a texture.
+   */
+  barM: 0.10,
+  pitchM: 0.62,
+  /**
+   * Metres from the elevation to the panel's INNER edge. The panel then runs
+   * OUTWARD from there across the footway, because its face looks down the
+   * street rather than out of the wall — see `city.js` for why that orientation
+   * and not the other. The pavement is `CORRIDOR − roadHalfWidth` = 4.2 m, so
+   * at the widest roll (5.4 m) the outer edge reaches 6.0 m from the building
+   * line, i.e. 1.8 m over the carriageway at 7.0 m of height. That is deliberate
+   * and it is what §3 means by *"above the street"*: `occupancy.js` allows
+   * `canopy × carriageway` on purpose — the pair is absent from FORBIDDEN
+   * because a thing over a road at height is a street tree or a shelter and not
+   * a collision — and 7.0 m clears everything this city drives.
+   */
+  standoffM: 0.6,
+  /** Metres past the end of the elevation, toward the junction. */
+  pastEndM: 2.4,
+  /**
+   * cd/m². A hologram is brighter than the wall behind it — §3's second
+   * property — and the number is stated here rather than hidden in a
+   * multiplier (§9 rule 1). 2600 is 30× `LIGHT.signPlateNits` = 86, which is
+   * the gain `city.js` puts in the instance tint, and it sits between a
+   * shopfront fascia and `LIGHT.neonNits` = 6500. Against a facade at a
+   * midnight luminance near 1 cd/m² it is unambiguously an emitter.
+   */
+  nits: 2600,
+};
+
+/**
+ * Roll one corner shop's hologram. Returns null where it gets none.
+ *
+ * ITS OWN RNG STREAM, `holoRng`, for the reason `roofSignRng` has one: drawn
+ * from `signRng` this would re-phase every shopfront sign in the city and the
+ * diff would read as a change to the signage (CONTRACT §6, and STATE 20's note
+ * on the same hazard).
+ */
+export function rollHologram(holoRng, bld, density, distToEndM, cornerSide) {
+  /** ALL THE UNIFORMS FIRST, WHATEVER IS DECIDED, so the stream's phase is a
+   *  function of the building COUNT and nothing else. */
+  const q = {
+    roll: holoRng.next(),
+    w: holoRng.range(HOLOGRAM.widthMinM, HOLOGRAM.widthMaxM),
+    asp: holoRng.range(HOLOGRAM.aspectMin, HOLOGRAM.aspectMax),
+    /**
+     * 0..2, an index into `city.js`'s HOLO_CHROMA — the COLD half of
+     * `SIGN_CHROMA`. LOOK.md §3 wants a third of emitters cold and session 32
+     * measured the delivered emissive area at 8.0%; a hologram is projected
+     * light rather than a lamp behind glass, and every real volumetric display
+     * is a narrow-band source, so this is the one new emitter population that
+     * has no business being warm.
+     */
+    chroma: holoRng.int(0, 2),
+  };
+  if (!bld.retail) return null;
+  if (distToEndM > RETAIL.cornerM) return null;
+  if (q.roll >= HOLOGRAM.pBase + density * HOLOGRAM.pDensity) return null;
+  return {
+    x: bld.x, z: bld.z,
+    facing: bld.facing,
+    buildingWidth: bld.width,
+    buildingDepth: bld.depth,
+    /** Which end of the elevation the junction is at: −1 or +1 along it. */
+    cornerSide,
+    width: q.w,
+    aspect: q.asp,
+    chroma: q.chroma,
+    yawDeg: bld.yawDeg,
+  };
+}
+
+/**
  * Does this building's frontage carry an advertising pillar? Rolled in the
  * generator so it is part of the chunk's own description; WHERE it stands and
  * whether it fits are decided against the delivered occupancy in `city.js`,
@@ -5506,7 +5649,7 @@ function subtractBoxes(rects, boxes) {
  * @returns {{
  *   cx:number, cz:number, density:number, lowDetail:boolean, kind:string,
  *   roadMaterials:string[], buildings:object[], props:object[], signs:object[],
- *   occluders:object[], landmarks:object[], objectCount:number
+ *   holograms:object[], occluders:object[], landmarks:object[], objectCount:number
  * }}
  */
 /**
@@ -5633,6 +5776,8 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const setbackRng = chunkRng(rootSeed, cx, cz, 'setback');
   const roofSignRng = chunkRng(rootSeed, cx, cz, 'roofsign');
+  /** Session 43's holograms. Its own stream, so nothing else re-phases. */
+  const holoRng = chunkRng(rootSeed, cx, cz, 'holo');
   /**
    * SESSION 28 — GROUND-FLOOR RETAIL, AND IT IS ON ITS OWN STREAM FOR THE
    * REASON THE TWO ABOVE ARE.
@@ -5697,6 +5842,7 @@ export function generateChunk(rootSeed, cx, cz) {
   const buildings = [];
   const props = [];
   const signs = [];
+  const holograms = [];
   const occluders = [];
   /**
    * WHAT THE REGISTRY REFUSED, BY THE CATEGORY THAT REFUSED IT.
@@ -6708,6 +6854,15 @@ export function generateChunk(rootSeed, cx, cz) {
           });
 
           pushRoofSign(bld, roofSignRng, density, signs);
+          /**
+           * The hologram over this corner's junction, if it has one. `cornerSide`
+           * is which end of the elevation the junction is at, as a sign along it:
+           * the building's span is `t` to `t + width` and the side runs `from` to
+           * `to`, so the nearer end is the one `distToEndM` was taken against.
+           */
+          const holo = rollHologram(holoRng, bld, density, distToEndM,
+            (t - side.from) <= (side.to - (t + width)) ? -1 : 1);
+          if (holo) holograms.push(holo);
 
           /**
            * Signage. §2 asks for at least 15% of it non-working; condition is
@@ -8740,7 +8895,7 @@ export function generateChunk(rootSeed, cx, cz) {
   return {
     cx, cz, density, lowDetail, kind,
     roadMaterials,
-    buildings, props, signs, occluders,
+    buildings, props, signs, holograms, occluders,
     /**
      * THE GROUND THIS CHUNK EMITS, ALREADY CLIPPED — session 21.
      *
@@ -8771,7 +8926,15 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     river: riverTouchesChunk(cx, cz),
     landmarks: touching.map((l) => l.name),
-    objectCount: buildings.length + props.length + signs.length,
+    /**
+     * SESSION 43: HOLOGRAMS ARE COUNTED HERE. `clumping` reads this and is red
+     * by instruction, so adding to it moves a number nobody was asked to move —
+     * but an object the census cannot see is worse, and the direction is the
+     * safe one: holograms land only on retail corners, so they make the
+     * distribution MORE clustered rather than less, and `clumping`'s floor
+     * wants a higher CV. Delivered figure in STATE.
+     */
+    objectCount: buildings.length + props.length + signs.length + holograms.length,
     /**
      * Props the scatter asked for and could not place in `PROP_TRIES` tries.
      * Reported rather than swallowed: a bounded retry is a cap, and a cap

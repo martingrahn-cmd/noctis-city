@@ -95,6 +95,7 @@ import {
   ROOF_PARAPET_M,
   ROOF_PLANT_MAX_M,
   ROOF_SIGN,
+  HOLOGRAM,
   HEIGHT_DISTRIBUTION,
   HEAD_CLEAR_M,
   AD_PILLAR,
@@ -144,6 +145,13 @@ const SIGN_CHROMA = [
   EMITTER_CHROMA.tungsten,
   EMITTER_CHROMA.neonGreen,
 ];
+
+/**
+ * The cold half of `SIGN_CHROMA`, for the holograms. See `HOLOGRAM` in
+ * `citygen.js` for why a projected image is never warm — and it is indexed OUT
+ * of `SIGN_CHROMA` rather than written again, so the two palettes cannot drift.
+ */
+const HOLO_CHROMA = [SIGN_CHROMA[1], SIGN_CHROMA[3], SIGN_CHROMA[5]];
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -3185,6 +3193,99 @@ export function createCity(options = {}) {
       }
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE HOLOGRAMS — LOOK.md §3, SESSION 43, AND THEY COST NO DRAW CALL.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `citygen.js` → `HOLOGRAM` owns the argument: a transmissive surface would
+     * need `transparent: true` and a blend mode, which is a second material and
+     * therefore a second mesh even merged city-wide — exactly one draw call, and
+     * `highway_speed` stands at 439 of 440. So the panel is a RASTER OF
+     * EMISSIVE BARS with air between them and you see the wall through the gaps
+     * because nothing is there. The bars go into `signQuads`, which is the
+     * chunk's share of the ONE merged `city:signs` mesh, at a tint gain of
+     * `HOLOGRAM.nits / LIGHT.signPlateNits` — the same arrangement the roof
+     * signs' own 11.63× uses, so one material carries three radiances.
+     *
+     * DOUBLE-SIDED, because a `PlaneGeometry` is not and a junction is
+     * approached from two directions. Two quads a bar, which is what a
+     * double-sided roof sign already costs.
+     *
+     * IT IS CLAIMED. The panel hangs 2.1 m off the elevation from 7.0 m up,
+     * which is space over the pavement that something else may want, so its
+     * plan goes into `placed` as `canopy` — `occupancy.js`'s category for the
+     * part of a thing above head height, which conflicts with solids and not
+     * with the footway under it. Refused rather than moved, which is what the
+     * pylon twenty lines up does for the same reason.
+     */
+    const HOLO_GAIN = HOLOGRAM.nits / LIGHT.signPlateNits;
+    let holoPanels = 0;
+    let holoBars = 0;
+    let holoRefused = 0;
+    if (detail) {
+      for (const h of (chunk.holograms || [])) {
+        const out = h.facing[0] === 'x' ? [h.facing[1] === '+' ? 1 : -1, 0] : [0, h.facing[1] === '+' ? 1 : -1];
+        const tan = out[0] ? [0, 1] : [1, 0];
+        const halfOut = (h.facing[0] === 'x' ? h.buildingWidth : h.buildingDepth) / 2;
+        const halfTan = (h.facing[0] === 'x' ? h.buildingDepth : h.buildingWidth) / 2;
+        /**
+         * THE PANEL FACES ALONG THE STREET, NOT OUT OF THE WALL, and that is
+         * session 14's own finding rather than a preference: the mounting which
+         * reads from a pavement is the one perpendicular to the elevation,
+         * *"which is how a street is seen, and it is the largest single gain"*.
+         * It matters more here than for a plate, because a raster of horizontal
+         * bars seen edge-on is nothing at all.
+         *
+         * A `PlaneGeometry`'s local X is perpendicular to its own normal, so
+         * with the normal along the street the panel's WIDTH runs OUT from the
+         * building line across the footway. That is the axis `HOLOGRAM
+         * .standoffM` is measured on and it is why the panel's centre is
+         * `halfOut + standoff + width/2` and not `halfOut + standoff`.
+         */
+        const along = h.cornerSide * (halfTan + HOLOGRAM.pastEndM);
+        const across = halfOut + HOLOGRAM.standoffM + h.width / 2;
+        const px = h.x + out[0] * across + tan[0] * along;
+        const pz = h.z + out[1] * across + tan[1] * along;
+        const panelH = h.width * h.aspect;
+        /** Its plan: `width` along `out`, and the bar's own thickness across. */
+        const halfW = h.width / 2;
+        const claim = {
+          kind: 'canopy', owner: 'hologram',
+          x0: px - (out[0] ? halfW : 0.3), x1: px + (out[0] ? halfW : 0.3),
+          z0: pz - (out[1] ? halfW : 0.3), z1: pz + (out[1] ? halfW : 0.3),
+          y0: HOLOGRAM.clearM, y1: HOLOGRAM.clearM + panelH,
+        };
+        const inBlock = claim.x1 > BLOCK_KEEPOUT.x0 && claim.x0 < BLOCK_KEEPOUT.x1 &&
+          claim.z1 > BLOCK_KEEPOUT.z0 && claim.z0 < BLOCK_KEEPOUT.z1;
+        const hitsBuilding = (chunk.occluders || []).some((o) =>
+          claim.x1 > o.x0 && claim.x0 < o.x1 && claim.z1 > o.z0 && claim.z0 < o.z1 &&
+          claim.y0 < o.top);
+        const clash = placed.find((q) =>
+          !mayOverlap('canopy', q.kind) &&
+          claim.x1 > q.x0 && claim.x0 < q.x1 && claim.z1 > q.z0 && claim.z0 < q.z1 &&
+          claim.y1 > q.y0 && claim.y0 < q.y1);
+        if (inBlock || hitsBuilding || clash) { holoRefused++; continue; }
+
+        const c = HOLO_CHROMA[h.chroma % HOLO_CHROMA.length];
+        const bars = Math.max(2, Math.floor(panelH / HOLOGRAM.pitchM));
+        const faceYaw = yawForNormal(tan[0], tan[1]) + h.yawDeg;
+        for (let b = 0; b < bars; b++) {
+          const by = HOLOGRAM.clearM + (b + 0.5) * (panelH / bars);
+          for (const side of [0, 180]) {
+            signQuads.push(setMatrix(px, by, pz, h.width, HOLOGRAM.barM, 1, faceYaw + side));
+            signTint.push({
+              albedo: [c[0] * HOLO_GAIN, c[1] * HOLO_GAIN, c[2] * HOLO_GAIN],
+              roughness: 0.1,
+            });
+            holoBars++;
+          }
+        }
+        placed.push(claim);
+        holoPanels++;
+      }
+    }
+
     // Counted BEFORE the merge, because after it there is one mesh and no
     // categories. See the `census` parameter on addInstanced.
     const massCensus = {
@@ -3215,6 +3316,10 @@ export function createCity(options = {}) {
        *  `buildingBoxes` so the numeric fields still sum. */
       clutterBoxes: clutterCensus.boxes,
       $clutter: `${clutterCensus.escapes} fire escapes, ${clutterCensus.escapeRefused.block + clutterCensus.escapeRefused.building + clutterCensus.escapeRefused.claim} refused (${clutterCensus.escapeRefused.block} block + ${clutterCensus.escapeRefused.building} building + ${clutterCensus.escapeRefused.claim} claim)`,
+      /** Session 43. Bars, not panels, and they are in `city:signs` rather than
+       *  in this mesh — the count rides here as a STRING for that reason, so it
+       *  cannot be summed into an instance count it is not part of. */
+      $holograms: `${holoPanels} holograms, ${holoBars} bars in city:signs, ${holoRefused} refused`,
       $busStops: `${busStops} bus stops, ${busStopsRefused} refused`,
       $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground + ${pillarRefused.busstop} busstop refused`,
     };
