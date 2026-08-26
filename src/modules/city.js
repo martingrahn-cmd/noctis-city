@@ -1469,6 +1469,14 @@ export function createCity(options = {}) {
      * something else (the buried signs, the one-metre road slabs).
      */
     const placed = [];
+    /**
+     * Session 43's facade clutter, counted where it is emitted. `boxes` is what
+     * sums into the mass mesh's instance count (`harness.sceneCensus`), which is
+     * why it is boxes and not units — the same distinction `propBoxes` and
+     * `adPillarBoxes` are named for, and the same CONTRACT §9 failure mode if it
+     * were not.
+     */
+    const clutterCensus = { boxes: 0, escapes: 0, escapeRefused: { block: 0, building: 0, claim: 0 } };
     let bytes = bytesIn;
 
     /**
@@ -1748,6 +1756,7 @@ export function createCity(options = {}) {
           floorBase += Math.max(0, Math.round((t.y1 - t.y0) / era.floor));
         }
         buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin);
+        buildFacadeClutter(bld, era, mat, bodies, bodySkin, chunk, placed, clutterCensus, near);
       }
     }
 
@@ -3180,7 +3189,7 @@ export function createCity(options = {}) {
     // categories. See the `census` parameter on addInstanced.
     const massCensus = {
       chunk: rngKey,
-      buildingBoxes: bodies.length,
+      buildingBoxes: bodies.length - clutterCensus.boxes,
       crowns: crowns.length,
       /**
        * BOXES, NOT PROPS, and the two are named apart on purpose. Since the
@@ -3200,6 +3209,12 @@ export function createCity(options = {}) {
       /** Session 30. Seven boxes a stop, and the census's numeric fields must
        *  sum to the mesh's instance count — so this is boxes, not stops. */
       busStopBoxes: stopBoxes.length,
+      /** Session 43. Boxes, for the reason every line above is boxes. They were
+       *  pushed straight into `bodies`, so they are already inside
+       *  `buildingBoxes`' mesh — this line names them and is subtracted from
+       *  `buildingBoxes` so the numeric fields still sum. */
+      clutterBoxes: clutterCensus.boxes,
+      $clutter: `${clutterCensus.escapes} fire escapes, ${clutterCensus.escapeRefused.block + clutterCensus.escapeRefused.building + clutterCensus.escapeRefused.claim} refused (${clutterCensus.escapeRefused.block} block + ${clutterCensus.escapeRefused.building} building + ${clutterCensus.escapeRefused.claim} claim)`,
       $busStops: `${busStops} bus stops, ${busStopsRefused} refused`,
       $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground + ${pillarRefused.busstop} busstop refused`,
     };
@@ -3857,6 +3872,151 @@ export function createCity(options = {}) {
    *
    * COSTS NO DRAW CALL. Every box rides in the chunk's one merged box mesh.
    */
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * FACADE CLUTTER — WHAT IS BOLTED TO A WALL, AND THE ERA IS WHY. LOOK.md §4,
+   * session 43.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The walls of this city are smooth boxes with window rectangles on them. A
+   * dense city's walls are encrusted, and the accumulation is most of what makes
+   * a building read as inhabited rather than rendered.
+   *
+   * IT IS DERIVED FROM THE ERA TABLE AND NOT FROM THE GENRE. `CITY_ERAS` already
+   * records, for each period, its storey height, its window rhythm and what its
+   * ground floor is — and those three between them say what a wall of that
+   * period carries:
+   *
+   *   prewar        rhythm `grid`, 4.3 m storeys, a shopfront plinth. It is OLD
+   *                 and it was REQUIRED to have a second means of escape, so it
+   *                 carries a fire escape; its plumbing was added after it was
+   *                 built, so the stacks are outside; it is not air-conditioned,
+   *                 so there is no ducting anywhere on it.
+   *   postwar       rhythm `band` — a ribbon window, and the spandrel under a
+   *                 ribbon is where a through-wall air-conditioning unit goes,
+   *                 one per bay, which is what a 1960s slab looks like from the
+   *                 street.
+   *   corporate     rhythm `vertical`, ground `colonnade`, windowWall 0.32. A
+   *                 sealed, air-handled building: ducting, intake louvres,
+   *                 condenser banks on brackets, cable tray. NO fire escape —
+   *                 it has protected internal stairs, which is exactly why it
+   *                 could be sealed.
+   *   infill        rhythm `irregular`. The era whose written identity is a
+   *                 building patched over decades, so it carries a bit of
+   *                 everything and the most of anything.
+   *   contemporary  rhythm `panel`, cornice 0. NEARLY NOTHING, and that is the
+   *                 point rather than an omission: a 2040s sealed panel facade
+   *                 puts its plant on the roof, and this is the one era whose
+   *                 whole job is to look like it could not have been framed in
+   *                 1960. Encrusting it would erase the difference the era
+   *                 table exists to draw.
+   *
+   * DENSITY IS THE POINT, NOT MODELLING QUALITY — twenty small boxes beat two
+   * good ones. Every one of these is one box in the chunk's existing `masses`
+   * mesh, so the whole system costs ZERO DRAW CALLS and its price is instances
+   * and triangles.
+   *
+   * `run: true` is a kind that is placed as a FULL-HEIGHT DROP rather than as a
+   * discrete unit — a stack or a cable tray runs the wall, it does not sit on
+   * it. At most `CLUTTER.maxRunsPerFace` of them; a further roll falls back to a
+   * bracket, because a wall with nine downpipes on it is not a wall.
+   */
+  const CLUTTER_KINDS = {
+    /** A rainwater or soil stack, in cast iron gone matt. */
+    pipe: { along: 0.17, up: 0, out: 0.19, run: true, pier: true, albedo: [0.20, 0.19, 0.175], rough: 0.72 },
+    /** A cable tray or conduit drop, bolted on when the building was rewired. */
+    cableRun: { along: 0.13, up: 0, out: 0.11, run: true, pier: true, albedo: [0.28, 0.285, 0.29], rough: 0.55 },
+    /** A split-system condenser on brackets. What air conditioning looks like outside. */
+    condenser: { along: 0.92, up: 0.68, out: 0.40, pier: false, albedo: [0.38, 0.385, 0.39], rough: 0.48 },
+    /** A through-wall unit in the spandrel under a ribbon. Smaller, and there are more. */
+    wallUnit: { along: 0.62, up: 0.40, out: 0.26, pier: false, albedo: [0.33, 0.33, 0.335], rough: 0.52 },
+    /** A galvanised duct run, horizontal, crossing bays. Low sun finds it. */
+    duct: { along: 2.40, up: 0.46, out: 0.48, pier: false, albedo: [0.46, 0.47, 0.475], rough: 0.44 },
+    /** A plant intake louvre: the hole a sealed building breathes through. */
+    louvre: { along: 1.35, up: 1.05, out: 0.15, pier: false, albedo: [0.30, 0.305, 0.31], rough: 0.40 },
+    /** A meter, junction or comms cabinet — the commonest thing bolted to a wall. */
+    cabinet: { along: 0.46, up: 0.64, out: 0.23, pier: true, albedo: [0.24, 0.235, 0.225], rough: 0.62 },
+    /** A dish on a pole bracket. Pale, so it catches a street lamp. */
+    dish: { along: 0.66, up: 0.66, out: 0.32, pier: true, albedo: [0.52, 0.52, 0.51], rough: 0.35 },
+    /** An aerial. Thin enough to be one pixel at 700 m, which is the point — the
+     *  same argument `ROOF_KINDS` makes for its own. */
+    aerial: { along: 0.07, up: 2.20, out: 0.07, pier: true, albedo: [0.42, 0.43, 0.45], rough: 0.5 },
+    /** A bracket or a hopper head: the small stuff between the big stuff. */
+    bracket: { along: 0.30, up: 0.24, out: 0.21, pier: true, albedo: [0.19, 0.19, 0.19], rough: 0.66 },
+  };
+
+  /**
+   * The kit per era, and `m2` is METRES OF ELEVATION PER UNIT — an area density,
+   * so a wide building carries more than a narrow one without anybody counting.
+   *
+   * `escape` is p(this elevation carries a fire escape) and it is the one entry
+   * that is a rule rather than a taste: prewar high because the law required it,
+   * infill lower because some of that stock is old, corporate and contemporary
+   * exactly zero because a building with protected internal stairs does not have
+   * one and drawing it anyway would be the genre signifier LOOK.md §5 refuses.
+   */
+  const CLUTTER_KITS = {
+    prewar: { m2: 16, escape: 0.55, kinds: [['pipe', 3], ['cabinet', 3], ['bracket', 3], ['aerial', 1], ['dish', 1], ['cableRun', 2]] },
+    postwar: { m2: 13, escape: 0.14, kinds: [['wallUnit', 5], ['pipe', 2], ['cableRun', 2], ['dish', 1], ['cabinet', 2], ['bracket', 2]] },
+    corporate: { m2: 20, escape: 0.00, kinds: [['duct', 2], ['louvre', 3], ['condenser', 3], ['cableRun', 2], ['dish', 1]] },
+    infill: { m2: 11, escape: 0.28, kinds: [['cabinet', 3], ['cableRun', 3], ['condenser', 2], ['wallUnit', 2], ['dish', 1], ['aerial', 1], ['bracket', 3], ['pipe', 2]] },
+    contemporary: { m2: 58, escape: 0.00, kinds: [['louvre', 3], ['dish', 1]] },
+  };
+
+  const CLUTTER = {
+    /**
+     * Metres of elevation above the plinth that carry clutter. DERIVED FROM THE
+     * STREET SECTION AND NOT PICKED: the core between two building lines is
+     * `2 · CORRIDOR` = 23.4 m, so a person on the far pavement stands about 23 m
+     * back, and at a comfortable 50° of upward gaze sees 23.4 · tan(50°) = 27.9 m
+     * of the wall opposite. Above that a walker is not looking, and in the world
+     * a ladder is not reaching either — clutter accretes where it can be reached
+     * and seen. It is a BAND and not a budget; the cap below is the budget.
+     */
+    bandM: 27.9,
+    /**
+     * No elevation carries more than this, whatever its size. A BOUND, as
+     * `buildFacade`'s row cap is, and not a budget: on the median building the
+     * band is cut off by the building's own height long before this bites —
+     * measured at the first density, a typical front face delivered 9 of a
+     * possible 27 cells and no face in the resident ring reached 26.
+     */
+    maxPerFace: 34,
+    /**
+     * The most bays on one wall that may carry something. 0.72 is a wall where
+     * nearly three bays in four have a box on them, which is what an encrusted
+     * wall is; it binds only on a neglected `infill` elevation, which is the one
+     * era whose written identity is a building patched over decades.
+     */
+    maxCellP: 0.72,
+    maxRunsPerFace: 2,
+    /** The courtyard elevation, as a fraction of the street one's density. The
+     *  same asymmetry `buildFacade` already applies to its openings. */
+    rearShare: 0.55,
+    /**
+     * Accretion is what neglect looks like. `bld.condition` already drives
+     * soiling, dead signage and boarded shopfronts (`citygen.js` → CONDITIONS);
+     * this is the fourth thing it drives and it is the same sentence.
+     */
+    condition: { kept: 0.78, worn: 1.0, neglected: 1.35 },
+    /** Clear of the wall face, so a box reads as bolted ON rather than sunk in. */
+    standoffM: 0.03,
+    /** The fire escape. A landing per storey, two stringers, a rail per landing. */
+    escapeDeepM: 1.05,
+    escapeAlongM: 1.70,
+    escapeLandingT: 0.09,
+    escapeRailH: 0.95,
+    escapeRailT: 0.06,
+    escapeStringerT: 0.10,
+    /** Storeys it climbs. Six is the band above divided by the tallest era's
+     *  storey and rounded down — a fire escape that outran `bandM` would be
+     *  drawn where the rest of the system has already said nobody looks. */
+    escapeMaxLevels: 6,
+  };
+  const CLUTTER_KIT_TOTALS = Object.fromEntries(
+    Object.entries(CLUTTER_KITS).map(([k, v]) => [k, v.kinds.reduce((a, e) => a + e[1], 0)])
+  );
+
   const ROOF_KINDS = [
     /** Wide and low. The existing unit, and still the commonest. */
     { name: 'plantRoom', wide: 1.00, tall: 1.00, deep: 0.85, albedo: [0.30, 0.30, 0.31], rough: 0.82, w: 4 },
@@ -3988,6 +4148,277 @@ export function createCity(options = {}) {
       topY = Math.max(topY, bld.height + ROOF_PARAPET_M);
     }
     return topY;
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * WHAT IS BOLTED TO THE WALL. LOOK.md §4, session 43. See `CLUTTER_KITS` for
+   * why each era carries what it carries.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * EVERY BOX RIDES IN THE CHUNK'S EXISTING `masses` MESH, so the whole system
+   * costs ZERO DRAW CALLS and its price is instances and triangles — the same
+   * trade `buildRoofscape`, the ad pillar, the bus stop and the window lintel
+   * already make. The counts are in the mass census.
+   *
+   * POSITIONED ON `buildFacade`'s OWN BAY GRID AND NOT AT RANDOM. `cols` and
+   * `colW` are recomputed from the same expression the windows use, so a `pier`
+   * kind lands on the solid between two openings and a spandrel kind lands in
+   * the band above a window head. Clutter scattered over the elevation without
+   * that would sit on the glass, which is what a decal looks like.
+   *
+   * ONE ROTATION CONVENTION, WHICH IS THE THING THIS FILE HAS GOT WRONG BEFORE.
+   * Scales are written PRE-SWAPPED per axis and the yaw is `bld.yawDeg` alone —
+   * the spandrel/mullion convention. `buildFacade`'s window and lintel use the
+   * other one (unswapped scale, `yaw + bld.yawDeg`). Mixing them is what put
+   * 24 907 fins through every east and west elevation in the city (session 13),
+   * and the tell was two conventions for one quantity.
+   *
+   * NOTHING HERE IS BELOW `HEAD_CLEAR_M`. The band starts at the plinth — 4.2 m,
+   * or 5.4 m over a shopfront — so no box on any wall can be walked into and the
+   * pavement's own occupancy question does not arise. Only the fire escape
+   * projects far enough to be worth declaring, and it is declared.
+   *
+   * THE SMALL UNITS ARE ON THE `near` RING AND THE BIG ONES ARE ON `detail`, and
+   * it is `buildFacade`'s own sentence applied one level down: *"facades, windows
+   * and signage are what a building contributes at four hundred metres; a
+   * bollard, a lamp post and the join between the asphalt and the kerb are not"*.
+   * A 0.3 m cabinet is the facade's bollard. A vertical stack, a duct run and a
+   * fire escape have a SILHOUETTE — 1.7 m of steel at 384 m is twelve pixels at
+   * the internal resolution — so those keep the detail ring and the cabinets do
+   * not. Measured, over the resident ring at the same camera: the split takes
+   * the delivered box count from 13 411 to the figure in STATE, and the frame it
+   * takes them out of is one nobody can resolve them in.
+   */
+  function buildFacadeClutter(bld, era, mat, masses, massSkin, chunk, placed, census, near) {
+    const kit = CLUTTER_KITS[bld.era];
+    if (!kit) return;
+    const plinth = era.ground === 'shopfront' ? 5.4 : 4.2;
+    /**
+     * THE BASE TIER ONLY, and it is the argument `citygen.js` already makes for
+     * a building-scale sign: the base is the widest, lowest, most-seen elevation
+     * a stepped building has. Clutter carried past a setback would hang one
+     * inset clear of the wall it is bolted to.
+     */
+    const tierTop = bld.setbacks && bld.setbacks.length ? bld.setbacks[0].at : bld.height;
+    const bandTop = Math.min(tierTop - ROOF_PARAPET_M, plinth + CLUTTER.bandM);
+    if (bandTop - plinth < era.floor) return;
+
+    const nf = Math.max(1, Math.floor((bandTop - plinth) / era.floor));
+    const winH = era.floor * (era.windowWall > 0.4 ? 0.62 : 0.44);
+    const condMul = CLUTTER.condition[bld.condition] || 1;
+    const kitTotal = CLUTTER_KIT_TOTALS[bld.era];
+
+    const faces = [
+      { dir: [0, -1], w: bld.width, off: bld.depth / 2 },
+      { dir: [0, 1], w: bld.width, off: bld.depth / 2 },
+      { dir: [-1, 0], w: bld.depth, off: bld.width / 2 },
+      { dir: [1, 0], w: bld.depth, off: bld.width / 2 },
+    ];
+
+    /** One box on this face: `along` across the elevation, `out` off the wall. */
+    const put = (face, u, y, along, up, out, skin) => {
+      const o = face.off + CLUTTER.standoffM + out / 2;
+      masses.push(setMatrix(
+        bld.x + (face.dir[0] ? face.dir[0] * o : u),
+        y,
+        bld.z + (face.dir[1] ? face.dir[1] * o : u),
+        face.dir[0] ? out : along,
+        up,
+        face.dir[0] ? along : out,
+        bld.yawDeg
+      ));
+      massSkin.push(skin);
+      census.boxes++;
+    };
+
+    for (let f = 0; f < faces.length; f++) {
+      const face = faces[f];
+      const front =
+        (bld.facing === 'z-' && face.dir[1] === -1) || (bld.facing === 'z+' && face.dir[1] === 1) ||
+        (bld.facing === 'x-' && face.dir[0] === -1) || (bld.facing === 'x+' && face.dir[0] === 1);
+      const rear =
+        (bld.facing === 'z-' && face.dir[1] === 1) || (bld.facing === 'z+' && face.dir[1] === -1) ||
+        (bld.facing === 'x-' && face.dir[0] === 1) || (bld.facing === 'x+' && face.dir[0] === -1);
+      // The party walls of a perimeter block are blank, and a box on one is a
+      // box inside the neighbour. `buildFacade` refuses openings there for the
+      // same reason and in the same words.
+      if (!front && !rear) continue;
+
+      const cols = Math.max(1, Math.floor(face.w / (era.rhythm === 'vertical' ? 2.8 : 2.0)));
+      const colW = face.w / cols;
+      const p = Math.min(CLUTTER.maxCellP,
+        ((colW * era.floor) / kit.m2) * condMul * (front ? 1 : CLUTTER.rearShare));
+
+      let placedHere = 0;
+      let runs = 0;
+      for (let fl = 0; fl < nf && placedHere < CLUTTER.maxPerFace; fl++) {
+        for (let c = 0; c < cols && placedHere < CLUTTER.maxPerFace; c++) {
+          if (unitHash(bld.x * 0.131 + c * 3.71, bld.z * 0.077 + fl * 9.13, f * 17.29) >= p) continue;
+
+          // A SECOND, INDEPENDENT HASH FOR THE KIND, for the reason
+          // `buildRoofscape` gives: deriving it from the placement hash would
+          // tie what a thing is to where it is.
+          let kr = unitHash(bld.x * 0.053 - bld.z * 0.291 + c * 8.31, fl * 2.77, f * 5.13) * kitTotal;
+          let name = kit.kinds[0][0];
+          for (const [n, w] of kit.kinds) { kr -= w; if (kr <= 0) { name = n; break; } }
+          let k = CLUTTER_KINDS[name];
+
+          const pierU = -face.w / 2 + colW * c;
+          const bayU = -face.w / 2 + colW * (c + 0.5);
+          const winCentre = plinth + fl * era.floor + era.floor * 0.5;
+          const skin = { albedo: k.albedo, roughness: k.rough };
+
+          if (k.run) {
+            /**
+             * A STACK RUNS THE WALL, IT DOES NOT SIT ON IT — one box from the
+             * plinth to the top of the band. Capped, because a wall with nine
+             * downpipes is not a wall; past the cap the roll becomes the
+             * smallest thing in the kit rather than being thrown away, so the
+             * density the kit asked for is still delivered.
+             */
+            if (runs < CLUTTER.maxRunsPerFace && c > 0 && c < cols) {
+              runs++;
+              put(face, pierU, (plinth + bandTop) / 2, k.along, bandTop - plinth, k.out, skin);
+              placedHere++;
+              continue;
+            }
+            k = CLUTTER_KINDS.bracket;
+          }
+
+          // The bollard of the facade. See the note above: it goes no further
+          // out than the ring that can resolve it.
+          if (!near) continue;
+          const u = k.pier ? pierU : bayU;
+          // A pier kind stands beside an opening at its mid-height; a spandrel
+          // kind stands in the solid band above the window head, which is
+          // exactly `buildFacade`'s own spandrel row.
+          const y = k.pier
+            ? winCentre
+            : winCentre + winH / 2 + (era.floor - winH) / 2;
+          if (y + k.up / 2 > bandTop) continue;
+          if (Math.abs(u) > face.w / 2 - k.along / 2) continue;
+          put(face, u, y, k.along, k.up, k.out, { albedo: k.albedo, roughness: k.rough });
+          placedHere++;
+        }
+      }
+
+      if (!front || kit.escape <= 0) continue;
+      if (unitHash(bld.x * 0.211, bld.z * 0.317, f * 11.7) >= kit.escape) continue;
+
+      /**
+       * THE FIRE ESCAPE, AND IT IS THE ONE THING HERE THAT IS DECLARED.
+       *
+       * Everything above projects at most 0.48 m, into the first half-metre off
+       * a wall above 4.2 m, which nothing in this city claims. A fire escape
+       * reaches 1.05 m over the pavement for six storeys, which is space
+       * something else may want — so the PROJECTING PART is claimed as `canopy`:
+       * `occupancy.js`'s own category for the part of a thing that is above head
+       * height, which conflicts with solids and not with the pavement under it.
+       * The wall face itself is the claim's inner edge, so it shares a boundary
+       * with its own building and `overlaps()` is strict — a fire escape does
+       * not conflict with the wall it is bolted to.
+       *
+       * THE CLAIM IS AXIS-ALIGNED AND THE ESCAPE IS YAWED BY `bld.yawDeg`, which
+       * is the same small approximation the bus stop's roof claim makes; the
+       * yaws this generator produces are a few degrees and the escape is inset
+       * from the elevation's ends by more than the sagitta.
+       */
+      const levels = Math.min(CLUTTER.escapeMaxLevels, nf);
+      /**
+       * WHERE IT GOES IS DECIDED AGAINST THE SIGNS, because a blade hangs from
+       * 3.05 m and can be 15 m tall and they would occupy the same air.
+       * `citygen.js` does not claim a flush or projecting sign in the registry
+       * at all (STATE 42 §10 item 3, carried), so there is nothing to refuse it
+       * against — the escape takes the bay furthest from every projecting sign
+       * on its own elevation instead, which is also where a landlord would put
+       * it.
+       */
+      const sgn = [];
+      for (const sg of (chunk.signs || [])) {
+        if (sg.x !== bld.x || sg.z !== bld.z) continue;
+        if (sg.mount !== 'projecting') continue;
+        sgn.push(sg.along * (face.w / 2));
+      }
+      let ue = 0;
+      let best = -1;
+      for (let c = 0; c < cols; c++) {
+        const cand = -face.w / 2 + colW * (c + 0.5);
+        if (Math.abs(cand) > face.w / 2 - CLUTTER.escapeAlongM / 2) continue;
+        let d = Infinity;
+        for (const a of sgn) d = Math.min(d, Math.abs(cand - a));
+        if (d > best) { best = d; ue = cand; }
+      }
+      if (best < 0) continue;
+
+      const totalH = (levels - 1) * era.floor + CLUTTER.escapeRailH;
+      const outward = face.dir[0] || face.dir[1];
+      const cx0 = bld.x + (face.dir[0] ? face.dir[0] * face.off : ue);
+      const cz0 = bld.z + (face.dir[1] ? face.dir[1] * face.off : ue);
+      const dOut = CLUTTER.escapeDeepM;
+      const halfAlong = CLUTTER.escapeAlongM / 2;
+      const claim = {
+        kind: 'canopy', owner: `clutter:escape:${bld.era}`,
+        x0: face.dir[0] ? Math.min(cx0, cx0 + outward * dOut) : cx0 - halfAlong,
+        x1: face.dir[0] ? Math.max(cx0, cx0 + outward * dOut) : cx0 + halfAlong,
+        z0: face.dir[1] ? Math.min(cz0, cz0 + outward * dOut) : cz0 - halfAlong,
+        z1: face.dir[1] ? Math.max(cz0, cz0 + outward * dOut) : cz0 + halfAlong,
+        y0: plinth, y1: plinth + totalH,
+      };
+      const inBlock = claim.x1 > BLOCK_KEEPOUT.x0 && claim.x0 < BLOCK_KEEPOUT.x1 &&
+        claim.z1 > BLOCK_KEEPOUT.z0 && claim.z0 < BLOCK_KEEPOUT.z1;
+      /** Its own building is not a conflict; the one next door is. */
+      const hitsBuilding = (chunk.occluders || []).some((o) =>
+        !(o.x0 === bld.x - bld.width / 2 && o.z0 === bld.z - bld.depth / 2) &&
+        claim.x1 > o.x0 && claim.x0 < o.x1 && claim.z1 > o.z0 && claim.z0 < o.z1 &&
+        claim.y0 < o.top);
+      const clash = placed.find((q) =>
+        !mayOverlap('canopy', q.kind) &&
+        claim.x1 > q.x0 && claim.x0 < q.x1 && claim.z1 > q.z0 && claim.z0 < q.z1 &&
+        claim.y1 > q.y0 && claim.y0 < q.y1);
+      if (inBlock || hitsBuilding || clash) {
+        if (inBlock) census.escapeRefused.block++;
+        else if (hitsBuilding) census.escapeRefused.building++;
+        else census.escapeRefused.claim++;
+        continue;
+      }
+
+      const steel = { albedo: [0.21, 0.212, 0.216], roughness: 0.56 };
+      for (let lv = 0; lv < levels; lv++) {
+        const ly = plinth + lv * era.floor;
+        // The landing.
+        put(face, ue, ly, CLUTTER.escapeAlongM, CLUTTER.escapeLandingT, dOut, steel);
+        // The balustrade, at its outer edge. A perforated panel, not a rail and
+        // four posts — one box a level, because density is the point.
+        masses.push(setMatrix(
+          bld.x + (face.dir[0] ? face.dir[0] * (face.off + dOut - CLUTTER.escapeRailT / 2) : ue),
+          ly + CLUTTER.escapeRailH / 2,
+          bld.z + (face.dir[1] ? face.dir[1] * (face.off + dOut - CLUTTER.escapeRailT / 2) : ue),
+          face.dir[0] ? CLUTTER.escapeRailT : CLUTTER.escapeAlongM,
+          CLUTTER.escapeRailH,
+          face.dir[0] ? CLUTTER.escapeAlongM : CLUTTER.escapeRailT,
+          bld.yawDeg
+        ));
+        massSkin.push(steel);
+        census.boxes += 1;
+      }
+      // The two stringers the landings hang off.
+      for (const sd of [-1, 1]) {
+        masses.push(setMatrix(
+          bld.x + (face.dir[0] ? face.dir[0] * (face.off + dOut * 0.5) : ue + sd * halfAlong),
+          plinth + totalH / 2 - era.floor * 0.5,
+          bld.z + (face.dir[1] ? face.dir[1] * (face.off + dOut * 0.5) : ue + sd * halfAlong),
+          face.dir[0] ? dOut : CLUTTER.escapeStringerT,
+          totalH,
+          face.dir[0] ? CLUTTER.escapeStringerT : dOut,
+          bld.yawDeg
+        ));
+        massSkin.push(steel);
+        census.boxes++;
+      }
+      placed.push(claim);
+      census.escapes++;
+    }
   }
 
   function buildGroundFloor(bld, era, mat, windows, windowTint, masses, massSkin) {
