@@ -1495,7 +1495,47 @@ const BOWL_STREAMED_FACTOR = 4.610209;
  * tightening: a future session that puts this bowl back at 210 now FAILS
  * `citycheck`.
  */
-const BOWL_ORIGIN_FACTOR = 0.2151430;
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SESSION 45: 0.2151430 -> 1.0, i.e. 420.0 -> 1952.19 cd/m2. THE ORIGIN
+ * BLOCK'S LAMP BOWL IS THE DERIVATION NOW, AND THE THING THAT BLOCKED IT
+ * STOPPED EXISTING IN SESSION 31.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator's complaint, every time he walks this city at night, is that
+ * street level is too dark — and `PLAYER.spawn` is [70, 9.7], which is the
+ * origin block's north pavement, so the lamps he walks under are these
+ * sixteen and not the streamed city's 790.
+ *
+ * WHAT BLOCKED IT AND WHY THAT IS OVER. Session 30's sweep is 77 lines above:
+ * it swept this factor against `band:midnight`'s 0.112 ceiling, found the
+ * crossing at about 550 cd/m2, and shipped 420 because that left 0.0008 of
+ * margin against an instrument spread of 0.0001. **That sweep was taken at a
+ * delivered `band:midnight` of 0.1112.** Session 31 put the station in the
+ * same frame and the band read 0.0745; every STATE since has recorded it
+ * between 0.0741 and 0.0745, three runs each, spread 0.0000. The comment
+ * eleven lines below has said *"nothing here is what that assertion is
+ * balanced against any more"* since session 31 and no session went back to
+ * ask what the sweep would say now.
+ *
+ * THE ARITHMETIC THAT SAYS IT FITS, BEFORE THE MEASUREMENT THAT SAYS SO.
+ * Session 30 measured this same step — 420 -> 1952 — as **+0.0075** of frame
+ * mean on its own content. Against today's 0.0741 that lands at 0.0816, with
+ * **0.0304 of ceiling to spare against 0.0021 in session 30**: fourteen times
+ * the room, and three hundred times the instrument's own resolution.
+ *
+ * DELIVERED, `lookcheck`, three runs: see STATE 45 §2. The band is measured
+ * rather than predicted and the prediction is left here to be wrong against.
+ *
+ * IT ALSO MOVES THE FLOOR THE RIGHT WAY. `band:midnight` is [0.072, 0.112] and
+ * today's 0.0741 sits **0.0021 above its FLOOR** — the frame has been closer to
+ * being too dark than to being too bright for fourteen sessions, which is the
+ * same sentence the operator has been saying in words.
+ *
+ * `city-budget.json` -> `lampBowl.minRatio` moves 0.2151 -> 0.9999 with it,
+ * which is the only direction that bound's own definition allows.
+ */
+const BOWL_ORIGIN_FACTOR = 1.0;
 
 export const LAMP_BOWL = {
   /**
