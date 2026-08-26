@@ -1,371 +1,333 @@
 # NOCTIS — STATE
 
-*End of session 43. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+*End of session 44. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
 **Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2 (24C101), `node v22.22.0`. The
-machine has **NOT** rebooted since session 40 — 7 d 20 h of uptime at the last command against
-session 42's 7 d 2 h, the same boot. Every gate that reads a pixel printed
+machine has **NOT** rebooted since session 40 — 8 d 0 h of uptime at the first command against
+session 43's 7 d 20 h, the same boot. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RANGED 2.75 TO 4.06 ACROSS THE SESSION*** against CONTRACT §0.2's bar of **1.6**, and it
-was never inside it — this was a browser session from end to end and the memory note's own warning
-applies (*"one headless Chromium renderer measures 130% CPU"*). **No millisecond in this file is
-admissible as an absolute.** What is quoted is COUNTS, PAIRED deltas measured minutes apart in
-interleaved arms, pixel statistics, and figures straight out of the pure generator with no browser
-at all.
+***`load1` RANGED 2.42 TO 3.56 ACROSS THE SESSION*** against CONTRACT §0.2's bar of **1.6**, and
+`mediaanalysisd-access` held **97–100% of one core for most of it** — a Photos indexing pass, not
+this project. **NO MILLISECOND IN THIS FILE IS ADMISSIBLE AS AN ABSOLUTE**, and §5.1 has the
+demonstration rather than the assertion: `perfcheck` ran three times on content that never changed,
+every COUNT agreed to the unit across all nine route measurements, and one run of `highway_speed`
+read **31.4 ms cpu p95 against 11.4 ms for the same route ninety minutes earlier**. One of the three
+invocations lost its last route to a browser crash. What is quoted here is COUNTS, RATIOS TAKEN
+INSIDE ONE FRAME, pixel statistics, and arithmetic with no browser in it at all.
 
 ---
 
-## 0. FOUR ITEMS, FOUR COMMITS, FOUR BEFORE-AND-AFTER PAIRS
-
-**THE HARD CONSTRAINT WAS ONE SPARE DRAW CALL AND IT IS STILL SPARE.** `highway_speed` read
-**439 of 440 at HEAD and 439 of 440 after all four items.** Nothing here bought a draw call,
-including the transparency in item 4 — see §4 for the form that avoided it.
+## 0. IT RAINS NOW, AND THE HALO IS 1.6% → 7.0%
 
 ```
- 1  THE AIR IS NOT LIT BY THE CITY IN IT              LOOK.md §3, haze around light
-      s43-haze-{before,after}-t0-wet.png              midnight, wet, on the carriageway
-      the mechanism was missing and is now there; at 8.7 km visibility it is 1.6%
-      darkest large surface        8.73  ->  9.43 cv    crushed black 1.158% -> 0.873%
-      draw calls                    294  ->   294
+  s44-rain-{before,after}-t0-wet.png     midnight, wet, on the carriageway, fov 55
+                                         session 43's own haze pose, so the numbers compare
+                                         294 draws in BOTH arms
 
- 2  THE WALLS ARE SMOOTH BOXES                        LOOK.md §4/§5, encrusted facades
-      s43-wall-{before,after}-t0_5-wet.png            the same elevation, cropped
-      pipes, cable runs, condensers, louvres, ducts, cabinets, dishes, fire escapes
-      boxes on the resident ring       0  ->  7 010    fire escapes 0 -> 104
-      draw calls                    439  ->   439
-
- 3  NO SIGN IN THE CITY REACHED SIX STOREYS           LOOK.md §3, sign scale
-      s43-sign2-{before,after}-t0-wet.png             midnight, wet, down a street
-      the same blade, most of the way up the wall it hangs on
-      tallest sign               14.24  ->  23.99 m    >= 18.3 m: 0 -> 10 of 975
-      signs wider than their own building   2  ->  0
-      draw calls                    147  ->   147
-
- 4  THE CITY HAS NOTHING LIKE A HOLOGRAM              LOOK.md §3, holograms
-      s43-holo2-{before,after}-t0-wet.png             midnight, wet, at a junction
-      two of them at two depths in one frame, cold, and you see the wall through them
-      holograms                       0  ->     42 resident, 53 over the region
-      draw calls                    295  ->   295
+  s44-lamp-{before,after}-t0-wet.png     midnight, wet, on the pavement looking down the
+                                         street — a lantern at 20 m with the halo as the
+                                         subject.  329 draws in BOTH arms
 ```
 
-**ALL FOUR WERE MEASURED BEFORE THEY WERE BUILT**, and in two of them the measurement changed what
-was built: item 1's arithmetic said the effect would be invisible before a frame was taken, and
-item 3's first arm delivered zero of its target and had to be re-derived. §7 lists both.
+Both pairs are one build and one parameter: `--params=rainfall=0` against `--params=rainfall=0.6`.
+Wetness is pinned at 1.0 in all four, so **the air is the only variable**.
+
+**WHAT SESSION 43's INTEGRAL DELIVERS AT EACH RAINFALL.** Its 1.6% is a ratio — a ray passing 9 m
+from a 6 800 cd lantern collecting 0.022 cd/m² against a road at about 1.4 — and the in-scatter is
+linear in the medium's density, so the whole table is that figure scaled by
+`hazeFor(r).density / ATM.hazeDensity`:
+
+```
+    rainfall   mm/h    sigma /m    visibility   x clear   in-scatter   % of a road at 1.4
+      0        0.0     4.500e-4      8.69 km     1.000    0.022 cd/m2       1.6%
+      0.17     1.7     9.595e-4      4.08 km     2.132    0.047             3.3%   mean instant of rain
+      0.29     2.9     1.163e-3      3.36 km     2.585    0.057             4.1%   mean shower peak
+      0.60     6.0     1.578e-3      2.48 km     3.506    0.077             5.5%   the "after" frames
+      1.00    10.0     2.006e-3      1.95 km     4.457    0.098             7.0%   full rain
+```
+
+> **THE HEADLINE IS 1.6% → 7.0%, AND EVEN 7.0% IS AN UPPER BOUND.** The integral hands the rain's
+> whole extinction to an isotropic phase function, and `weather.js`'s own note says half of a
+> raindrop's `Qext = 2` is diffraction into a forward lobe of λ/D = 1.7e-4 rad — which a halo never
+> sees. Discount that half and full rain is **4.4%**. The honest figure is the bracket **4.4–7.0%**,
+> and neither end is a halo you would call a halo.
+
+**AND YET THE FRAMES CHANGED, BECAUSE WHAT ARRIVED IS STRUCTURE.** §1.2 has the delivered numbers:
+the air in a lantern's beam gains **18.5% on the road beside it** while a dark wall with no lamp
+near it gains **1.7%**. The glow is where the lamps are and nowhere else.
+
+**FOUR COMMITS OF CODE, ZERO DRAW CALLS, ZERO TRIANGLES, ZERO INSTANCES.** `highway_speed` read **439 of
+440 draws, 2.13 M of 2 360 000 triangles and 312 006 instances** — every one identical to session
+43's, to the unit. The one spare draw call is still spare.
 
 ---
 
-## 1. THE MEDIUM WAS LIT BY THE SKY ALONE, AND AT MIDNIGHT THE SKY IS NOT WHAT LIGHTS IT
+## 1. NOTHING HAD EVER SET RAINFALL, AND THE BRIEF SAID TO CHECK THAT BEFORE BUILDING ON IT
 
-`lights.js`'s haze block has been headed **"THE MEDIUM IS LIT BY WHAT IT CAN SEE, AND IN A STREET
-THAT IS NOT THE SKY"** since session 27 — and then lit the medium by the sky alone, scaled DOWN by
-the canyon's openness, with nothing standing in for the light the openness factor removes. The
-city's own lamps were never in the integral.
-
-They are now, in the same single-scattering model and evaluated exactly rather than marched. Along
-the view ray, a source at L contributes
+It is true, and it was checked four ways before a line was written:
 
 ```
-    L_in = rho_s . p . I . (1/h) . [ atan((t1 - t0)/h) - atan((t00 - t0)/h) ]
+  main.js         `rainfall` is not in DEFAULTS, so it is not a CONTRACT §6 parameter and
+                  no URL can set it. `createWeather()` was called with NO ARGUMENTS.
+  weather.js      `createWeather`'s own cfg default is 0.
+  camera.js       every route carries `t` and `wet`. None carries a rainfall.
+                  `night_rain` is `wet: 0.85` and nothing else — a route named for weather
+                  it has never had.
+  the whole tree  `setRainfall` has exactly TWO call sites and both are the plumbing:
+                  the module's own api and `harness.setRainfall`, which nothing calls.
 ```
 
-with `t0 = L.v` the source's projection onto the ray, `h` its perpendicular distance from it, and
-`[t00, t1]` the part of the segment inside the light's own declared radius. Two atans and a divide
-per light, no step count to budget.
+`budget.json` → `capture.params` is `{seed, perf}`, so no gate could have passed one either.
 
-**THE HALO IS THE 1/h AND NOTHING IS AUTHORED TO PRODUCE IT.** A ray passing close to a lamp
-integrates a large 1/r² over its whole length and one passing wide does not. Three decisions are
-worth recording beside it:
+**WHAT IS DORMANT AND WHAT RUNS, WHICH IS THE OTHER HALF OF THE QUESTION.** Everything wetness
+drives has been running since session 33: the wet film, the puddle roughness, the Fresnel gate and
+the drying law, at `main.js`'s `wet: 0.55`. Everything RAINFALL drives was dormant: the three
+particle layers, the Marshall–Palmer split, the rain extinction, `setHazeOpenness`, and the whole
+in-scatter multiplier session 43 built the integral for.
 
-- **Isotropic phase, 1/4π, and it is a consistency argument.** The sky in-scatter forty lines below
-  mixes the sky's radiance in with no phase function at all. Two halves of one haze with two phase
-  functions are two atmospheres, and the closed form is exact only for a phase that does not vary
-  along the path.
-- **Bounded to the light's own radius.** The direct term windows at `d0.w` and stops; an in-scatter
-  integrating 1/r² to the horizon would be one light with two ranges, which is CONTRACT §9's shape
-  with a falloff radius.
-- **The cone and the batwing at the closest point.** Without the cone a downlight glows as a
-  sphere. Without the batwing the air directly under one is `(1/peakCos)³` too bright.
+### 1.1 THE PARAMETER, AND THE WEATHER BEHIND IT
 
-### 1.1 ZERO DRAW CALLS, AND AT THIS CITY'S DECLARED AIR IT IS 1.6%
+`rainfall` is a §6 parameter with the shape `fill`, `fieldDrip`, `ui` and `hud` already use:
+**−1 defers, `>= 0` pins.** Behind the −1 is a shower cycle in `weather.js`, and it is a **PURE
+FUNCTION of `time.now`** rather than an integrated state — so two captures at the same clock agree
+whatever they stepped in between, which is the determinism defect that put `citycheck`'s saturation
+peak 1.64 points apart on three identical runs.
 
-Paired, same tree, same pose, minutes apart: **294 draws at HEAD and 294 after.** No instance, no
-triangle, no pass — it is ALU in a shader that already runs.
-
-**AND THE ARITHMETIC SAID IT WOULD BE INVISIBLE BEFORE A FRAME WAS TAKEN.** A ray passing 9 m from
-a 6 800 cd lantern collects **0.022 cd/m² against a road at about 1.4 — 1.6%.** That is not a
-shortfall in the model:
-
-> **A METEOROLOGICAL VISIBILITY OF 8.7 km MEANS A STREET LAMP HAS NO HALO.**
-
-`ATM.hazeDensity` is 4.5e-4 /m and its own comment calls that *"an ordinary night in a city rather
-than a smog event"*. It is right, and the consequence is that the term is real and sub-threshold.
-
-**THE PATH IS LIVE AND THAT WAS CHECKED RATHER THAN ASSUMED** — CONTRACT §7.1, a check gone quiet
-being indistinguishable from one that passed. An arm at **40×** was rendered in a disposable
-worktree: every lantern in it carries a cone on the wall beside it, and the frame also washes out,
-which is the global lift LOOK.md §3 refuses. So the mechanism works and the density is what it is.
-
-What 1× delivers, measured on the delivered frames rather than argued:
+**FOUR NUMBERS AND THREE OF THEM WERE ALREADY IN THE MODULE:**
 
 ```
-    the darkest large surface in the frame      8.73  ->  9.43 cv    +8.1%
-    the wall under the nearest lantern         37.43  -> 37.43 cv    +0.0%
-    the whole frame                            34.25  -> 33.87 cv    -1.1%
+  how long a shower lasts   sqrt(WET_TAU_FULL_S x DRY_TAU_S) = sqrt(18 x 3000) = 232.4 s
+                            The geometric mean of this module's own two time constants. A
+                            shower much shorter than the 18 s WETTING constant never wets the
+                            road; one much longer than the 3000 s DRYING constant is not a
+                            shower, it is a climate. The film depth cancels, exactly as it
+                            cancels out of the module's own 166.7:1 asymmetry.
+
+  how fast it arrives       RAIN_CLOUD_BASE_M / DROP_TERMINAL_MS = 800 / 8.378 = 95.5 s.
+  and leaves                A shower cannot start faster than the column between the cloud
+                            and the street takes to fill, or stop faster than it empties. So
+                            the profile is a TRAPEZOID: the square wave is the shape that
+                            claims the sky can switch.
+
+  how often it rains        8% of hours, and it is the ONE number from outside — stated as a
+                            citation so the next session can disagree with the climatology
+                            rather than with the code. SITE.latitudeDeg is 40.0 and LOOK.md
+                            §1's density reference is lower Manhattan.  Period 2905 s, 48 min.
+
+  how hard it rains         NOT CHOSEN AT ALL. 1200 mm/yr over 8766 h at RAIN_FULL_MMH pins
+                            the long-run mean of rainfall(t) at 0.0137; divided by the duty
+                            and by the trapezoid's own mean of 0.589 that fixes the MEAN PEAK
+                            at 0.290 = 2.9 mm/h. Peaks are the exponential's inverse CDF at a
+                            golden-ratio sequence in the shower index, clipped at 1, with the
+                            exponential's parameter SOLVED (0.3014) so the clipped mean lands
+                            on the target. 3.6% of showers reach full rain.
 ```
 
-**THE WHOLE FRAME GOES DOWN BECAUSE THE AUTO-EXPOSURE PAYS FOR WHAT IS ADDED.** 64% of pixels are
-darker and 12% brighter. That is `exposure.js` doing what §5.4 says it does, and it is also why a
-haze term that merely raised everything would achieve nothing: only a term with STRUCTURE survives
-adaptation. This one has it — it lifts the dark and leaves the bright alone.
-
-### 1.2 THE LOOK BANDS: TWO OF FOUR MOVED BY EXACTLY NOTHING, AS PREDICTED IN THE CODE
-
-`lookcheck`, three runs a side, run-to-run spread 0.0001 on every band:
+**THE CONSERVATION CHECK IS INTEGRATED OFF THE DELIVERED FUNCTION AND PRINTED AT BOOT**, rather than
+restated from the algebra that produced it. 1024 showers at 64 midpoints inside each:
 
 ```
-    band:noon       0.4288 -> 0.4288    0.0000   photocell off, no local light
-    band:dawn       0.3020 -> 0.3019   -0.0001   ditto
-    band:dusk       0.1393 -> 0.1393    0.0000   red before, red after, same 0.0007
-    band:midnight   0.0753 -> 0.0741   -0.0012   green, margin 0.0033 -> 0.0021
-
-    crushed black at midnight  1.158% -> 0.873%  of a 2.0% ceiling
-    frame sd at midnight       0.1394 -> 0.1375  floor 0.126
+  weather: ... DELIVERED long-run mean 0.01369 against 0.01369 required by 1200 mm/yr at
+  10 mm/h (0.04%), integrated over 1024 showers.
 ```
 
-The two bands with no street lighting in them moved by nothing, which is the prediction written
-beside the code. **NO BAND WENT RED AND NOTHING WAS RE-DERIVED** — the brief's §7 discipline was
-prepared for and not needed. The one statistic that moved the way anybody asked is the crushed
-black: **a quarter of the frame's black clipping is gone**, which is the term lifting the darkest
-air-filled pixels and is what "the street has depth" is made of.
+**WHAT WAITING ACTUALLY GETS YOU, printed rather than left to be discovered.** The first four
+showers after a boot, at `timeScale` 1:
 
-### 1.3 WHAT IT CANNOT DO, AND BOTH HALVES ARE FINDINGS
+```
+    t = 14.5 min   peak 0.081   0.8 mm/h    drizzle
+    t = 63.0 min   peak 0.580   5.8 mm/h    a proper shower
+    t = 111  min   peak 0.193   1.9 mm/h
+    t = 159  min   peak 0.028   0.3 mm/h
+```
 
-**THE LEVER IS THE AIR'S DENSITY AND THE CITY ALREADY DRIVES IT.** `weather.js` → `hazeFor`
-multiplies `hazeDensity` by up to **4.46× at full rainfall**, which is LOOK.md §3's own *"denser
-where the air is dirtier"* as a mechanism rather than a wish.
+That sequence is an artefact of the equidistributed sequence's own offset and nothing else — it is
+the distribution doing what a distribution does, and the *mean* is what was solved for. It is
+printed here because "wait a quarter of an hour and it drizzles" is a legitimate thing to be
+surprised by, and `?rainfall=` is the answer to it.
 
-> **NOTHING IN THIS PROJECT HAS EVER SET RAINFALL.** `night_rain` is a route with `wet: 0.85` and
-> **no rain in it**; `rainfall` is not a CONTRACT §6 parameter and `createWeather`'s own default is
-> 0. Every frame this project has ever taken is a frame in clear air.
+**AND THE PHASE IS NOT A NEW NUMBER EITHER.** `main.js`'s `wet: 0.55` is the drying law at THIRTY
+MINUTES past a shower, and its own comment says the thirty minutes is the argument and the 0.55 is
+the consequence. So the cycle is phased so `now = 0` lands exactly there: the last shower ended
+1800 s ago, the road is at `exp(-1800/3000)` = 0.5488 and drying, and the two defaults now describe
+one city instead of being two numbers that can drift.
 
-**AND IT CANNOT LIGHT THE AIR AROUND A SIGN.** The 958 signs and every window are emissive
-MATERIALS with no photometry attached — no candela, so there is nothing to integrate. The air glows
-around the 192 lanterns, the 96 headlamps, the stall lamps and the block's shopfronts. That is a
-fact about the light list and not a choice.
+### 1.2 WHAT IT DELIVERS, MEASURED AS A RATIO INSIDE ONE FRAME
+
+Session 43's finding that **auto-exposure pays for anything added** is the reason absolute code
+values across two frames cannot be compared: at full rain **76% of pixels go DARKER** and the frame
+mean falls 34.64 → 31.84 cv. A ratio taken inside ONE frame survives that, and session 43's own
+1.6% is already a ratio — in-scatter against the road it is seen beside.
+
+**THE FIVE ARMS BELOW ARE ONE BOOT.** `rainsweep.mjs` loads the page once, sets the pose once and
+sweeps `setRainfall` with the clock paused, so no vehicle, pedestrian or streamed chunk moves
+between them and the air is the only thing that differs. That matters and it was found the hard way:
+the same rectangles read completely differently on the DELIVERED frame pair, which is a separate
+boot — `road_lit` is 98.31 cv in the sweep and 22.61 in the `lookat` capture, because a vehicle's
+headlamp pool is in that rectangle in one and not the other. **Patch coordinates do not transfer
+between two boots of this city**, and a ratio table has to come from one.
+
+```
+  patch, as a fraction of the lit road in the same frame        r=0      r=0.35     r=1.0
+    the air in the lantern's beam, low                        0.2009    0.2145    0.2381   +18.5%
+    the air in the lantern's beam, under the head             0.3066    0.3187    0.3375   +10.1%
+    a dark wall with NO lamp near it                          0.0891    0.0899    0.0906    +1.7%
+    the sky over the canyon                                   0.1313    0.1855    0.2302   +75.3%
+    the far end of the street                                 0.4243    0.4126    0.4064    -4.2%
+```
+
+**THE 1.7% IS THE CONTROL AND IT IS THE POINT.** A wall with no lamp near it gains almost nothing,
+because the light-haze integral only sums the froxel's OWN lights — so this cannot become a global
+lift, which is what LOOK.md §3 refuses. The beam gains eleven times as much as the wall does.
+
+The other two rows are aerial perspective doing what it should: the sky over the canyon nearly
+doubles against the road (a low overcast lit by the city is what a rainy night has instead of
+stars), and the far end of the street LOSES 4.2%, because at midnight extinction over 100 m takes
+more out of a distant emitter than in-scatter puts back. Depth arrived as a cue, not as a wash.
+
+### 1.3 AND IT STILL CANNOT LIGHT THE AIR AROUND A SIGN
+
+Unchanged from session 43 and re-confirmed against a better instrument than last time.
+`perfcheck`'s own light-role census enumerates **every light in the world by role** and prints it on
+each route line:
+
+```
+    roles   aircraft:1   traffic:96   stall:12   block:56   lamp:192        357 lights
+```
+
+**THERE IS NO SIGN ROLE, AND THERE ARE 975 SIGNS.** Signs and windows are emissive MATERIALS with no
+candela attached, so there is nothing for any scattering model to integrate — it is a fact about the
+light list rather than a choice. The air glows around those 357 and around nothing else.
 
 ---
 
-## 2. THE WALLS WERE SMOOTH BOXES WITH RECTANGLES DRAWN ON THEM
+## 2. THE RAIN IS ALSO SOMETHING YOU SEE, AND ALL THREE LAYERS RENDER
 
-The only boxes on an elevation were the window lintel, the cill and the era's own spandrel or
-mullion — all of which are the wall rather than things ON it. LOOK.md §5's device list has asked
-for *"encrusted facades"* since it was written.
-
-**IT IS DERIVED FROM `CITY_ERAS` AND NOT FROM THE GENRE**, which is §5's test applied to a wall.
-Each era's storey height, window rhythm and ground treatment between them already say what a wall
-of that period carries:
+The brief asked whether the streak, splash and spray meshes are dormant too. They are not — they
+were never dormant, they were never *fed*. Measured live over five arms of one sweep:
 
 ```
-  prewar        grid, 4.3 m, shopfront      a fire escape, because it is OLD and was REQUIRED to;
-                                            external stacks, because its plumbing came after it;
-                                            NO ducting, because it is not air-conditioned
-  postwar       band, 3.05 m, blankPlinth   a ribbon window, and the spandrel under a ribbon is
-                                            where a through-wall unit goes
-  corporate     vertical, 3.85 m, colonnade ducting, intake louvres, condenser banks — and NO fire
-                                            escape, because protected internal stairs are exactly
-                                            why it could be sealed
-  infill        irregular, 3.45 m           a building patched over decades: a bit of everything
-  contemporary  panel, 3.6 m, cornice 0     NEARLY NOTHING, and that is the point
+    rainfall     rain_streak   rain_splash   rain_spray    draws    triangles
+      0            0 / 500       0 / 130       0 / 70        294    1 360 340
+      0.15       500 / 500     130 / 130       4 / 70        294    1 360 340
+      0.35       500 / 500     130 / 130       4 / 70        294    1 360 340
+      0.60       500 / 500     130 / 130       4 / 70        294    1 360 340
+      1.00       500 / 500     130 / 130       4 / 70        294    1 360 340
 ```
 
-`contemporary` is the one that would have been easiest to get wrong. It is the era whose written
-identity is that it *"could not have been framed in 1960"*; encrusting it would erase the one
-difference the era table exists to draw.
+**RAIN COSTS NOTHING AND THAT WAS CHECKED RATHER THAN ASSUMED**, which is the brief's instruction.
+The three meshes carry `frustumCulled = false` and a 1e6 bounding sphere, so they are in the draw
+count whether it is raining or not: turning the rain on moves no draw call, no triangle and no
+instance. The second pose reads 329 in all five arms.
 
-### 2.1 ZERO DRAW CALLS, AND THE COST IS INSTANCES
+**HOW THEY READ FROM THE PAVEMENT, said as three separate answers:**
 
-```
-                       draws    triangles   instances   cpu p95        wall p95
-    A  no clutter        439      2.06 M      302 599   10.70 11.20    11.90 12.40
-    B  clutter           439      2.13 M      310 898   11.50 11.30    12.60 12.60
-```
-
-Interleaved **A-B-B-A** on one machine with nothing else running, which is the only admissible
-form (the memory note's paired-worktree method: *a paired ratio is admissible where neither
-absolute is*). **+8 299 instances, +0.07 M triangles against a 2 360 000 ceiling, and no draw
-call.**
-
-**THE CPU SEPARATION IS +0.45 ms ON THE MEANS AGAINST A WITHIN-ARM RANGE OF 0.50 (A) AND 0.20 (B)
-— A DELTA THE SIZE OF ITS OWN NOISE**, which is CONTRACT §0 rule 6 exactly. `wall p95` read 12.60
-against 12.5 on both clutter runs and 11.90 / 12.40 on both baseline ones; a 0.10 ms breach against
-a stated run-to-run resolution of 0.40–0.80 is §0.1's original incident with a different content
-change in it. **The final run of the session, with all four items in, read cpu p95 10.80 and wall
-p95 11.90 — indistinguishable from arm A.** None of it is admissible at load1 3.13 and it needs
-the operator's quiet battery; it is not claimed either way here.
-
-An earlier reading of **17 frames over 33 ms** was two browsers running at once and did not
-reproduce in any clean arm.
-
-### 2.2 THE SMALL UNITS ARE ON `near` AND THE SILHOUETTES ON `detail`
-
-`buildFacade`'s own sentence, one level down: *"facades, windows and signage are what a building
-contributes at four hundred metres; a bollard, a lamp post and the join between the asphalt and the
-kerb are not."* **A 0.3 m cabinet is the facade's bollard.** A stack, a duct run and a fire escape
-have a silhouette — 1.7 m of steel at 384 m is twelve pixels at the internal resolution — so those
-keep the detail ring. The split took the delivered box count over the resident ring from **13 411
-to 7 010** and took them out of frames nobody can resolve them in.
-
-Positions are on `buildFacade`'s OWN bay grid — `cols` and `colW` recomputed from the same
-expression the windows use — so a pier kind lands on the solid between two openings and a spandrel
-kind lands in the band above a window head. **One rotation convention throughout** (pre-swapped
-scales, `bld.yawDeg` alone), because mixing the two put 24 907 fins through every east and west
-elevation in session 13.
-
-### 2.3 THE FIRE ESCAPE IS THE ONE THING DECLARED, AND THE GUARD HAS FIRED
-
-Everything else projects at most 0.48 m into the first half-metre off a wall above 4.2 m, which
-nothing in this city claims. An escape reaches 1.05 m over the pavement for six storeys, so its
-PROJECTING part is claimed as `canopy` — `occupancy.js`'s own category for the part of a thing
-above head height, which conflicts with solids and not with the footway under it. The wall face is
-the claim's inner edge and `overlaps()` is strict, so an escape does not conflict with the wall it
-is bolted to.
-
-Delivered: **104 escapes over the resident ring, 0 refused at the lamprow camera and 1 refused at
-the origin.** `citycheck` sees them — **272 `canopy` claims in the delivered sweep**.
-
-**ITS BOUND IS STATED RATHER THAN ASSUMED.** A falsifying arm at **16 m of projection** refused no
-more than the shipping 1.05 m does, because the extra depth reaches into a carriageway and a canopy
-may cross one. What the guard can catch is a neighbour in the same chunk, the block keep-out and a
-landmark claim — the same bound the ad pillar's own comment records for `placed`.
-
-**Nothing here is below `HEAD_CLEAR_M`**: the band starts at the plinth, 4.2 m or 5.4 m over a
-shopfront, so no box on any wall can be walked into and the pavement's occupancy question does not
-arise.
+- **Streaks read.** 500 of 500, leaning 21° at 12 m under the module's 3 m/s wind, and clearly
+  visible against the sky in the delivered frame. Against a dark wall they are faint — which is
+  derived rather than a defect: `STREAK_NITS` is the glint case at 1.889 cd/m² and the module's own
+  boot log says the ensemble mean is 2.55e-3 and "draws nothing".
+- **Splash crowns are present and very faint.** 130 of 130 on the carriageway, staggered across
+  their own 0.10 s life by `seedSplash` so a still frame catches them at every phase. On a wet road
+  at midnight they are at the edge of visible. **This is the same shape as the carried "rain streaks
+  near-invisible wide at night" gap, one layer over, and it is now measured rather than suspected.**
+- **Spray delivers 0 to 4 of 70, and which one depends on the pose.** `sprayFollowsTraffic` is TRUE
+  at every r > 0, so the carried "rain_spray 0 static" gap is closed — the layer does follow the
+  traffic. What it cannot do is fill: `budget.json` sized 70 from "6 vehicles in the near field × 2
+  wheel lines × 6 puffs", and a pavement pose has **no vehicles in the near field at all**. 4 of 70
+  on the carriageway pose, 0 of 70 on the pavement pose.
 
 ---
 
-## 3. TWO SIGNS WERE WIDER THAN THE BUILDINGS THEY ARE BOLTED TO
+## 3. THE WEATHER HAS STATE, AND THE BRIEF'S THIRD CLAUSE IS BACKWARDS BY A FACTOR OF 31
 
-Measured straight out of the pure generator over `citycheck`'s own 10 × 10 at seed 1337 — no
-browser, no GPU, so every number is a coordinate or a count.
-
-```
-                                        s34's city     before        after
-    signs                                      692        958          975
-    taller than wide                    0 (  0.0%)  111(11.6%)   107(11.0%)
-    the tallest sign in the city            5.98 m    14.24 m      23.99 m
-    >= 12.2 m   four storeys            0 (  0.0%)   9 ( 0.9%)   42 ( 4.3%)
-    >= 18.3 m   six storeys             0 (  0.0%)   0 ( 0.0%)   10 ( 1.0%)
-    >= 21.35 m  seven storeys           0 (  0.0%)   0 ( 0.0%)    6 ( 0.6%)
-    building-scale signs                         —  22 ( 2.3%)   46 ( 4.7%)
-      width / its own frontage, p50              —       0.79         0.67
-      width / its own frontage, worst            —       1.37         0.85
-      WIDER THAN THEIR OWN FRONTAGE              —          2            0
-```
-
-**AND THE 692 IS A COUNT OF A CITY THAT NO LONGER EXISTS.** LOOK.md §3 has quoted it since session
-34; the population is **958**, because the roof signs landed afterwards and 428 of the 958 are
-rooftop mountings. Corrected in place in LOOK.md rather than left to go stale a fourth time (§8's
-own rule).
-
-**THE OVERHANG IS CONTRACT §9's SHAPE WITH TWO WIDTHS.** `width` was an absolute `range(9, 17)` on
-an elevation that is a `range(11, 27)` — two independent draws, one of which has to fit inside the
-other. It is a FRACTION OF THE FRONTAGE now, using `ROOF_SIGN`'s own `widthFrac` construction and
-its own numbers, so the roofline and the elevation can no longer say different things about the
-same quantity. `along` is scaled by `1 − width/frontage`, which is a bound on where a sign may
-stand rather than a shrink applied after the fact.
-
-### 3.1 A BAND WHOSE TOP TOUCHES THE TARGET DELIVERS THE TARGET NEVER
-
-This is the finding worth more than the table.
-
-A first arm raised the blade aspect ceiling from 7.0 to **9.0**, at which the widest blade reaches
-2.2 × 9.0 = 19.8 m and six storeys (18.3 m) is therefore *reachable*. **The generator delivered 0
-of 975.** Only a near-zero-measure corner of the (width, aspect) square gets there: at A = 9.0 only
-widths above 2.033 m qualify at all, and within them only the top sliver of the aspect band.
-
-So the ceiling is solved from HOW OFTEN the target has to arrive instead. §3 asks for *"several at
-different depths in one frame"* and `SIGN_BLADE.pTrading` already answers the same question with
-the same population — **a frame down a retail street sees six to ten frontages** — so about one
-blade in eight must be one. Over w ~ U(0.9, 2.2) and a ~ U(2.6, A):
+The brief asked for a city where "it rains sometimes, the streets stay wet for a while afterwards,
+and **the air stays thick longer than the ground stays shiny**". The first two are delivered. The
+third is not, and it is not delivered because this city's own physics says the opposite. Three time
+constants, every one of them derived from a number already in the project:
 
 ```
-    A =  9.0   P(w.a >= 18.3) = 0.007      A = 13.0   P = 0.158
-    A = 12.0   P            = 0.114        A = 14.0   P = 0.201
+    the drops fall out of the column     95.5 s    RAIN_CLOUD_BASE_M / DROP_TERMINAL_MS
+    the street's air exchanges            329 s    a 19.7 m canyon at 0.02 x WIND_10M_MS
+    the road dries                       3000 s    DRY_TAU_S
 ```
 
-**12.0**, and the delivered blade population is **10 of 107 over 18.3 m — one in 10.7** against the
-one in 8.8 the solve predicted.
+**THE GROUND IS SHINY 31× LONGER THAN THE AIR IS THICK.** And the 95.5 s is not a missing term —
+it is `SHOWER_EDGE_S`, the trailing edge of every shower, so the air already stays thick for exactly
+as long as it physically can.
 
-### 3.2 THE BIG ONES ARE WHERE THE TRADE IS
+The canyon height is worth its own line because it was measured rather than assumed: for an infinite
+street canyon the sky view factor at the road centre is `sin(a)` with `tan(a) = (W/2)/H`, and
+`canyon.roadSkyVis` is **0.51** at `CORRIDOR` = 11.7 m of half-width, which puts the walls at
+**19.7 m**.
 
-Session 28's roll doing the work it was built for. A building-scale sign is ADVERTISING and
-advertising is bought where the people are; the blade got this conditioning in session 34 and the
-building-scale sign never did — it was a flat 0.07 on any building over 30 m, which puts a
-nine-storey sign on a quiet residential street. **0.20 trading / 0.09 on a retail frontage / 0.02
-elsewhere**, and the last is not zero because a corporate tower carries its own name over the door
-and that is identification rather than advertising.
+**THE ONE MECHANISM THAT COULD REVERSE THE ORDERING WAS COMPUTED, NOT DISMISSED.** A wet road
+humidifies its own canyon and a humid aerosol swells. The film is 0.05 mm = **50 g/m² of water**,
+and the saturation deficit at the 15 °C and 80% RH that `EVAPORATION_MMH`'s own Penman figure is
+stated at is 2.56 g/m³ — so **the film holds enough water to saturate a 19.5 m column of its own
+street's air, against a canyon measured at 19.7 m.** That coincidence is why it was worth taking
+seriously. It still fails on the flux: 0.06 mm/h of supply against 0.06 m/s of exchange is a steady
+excess of 0.28 g/m³, which raises the street from 80.0% to 82.2% RH, and `(1 − RH)^−0.65` on that is
+**+7.8% of the aerosol = 3.5e-5 /m — 2.2% of the rain's own 1.5556e-3.** It also decays with the
+wetted fraction, i.e. **with** the road rather than after it, and it would move eight look
+assertions because `lookcheck` pins wetness to 1.0 in every wet frame it captures. It buys 2% of the
+term it was meant to reinforce and none of the property it was wanted for. **It is not built, and
+the whole derivation is in `weather.js`'s "what is deliberately not here" so nobody has to redo it.**
 
-The building population is 64.8% trading, 13.4% on a retail frontage without trading and 21.8%
-neither, so the population-weighted probability is **0.146 against the old flat 0.07** — and the
-delivered count doubled exactly as the arithmetic said, 22 → 46.
+### 3.1 THE WATER'S CLOCK AND THE SUN'S CLOCK DISAGREE BY 72×
 
-**NO DRAW CALL AND NO INSTANCE.** Signage is already one merged `city:signs` mesh; the paired
-frames read 147/147 and 191/191 draws.
+Building a weather cycle is what exposed this. `time.js` runs a **1200 s day**, so:
+
+- `DRY_TAU_S` = 3000 s is **two and a half simulated days**. On the sun's calendar this city's roads
+  take most of a week to dry.
+- A cycle scaled to the SUN instead — a shower a day, which is roughly right for 1200 mm/yr — would
+  rain every 20 minutes of wall clock onto a road that takes 50 minutes to dry, and the city would
+  be **permanently wet**. That is the "always on" the brief refuses, arrived at from the other side.
+
+**Rainfall and wetness are two halves of one water budget and have to agree with EACH OTHER before
+either agrees with the sun**, so both are on `time.now`. The consequence is stated rather than
+hidden: at `timeScale` 1 the shipped city rains for about four minutes in every forty-eight, and
+`?rainfall=` is how you look at a shower without waiting for one — exactly the relation `?t=` has to
+midnight.
 
 ---
 
-## 4. THE HOLOGRAM IS NOT A TRANSPARENT SURFACE, AND THAT IS WHY IT COST NOTHING
+## 4. NO GATE MOVED, AND THE REASON IS STRUCTURAL RATHER THAN LUCKY
 
-The brief's instruction was to measure before building and to say so with the number if it does not
-fit. **The measurement was done first and it is the reason the form is what it is.**
+The cycle is phased 1800 s past a shower, so the next one is **872 s away** at boot. That is the
+margin every threshold in this project now silently depends on, so it was measured rather than
+argued:
 
-> A transmissive surface needs `transparent: true` and a blend mode. That is a second MATERIAL,
-> which is a second MESH even when it is merged city-wide the way `city:signs` is. **Exactly one
-> draw call — and 439 of 440 means it is the only one left.**
+> **`runRoute` CALLS `setTimeOfDay`, WHICH CALLS `time.setPaused(true)`.** The simulated clock is
+> FROZEN for the whole of every measured window. The longest route in the project — the player's
+> **6000 frames** — leaves `time.now` at **5 s**, all of it the 300 warmup frames before
+> `takeOver()`. **872 / 5 = 174×, and it does not depend on how fast the machine renders.**
 
-So the third of LOOK.md §3's three properties is delivered LITERALLY instead of through alpha: the
-panel is a **raster of emissive bars**, a 0.10 m bar on a 0.62 m pitch — 16% light and 84% air —
-and you see the wall through it because nothing is there. It is also the honest form for the thing:
-a projected image has no substrate, so what a volumetric display is made of is stacked planes of
-light and not a sheet.
+**AND IT IS PRINTED NOW, BECAUSE A DEPENDENCY NOTHING PRINTS IS CONTRACT §7.1's OWN SHAPE.** Every
+`perfcheck` route line carries `rain 0.00 (now 5s, next shower 868s), 0 drops`. A route that ever
+rained would say so beside the numbers it invalidated.
 
-All three properties, checked against the section's own words:
+### 4.1 THE LOOK BANDS: FOUR OF FOUR UNMOVED, THREE RUNS EACH
 
 ```
-  "it hangs in air nothing supports"        7.0 m up, off the END of the elevation, over the
-                                            junction. Nothing under it and nothing beside it.
-  "it is brighter than the wall behind it"  HOLOGRAM.nits 2600, which is 30 x LIGHT.signPlateNits
-                                            and the gain the instance tint carries — the same
-                                            arrangement the roof signs' own 11.63x uses.
-  "you can see through it to the wall"      84% air, and the delivered frame shows the facade's
-                                            lit windows between the bars.
+    band:noon       0.4288  0.4288  0.4288      s43: 0.4288    0.0000
+    band:dawn       0.3021  0.3021  0.3021      s43: 0.3019   +0.0002
+    band:dusk       0.1393  0.1393  0.1393      s43: 0.1393    0.0000   RED, carried
+    band:midnight   0.0741  0.0741  0.0741      s43: 0.0741    0.0000
+
+    crushed black at midnight   0.869 / 0.871 / 0.872 %   of a 2.0% ceiling  (s43: 0.873)
+    frame sd at midnight        0.137                     floor 0.126
 ```
 
-**DERIVED, NOT SCATTERED.** A hologram is advertising, so it belongs where advertising is: over a
-**corner shop at a junction**, which is the one retail position `RETAIL.corner` already models and
-the one place on a street where people stand still long enough to read something. `p = 0.16 +
-density · 0.30`, so a downtown junction carries one far more often than a junction a kilometre out.
+Run-to-run spread **0.0000 on every band over three runs** (a fourth run of `dusk` read 0.1392, so
+the instrument's resolution is the 0.0001 it has always been). Dawn's +0.0002 against session 43 is
+two counts of that resolution and the delivered field-slot count differed between the runs
+(25/30 against 30/30), which is the known source. **NO BAND WENT RED AND NOTHING WAS OWED UNDER
+LOOK.md §7** — the brief's re-derivation discipline was prepared for and, for the second session
+running, not needed.
 
-**COLD BY CONSTRUCTION**, indexed out of the cold half of `SIGN_CHROMA` rather than written again.
-LOOK.md §3 wants a third of emitters cold and session 32 measured the delivered emissive area at
-8.0%; a projected image is a narrow-band source and this is the one new emitter population this
-session adds, so putting it on the warm side would have moved the one number §3 is most emphatic
-about in the wrong direction.
-
-**IT FACES ALONG THE STREET, NOT OUT OF THE WALL**, which is session 14's own finding — the
-mounting that reads from a pavement is the one perpendicular to the elevation — and it matters more
-here than for a plate, because **a raster of horizontal bars seen edge-on is nothing at all**.
-
-**IT IS CLAIMED AND IT IS COUNTED.** The panel's plan goes into `placed` as `canopy`, refused
-rather than moved. `canopy × carriageway` is absent from `occupancy.js`'s FORBIDDEN on purpose, so
-the outer 1.8 m of the widest panel hanging over the roadway at 7.0 m is allowed by the table
-rather than by an exemption — which is what §3's *"above the street"* means. Holograms are in
-`objectCount`, so `clumping` sees them; they land only on retail corners, so the direction is the
-safe one.
-
-Delivered: **53 over the region, 42 resident, 928 bars in `city:signs`, 0 refused.** **295 draws in
-both arms.**
+**AND THAT IS EXACTLY WHAT SHOULD BE ARGUED WITH.** The bands did not move BECAUSE the gates still
+render clear air. If the operator wants the gates to measure a city it rains in, that is a decision
+about what the instrument is for, and §9 item 2 carries it with the cost attached.
 
 ---
 
@@ -374,213 +336,323 @@ both arms.**
 Run individually, because `npm run gates` is `&&`-joined and stops at the first red.
 
 ```
-  parsecheck   GREEN   112 files, contract-clean. Unchanged from session 42 — this session
-                       added no file and its two scratchpad probes are outside the tree.
-  faultcheck   GREEN
+  parsecheck   GREEN   112 files, contract-clean. Unchanged from sessions 42 and 43 — this
+                       session added no file; its four probes are in the scratchpad.
+  faultcheck   GREEN   7 cases, quarantine surgical, the frame survives every one.
   windcheck    GREEN
-  perfcheck    RED at 2, and BOTH ARE THE CARRIED VEHICLE ONES:
-                 highway_speed  439 draws of 440   UNCHANGED FROM HEAD
-                                2.13M tris of 2 360 000   (2.06M at HEAD)
-                                312 006 instances  (302 599 at HEAD)
-                 ✗ 65% of 23 vehicles have a dark gap at the ground (min 75%)
-                 ✗ 65% of 23 vehicles carry a non-monotone tone profile (min 75%)
-               No draw-call, triangle, memory or frame-time violation. Nothing this
-               session touched a vehicle; see §9 item 1 on the spread.
-  citycheck    RED at 3 — the SAME THREE as sessions 40, 41 and 42:
-                 clumping CV        0.440 -> 0.443   (floor 0.60, untouched by instruction)
-                 sign quads inside      2 -> 2       UNCHANGED under signs half again as tall
-                                                     AND under 928 hologram bars: the DENOMINATOR
-                                                     went 1792 -> 2720 and the numerator did not
-                 delivered overlaps     2 -> 2       the same two, both adpillar x prop
-               Bright reserve 6.11% -> 6.53% GREEN against 6.00 — MORE green, not less, which is
-               session 42's own finding again: more lit content on a night route is more bright
-               reserve. 8 landmarks placed, 8 visible from elevation, 0 unreachable on foot,
-               worst detour 1.46x. No new violation of any kind.
-  lookcheck    RED at 3 — band:dusk 0.1393, facadeAlbedo, facadeNeighbours. IDENTICAL
-               before and after the haze, three runs a side. §1.2.
+  inputcheck   GREEN   keyboard 3.468 / 3.500 m/s, gamepad look 178.08 / 180.00 deg/s,
+                       mouse 40.0 cm/360 inside the 27.2–60 band, lock acquired.
+  lookcheck    RED at 3 — band:dusk 0.1393, facadeAlbedo, facadeNeighbours. THE SAME THREE
+                       as sessions 42 and 43, at the same values. §4.1.
+  gateaudit    RED at 1, AND IT IS THE SAME THREE ONE LEVEL OUT: "the unperturbed frames do
+                       not pass their own gate" naming band:dusk, facadeAlbedo and
+                       facadeNeighbours. Everything else in it is green, including
+                       `ok control — every assertion ran` (nothing suppressed), 74/74
+                       perfcheck falsify cases at 100% coverage, 61/61 citycheck cases,
+                       13/13 inputcheck cases, and both shape-control sweeps.
+  citycheck    RED at 3 — the SAME THREE as sessions 40 through 43:
+                 clumping CV        0.443    (floor 0.60, untouched by instruction)
+                 sign quads inside      2 of 2720
+                 delivered overlaps     2    both adpillar x prop, the same two
+               Bright reserve 6.24% GREEN against 6.00 (per-run 6.47 / 6.16 / 6.24, spread
+               0.31). 8 landmarks placed, 8 visible from elevation, 0 unreachable on foot,
+               worst detour 1.46x. NO NEW VIOLATION OF ANY KIND.
+
+               AND ONE NUMBER MOVED A LONG WAY WITH NO ATTRIBUTION, RECORDED RATHER THAN
+               EXPLAINED: the saturation peak reads 4.01% (per-run maxima 3.93 / 4.04 / 4.01,
+               spread 0.10) against a 12% ceiling. `city-budget.json` -> saturation
+               `$estimator` records six per-run maxima of 8.64 to 11.74 and calls that gate
+               "green by less than its own resolution". It is now green by 8 points. Nothing
+               this session touched saturation — night_rain ran at rainfall 0 like every other
+               route — so this is content from an earlier session, and it is a QUESTION for the
+               next one rather than a claim from this: what took a third off the saturation
+               peak, and does the estimator note still describe the gate it was written for?
+  perfcheck    RED at 13 in the final invocation and 10 in the first — see §5.1. ONE of them
+               is content (the carried vehicle tone-profile bar); the rest are frame time and
+               two frame-level statistics, and NONE of those is admissible at load1 2.42–3.56.
+               Every COUNT is identical across three invocations and identical to session 43.
 ```
 
-**THE GATES WERE RUN BEFORE THIS FILE WAS WRITTEN**, which is the brief's own instruction after
-session 42 shipped two defects into a commit that its own gate then caught.
+### 5.1 PERFCHECK RAN THREE TIMES, THE COUNTS AGREED TO THE UNIT, AND THE MILLISECONDS DID NOT
 
----
+Three invocations across the session — two complete and one that **lost its last route to a
+browser crash** (`page.evaluate: Execution context was destroyed, most likely because of a
+navigation`, on `player`, the 6000-frame route, on a machine with a 100%-CPU indexing pass running).
+That is recorded rather than hidden: it is the second thing this session's machine did that a quiet
+one would not have. **Every count is identical in all three, and identical to session 43's:**
 
-## 6. HOW EVERY FRAME IN THIS FILE WAS TAKEN
+```
+                        draws     tris   instances       weather
+   downtown_dense         343    1.87M     237 836       rain 0.00, 0 drops
+   highway_speed          439    2.13M     312 006       rain 0.00, 0 drops
+   night_rain             342    1.84M     292 225       rain 0.00, 0 drops
+   player                 330    1.81M     237 836       rain 0.00, 0 drops
+```
 
-All at seed 1337, all `?paused=1`, all wet, all at 1.70 m on the street, and **every pose
-ray-tested with `tools/poseprobe.mjs` and pinned with `--dmin` = `--dmax`** before the camera was
-placed.
+**`highway_speed` READS 439 OF 440 DRAWS, 2.13 M OF 2 360 000 TRIANGLES AND 312 006 INSTANCES** —
+session 43 recorded 439 / 2.13M / 312 006. Not one unit moved. **The one spare draw call is still
+spare**, and this session spent no part of the triangle or instance headroom either.
+
+**THE MILLISECONDS, ON THE OTHER HAND:**
+
+```
+   highway_speed cpu p95     s43        11.50       11.50       12.90
+     the three runs behind      —   [11.6 11.4 11.5]  [11.5 11.6 11.5]  [12.1 12.9 31.4]
+     s43's own reading       10.70 to 11.20
+```
+
+**ONE RUN OF THE FINAL INVOCATION READ 31.4 ms ON A ROUTE WHOSE OTHER FIVE READINGS THIS SESSION
+WERE 11.4 TO 12.9** — an intra-invocation spread of **19.6 ms** against a ceiling of 12.5. `player`
+read 28.2 / 24.9 / 16.2. `load1` ranged 2.42 to 3.56 and `mediaanalysisd-access` held 97–100% of a
+core for most of the session. **CONTRACT §0.2 is explicit about what that licenses, and it licenses
+nothing:** not one millisecond here is admissible, in either direction, and the three invocations
+disagreeing by 1.4 ms on the median while agreeing to the unit on every count is the cleanest
+demonstration of that distinction this project has recorded.
+
+**THE VIOLATIONS, SORTED BY WHAT THEY ARE.** Thirteen in the final invocation, ten in the first
+(the two invocations that reached the end):
+
+- **Seven to nine are cpu p95 or wall p95**, plus two "frames over 33 ms" that only appeared in the
+  final invocation. All machine. None claimed either way.
+- **Two are `night_rain`'s frame LEVEL statistics** — mean luminance 0.0698 against a floor of 0.08
+  and entropy 4.933 against 5.0. Both are read off ONE screenshot and both are the statistic
+  `budget.json` → `$screenshotEntropy_s17` already records as unpooled and straddling its own noise.
+  The per-run means printed beside them are **0.0698 / 0.0743 / 0.0639** in the final invocation and
+  **0.0721 / 0.0692 / 0.0688** in the first, so the assertion lands green or red depending on which
+  run happens to be last. **Neither has anything to do with rain**: `night_rain` ran at
+  `rain 0.00, 0 drops`, printed on its own line, like every other route.
+- **ONE IS CONTENT**, and it is the carried vehicle bar:
+
+```
+   ✗ 60% of 68 vehicles carry a non-monotone tone profile (min 75%)     invocation 1
+   ✗ 63% of 78 vehicles carry a non-monotone tone profile (min 75%)     invocation 3
+                                                    s43: 65% of 23
+```
+
+**AND SESSION 43'S OTHER VEHICLE BAR WENT GREEN ON ITS OWN.** *"65% of 23 vehicles have a dark gap
+at the ground"* was red in session 43 and is absent from all three invocations here — ground
+contrast read 0.9267 / 0.8493 / 0.8025 and passed every time. **Nothing touched a vehicle in either
+session.** §9 item 4.
+
+## 6. HOW EVERY FRAME AND EVERY NUMBER IN THIS FILE WAS TAKEN
+
+All at seed 1337, all `?paused=1`, all at 1.70 m on the street, all at `--t=0.0`, all `--wet=1`.
 
 ```
   1  node tools/poseprobe.mjs --target=8,8,90 --eye=1.7 --dmin=80 --dmax=80 --fov=55
      node tools/lookat.mjs --pos=1.03,1.70,169.70 --target=8,8,90 --fov=55 --t=0.0 --wet=1 \
-       --name=s43-haze  --tag=<before|after>
-  2  the same pose, --t=0.0,0.5 --name=s43-wall --tag=<before|after>
-  3  node tools/poseprobe.mjs --target=-97,20.9,521 --eye=1.7 --dmin=45 --dmax=45 --fov=55
-     node tools/lookat.mjs --pos=-142,1.70,521 --target=-97,20.9,521 --fov=55 --t=0.0 --wet=1 \
-       --name=s43-sign2 --tag=<before|after>
-  4  node tools/poseprobe.mjs --target=142.8,10.4,119.3 --eye=1.7 --dmin=35 --dmax=35 --fov=50
-     node tools/lookat.mjs --pos=177.67,1.70,122.35 --target=142.8,10.4,119.3 --fov=50 \
-       --t=0.0 --wet=1 --name=s43-holo2 --tag=<before|after>
+       --name=s44-rain --tag=<before|after> --params=rainfall=<0|0.6>
+
+  2  node tools/poseprobe.mjs --target=9.7,5,130 --eye=1.7 --dmin=110 --dmax=110 --fov=55
+     node tools/lookat.mjs --pos=9.7,1.70,240 --target=9.7,5,130 --fov=55 --t=0.0 --wet=1 \
+       --name=s44-lamp --tag=<before|after> --params=rainfall=<0|0.6>
 ```
 
-**THE `before` ARM IS A GIT WORKTREE IN THE SCRATCHPAD**, per the memory note: worktrees land
-outside iCloud, so the conflict-copy hazard that put `src/lib/citygen 2.js` in the tree in session
-37 never arises, and no repo file is rewritten twice. `node_modules` is one symlink.
+**BOTH POSES WERE RAY-TESTED AND BOTH FRAMES WERE THEN CHECKED FOR THEIR SUBJECT**, which is STATE
+43 §6's lesson and cost that session two frame pairs. Pose 1 is azimuth 95° inside `poseprobe`'s
+clear run 90–100°; pose 2 is azimuth 90° in the same run. Both were then looked at before anything
+downstream was measured: pose 1 has three lanterns and a lit facade in it, pose 2 has a lantern in the
+near field, a receding line of six more, pedestrians and a cold sign.
 
-**TWO POSES WERE THROWN AWAY AND IT IS WORTH SAYING WHY.** `poseprobe` answers *"is there a BUILDING
-in the way"* and it answers it correctly; it does not answer *"is the subject in frame"*. A first
-hologram pose at `--pos=-208.30,1.70,8.50` came back clear and delivered a frame taken under a
-cantilever with the subject nowhere in it — the before and after are pixel-identical. Its own
-header says as much (*"it does NOT answer 'is the subject big enough to read'"*), and the cost of
-not reading that is one frame pair.
+**AND THE `before` ARM IS NOT A WORKTREE THIS TIME — IT IS A PARAMETER.** Session 43 needed a git
+worktree because its change was code. This session's change is a CONTRACT §6 parameter, so both arms
+are one build, one seed and one pose with one number different, which is what §6 says an arm is and
+is strictly stronger than two trees that have to be kept in step (§9.1).
 
-**THE PROBES ARE IN THE SCRATCHPAD AND NOT IN THE TREE.** Two were written this session: a pure
-generator sign census (no browser, no GPU — `generateChunk` is pure, so every number in §3 is a
-coordinate) and a delivered-census reader that boots the page and sums `harness.sceneCensus()`.
-Neither is a gate, neither asserts anything, and `parsecheck` still counts 112 files.
+**FIVE PROBES, ALL IN THE SCRATCHPAD, NONE IN THE TREE.** `parsecheck` still counts 112 files.
+
+```
+  rainsweep.mjs    boots ONCE, holds one pose, sweeps harness.setRainfall, and reports draws,
+                   triangles, layer activity, haze density, visibility and pixel statistics
+                   per level. It is the probe that answered items (a), (c) and (d) at HEAD
+                   BEFORE a line of this session's code existed, and its single boot is why
+                   §1.2's ratios mean anything.
+  patches.mjs      named rectangles as a RATIO INSIDE ONE FRAME, which is the only
+                   exposure-invariant thing a screenshot carries. §1.2.
+  diffmap.mjs      the exposure-normalised difference of two frames, tiled and ranked, so
+                   "where did the light go" is a list of coordinates rather than an
+                   impression. It is what found the lantern cones.
+  scout.mjs        SEVERAL POSES IN ONE BOOT, which is this session's answer to STATE 43
+                   item 8 — a blind pose costs a screenshot instead of a frame pair. Four
+                   candidates were rendered before either pair was taken and the second pose
+                   is the one that came back with a lantern in the near field.
+  gatewindow.mjs   runs a full route and reports the weather state at the end of it. What it
+                   established is §4's end-state: rainfall 0, all three layers at 0 active.
+                   The 5 s figure beside it is `perfcheck`'s own new print, not this — a
+                   timeOfDay delta cannot measure elapsed `now` across a route, because
+                   `runRoute` sets the clock before it starts.
+```
 
 ---
 
 ## 7. WHERE THE BRIEF DISAGREES WITH THE CODE
 
-The brief said *"no false premise from me this time — every number below is session 42's own or
-LOOK.md's, and where the code disagrees, believe the code."* Four places where it does:
-
-1. **"session 41 took cpu p95 to 3.7 ms against a ceiling of 12. There is CPU headroom."** 3.7 ms
-   is `inputcheck`'s frame, not `perfcheck`'s cpu p95 on `highway_speed`, which reads **10.70 to
-   11.20**. The headroom on the route that matters is **1.3 ms and not 8.3**, and item 2 spends
-   about a third of it. This changed what was built: the small clutter units were gated to the
-   `near` ring on that reading.
-2. **"session 42 left roughly 10% of headroom [on triangles]."** Correct — 2.06 M against
-   `ceilings.triangles` **2 360 000** is 12.7%. Note that STATE 42 §6.1 says *"2.06M triangles
-   against a 2.00M ceiling"* twice; the ceiling is 2 360 000 and has been since it was written, so
-   that sentence is the stale one and the brief is right.
-3. **LOOK.md §3's "692 signs"** is 958. §3 above.
-4. **"the reference has signs several storeys tall"** is reachable and the brief was right that
-   session 34 was a start — but the way to get there is not a bigger ceiling, it is a ceiling
-   solved from a frequency. §3.1.
-
-**AND ONE PLACE WHERE THE BRIEF WAS RIGHT AND THE PREDICTION HELD.** *"It will move the luminance
-bands."* It moved two of them and left the two with no street lighting in them at exactly 0.0000,
-which is the prediction written into the code before the gate was run.
+1. **"the air stays thick longer than the ground stays shiny"** is backwards by 31×, and no
+   mechanism in this city's physics reverses it. §3. This is the one place the session did not
+   build what was asked for, and the arithmetic is in the module.
+2. **"session 43's claim is the whole basis of this brief and it should be checked"** — it was, and
+   it holds exactly. §1.
+3. **"Two lines: a `rainfall` default in `main.js` and a `--params` pass-through"** (STATE 43 §9
+   item 2). The pass-through already existed; the default is one line; and the two of them alone
+   would have delivered *permanent* rain, which the brief itself rejects in the next paragraph. The
+   cycle is what the two lines turn into once "sometimes" is a requirement.
+4. **"rain is particles and haze is a shader term, so both should be free of draws"** — correct, and
+   now measured in ten arms rather than assumed. §2.
 
 ---
 
 ## 8. WHAT WAS NOT DONE
 
-- **`clumping` was not touched.** Red by instruction. 0.440 → 0.443 as a consequence of the
-  geometry this session changed, and still under its 0.60 floor. Holograms ARE counted in
-  `objectCount`, so it sees them; they land only on retail corners, which is the direction that
-  helps rather than hurts.
-- **`hazeDensity` was not touched**, and item 1 is 1.6% because of it. Raising it is the global
-  lift LOOK.md §3 and the brief both refuse; the city's own rainfall coupling is the lever and
-  §1.3 says nothing has ever used it.
-- **No sign claims were added to the generator registry.** The brief listed them as open and not
-  for this session, and the fire escape's placement had to work around their absence — it takes
-  the bay furthest from every projecting sign on its own elevation, because there is nothing to
-  refuse it against.
-- **`perfcheck`'s `player` route still does not register the player module.** Carried, untouched.
-- **The `inputcheck` window was not repaired.** The operator's decision, carried.
-- **The two blind sites and the weir's walkable mask.** Carried from STATE 42 §10 item 2.
-- **No quiet battery.** `load1` 2.75–4.06 and never inside 1.6.
-- **No merge to main.** FOUR commits on `claude/noctis-42-operator-five`, pushed, one per item.
+- **No route was given rain.** `night_rain` still carries `wet: 0.85` and no rainfall, and that is
+  a deliberate refusal rather than an oversight: a route is the instrument's operating condition,
+  and arming one re-bases every millisecond in this project's history against a different content.
+  It is §9 item 2, with the cost attached, and it is the operator's call.
+- **`clumping` was not touched.** Red by instruction, 0.443 against a 0.60 floor, unchanged.
+- **`hazeDensity` was not touched.** The rain multiplier is the lever and it is now driven.
+- **The hygroscopic post-shower term was derived and not built.** §3.
+- **No sign photometry.** §1.3 — it is the reason lamps have halos and signs do not, and it is one
+  session's work rather than a line.
+- **The generator registry still contains no sign claims**, `perfcheck`'s `player` route still does
+  not register the player module, and the vehicle tone-profile bar is red for the tenth session.
+  All three were listed as open and not for this session.
+- **No quiet battery.** `load1` 2.42–3.56 and never inside 1.6, with a Photos indexing pass holding
+  a core for the whole session.
+- **No merge to main.** Four commits of code and one of documents on
+  `claude/noctis-44-make-it-rain`, pushed:
+  the parameter and the cycle; the conservation check made cheap; the gate's dependence on being
+  dry made visible; and `hud.js`'s fraction-labelled-mm/h, which was harmless for forty sessions
+  and stopped being so the moment the value could be non-zero.
 
 ---
 
 ## 9. WHAT TO DO FIRST NEXT TIME
 
-1. **THE CLUMPING STATISTIC, REPLACED RATHER THAN RE-NUMBERED.** Carried from STATE 40 item 2,
-   STATE 41 item 3 and STATE 42 item 1, untouched, now **0.443** against a 0.60 floor. **It needs a
-   decision from the operator, not another measurement.**
+1. **THE HALO IS 4.4–7.0% AND THAT MAY BE THE END OF THE LINE FOR THIS MECHANISM.** Session 43
+   built the integral, session 44 gave it the densest air this city's own weather model can produce,
+   and the answer is single-figure percentages. The rain term is already **78% of the total σ** at
+   full rain, and the only density lever left in the module is `RAIN_FULL_MMH` above 10 mm/h —
+   which invalidates every particle count in `budget.json`, all of which were derived at that
+   rate, so it is not a knob. If the operator wants a halo like the reference images, the remaining
+   levers are named and **none of them is a density**:
 
-2. **NOTHING IN THIS PROJECT HAS EVER SET RAINFALL, AND IT IS NOW THE LARGEST UNSPENT LEVER.**
-   `night_rain` is a route with `wet: 0.85` and no rain in it; `rainfall` is not a CONTRACT §6
-   parameter. `weather.js` already models the extinction (`RAIN_SIGMA_FULL`, Marshall–Palmer, ×4.46
-   at full rain), the streak, splash and spray layers are all gated on it, and item 1's haze scales
-   with it for free. **The whole of LOOK.md §1's mood reference is "rain-lit neon at street level"
-   and no frame in this project's history has had rain in the air.** Two lines: a `rainfall`
-   default in `main.js` and a `--params` pass-through that already exists.
+   - **a forward phase function**, which is exactly what the 4.4-vs-7.0 bracket decides. It costs
+     session 43's consistency argument (one atmosphere, one phase) and it is arguable that
+     argument should be paid;
+   - **photometry on the signs**, so that the 975 largest emitters in the city are in the integral
+     at all. `perfcheck`'s role census says there is no sign role and there are 357 lights;
+   - **a deliberate non-physical bloom**, which LOOK.md §3 currently refuses in as many words.
 
-3. **THE VEHICLE SILHOUETTE BARS READ 65% AND 65% THIS SESSION AGAINST 52% AND 63% LAST**, with
-   nothing touching a vehicle in either. STATE 40 item 5's warning about the spread, delivered a
-   third time. **Pool them or stop quoting them** stands, and it is now two bars rather than one.
+   **This needs a decision, not another measurement.**
 
-4. **THE GENERATOR REGISTRY CONTAINS NO SIGN CLAIMS AT ALL.** Carried from STATE 41 item 4 and
-   STATE 42 item 3. It is worth more now than it was: signs are half again as tall and the fire
-   escape had to work around their absence.
+2. **SHOULD A GATE EVER SEE RAIN?** Today none does, by construction (§4), and that is why nothing
+   moved. The honest reading is that this is a *choice* and it has not been made: it can be argued
+   that a city whose mood reference is rain should be measured in rain, and it can be argued that
+   re-basing four routes against different content throws away every millisecond and every band this
+   project has recorded. `budget.json` → `capture.params` is the one line either way.
 
-5. **A `citycheck` ASSERTION THAT DELIVERED MAY NOT EXCEED CLAIMED.** Carried from STATE 42 item 8,
-   and this session found the same shape in the signage — a sign 1.37× its own building — which
-   nothing would have caught either.
+3. **THE CLUMPING STATISTIC, REPLACED RATHER THAN RE-NUMBERED.** Carried from STATE 40 item 2 and
+   every STATE since, untouched, **0.443** against a 0.60 floor. **It needs a decision from the
+   operator, not another measurement.** Fifth session of asking.
 
-6. **`perfcheck` HAS A ROUTE NAMED `player` AND HAS NEVER REGISTERED THE PLAYER.** Carried.
+4. **ONE OF THE TWO VEHICLE BARS WENT GREEN ON ITS OWN AND THE OTHER MOVED 5 POINTS, AND NOTHING
+   TOUCHED A VEHICLE.** Session 43 was red on both: *"65% of 23 have a dark gap at the ground"* and
+   *"65% of 23 carry a non-monotone tone profile"*. This session, over three invocations of the same
+   gate on the same content:
 
-7. **THE `inputcheck` WINDOW**, **THE LOOK CURVE'S TWO BOUNDS PER FRAME AT 60 Hz**,
-   **`landmarkOccluders` UNMEMOISED**, **A LANDMARK'S BOXES AND ITS CHUNK'S MASSES BEING TWO
-   MESHES** (still five draw calls sitting in the tightest budget in the project — and this session
-   spent none of them, so the spare is still one), **THE NARROWING VERDICT**, **THE YARD'S BOUNDARY
-   STACK**, **`band:noon` AND `band:dusk` HAVING NO SURVIVING MECHANISM**, **the end-of-run gap**,
-   **a quiet battery**. Carried from STATE 42 items 4–10, untouched.
+   ```
+     population           23 (s43)      68        63        78
+     ground contrast      RED           pass      pass      pass      0.9267 / 0.8493 / 0.8025
+     tone profile         RED 65%       RED 60%    —        RED 63%
+   ```
 
-8. **`poseprobe` ANSWERS ONE QUESTION AND A FRAME NEEDS TWO.** §6. It ray-tests buildings and says
-   nothing about whether the subject is in shot; two of this session's poses came back clear and
-   delivered pixel-identical pairs. Its `--fill` column is advisory and was not enough. A cheap
-   repair exists: report the subject's screen-space bounding box after the ray test, so a pose
-   that is clear AND blind says so.
+   **The measured population tripled between two runs of one gate** and a carried red closed itself
+   without a line of geometry changing. STATE 40 item 5's warning about this spread, delivered a
+   fourth time and now with a bar that flipped. **Pool them or stop quoting them** is no longer a
+   suggestion: as they stand, one of these two bars reports the traffic's disposition and calls it
+   a verdict about the fleet.
+
+5. **THE SPLASH CROWNS ARE THE SAME DEFECT AS THE STREAKS AND NOW BOTH ARE MEASURED.** 130 of 130
+   render and they are at the edge of visible on a wet road at midnight. §2. It is a nits question
+   against a derived number, so it is a real piece of work rather than a slider.
+
+6. **`rain_spray` DELIVERS 4 OF 70 ON A CARRIAGEWAY POSE AND 0 OF 70 ON A PAVEMENT ONE.**
+   `sprayFollowsTraffic` is true at every rainfall above zero, so the mechanism works and the
+   carried "0 static" gap is closed; what does not work is the sizing. `budget.json` derived 70
+   from "6 vehicles in the near field x 2 wheel lines x 6 puffs" and the delivered near-field
+   vehicle count is 0 or 1. Either the number is wrong or the query radius is, and both are one
+   measurement away.
+
+7. **THE GENERATOR REGISTRY CONTAINS NO SIGN CLAIMS AT ALL.** Carried from STATE 41 item 4.
+
+8. **A `citycheck` ASSERTION THAT DELIVERED MAY NOT EXCEED CLAIMED.** Carried from STATE 42 item 8.
+
+9. **`perfcheck` HAS A ROUTE NAMED `player` AND HAS NEVER REGISTERED THE PLAYER.** Carried.
+
+10. **`poseprobe` ANSWERS ONE QUESTION AND A FRAME NEEDS TWO.** Carried from STATE 43 item 8. This
+    session paid the tax by hand — four scout frames rendered in one boot before either pair was
+    taken — and the repair that entry describes (report the subject's screen-space box beside the
+    ray test) would have made that a flag instead of a habit.
+
+11. **THE `inputcheck` WINDOW**, **THE LOOK CURVE'S TWO BOUNDS PER FRAME AT 60 Hz**,
+    **`landmarkOccluders` UNMEMOISED**, **A LANDMARK'S BOXES AND ITS CHUNK'S MASSES BEING TWO
+    MESHES** (five draw calls in the tightest budget in the project — and this session spent none,
+    so the spare is still one), **THE NARROWING VERDICT**, **THE YARD'S BOUNDARY STACK**,
+    **`band:noon` AND `band:dusk` HAVING NO SURVIVING MECHANISM**, **the end-of-run gap**, **a quiet
+    battery**. Carried from STATE 42 items 4–10 and STATE 43 item 7, untouched.
 
 ---
 
 ## 10. KNOWN GAPS CARRIED FORWARD
 
-**Unchanged from s8–s42**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
+**Unchanged from s8–s43**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
 `saturation-peak.png` overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the
-sky, rain streaks near-invisible wide at night, `rain_spray` 0 static, **right turns only**, sun
-shadows to ~170 m, the bake blind to elevated slabs, the PMREM hitch, the too-red dawn horizon, one
-worker at queue depth one, the far half of the river handing back to the night sky past ~300 m,
-grime authored, the near-field washboard on the water, the quay wall inside the walkable mask,
-props absent from the walkability mask, the 3.5°–10.4° route camera pitch, the frozen/running A/B,
-`materials.display` drawn by nothing, the hauler's marker row buried inside its own body, the
-seeding fallback's untested placement, **a bus never turns**, the origin block's absent occupancy
-registry, `facadeAlbedo` on its floor with zero spread, the station's cores reading as an open
-frame, **nobody can climb the station**, the 0.10 m margin at the core's outer face, `poseprobe`'s
-blindness to the origin block, the pavement's missing kerb, `tools/city-budget.json:84`'s stale
-`$derivation_count`, one merged building pool breaching the triangle ceiling, the station's platform
-slab hiding the train, `traffic.js:2346`'s claimed draw-call margin of one, `minStraightness` and
-`minArrivalsPerMinute` having no gate reader, the zero-second protected pedestrian phase,
-`landmarkBlocks` still exported and still disagreeing with the registry two ways, **the basin is
-walkable in the mask and unwalkable in the geometry**, the two `walkableAt` sites still blind to a
-basin, the quay walk's ulp exposure on four named chunks, **`walkability` unreachable cells at 134
-with no threshold reading it**, **the vehicle silhouette bars red on every reading for nine
-sessions**, a gate message frozen in the present tense of the session that wrote it, **a palisade
-that does not stop a pedestrian**, and **the two delivered `sign ×` overlaps and the two sign quads
-inside a building**.
+sky, **right turns only**, sun shadows to ~170 m, the bake blind to elevated slabs, the PMREM hitch,
+the too-red dawn horizon, one worker at queue depth one, the far half of the river handing back to
+the night sky past ~300 m, grime authored, the near-field washboard on the water, the quay wall
+inside the walkable mask, props absent from the walkability mask, the 3.5°–10.4° route camera pitch,
+the frozen/running A/B, `materials.display` drawn by nothing, the hauler's marker row buried inside
+its own body, the seeding fallback's untested placement, **a bus never turns**, the origin block's
+absent occupancy registry, `facadeAlbedo` on its floor with zero spread, the station's cores reading
+as an open frame, **nobody can climb the station**, the 0.10 m margin at the core's outer face,
+`poseprobe`'s blindness to the origin block, the pavement's missing kerb,
+`tools/city-budget.json:84`'s stale `$derivation_count`, one merged building pool breaching the
+triangle ceiling, the station's platform slab hiding the train, `traffic.js:2346`'s claimed
+draw-call margin of one, `minStraightness` and `minArrivalsPerMinute` having no gate reader, the
+zero-second protected pedestrian phase, `landmarkBlocks` still exported and still disagreeing with
+the registry two ways, **the basin is walkable in the mask and unwalkable in the geometry**, the two
+`walkableAt` sites still blind to a basin, the quay walk's ulp exposure on four named chunks,
+**`walkability` unreachable cells at 134 with no threshold reading it**, **the vehicle silhouette
+bars red on every reading for ten sessions**, a gate message frozen in the present tense of the
+session that wrote it, **a palisade that does not stop a pedestrian**, and **the two delivered
+`sign ×` overlaps and the two sign quads inside a building**.
 
 **CLOSED THIS SESSION:**
 
-- **The air in this city was lit by the sky and nothing else**, since the haze block was written in
-  session 27, in a block whose own heading said otherwise. §1.
-- **Nothing had ever been bolted to a wall in this city.** LOOK.md §5's "encrusted facades", asked
-  for since it was written. §2.
-- **Two building-scale signs were wider than their own buildings**, and no sign in the city reached
-  six storeys. §3.
-- **The city had nothing like a hologram**, LOOK.md §3's one piece of new content. §4.
+- **Nothing in this project had ever set rainfall**, in forty-three sessions, past a setter, a
+  harness method, a HUD readout and a route named for it. §1.
+- **`rain_spray` "0 static"**, carried since session 4b: `sprayFollowsTraffic` is TRUE at every
+  rainfall above zero. What is left is a sizing question, not a dead layer. §2.
+- **LOOK.md §3's open question** — *"that is the open question this bullet leaves"* — is a table
+  now. §0.
 
 **NEW THIS SESSION — all of it measured, none of it inferred:**
 
-- **A METEOROLOGICAL VISIBILITY OF 8.7 km MEANS A STREET LAMP HAS NO HALO.** The exact
-  single-scattering integral against a 6 800 cd lantern at 9 m is 0.022 cd/m² against a road at
-  1.4 — 1.6%. The model is right and the density is what decides. §1.1.
-- **AUTO-EXPOSURE PAYS FOR ANYTHING ADDED TO A FRAME**, so 64% of pixels go DARKER when light is
-  added and only a term with structure survives. §1.1.
-- **NOTHING IN THIS PROJECT HAS EVER SET RAINFALL.** `night_rain` has no rain in it. §1.3.
-- **THE SIGNS AND WINDOWS HAVE NO PHOTOMETRY**, so no scattering model can make them light the air.
-  §1.3.
-- **A BAND WHOSE TOP TOUCHES THE TARGET DELIVERS THE TARGET NEVER** — a ceiling at which six
-  storeys is reachable delivered 0 of 975, and the ceiling has to be solved from a frequency. §3.1.
-- **A TRANSMISSIVE SURFACE COSTS EXACTLY ONE DRAW CALL AND A RASTER OF EMISSIVE BARS COSTS NONE**,
-  which is how the one spare in the project survived a session that added holograms. §4.
-- **LOOK.md's 692 SIGNS ARE 958**, because the roof signs landed after the number was written. §3.
-- **`poseprobe` CAN RETURN A CLEAR POSE THAT CANNOT SEE ITS SUBJECT**, twice this session. §6.
-- **THE BRIEF'S 3.7 ms IS `inputcheck`'s FRAME AND NOT `highway_speed`'s cpu p95**, which is 10.70
-  — so the CPU headroom on the route that matters is 1.3 ms and not 8.3. §7.
+- **THE HALO IS 1.6% → 7.0% AT FULL RAIN, AND 4.4% IF THE RAIN'S FORWARD DIFFRACTION IS DISCOUNTED.**
+  The densest air this city's weather can produce buys a factor of 4.46 on a term that started at
+  1.6% of a road. §0.
+- **RAIN COSTS ZERO DRAW CALLS, ZERO TRIANGLES AND ZERO INSTANCES**, because the three particle
+  meshes are `frustumCulled = false` and are already in every frame's count. Ten arms. §2.
+- **THE HAZE'S GAIN IS 18.5% IN A LANTERN'S BEAM AND 1.7% ON A WALL WITH NO LAMP NEAR IT**, measured
+  as a ratio inside one frame because auto-exposure makes 76% of pixels darker. §1.2.
+- **THE GROUND IS SHINY 31× LONGER THAN THE AIR IS THICK**, and the wet road's own humidity buys
+  2.2% of the rain term rather than reversing it. §3.
+- **THE ROAD FILM HOLDS ENOUGH WATER TO SATURATE A 19.5 m COLUMN AND THE CANYON IS 19.7 m**, which
+  is why the mechanism was worth computing and not why it works. §3.
+- **THE WATER'S CLOCK AND THE SUN'S CLOCK DISAGREE BY 72×**, so no rain cycle can be correct on both
+  and this city's roads take two and a half simulated days to dry. §3.1.
+- **THE SIMULATED CLOCK IS FROZEN INSIDE EVERY GATE**, because `runRoute` calls `setTimeOfDay`,
+  which pauses time. The longest route in the project advances `time.now` by 5 s. §4.
+- **`downtown_dense`'s FRAME MEAN READ 0.0288 / 0.0933 / 0.0932 OVER THREE RUNS OF ONE GATE** —
+  `$screenshotEntropy_s17`'s "vehicle at rest at the lens" state, caught again. §5.1.
+- **THE VEHICLE POPULATION `perfcheck` MEASURES WENT 23 → 68 BETWEEN TWO SESSIONS** with no vehicle
+  touched. §9 item 4.

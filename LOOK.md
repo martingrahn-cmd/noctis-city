@@ -521,8 +521,8 @@ Light is the city's main material. Geometry is what the light lands on.
 
   **WHAT IT DOES DELIVER IS STRUCTURE, AND STRUCTURE IS WHAT SURVIVES THE
   EXPOSURE.** Measured on delivered frames as a RATIO INSIDE ONE FRAME, which
-  is the only exposure-invariant thing a screenshot carries (§5.4 pays for
-  anything added, so 76% of pixels go darker at full rain): the air in a
+  is the only exposure-invariant thing a screenshot carries (CONTRACT §5.4 pays
+  for anything added, so 76% of pixels go darker at full rain): the air in a
   lantern's beam goes from **0.201 to 0.238 of the lit road beside it, +18.5%**,
   while a dark wall with no lamp near it goes 0.0891 → 0.0906, **+1.7%**. The
   glow is where the lamps are and nowhere else, which is what this bullet asks
@@ -530,14 +530,14 @@ Light is the city's main material. Geometry is what the light lands on.
   `tools/shot-out/s44-{rain,lamp}-{before,after}-t0-wet.png`, **294 and 329 draw
   calls in both arms of both pairs.**
 
-  It still cannot light the air around a SIGN, unchanged and for the same
-  reason.
-
-  It also cannot light the air around a SIGN, and that is a fact about the
-  light list rather than a choice: the 958 signs and every window are emissive
-  materials with **no photometry attached** — no candela, so nothing to
-  integrate. The air glows around the 192 lanterns, the headlamps, the stall
-  lamps and the block's shopfronts.
+  It still cannot light the air around a SIGN, and that is a fact about the
+  light list rather than a choice. Session 44 re-confirmed it against a better
+  instrument than the one session 43 used — `perfcheck`'s own light-role census,
+  which enumerates every light in the world by role and prints it beside each
+  route: `aircraft:1  traffic:96  stall:12  block:56  lamp:192`. **THERE IS NO
+  SIGN ROLE, AND THERE ARE 975 SIGNS.** They and every window are emissive
+  materials with no candela attached, so there is nothing for a scattering model
+  to integrate. The air glows around those 357 and around nothing else.
 - **Colour opposition.** This is close to free and it is the biggest unspent
   lever. NOCTIS is currently monochrome amber — nearly every emitter is warm.
   The reference works because cold cyan fights warm sodium in the same frame.
@@ -798,6 +798,32 @@ in the open, with the reason and the date written down.
 
 The occupancy registry is a different matter and keeps its authority: nothing
 may stand inside anything else, whatever it looks like.
+
+### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
+
+Written as a question and not a statement, per §8. Session 44 made rainfall a
+CONTRACT §6 parameter with a shower cycle behind it, and **no gate sees a drop
+of it.** That is by construction rather than by luck: `runRoute` calls
+`setTimeOfDay`, which pauses the simulated clock, so the longest route in the
+project advances `time.now` by 5 s against a dry stretch 872 s wide. Every
+threshold in `look-budget.json`, `city-budget.json` and `budget.json` therefore
+still measures the clear-air city it was derived against, and **not one of the
+four luminance bands moved** — 0.4288 / 0.3021 / 0.1393 / 0.0741, three runs
+each, spread 0.0000.
+
+Which is either exactly right or exactly wrong, and nobody has decided:
+
+> This document's own §1 says the mood reference is **rain-lit** neon. A city
+> measured only in clear air is a city whose instruments have never seen the
+> weather it is supposed to look like. Against that: `budget.json` →
+> `capture.params` is one line, and adding `rainfall` to it re-bases every
+> millisecond, every band and every reserve this project has recorded against
+> different content — which is the cost §7 spends its whole length being careful
+> about.
+
+It is the operator's decision. `?rainfall=` is how a frame gets rain today, and
+`tools/shot-out/s44-{rain,lamp}-{before,after}-t0-wet.png` is what that looks
+like.
 
 ---
 
