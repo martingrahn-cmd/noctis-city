@@ -134,9 +134,15 @@ half is full of lit windows. Is window lighting supposed to scale with district 
 should a sparse block read as unbuilt at night rather than as a quiet one? A count per block
 against the density field answers it in ten minutes.
 
-**L9. TWO BLOWN-WHITE VERTICAL SLIVERS ON THE ORIGIN BLOCK'S ADVERTISING PILLAR AT MIDNIGHT.**
-Not identified. They are pure white, about three pixels wide, and they are the brightest thing in
-the lower half of the frame. *"This reads oddly and I do not know why."*
+**L9. TWO BLOWN-WHITE VERTICAL SLIVERS ON THE ORIGIN BLOCK'S ADVERTISING PILLAR — IDENTIFIED,
+AND IT IS NOT A DEFECT.** Written down anyway, because *"this reads oddly and I do not know why"*
+is a valid entry and this one took one raycast to close. `block:adpillar:faces`, **2.59 m from the
+eye, `emissiveIntensity` 748**, cool white — `AD_PILLAR_BLOCK.faceNits`, which is *"the streamed
+city's own `PILLAR_FACE_NITS`"* and is in the 300–800 cd/m² a backlit advertising panel actually
+runs at. The pillar has three faces and the pose sees two of them nearly edge-on, so a correct
+748 cd/m² panel at 2.6 m arrives as a three-pixel clipped strip. **A real one does that too.**
+The entry that remains is the one it shares with L1: this city has several emitters between 220
+and 748 cd/m² and no rule about how close a person may stand to one.
 
     localhost:5173/?player=1&spawn=44,1.74,9.4&t=0.0&wet=1          s45-pillar-slivers-t0-wet.png
 
