@@ -1101,6 +1101,86 @@ export function createCity(options = {}) {
     };
 
     /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * SESSION 45 — THE KERB WAS A HOLE, AND WHAT YOU SAW IN IT WAS THE EARTH
+     * PLANE.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `GROUND_Y` in this file has said *"Pavement either side of the north–south
+     * carriageway. A REAL kerb now."* since session 19, and the height IS real:
+     * the pavement quad is at `GROUND.pavement` = 0.160 and the carriageway
+     * quad is at 0. **Nothing joined them.** Two horizontal quads at different
+     * heights abutting in plan leave a 0.180 m vertical slot, and from a
+     * standing eye you look straight through it at `block.js`'s 8 km earth
+     * plane. Raycast through the delivered scene at the kerb band of a noon
+     * frame, standing on the carriageway at x = 384, z = 300, at 14.13 m:
+     *
+     *     block:ground   albedo [0.1229, 0.1211, 0.1168]
+     *
+     * That is `GROUND.earthAlbedo` — the surface session 42 identified as *"a
+     * field beside a city"* and calibrated so the far ring would stop reading
+     * as a ploughed one. **It was also the kerb of every street in the streamed
+     * city**, and it is why the operator's third observation says *"no kerb
+     * reads"*: the darker line at a road edge in these frames is not a kerb
+     * face catching less sky, it is the ground UNDER the city showing through.
+     * The origin block has drawn a real one since session 3 (`block.js` →
+     * `matKerb`). Two content paths again, and again `block.js` is the correct
+     * one.
+     *
+     * A RISER, NOT A BOX. The upstand is one quad on the ROAD-FACING edge of
+     * each `walk` rect: the other three edges of a pavement strip either abut
+     * another pavement, a building line or a corridor at the same height, and a
+     * face there would be a wall across the footway.
+     *
+     * WHICH EDGE FACES THE ROAD IS READ OFF `yKey` AND NOT GUESSED. A `walkNS`
+     * strip lies beside a north–south carriageway whose centreline is a chunk
+     * boundary, so the road-facing edge is whichever of `x0`/`x1` is nearer to
+     * the nearest multiple of `CITY.chunkSize`; `walkEW` is the same statement
+     * in z. Measured against the delivered rects of chunk (3,2): the pavement
+     * at x 391.5–395.7 gives 391.5 and the one at 372.3–376.5 gives 376.5,
+     * which are both exactly `roadHalfWidth` from 384.
+     *
+     * THE ALBEDO IS THE ORIGIN BLOCK'S OWN RATIO, not a new number. `block.js`
+     * draws its pavement at 0.2582 linear and its kerb at 0.3185 — 1.2335x —
+     * because an upstand is the same cast concrete as the slab and is not
+     * walked on, so it does not take the traffic film the flat surface does.
+     * Applied to the streamed pavement's [0.26, 0.257, 0.248].
+     *
+     * COSTS: about 8 triangles a chunk, ZERO draw calls (the ground is one
+     * merged mesh), and NOTHING in `rects`. A riser is not a surface anything
+     * stands on, and `rects` is what `surfaceAt` and the delivered occupancy
+     * census read — putting a vertical face in there would give the player a
+     * floor at the pavement's height 0.18 m out into the carriageway.
+     */
+    const KERB_UPSTAND_GAIN = 0.3185 / 0.2582;
+    /**
+     * A VERTICAL QUAD, WOUND SO THAT ITS FRONT FACE POINTS ALONG `dir`.
+     * `windcheck` reads authored normal against triangle facing over every
+     * generated mesh, so the winding here is derived rather than tried: for a
+     * face at x = e spanning z0..z1 the pair (A,B,C) = (e,yLo,z0), (e,yLo,z1),
+     * (e,yHi,z1) has (B−A)x(C−A) = (−dz·dy, 0, 0), which is −X, and the +X face
+     * is the same two triangles with the winding reversed.
+     */
+    const riser = (axis, e, a0, a1, yLo, yHi, dir, albedo) => {
+      const P = axis === 'x'
+        ? (a, y) => [e, y, a]
+        : (a, y) => [a, y, e];
+      const n = axis === 'x' ? [dir, 0, 0] : [0, 0, dir];
+      const A = P(a0, yLo);
+      const B = P(a1, yLo);
+      const C = P(a1, yHi);
+      const D = P(a0, yHi);
+      // (A,B,C),(A,C,D) faces −X for axis 'x' and +Z for axis 'z'.
+      const forward = (axis === 'x') === (dir < 0);
+      const v = forward ? [A, B, C, A, C, D] : [A, C, B, A, D, C];
+      for (const p of v) {
+        positions.push(p[0], p[1], p[2]);
+        normals.push(n[0], n[1], n[2]);
+        colors.push(albedo[0], albedo[1], albedo[2]);
+      }
+    };
+
+    /**
      * THIS FUNCTION NO LONGER DECIDES WHERE THE GROUND IS — SESSION 21.
      *
      * It used to compute the six corridor strips itself and clip them against
@@ -1255,9 +1335,21 @@ export function createCity(options = {}) {
       yardGround: 'ground',
       coreGround: 'ground',
     };
+    const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
-      quad(g.x0, g.z0, g.x1, g.z1, Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth,
-        albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
+      const y = Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth;
+      quad(g.x0, g.z0, g.x1, g.z1, y, albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
+      // The kerb upstand. See `riser` above for why only this one edge.
+      if (g.kind !== 'walk') continue;
+      const ns = g.yKey === 'walkNS';
+      const [e0, e1] = ns ? [g.x0, g.x1] : [g.z0, g.z1];
+      const centre = Math.round(((e0 + e1) / 2) / CITY.chunkSize) * CITY.chunkSize;
+      const roadEdge = Math.abs(e0 - centre) < Math.abs(e1 - centre) ? e0 : e1;
+      // Outward from the pavement is toward the carriageway centreline.
+      const dir = roadEdge > centre ? -1 : 1;
+      riser(ns ? 'x' : 'z', roadEdge,
+        ns ? g.z0 : g.x0, ns ? g.z1 : g.x1,
+        Y.roadNS, y, dir, kerbAlbedo);
     }
 
     /**
