@@ -18,10 +18,12 @@ times of day, wet and dry, at street level and from the air, in BOTH content pat
 block and the streamed city, which session 28 showed is one place a session can build an item into
 only one of. **Eight commits of code and three of documents.** The list below is the deliverable.
 
-**AND THREE TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
-the lamp radiance, the lamp population and the kerb, with `block.js` correct in all three; and a
-fourth, the road markings, with the streamed city correct. That is the shape of what a walk finds
-and no gate does: a gate reads one path or the other and never both at once.
+**AND FOUR TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
+the lamp radiance, the lamp population and the kerb, with `block.js` correct in all three, and the
+road markings, with the streamed city correct. That is the shape of what a walk finds and no gate
+does: **a gate reads one path or the other and never both at once**, and every one of these four
+was a number that had been printed, or a mesh that had been absent, for between fifteen and
+forty-five sessions.
 
 ---
 
