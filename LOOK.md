@@ -32,6 +32,20 @@ layers, a drop-size distribution and no caller. Session 44 turned it on —
 `?rainfall=`, and a shower cycle behind it — so the reference's own weather is
 now something this city can be in rather than something it is described as.
 
+**AND SESSION 45 MADE THE DROPS VISIBLE, WHICH IS NOT THE SAME SENTENCE.** For
+three sessions `?rainfall=1` changed the frame time and changed nothing you
+could see. It was not dormancy: measured at HEAD, **500 of 500 streaks live and
+inside the frustum**, at 0.88 to 12.0 m, median 9.4 m. They arrived at **8.15%
+of the radiance the module's own derivation names**, through three stacked
+dilutions of which two are not in the derivation at all — a coverage profile
+whose mean over its own quad is 0.280, and a drawn population that is 1.1% of
+the rain's glinting cross-section because `budget.json`'s split at 3.28 mm is
+about EXTINCTION and a drop three metres from the eye is BACK-SCATTER. The two
+corrections multiply to 326.3 and the arm chosen by looking at six live-swept
+frames was 70–400, so the derivation lands inside the bracket the eye picked.
+`tools/shot-out/s45-rain-{before,after}-t0-wet.png` is the pair, 118 draws in
+both. **The mood reference's own half-sentence is on the screen now.**
+
 ---
 
 ## 2. Density — what it concretely means
@@ -549,6 +563,30 @@ Light is the city's main material. Geometry is what the light lands on.
   faces. A pedestrian should be lit by something at their own level, not only
   silhouetted.
 
+  **AND THE STREET LAMPS THEMSELVES WERE THE ANSWER TWICE OVER — SESSION 45.**
+  The operator's complaint every time he walks at night is that street level is
+  too dark, and `PLAYER.spawn` is on the origin block's pavement, where the lamp
+  bowl was **0.2151× its own derivation** — 420 cd/m² against 1952.19. Session
+  30 rationed it against `band:midnight`'s ceiling at a delivered 0.1112; the
+  station landed in that frame in session 31 and the band has read 0.0741–0.0745
+  ever since, so the 0.0021 of headroom it was rationed by is 0.0294. At the
+  derivation the band reads **0.0826**, and **`band:dusk` — red since session
+  40 — closed at 0.1410.**
+
+  The second half is the POPULATION and it is the larger one. `LUMINAIRE`'s own
+  derivation is *"a 15 m street with staggered poles both sides"* at *"an
+  effective 15 m"*, `block.js` has built exactly that since session 3, and the
+  streamed city put every pole on the **+x and +z pavement of its own chunk** —
+  so no road in it had ever had a lamp on its other side, and the last 29–38 m
+  of every block front had none at all. Both kerbs now, staggered, full length.
+  `tools/shot-out/s45-{junction,viaduct}-t0-wet.png`.
+
+  **IT COST NEGATIVE FORTY-SIX DRAW CALLS.** The near ring is 35 chunks and each
+  emitted a `:lamps` and a `:bowls` mesh, so street lighting alone could ask for
+  70 of the 440; merged city-wide the way the ground and the signage already
+  are, it asks for 2. `highway_speed` 439 → **395 of 440**. The ceiling that has
+  deferred five sessions of items is no longer the limiter.
+
 ---
 
 ## 4. The street at eye level
@@ -567,6 +605,34 @@ is judged from about 1.7 m.
   left the pavement — and no vehicle yields to anyone standing on it. A crossing
   with no one crossing is a texture. Judge this bullet from the pavement, not
   from the marking census.
+- **THE ROAD HAS TO READ AS A ROAD, AND FOR A THIRD OF THIS CITY IT DID NOT —
+  SESSION 45.** The operator's words about a noon frame: *"the road is the same
+  pale tone as the pavement, no kerb reads, markings barely visible, the whole
+  street reads as a plaza with vehicles on it."* Measured as a scanline across
+  the section at x = 384, z = 300, seed 1337:
+
+  ```
+    pavement      202 code values        the origin block, same measurement:
+    carriageway   188      14 apart        pavement 212, carriageway 151 — 61 apart
+    kerb band     158                      and its kerb is a real one
+    lane line     230
+  ```
+
+  **TWO CAUSES, BOTH SINGLE VALUES, AND `block.js` WAS RIGHT ABOUT BOTH.**
+  `citygen.js` gives 34.7% of chunks a CONCRETE carriageway on a smooth noise
+  field — so it comes in districts, not scattered — and `city.js` drew it at
+  0.19 linear against a 0.26 pavement, which is 1.368× and which ACES at that
+  exposure turns into exactly the 14 code values delivered. It is 0.11714 now,
+  from CIE's own R1/R3 road-surface classes anchored on this city's own asphalt.
+  And the KERB was not a kerb: the pavement quad is at 0.160 and the carriageway
+  quad is at 0 and **nothing joined them**, so what you saw at every road edge
+  in the streamed city was the world's earth plane through a 0.180 m slot.
+  Delivered after both: a 35 code-value step at the kerb line and a face at 82.
+  `tools/shot-out/s45-road-{before,after}-t0_5-dry.png`.
+
+  What is still missing is on STATE 45's list: the ORIGIN BLOCK has no road
+  markings at all, and its 61-value step still reads as a plaza from some angles
+  because nothing draws the boundary.
 - **Parks and planting.** Green in a dense city is punctuation — small squares,
   a strip of trees, a fenced garden between two blocks. Parks exist as a block
   type; they read as dark empty ground at night.
@@ -714,6 +780,16 @@ meshes are `frustumCulled = false` and are in the count whether it is raining or
 not: 294 draws at rainfall 0 and 294 at full rain, measured in five arms of one
 sweep. Delivered at r ≥ 0.15: **streaks 500 of 500, splashes 130 of 130, spray 0
 to 4 of 70** depending on whether a vehicle is in the near field.
+
+**AND "EVERY ONE OF THOSE LAYERS RENDERS" WAS TRUE AND WAS NOT ENOUGH — SESSION
+45.** All three multiplied a MEAN radiance by a SHAPE whose mean over the same
+quad is not 1, so all three shipped a fraction of their own derived flux for
+eleven sessions: **streak 0.280, splash 0.481, spray 0.306.** A shape may
+redistribute energy; it may not remove it. `makeLayer` takes the integral beside
+the shape now and THROWS without it, because a default of 1 is how this comes
+back. It is also half of STATE 44's *"the splash crowns are at the edge of
+visible"* — the other half is that the crowns, like the streaks before them, are
+the population above 3.28 mm and every smaller drop also splashes.
 
 **THIS SECTION USED TO SAY "never seen", AND THAT WAS WRONG — MINE, AND CORRECTED
 IN SESSION 33.** It read *"every frame in this project's history — every gate
