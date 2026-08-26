@@ -390,15 +390,64 @@ Light is the city's main material. Geometry is what the light lands on.
   692 (12.7%) reach even one. The machinery is not the gap: the mountings, the
   size roll, the aspect roll and the lit/half/dead states all exist. **The
   sizes and the orientation are the gap.**
-- **Holograms.** Emissive, semi-transparent, above the street and at junctions.
-  New content, not yet present in any form — checked, session 34: nothing in
-  `citygen.js` or `city.js` emits a transmissive or additively-blended quad
-  anywhere, so this bullet is a statement about absence and not a guess.
+
+  **SESSION 34 CLOSED THE ORIENTATION AND SESSION 43 CLOSED THE SIZE.** Same
+  region, same seed, straight out of the pure generator — and note that the
+  population is **958, not 692**: the roof signs landed after session 34 wrote
+  its number and 428 of the 958 are rooftop mountings, so the 692 above is a
+  count of a city that no longer exists.
+
+  ```
+                                    s34's city      s43 before      s43 after
+    signs                                  692             958            975
+    taller than wide                0 (  0.0%)     111 (11.6%)    107 (11.0%)
+    the tallest sign in the city         5.98 m         14.24 m        23.99 m
+    >= 12.2 m   four storeys           0 ( 0.0%)       9 (0.9%)      42 (4.3%)
+    >= 18.3 m   six storeys            0 ( 0.0%)       0 (0.0%)      10 (1.0%)
+    building-scale signs                     —       22 (2.3%)      46 (4.7%)
+      width / its own frontage, worst        —           1.37           0.85
+      WIDER THAN THEIR OWN FRONTAGE          —              2              0
+  ```
+
+  **AND TWO OF THEM WERE WIDER THAN THE BUILDINGS THEY ARE BOLTED TO**, because
+  `width` was an absolute `range(9, 17)` on an elevation that is a
+  `range(11, 27)` — two draws, one of which has to fit inside the other. It is
+  a fraction of the frontage now, which is also what this bullet's own *"some
+  spanning half a wall"* asks for.
+
+  **A BAND WHOSE TOP TOUCHES THE TARGET DELIVERS THE TARGET NEVER**, and that
+  is worth more than the numbers above. A first arm raised the blade aspect
+  ceiling to the value at which the widest blade *reaches* six storeys, and the
+  generator delivered **0 of 975**: only a near-zero-measure corner of the
+  (width, aspect) square gets there. The ceiling is solved from HOW OFTEN the
+  target has to arrive instead — one blade in eight, because a frame down a
+  retail street sees six to ten frontages — and the delivered figure is one in
+  10.7.
+- **Holograms. BUILT IN SESSION 43, AND NOT OUT OF TRANSPARENCY.** Emissive,
+  above the street and at junctions.
 
   What makes a hologram read is that it does not obey the street: it hangs in
   air nothing supports, it is brighter than the wall behind it, and you can see
   through it to the wall. A hologram that reads as a lit billboard is a lit
   billboard, and this project already has 692 of those.
+
+  **THE THIRD PROPERTY IS DELIVERED LITERALLY BECAUSE ALPHA COSTS THE LAST
+  DRAW CALL.** `highway_speed` stood at 439 of 440 after session 42's weir park.
+  A transmissive surface needs `transparent: true` and a blend mode, which is a
+  second material and therefore a second mesh even merged city-wide the way
+  `city:signs` is — **exactly one draw call, and it is the only one left**. So
+  the panel is a RASTER OF EMISSIVE BARS at a 0.10 m bar on a 0.62 m pitch, 16%
+  light and 84% air, and you see the wall through it because nothing is there.
+  It is also the honest form: a projected image has no substrate, so what a
+  volumetric display is made of is stacked planes of light and not a sheet.
+
+  Delivered over `citycheck`'s 10 × 10 at seed 1337: **53 holograms**, over
+  corner shops at junctions (session 28's retail roll, `RETAIL.cornerM`), cold
+  by construction, riding in the existing merged `city:signs` mesh at a tint
+  gain of `HOLOGRAM.nits / LIGHT.signPlateNits` = 30. **Zero draw calls,
+  measured in both arms at 295** on the same street-level wet midnight pose.
+  `tools/shot-out/s43-holo2-{before,after}-t0-wet.png` is the pair, and the
+  after frame has two of them at two different depths.
 - **Haze around light.** The air is clear and every emitter stops at its own
   edge. In the reference a sign LIGHTS THE AIR — a cone or a bloom around it,
   denser where the air is dirtier, and it is most of what makes a street feel
@@ -410,6 +459,43 @@ Light is the city's main material. Geometry is what the light lands on.
   within 0.0025 of an edge. So it is the change that most needs §7's
   re-derivation discipline, and the one where "it cannot be done honestly
   inside the bands" is a legitimate answer rather than a failure.
+
+  **THE MECHANISM WAS MISSING AND IS NOW THERE; THE LOOK IT WAS SUPPOSED TO BUY
+  IS NOT, AND THE REASON IS A NUMBER. SESSION 43.** `lights.js`'s haze block has
+  been headed *"THE MEDIUM IS LIT BY WHAT IT CAN SEE, AND IN A STREET THAT IS
+  NOT THE SKY"* since session 27 — and then lit the medium by the sky alone,
+  scaled DOWN by the canyon's openness, with nothing standing in for the light
+  the openness factor removes. The city's own lamps are now in the same
+  single-scattering integral, evaluated exactly (two atans, no march) against
+  the froxel's own light list, at **zero draw calls, zero instances and zero
+  triangles**.
+
+  **AND AT THIS CITY'S DECLARED AIR IT IS 1.6%.** A ray passing 9 m from a
+  6 800 cd lantern collects **0.022 cd/m² against a road at about 1.4**. That is
+  not a shortfall in the model — it is what a meteorological visibility of
+  8.7 km MEANS (`ATM.hazeDensity`, 4.5e-4 /m): **on a clear night a street lamp
+  has no halo**. An arm at 40× was rendered to prove the path is live and it is,
+  and it also washes the frame out, which is the global lift this bullet
+  refuses. What the term does deliver at 1× is measurable and it is the right
+  shape: the darkest large surface in the frame goes **8.73 → 9.43 code values,
+  +8.1%**, the whole frame goes **−0.38 cv** because auto-exposure pays for what
+  is added, and **midnight's crushed black falls 1.158% → 0.873%** of a 2.0%
+  ceiling. It lifts the dark and leaves the bright alone, which is the opposite
+  of a lift.
+
+  **THE LEVER IS THE AIR'S DENSITY AND THE CITY ALREADY DRIVES IT.** Rain
+  multiplies `hazeDensity` by up to 4.46× (`weather.js` → `hazeFor`), and this
+  bullet's own *"denser where the air is dirtier"* is that mechanism. **Nothing
+  in this project has ever set rainfall**: `night_rain` is a route with
+  `wet: 0.85` and no rain in it, and `rainfall` is not a §6 parameter, so it is
+  0 in every frame anybody has ever taken. That is the open question this
+  bullet leaves.
+
+  It also cannot light the air around a SIGN, and that is a fact about the
+  light list rather than a choice: the 958 signs and every window are emissive
+  materials with **no photometry attached** — no candela, so nothing to
+  integrate. The air glows around the 192 lanterns, the headlamps, the stall
+  lamps and the block's shopfronts.
 - **Colour opposition.** This is close to free and it is the biggest unspent
   lever. NOCTIS is currently monochrome amber — nearly every emitter is warm.
   The reference works because cold cyan fights warm sodium in the same frame.
@@ -481,6 +567,31 @@ is judged from about 1.7 m.
   `addInstanced` emits one mesh per CHUNK that owns a box and a 210 m bowl spans
   four of them. `highway_speed` stands at **439 of 440**. A ring of ledge
   planters that would have made it six was built, measured at 441, and removed.
+- **THE WALLS WERE SMOOTH BOXES WITH WINDOW RECTANGLES DRAWN ON THEM, AND THE
+  ERA TABLE ALREADY KNEW WHAT EACH ONE CARRIES — SESSION 43.** §5's device list
+  has asked for *"encrusted facades"* since it was written and nothing had ever
+  been bolted to a wall in this city: the only boxes on an elevation were the
+  window lintel, the cill and the era's own spandrel or mullion, all of which
+  are the wall rather than things ON it.
+
+  It is derived from `CITY_ERAS` and not from the genre, which is §5's test
+  applied to a wall. A **prewar** elevation carries a fire escape because it is
+  old and was required to, external soil stacks because its plumbing was added
+  after it was built, and **no ducting at all** because it is not
+  air-conditioned. A **corporate** one carries ducting, intake louvres and
+  condenser banks because it is — and **no fire escape**, because a building
+  with protected internal stairs does not have one, which is exactly why it
+  could be sealed. A **postwar** `band` rhythm is a ribbon window and the
+  spandrel under a ribbon is where a through-wall unit goes. **`infill`** is the
+  era whose written identity is a building patched over decades. **`contemporary`
+  carries nearly nothing**, and that is the point rather than an omission.
+
+  Delivered: **7 010 boxes and 104 fire escapes over the resident ring**,
+  **439 draw calls before and 439 after**, +8 299 instances and +0.07 M
+  triangles against a 2 360 000 ceiling. The small units are on the `near` ring
+  and the silhouettes on `detail`, which is `buildFacade`'s own sentence one
+  level down: a 0.3 m cabinet is the facade's bollard. The fire escape's
+  projecting part is claimed as `canopy` and the guard has fired.
 - **Layered depth.** Three planes in every frame: a dark foreground shape, a lit
   mid-ground, a hazed distance. Frames with only two planes read flat.
 - **Variation over repetition.** The market stalls are the current failure case
