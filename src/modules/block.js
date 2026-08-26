@@ -22,12 +22,13 @@
  */
 
 import * as THREE from 'three';
-import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND } from '../core/constants.js';
+import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND, ROAD_PAINT } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
 import {
   riverBankStations, BUS_STOP, riverEdges,
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
+  ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -504,6 +505,17 @@ export function createBlock(options = {}) {
       /** Cast concrete paving: 0.26 linear, mid-range for a weathered slab. */
       const matPavement = surfaceMaterial(ctx, { color: 0x8b8780, roughness: 0.9 });
       const matKerb = surfaceMaterial(ctx, { color: 0x99958e, roughness: 0.84 });
+      /**
+       * Road paint — session 45. `ROAD_PAINT.albedo` is LINEAR and carries its
+       * own derivation in `constants.js`; `city.js` reads the same object, so
+       * the paint on this street and the paint three chunks away cannot become
+       * two different whites.
+       */
+      const matMarking = surfaceMaterial(ctx, { color: 0xffffff, roughness: ROAD_PAINT.roughness });
+      matMarking.color.setRGB(
+        ROAD_PAINT.albedo[0], ROAD_PAINT.albedo[1], ROAD_PAINT.albedo[2],
+        THREE.LinearSRGBColorSpace,
+      );
       /**
        * The world's earth plane. `GROUND.earthAlbedo` is LINEAR and carries the
        * derivation — it is the area-weighted mean of the city's own drawn
@@ -2282,6 +2294,134 @@ export function createBlock(options = {}) {
       // is CONTRACT §9.1's config-the-code-does-not-read with a position.
       for (const st of LAMP_STATIONS) addLamp(st[0], st[1], st[2], st[3]);
 
+      // ---- road markings ---------------------------------------------------
+
+      let markingCount = 0;
+
+      /**
+       * ═════════════════════════════════════════════════════════════════════
+       * SESSION 45 — THE ONE STREET IN THIS CITY WITH NO PAINT ON IT IS THE
+       * ONE THE LOOK GATE STANDS IN AND THE ONE THE PLAYER SPAWNS ON.
+       * ═════════════════════════════════════════════════════════════════════
+       *
+       * `citygen.js` delivers 2 077 crossing stripes over `citycheck`'s 10 x 10
+       * (LOOK.md §4) and this file delivered NONE — no centre line, no lane
+       * line, no edge line, no stop bar, no zebra, in 336 m of main street and
+       * 92 m of cross street. Searching this file for "marking" before this
+       * session returned nothing; the word "crossing" in it means the cross
+       * STREET.
+       *
+       * AND IT IS NOT AN OVERSIGHT, IT IS A GUARD DOING ITS JOB. `citygen`'s
+       * `paint()` refuses any mark whose footprint is not covered by a
+       * DELIVERED `carriageway` claim, so that *"a road the river took, the
+       * block took or a dome took has no lines painted in the air over where it
+       * used to be"*. `BLOCK_KEEPOUT` clips the lattice's carriageway out of
+       * this block so that the asphalt above wins — so the lattice correctly
+       * paints nothing here, and nothing else ever painted anything.
+       *
+       * THIS PAINTS EXACTLY THE GROUND THE KEEP-OUT TOOK, which is why the two
+       * cannot double up: the marks run to `BLOCK_KEEPOUT`'s own edges and the
+       * lattice's start outside them. Every dimension is `ROAD_MARKING`,
+       * IMPORTED — the same arrangement `BUS_STOP` has had since session 30 —
+       * and the thickness and reflectance are `ROAD_PAINT`, which `city.js`
+       * reads from the same place.
+       *
+       * ONE DRAW CALL, and this session is why there is room for it: the merged
+       * lamp meshes took `highway_speed` from 439 of 440 to 395.
+       */
+      {
+        const P = ROAD_MARKING;
+        const paintGeo = track(new THREE.BoxGeometry(1, 1, 1));
+        const marks = [];
+        const mq = new THREE.Quaternion();
+        const mp = new THREE.Vector3();
+        const ms = new THREE.Vector3();
+        /** `length` is the box's local X, `width` its local Z; yaw takes X onto the road. */
+        const put = (x, z, length, width, yawDeg) => {
+          mp.set(x, GROUND.carriageway + ROAD_PAINT.thicknessM / 2, z);
+          mq.setFromEuler(new THREE.Euler(0, yawDeg * DEG, 0));
+          ms.set(length, ROAD_PAINT.thicknessM, width);
+          marks.push(new THREE.Matrix4().compose(mp, mq, ms));
+        };
+        /**
+         * The junction box. A mark inside it is a mark across whichever axis
+         * has green, which is the defect session 33 found in the streamed
+         * city's own crossings. Cleared by half the crossing street plus the
+         * same 0.05 m every join in this block uses.
+         */
+        const clearX = halfCross + 0.05;
+        const clearZ = halfStreet + 0.05;
+        const inJunction = (x, z) => Math.abs(x) < clearX && Math.abs(z) < clearZ;
+
+        // --- the main street, along x, centreline z = 0 --------------------
+        const x0 = BLOCK_KEEPOUT.x0;
+        const x1 = BLOCK_KEEPOUT.x1;
+        for (let t = x0 + P.centreCycleM / 2; t < x1; t += P.centreCycleM) {
+          if (!inJunction(t, 0)) put(t, 0, P.centreMarkM, P.lineWidthM, 0);
+        }
+        for (const side of [-1, 1]) {
+          const zl = side * P.laneOffsetM;
+          for (let t = x0 + P.laneCycleM / 2; t < x1; t += P.laneCycleM) {
+            if (!inJunction(t, zl)) put(t, zl, P.laneMarkM, P.lineWidthM, 0);
+          }
+          const ze = side * (halfStreet - P.edgeInsetM);
+          for (let t = x0; t < x1; t += P.edgeSegmentM) {
+            const c = t + P.edgeSegmentM / 2;
+            if (!inJunction(c, ze)) put(c, ze, P.edgeSegmentM, P.lineWidthM, 0);
+          }
+        }
+
+        // --- the cross street, along z, centreline x = 0 -------------------
+        const z0 = BLOCK_KEEPOUT.z0;
+        const z1 = BLOCK_KEEPOUT.z1;
+        for (let t = z0 + P.centreCycleM / 2; t < z1; t += P.centreCycleM) {
+          if (!inJunction(0, t)) put(0, t, P.centreMarkM, P.lineWidthM, 90);
+        }
+        for (const side of [-1, 1]) {
+          const xe = side * (halfCross - P.edgeInsetM);
+          for (let t = z0; t < z1; t += P.edgeSegmentM) {
+            const c = t + P.edgeSegmentM / 2;
+            if (!inJunction(xe, c)) put(xe, c, P.edgeSegmentM, P.lineWidthM, 90);
+          }
+        }
+
+        /**
+         * THE STOP BARS AND THE ZEBRAS, AT THE ONE JUNCTION THIS BLOCK HAS.
+         *
+         * `CITY.stopLineFromJunctionM` is the SAME 9.0 m `traffic.js` brakes a
+         * nose to and `citygen` paints the lattice's bars at, so a vehicle
+         * stopped at this block's line has its bumper on the paint exactly as
+         * it does three chunks away. The zebra's band is solved the way session
+         * 33 solved the lattice's, with THIS street's numbers substituted:
+         *
+         *   near edge >= halfCross + 0.05 = 6.55   outside the crossing carriageway
+         *   far edge  <= d - barWidth/2 - 0.05 = 8.75   inside the line vehicles stop at
+         *
+         * which is 2.20 m of depth centred on 7.65 — wider than the lattice's
+         * 1.20 m because this block's cross street is 13 m and not 15, and
+         * derived rather than copied for exactly that reason.
+         */
+        const d = CITYGEN.stopLineFromJunctionM;
+        const near = clearX;
+        const far = d - P.barWidthM / 2 - 0.05;
+        const zebraDepth = far - near;
+        const zebraAt = (near + far) / 2;
+        const span = halfStreet - P.edgeInsetM;
+        for (const sgn of [-1, 1]) {
+          // The approach half: with right-hand traffic the lane approaching the
+          // junction from `sgn` on an x-running road is the `-sgn` half in z.
+          const half = -sgn;
+          put(sgn * d, half * (halfStreet / 2 + 0.15), P.barWidthM, halfStreet - P.edgeInsetM, 0);
+          for (let k = 0; k < P.crossingStripes; k++) {
+            const u = (k + 0.5) / P.crossingStripes;
+            put(sgn * zebraAt, (2 * u - 1) * span, zebraDepth, P.crossingStripeWidthM, 0);
+          }
+        }
+
+        addInstanced(paintGeo, matMarking, marks, 'block:markings');
+        markingCount = marks.length;
+      }
+
       // ---- signage --------------------------------------------------------
 
       /**
@@ -2678,6 +2818,8 @@ export function createBlock(options = {}) {
           signs: signLights.length,
           shopLights: shopLights.length,
           occluders: occluders.length,
+          /** Session 45. The block's own paint; `city.js` counts the lattice's. */
+          markings: markingCount,
         },
       };
     },

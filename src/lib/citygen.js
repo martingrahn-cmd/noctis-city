@@ -4771,6 +4771,75 @@ export function landmarksTouching(cx, cz, margin = 4) {
 // through the block's facades — but it does still place roads, because the
 // block's street has to continue out of it or the city has no through route.
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ROAD MARKINGS — THE GEOMETRY, EXPORTED, BECAUSE A SECOND STREET WANTED IT.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 45. These eleven numbers were local `const`s inside `generateChunk`'s
+ * markings block and every one of them is still that block's own derivation —
+ * what changed is that they are now readable from outside it, because
+ * `block.js` paints the origin block's street and a second copy of a dash cycle
+ * is CONTRACT §9.1's arrangement. The precedent in this file is `BUS_STOP`,
+ * which `block.js` already imports for exactly this reason: *"a shelter here and
+ * a shelter three chunks away cannot become two different objects the way one
+ * lamp bowl became 210 and 9000."*
+ *
+ * WHY THE ORIGIN BLOCK HAD NO PAINT AT ALL, WHICH IS THE DEFECT THIS SERVES.
+ * `paint()` below refuses any mark whose footprint is not covered by a
+ * DELIVERED `carriageway` claim — *"a road the river took, the block took or a
+ * dome took has no lines painted in the air over where it used to be"*. The
+ * origin block's 336 m of main street is exactly a road **the block took**:
+ * `BLOCK_KEEPOUT` clips the lattice's carriageway out of it so that
+ * `block.js`'s own asphalt wins. So the one street in this city that the look
+ * gate stands in, and the one the player spawns on, is the one street with no
+ * paint on it — by construction, in a guard that is doing its job.
+ *
+ * WHAT IS NOT HERE, and it is the same line this file draws everywhere else:
+ * the paint's THICKNESS and REFLECTANCE are not in this object. This generator
+ * is `three`-free and unit-free, and `city.js` says of the same pair that *"a
+ * linear albedo in a placement file is a number in the wrong file"*. They are
+ * `ROAD_PAINT` in `core/constants.js`, which is where a shared physical
+ * quantity with a derivation belongs, and both modules read them from there.
+ */
+export const ROAD_MARKING = {
+  /**
+   * THE DASH CYCLE. UK/EU centre-line practice on a 50 km/h urban road is a
+   * 2 m mark in a 6 m cycle (1:3); a lane line is 3 m in a 9 m cycle. Both are
+   * here rather than one number twice, because the RATIO is what tells a
+   * driver which line they are looking at and a single cycle would erase the
+   * distinction.
+   */
+  centreMarkM: 2.0,
+  centreCycleM: 6.0,
+  laneMarkM: 3.0,
+  laneCycleM: 9.0,
+  /**
+   * m. Where a lane line sits, from the road centreline. `LANE_OFFSET`'s own
+   * midpoint, (1.75 + 5.25) / 2 = 3.50 m, which `traffic.js` puts the two
+   * running lanes either side of.
+   */
+  laneOffsetM: 3.5,
+  /** m. 0.10 m is a standard urban line; a stop bar is 0.40 m. */
+  lineWidthM: 0.10,
+  barWidthM: 0.40,
+  /** m. How far inside the kerb the solid edge line runs. */
+  edgeInsetM: 0.30,
+  /**
+   * m. The edge line is solid, and a solid line is emitted as a run of boxes
+   * because one box per chunk edge would be a 128 m instance that no frustum
+   * test can reject. 16 m was the literal inside the loop.
+   */
+  edgeSegmentM: 16,
+  /**
+   * The zebra. 1:1 stripe to gap over the 14.4 m a 15 m carriageway leaves
+   * inside a 0.30 m edge margin: 14 x 0.50 m on a 1.029 m pitch. Session 21's
+   * six 0.45 m stripes over half a road was a hatch, not a crossing.
+   */
+  crossingStripes: 14,
+  crossingStripeWidthM: 0.50,
+};
+
 export const BLOCK_KEEPOUT = { x0: -168, x1: 168, z0: -46, z1: 46 };
 
 function insideKeepout(x, z, pad = 0) {
@@ -7348,6 +7417,9 @@ export function generateChunk(rootSeed, cx, cz) {
 
   // --- road markings --------------------------------------------------------
   //
+  // EVERY DIMENSION BELOW IS `ROAD_MARKING`, EXPORTED — SESSION 45, AND THE
+  // REASON IS THAT A SECOND STREET WANTED THEM. See that object's own note.
+  //
   // THE PAINTED LINE AND THE TRAFFIC'S BRAKING POINT ARE ONE NUMBER, AND THIS
   // IS THE CONSUMER THAT DID NOT EXIST. `CITY.stopLineFromJunctionM` has said
   // since session 19 that it has three readers — the braking constraint, the
@@ -7393,13 +7465,12 @@ export function generateChunk(rootSeed, cx, cz) {
      * driver which line they are looking at and a single cycle would erase the
      * distinction.
      */
-    const CENTRE_MARK = 2.0;
-    const CENTRE_CYCLE = 6.0;
-    const LANE_MARK = 3.0;
-    const LANE_CYCLE = 9.0;
-    /** Metres. 0.10 m is a standard urban line; a stop bar is 0.40 m. */
-    const LINE_W = 0.10;
-    const BAR_W = 0.40;
+    const CENTRE_MARK = ROAD_MARKING.centreMarkM;
+    const CENTRE_CYCLE = ROAD_MARKING.centreCycleM;
+    const LANE_MARK = ROAD_MARKING.laneMarkM;
+    const LANE_CYCLE = ROAD_MARKING.laneCycleM;
+    const LINE_W = ROAD_MARKING.lineWidthM;
+    const BAR_W = ROAD_MARKING.barWidthM;
     /**
      * The crossing. Depth is what the band between the junction mouth and the
      * stop bar leaves (see the junction block below); the stripe count and
@@ -7408,8 +7479,8 @@ export function generateChunk(rootSeed, cx, cz) {
      * pitch.
      */
     const CROSSING_DEPTH = CITY.crossingDepthM;
-    const CROSSING_STRIPES = 14;
-    const CROSSING_STRIPE_W = 0.50;
+    const CROSSING_STRIPES = ROAD_MARKING.crossingStripes;
+    const CROSSING_STRIPE_W = ROAD_MARKING.crossingStripeWidthM;
 
     for (const axis of ['NS', 'EW']) {
       const at = axis === 'NS' ? b.x0 : b.z0;
@@ -7428,11 +7499,12 @@ export function generateChunk(rootSeed, cx, cz) {
       // lanes either side of.
       for (const side of [-1, 1]) {
         for (let t = from + LANE_CYCLE / 2; t < from + S; t += LANE_CYCLE) {
-          put(t, side * 3.5, LANE_MARK, LINE_W, 'lane');
+          put(t, side * ROAD_MARKING.laneOffsetM, LANE_MARK, LINE_W, 'lane');
         }
-        // Edge line, solid, 0.30 m inside the kerb.
-        for (let t = from; t < from + S; t += 16) {
-          put(t + 8, side * (r - 0.3), 16, LINE_W, 'edge');
+        // Edge line, solid, `edgeInsetM` inside the kerb.
+        for (let t = from; t < from + S; t += ROAD_MARKING.edgeSegmentM) {
+          put(t + ROAD_MARKING.edgeSegmentM / 2, side * (r - ROAD_MARKING.edgeInsetM),
+            ROAD_MARKING.edgeSegmentM, LINE_W, 'edge');
         }
       }
     }

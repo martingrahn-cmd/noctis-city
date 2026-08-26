@@ -671,6 +671,46 @@ export const GROUND = {
   earthAlbedo: [0.1229, 0.1211, 0.1168],
 };
 
+/**
+ * ROAD PAINT — ONE THICKNESS AND ONE REFLECTANCE, READ BY BOTH STREETS.
+ *
+ * SESSION 45, and the two values are `city.js`'s own, moved rather than
+ * re-derived. They are here because `block.js` now paints the origin block's
+ * street too (LOOK.md §4), and the alternative is a second copy of a
+ * reflectance in a second module — which is precisely the arrangement
+ * `LAMP_BOWL` above exists to have ended.
+ *
+ * The GEOMETRY of a marking — dash cycles, line widths, the zebra's stripe
+ * count — is `citygen.js` → `ROAD_MARKING`, because that is a placement
+ * question and the generator is where placement lives. These two are physical
+ * quantities the exposure system reads (CONTRACT §5.3), so they are here.
+ */
+export const ROAD_PAINT = {
+  /**
+   * m. A road marking's own thickness — session 21.
+   *
+   * Thermoplastic screed is laid 2 to 3 mm thick and a hot-applied line with
+   * beads rolled in reads about 4 mm proud. It is emitted as a BOX rather than
+   * as a ground quad for two reasons and both are load-bearing: coplanar
+   * surfaces z-fight, and the 4 mm edge is what a headlight catches at a
+   * grazing angle. A wheel does not climb 4 mm.
+   */
+  thicknessM: 0.004,
+  /**
+   * Linear. Fresh white marking material measures 0.55 to 0.70 diffuse; 0.62 is
+   * the middle of that band.
+   *
+   * WHAT IS NOT MODELLED, STATED RATHER THAN FAKED. A real marking is
+   * RETROREFLECTIVE — glass beads send a headlight's own light back along the
+   * beam, which is most of what makes a line read at night from a car. This
+   * project has no retroreflective BRDF and adding one is a shader change with
+   * no gate behind it, so the gap is written down instead of approximated.
+   */
+  albedo: [0.62, 0.615, 0.60],
+  /** The paint's roughness, as delivered to both emitters. */
+  roughness: 0.62,
+};
+
 /** Exposure model. CONTRACT §5.4. */
 export const EXPOSURE = {
   /** Reflected-light meter calibration constant. */

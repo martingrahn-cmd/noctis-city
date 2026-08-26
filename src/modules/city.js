@@ -41,7 +41,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, WATER, WATER_BODY } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, WATER, WATER_BODY } from '../core/constants.js';
 /**
  * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
  * occupancy*. The advertising pillar's placement test asks this rather than
@@ -753,7 +753,8 @@ export function createCity(options = {}) {
    * grazing angle. A wheel does not climb 4 mm, which is the same argument
    * `PATCH_THICKNESS_M` makes at 10 mm.
    */
-  const MARKING_THICKNESS_M = 0.004;
+  /** `ROAD_PAINT.thicknessM` since session 45 — `block.js` reads the same one. */
+  const MARKING_THICKNESS_M = ROAD_PAINT.thicknessM;
   /**
    * `HEAD_CLEAR_M` IS IMPORTED NOW, AND THE COMMENT THAT WAS HERE CLAIMED A
    * CHECK THAT DID NOT EXIST — session 22.
@@ -780,8 +781,8 @@ export function createCity(options = {}) {
    * One number, one owner, no gate needed — the same remedy CONTRACT §9's
    * session-20 row applied to `ROOF_PARAPET_M`, which is imported two lines up.
    */
-  /** Linear. Fresh white marking material, 0.55-0.70; the middle of the band. */
-  const MARKING_ALBEDO = [0.62, 0.615, 0.60];
+  /** `ROAD_PAINT.albedo` since session 45 — `block.js` reads the same one. */
+  const MARKING_ALBEDO = ROAD_PAINT.albedo;
 
   /**
    * THE PAINT ON A PARKED VEHICLE — SESSION 40, six linear reflectances.
@@ -2944,7 +2945,7 @@ export function createCity(options = {}) {
         const y = worldSurface(ctx, mk.x, mk.z).y;
         props.push(setMatrix(mk.x, y + MARKING_THICKNESS_M / 2, mk.z,
           mk.length, MARKING_THICKNESS_M, mk.width, mk.yawDeg));
-        propSkin.push({ albedo: MARKING_ALBEDO, roughness: 0.62 });
+        propSkin.push({ albedo: MARKING_ALBEDO, roughness: ROAD_PAINT.roughness });
       }
 
       /**
