@@ -1672,6 +1672,13 @@ export function createWeather(options = {}) {
           active: l.active,
         })),
         rainfall,
+        /**
+         * The same state as a RATE, because the two are not the same number and
+         * `hud.js` printed the fraction with "mm/h" after it for forty sessions
+         * — CONTRACT §9's named failure mode, harmless only while the value was
+         * always 0. It is the module's own RAIN_FULL_MMH and not a second copy.
+         */
+        mmPerHour: rainfall * RAIN_FULL_MMH,
         rainPinned,
         nowS,
         /**

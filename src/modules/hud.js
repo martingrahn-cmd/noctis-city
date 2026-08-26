@@ -419,7 +419,21 @@ export function createHud(options = {}) {
       `${k('traffic')} <span class="h">${ts ? ts.vehicles : '—'}</span> in ring, ` +
         `${ts ? ts.litVehicles : '—'} lit   ${k('crowd')} <span class="h">${ps ? ps.total : '—'}</span>` +
         `   ${k('roof signs')} <span class="h">${cs && cs.roofSigns ? cs.roofSigns.faces : '—'}</span>`,
-      `${k('weather')} rain ${ws ? ws.rainfall.toFixed(2) : '—'} mm/h, wetness ` +
+      /**
+       * `rainfall` IS A FRACTION AND THIS LINE USED TO PRINT IT WITH "mm/h"
+       * AFTER IT — CONTRACT §9 exactly, and it never mattered because the value
+       * was 0 in every frame anybody had ever taken. Session 44 gave the city
+       * weather, so it does now: a mean shower peak would have read
+       * "rain 0.29 mm/h" for 2.9 mm/h. Both quantities, both labelled.
+       *
+       * The countdown is the state made visible. `weather.js`'s cycle is a pure
+       * function of the simulated clock and this is the only place a person
+       * running the app can see where in it they are.
+       */
+      `${k('weather')} rain ${ws ? ws.rainfall.toFixed(2) : '—'} ` +
+        `(${ws ? ws.mmPerHour.toFixed(1) : '—'} mm/h)` +
+        `${ws && ws.rainPinned ? ' pinned' : ws && ws.nextShowerS != null
+          ? `, next shower ${(ws.nextShowerS / 60).toFixed(1)} min` : ''}, wetness ` +
         `${lights ? lights.getWetness().toFixed(2) : '—'}, visibility ` +
         `${ws ? ws.visibilityM.toFixed(0) : '—'} m   ${k('lamps')} ` +
         `${ctx.get('lighting') ? (ctx.get('lighting').photocellOn ? 'on' : 'off') : '—'}`,
