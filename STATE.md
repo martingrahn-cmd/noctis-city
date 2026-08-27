@@ -16,8 +16,9 @@ such: drift on this machine is one-sided, so load can only make a frame slower.
 **THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** **Two hundred and thirty-odd frames over
 twenty-eight poses**, four times of day, wet and dry, at street level and from the air, in BOTH
 content paths — the origin block and the streamed city, which session 28 showed is one place a
-session can build an item into only one of. **Fourteen commits of code and four of documents.
-Fourteen repairs and twenty-four findings.** The list below is the deliverable.
+session can build an item into only one of. **Twenty-six commits — sixteen that change what the
+city does or what a gate asserts, and ten of documents. Sixteen repairs and twenty-eight
+findings.** The list below is the deliverable.
 
 **AND FIVE TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
 the lamp radiance, the lamp population, the kerb and the SIGN LIGHTS, with `block.js` correct in
@@ -177,6 +178,32 @@ and the whole junction is a continuous surface with vehicles and people standing
 operator's fourth complaint at a pose R4 does not reach. `w-crossing-t0_5-wet.png`.
 
     localhost:5173/?player=1&spawn=384,1.74,384&t=0.5&wet=1
+
+**L25. THE SIGN POOL SPENT MOST OF THE FROXEL RESERVE, AND THAT IS THE PRICE OF §11 STATED
+PLAINLY.** `budget.json` → `trafficLights.minOccupancyMargin` is **40**, derived from measured
+worst froxels of 39 / 11 / 34 with the real traffic on — margins of 57 / 85 / 62. After R9 and R15:
+
+```
+  downtown_dense   worst froxel 56 of 96   margin 40   was 57
+  highway_speed    worst froxel 17 of 96   margin 79   was 85
+  night_rain       worst froxel 53 of 96   margin 43
+  player           worst froxel 54 of 96   margin 42
+```
+
+**Three of the four routes are now within three points of the floor**, where they had 17 to 45
+points of room. That reserve exists for traffic coming round a corner, and sixteen sign lights have
+taken most of it on the dense route. **The next session adding a clustered light of any kind
+should read this and L27 together before trusting the margin either way.** There is no second cheap
+lever: a sign light whose sphere CONTAINS the camera lands in nearly every froxel whatever its
+radius, which is why R15 bought 2 points and not 20.
+
+**L26. R12'S LAMP POSTS COST ONE DRAW CALL AND NO POSE WOULD HAVE SHOWN IT.** `downtown_dense`
+317 → **318**, `highway_speed` 395 → **396**, `night_rain` 316 → **317**, `player` 306 → **307**,
+with +238 to +245 instances. A post is a box in the chunk's existing `masses` mesh and should be
+free — and it is, except on a chunk that had NO `masses` mesh at all because nothing was standing
+on it. **A `park` or `parking` chunk with a lamp in it now emits one.** That is correct behaviour
+and it is still a draw call, and it is the kind of cost only a route census shows: six poses
+measured it at zero. 396 of 440 leaves **44 spare**.
 
 **L27. `minOccupancyMargin` DOES NOT REPRODUCE TO BETTER THAN EIGHT POINTS, AND IT IS ASSERTED
 AGAINST A FLOOR OF FORTY.** This is the session's most useful finding about a GATE rather than
@@ -1054,8 +1081,7 @@ sentence a future brief should carry is 45 and not 1.
 - **`clumping` was not touched.** Red by instruction.
 - **No quiet battery.** `load1` 2.48–7.18 in the first half and 2.69–3.04 in the second, never
   inside 1.6.
-- **No merge to main.** Fourteen commits of code and four of documents on
-  `claude/noctis-44-make-it-rain`, all pushed.
+- **No merge to main.** Twenty-six commits on `claude/noctis-44-make-it-rain`, all pushed.
 - **`minPairMSD` was NOT re-derived**, and R8 took it red by 0.00005. L15. It reads 0.02992 at the
   end of the session against 0.02995 after R8 — the second half moved it by 0.00003, which is
   three times the instrument's resolution and still nowhere near the floor.
