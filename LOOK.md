@@ -48,6 +48,34 @@ frames was 70–400, so the derivation lands inside the bracket the eye picked.
 `tools/shot-out/s45-rain-{before,after}-t0-wet.png` is the pair, 118 draws in
 both. **The mood reference's own half-sentence is on the screen now.**
 
+**AND THE SAME SESSION PUT THE DROPS IN THE LAMPS, WHICH IS THE HALF THAT MAKES
+IT A STREET RATHER THAN A WEATHER SYSTEM.** *"Rain-lit"* is two words and the
+second one had a constant behind it: `STREAK_GLINT_NITS` gave every drop in the
+world the same radiance, so a drop three metres from a lantern and a drop fifty
+metres from any light were identical. A drop is a SPHERE — a convex mirror — so
+its flux to the eye goes as the **illuminance at the drop** and not as the
+source's radiance, and the modulation is that illuminance over the one the
+constant already stood for. Delivered: the frame mean does not move (29.63 →
+29.62) and the difference map is **red streaks on the dark side of the frame and
+green streaks toward the lamp** — a redistribution, with a measured spread of
+**0.007 to 3.43** between the darkest drop and the brightest.
+
+**THE REFERENCE IN THAT RATIO WAS WRONG BY TEN IN ITS FIRST ARM AND THE MODULE'S
+OWN PRINTED MEAN CAUGHT IT** — `STREET_DESIGN_LUX` is what the CARRIAGEWAY is
+lit to, a horizontal plane at ground level, and a drop is in the air beside an
+8.08 m lantern rather than under it. `weather.particleStats().beam` exists so the
+claim *"this adds variation and not level"* is checkable rather than trusted, and
+it reads 0.840 and 1.167 at two poses.
+
+**THE CROWNS GOT THEIR OWN POPULATION SHARE IN THE SAME SESSION, AND IT IS NOT
+THE STREAKS'.** A streak is a glint, so the moment is D² and the ratio is 91.41;
+a crown is diffuse foam raised by an impact, so the moment is `N·v·A` = D^2.67
+and the ratio is **40.72**, 0.445× the streaks'.
+
+**WHAT IS STILL MISSING FROM THE MOOD REFERENCE:** nothing above ground level
+gets wet (STATE 45 L18), and daylight rain is invisible at any gain because the
+layers are additive and a drop in daylight REFRACTS (L4).
+
 ---
 
 ## 2. Density — what it concretely means
@@ -546,18 +574,67 @@ Light is the city's main material. Geometry is what the light lands on.
   `tools/shot-out/s44-{rain,lamp}-{before,after}-t0-wet.png`, **294 and 329 draw
   calls in both arms of both pairs.**
 
-  It still cannot light the air around a SIGN, and that is a fact about the
-  light list rather than a choice. Session 44 re-confirmed it against a better
+  ~~It still cannot light the air around a SIGN, and that is a fact about the
+  light list rather than a choice.~~ **IT WAS A DEFECT AND NOT A FACT, AND
+  SESSION 45 REPAIRED IT.** Session 44 re-confirmed the census against a better
   instrument than the one session 43 used — `perfcheck`'s own light-role census,
   which enumerates every light in the world by role and prints it beside each
-  route: `aircraft:1  traffic:96  stall:12  block:56  lamp:192`. **THERE IS NO
-  SIGN ROLE, AND THERE ARE 975 SIGNS.** They and every window are emissive
-  materials with no candela attached, so there is nothing for a scattering model
-  to integrate. The air glows around those 357 and around nothing else.
+  route: `aircraft:1  traffic:96  stall:12  block:56  lamp:192`. **THERE WAS NO
+  SIGN ROLE AND THERE WERE 975 SIGNS**, and two sessions read that as a
+  limitation of the light list. It is the same two-content-paths defect this
+  file records three times over for the lamp bowl, the lamp population and the
+  kerb: **`block.js` has lit every one of its five signs since session 3** and
+  says so in `BLOCK_RETAIL.shopLightSlots`'s own derivation.
+
+  **AND THE SIGNS ARE NOT A ROUNDING ERROR IN THIS CITY'S LIGHT.** Measured out
+  of the generator over `citycheck`'s 10 × 10 at seed 1337, as the Lambertian
+  panel's own normal intensity `I = L·A`:
+
+  ```
+    mount            n    median A    median I        max I     nits
+    rooftop        340     40.0 m²   40 035 cd   217 320 cd     1000
+    flush          181      6.3 m²      540 cd    11 269 cd       86
+    projecting     176      5.3 m²      457 cd     3 223 cd       86
+    roof            68      5.6 m²      478 cd    12 352 cd       86
+    freestanding    39      2.6 m²      222 cd     3 312 cd       86
+  ```
+
+  **243 of the 555 LIT signs — 43.8% — are at or above one street lamp's
+  6 800 cd.** The pool is 16 slots of the 27 the role census had spare, assigned
+  per frame by `I·cosθ/d²`, and the source is a point one equivalent radius
+  `√(A/π)` behind its own panel — which reproduces the Lambertian disc at both
+  limits and caps the near field at `π·L` by the physics rather than by a clamp.
+  Delivered: a facade goes from **1.013× an unlit control wall to 1.772×** it,
+  at **zero draw calls**. `constants.js` → `SIGN_LIGHT` carries the whole
+  derivation. The air in a sign's neighbourhood is now in the same
+  single-scattering integral as the lamps, because the haze term reads the same
+  light list.
+
+  **What is still emissive-with-no-candela is EVERY WINDOW**, and that is the
+  larger area — see STATE 45 L1, which is where the 220 cd/m² question lives.
 - **Colour opposition.** This is close to free and it is the biggest unspent
   lever. NOCTIS is currently monochrome amber — nearly every emitter is warm.
   The reference works because cold cyan fights warm sodium in the same frame.
   A third of emitters should be cold.
+
+  **PART-SPENT IN SESSION 45, AND THE MEASUREMENT SAYS SOMETHING THIS BULLET
+  DID NOT.** The sign lights above throw the sign's own chroma, which is FREE
+  because `EMITTER_CHROMA` is luminance-normalised — every entry has Y = 1.000,
+  checked — so it is a hue change and not a brightness one. On one wall, 7 700
+  pixels, as R/B:
+
+  ```
+    no sign light      R/B 1.620   Y 0.0763    the ambient sodium-lit wall
+    white sign light   R/B 1.306   Y 0.0955    DESATURATED
+    its own chroma     R/B 1.938   Y 0.0937
+  ```
+
+  **ADDING NEUTRAL LIGHT TO A ONE-HUE CITY MAKES IT MORE NEUTRAL, NOT LESS.**
+  That is the trap in this bullet's own word "opposition": the lever is not
+  *more light*, it is light of the OTHER hue, and a white emitter spends the
+  budget and moves the frame the wrong way. Three of `SIGN_CHROMA`'s six are
+  cold. What is left unspent is the windows, which are the larger area and are
+  still warm.
 - **Wet streets.** The road reflecting its own light sources is what makes a
   dark frame read as full of light rather than empty. See §6 — this is already
   built.

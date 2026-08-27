@@ -13,17 +13,27 @@ quoted is COUNTS (draw calls, triangles, instances, populations), PIXEL STATISTI
 PNGs, and arithmetic with no browser in it. One green absolute is quoted as green and marked as
 such: drift on this machine is one-sided, so load can only make a frame slower.
 
-**THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** **184 frames over sixteen poses**, four
-times of day, wet and dry, at street level and from the air, in BOTH content paths — the origin
-block and the streamed city, which session 28 showed is one place a session can build an item into
-only one of. **Eight commits of code and three of documents.** The list below is the deliverable.
+**THIS SESSION WALKED THE CITY AND FIXED WHAT IT SAW.** **Two hundred and thirty-odd frames over
+twenty-eight poses**, four times of day, wet and dry, at street level and from the air, in BOTH
+content paths — the origin block and the streamed city, which session 28 showed is one place a
+session can build an item into only one of. **Fourteen commits of code and four of documents.
+Fourteen repairs and twenty-four findings.** The list below is the deliverable.
 
-**AND FOUR TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
-the lamp radiance, the lamp population and the kerb, with `block.js` correct in all three, and the
-road markings, with the streamed city correct. That is the shape of what a walk finds and no gate
-does: **a gate reads one path or the other and never both at once**, and every one of these four
-was a number that had been printed, or a mesh that had been absent, for between fifteen and
-forty-five sessions.
+**AND FIVE TIMES IN ONE SESSION THE TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES** —
+the lamp radiance, the lamp population, the kerb and the SIGN LIGHTS, with `block.js` correct in
+all four, and the road markings, with the streamed city correct. That is the shape of what a walk
+finds and no gate does: **a gate reads one path or the other and never both at once**, and every
+one of these five was a number that had been printed, or a mesh that had been absent, for between
+fifteen and forty-five sessions.
+
+**THREE OF THIS SESSION'S OWN ARMS WERE WRONG AND ITS OWN INSTRUMENTS CAUGHT ALL THREE**, which is
+the other thing worth carrying forward. The sign pool shipped a first arm that rendered a
+byte-identical frame because a field name never reached a record (§11.1); the sign ranking spent
+most of sixteen slots on cabinets facing away from the camera (§11.1); and the rain's beam
+modulation was wrong by a factor of ten and would have moved the delivered gain an order of
+magnitude outside the bracket the first half chose by looking (§14). **None of the three was found
+by looking at a frame.** Two were found by printing a count and one by printing a mean — and the
+counts and the mean are now permanent (§7).
 
 ---
 
@@ -47,7 +57,110 @@ parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many 
 | **R7** | `city-budget.json`'s stall derivation quoted two laws that no longer exist. Carried since STATE 42. | Corrected in place; the argument survives its own stale facts and no threshold moved. | — |
 | **R8** | **The origin block has no road markings at all.** No centre line, no lane line, no edge line, no stop bar, no zebra, in 336 m of main street — and it is the street `lookcheck` stands in and `PLAYER.spawn` puts the player on. | `citygen`'s `paint()` refuses any mark not on a delivered `carriageway` claim, and `BLOCK_KEEPOUT` clips the lattice's carriageway out of this block. **A guard doing its job, and nobody else ever painted here.** One draw call. **It took `lookcheck` red at 3 again** — see L15. §5.1 | `s45-marks-{before,after}-t0_5-dry.png` |
 
+| **R9** | **975 signs and not one of them lights anything.** `perfcheck`'s role census prints `aircraft:1 traffic:96 stall:12 block:56 lamp:192` — there is no sign role. | **The fifth time in this session that two content paths were two different cities**, and `block.js` has lit every one of its five signs since session 3. **243 of the 555 lit signs (43.8%) are at or above one street lamp's 6 800 cd** and every one lit nothing. A pool of 16 slots, ranked by `I·cosθ/d²`. §11 | `s45-sl2-{before,after}-bigroof-t0-wet.png` |
+| **R10** | **The sign lights threw white, and white made the frame MORE monochrome.** | `EMITTER_CHROMA` is luminance-normalised (Y = 1.000 for all six), so the sign's own chroma is free. Measured on one wall: no sign light R/B 1.620, white sign light **1.306 — desaturated**, own chroma **1.938**. LOOK.md §3's *"biggest unspent lever"*, spent. §11.2 | as R9 |
+| **R11** | **The splash crowns never got their population share** (L5, opened by the first half of this session). | A streak is a GLINT (D² moment, 91.41); a crown is FOAM RAISED BY AN IMPACT, so the moment is `N·v·A` = **D^2.67 → 40.72**, 0.445× the streaks'. The quadrature reproduces the streaks' own closed form at p = 2 or throws. §12 | `s45-crown-{before,after}-crowns-t0-wet.png` |
+| **R12** | **53 lamp heads hang in the air with no post under them.** Found by looking at a noon junction. | `city:bowls` 497 instances against `city:lamps` 444. The `chunk.features` loop pushes a bowl and nothing else: **36 park lamps + 17 site floods = 53**, exactly the shortfall. A box in `masses`, not the street lantern — that geometry is a pole merged with its ARM. §13 | `s45-post-{before,after}-carpark-t0_5-dry.png` |
+| **R13** | **A drop falling through a lamp's beam is as dull as a drop in the dark** — the operator's own third observation, and the one the brief said to do FIRST. | `STREAK_GLINT_NITS` is a CONSTANT. A drop is a sphere, i.e. a convex mirror, so its flux goes as the **illuminance at the drop** and not the source's radiance. Sampled on the CPU into the gain the layer already carries. **The first arm was wrong by ten and its own instrument caught it.** §14 | `s45-beam-{before,after}-underlamp-t0-wet.png` |
+| **R14** | Two ellipsis characters in this session's own comments. | `parsecheck`, run BEFORE this file was written. 112 files, contract-clean. | — |
+
 ### FOUND AND NOT REPAIRED — the list the next session starts from
+
+**L16. TWO OF THREE STREET POSES ARE NOT REPRODUCIBLE BOOT TO BOOT, AND THAT IS A HAZARD UNDER
+EVERY FRAME CLAIM IN THIS PROJECT INCLUDING THIS FILE'S.** Measured deliberately, by rendering the
+SAME code at the SAME seed with `?paused=1` and the same `settle(6)` in two separate boots:
+
+```
+  pose          brighter   darker    max delta    verdict
+  citystreet      0.00%     0.00%      0 cv       BIT-IDENTICAL across boots
+  junction        1.10%     0.75%    205 cv       not reproducible
+  blockstreet     4.14%    19.70%    243 cv       not reproducible, frame mean 17.93 -> 17.87
+```
+
+**A before/after pair taken at `blockstreet` cannot resolve anything smaller than 20% of the
+frame.** This session found it the hard way: an early arm of R9 was measured as *"8.63% brighter"*
+at `junction` when the code under test was in fact inert — the pool was built, the ranking ran, and
+`signEmitters` never reached the resident record, so the two arms were the same build. **The
+number was boot noise wearing a result's clothes**, and what caught it was taking the same arm
+twice rather than a better argument. Every pixel figure in §11 to §14 is quoted at a pose whose
+reproducibility was checked first. **What is owed: why.** Both bad poses are near the origin block
+and pedestrians; `citystreet` is a streamed street. `settle(6)`, TAA history and the auto-exposure
+adaptation are the three candidates and nobody has separated them.
+
+    localhost:5173/?player=1&spawn=70,1.74,9.4&t=0.0&wet=1
+
+**L17. THE STREAKS' ORIENTATION IS WORLD-SPACE, AND THE BRIEF'S CLAIM THAT IT IS NOT IS FALSE.**
+The brief's own first item: *"the streaks LEAN HARD toward the right edge while falling
+near-vertical at centre and left. Orientation looks like screen space or camera-facing rather than
+world."* **It is not.** `weather.js` builds each streak's long axis as
+`(windDir.x·wind, −DROP_TERMINAL_MS, windDir.y·wind)` — a world direction, with the wind drawn once
+per seed from a named stream and a log height profile over it — and the comment beside it already
+says *"a screen-aligned quad would draw a vertical streak while the drop fell at 21 degrees"*.
+
+**THE DECISIVE TEST IS A 180° YAW**, because a camera-facing lean cannot flip and a world lean must.
+Two frames from one pose: looking north the streaks run top-left to bottom-right; looking south
+they run **top-right to bottom-left**. What the operator saw is the real wind lean plus perspective
+convergence on the vertical vanishing point, which is asymmetric whenever the wind is not square to
+the view. **Nothing to repair.** `s45-lean-{north,south}-t0-wet.png`.
+
+    localhost:5173/?player=1&spawn=384,1.74,300&t=0.0&wet=1&rainfall=1
+
+**L18. NOTHING ABOVE GROUND LEVEL GETS WET, AND IT IS THE ONE PART OF THE BRIEF'S FIRST ITEM STILL
+UNTOUCHED.** The operator's second observation: facades, roofs and signs look identical in rain and
+dry, and wetness reaches only horizontal ground. Not measured this session and not repaired — it is
+recorded here so the next session starts from a named item rather than re-reading the brief. The
+other two of his three are R13 and L17.
+
+**L19. THE EARTH PLANE SPECKLES AT 1.9 km AND READS AS STATIC.** From 220 m up at dusk the whole
+top-left quadrant is a carpet of fine dark specks with no structure — it reads as gravel or as
+sensor noise rather than as ground. Raycast: `block:ground` at **1 860.89 m**, i.e. the world's
+earth plane past `geometryRadius`, which session 42 recoloured to the city's own area-weighted mean
+precisely so it would stop reading as a ploughed field. The COLOUR is repaired and the
+high-frequency content is not. `w-aerial-t0_78-wet.png`.
+
+    localhost:5173/?player=1&spawn=384,220,300&t=0.78&wet=1
+
+**L20. A BLANK BUILDING FLANK 50 m WIDE FILLS THE FRAME AT 11.9 m.** Standing on a pavement at the
+weir approach, 90% of the frame is one flat blue-grey wall with no windows, no openings and no
+tonal variation of any kind — raycast `-2,1:masses` at **11.9 m**, in the camera's own chunk and
+therefore fully detailed. A building's street elevations get windows and its flanks get nothing,
+which is correct for a party wall between two buildings and is not correct for one you can stand
+in front of. `w-weir-t0_5-wet.png` — and note the pose was chosen to look at the weir and does not,
+which is L16's lesson in a second form.
+
+    localhost:5173/?player=1&spawn=-180,1.74,150&t=0.5&wet=1
+
+**L21. THE ORIGIN BLOCK REACHES 25 OF 30 FIELD SLOTS WHERE EVERY OTHER POSE REACHES 30 OF 30.**
+Printed beside all thirty-two frames of this session's walk: `blockmain` reads `25/30 field` at all
+four times of day and the seven streamed poses read `30/30`. Whether five canyon bakes are
+legitimately absent over the origin block or five are never requested there is a ten-minute
+question nobody has asked, and `poseprobe`'s carried blindness to the origin block (§15) is the
+reason it has never come up.
+
+**L22. THE BRIGHT RESERVE FELL 6.91% → 6.35% AND ONE OF ITS THREE RUNS IS BELOW THE FLOOR.**
+`citycheck` per-run means **5.73 / 6.35 / 6.81**, spread **1.08 points**, against a 6.00% floor;
+the gate reads the median and passes. The first half of this session left it at 6.91 with a spread
+of 0.47. **The spread has more than doubled and the low run is now under the bound**, which is a
+different statement from the median moving. L1's window repair is costed against this reserve, so
+the margin it was promised — *"0.91 points where session 44 left 0.24"* — is now 0.35 on the median
+and negative on one run in three.
+
+**L23. A CAR PARK FROM EYE LEVEL READS AS STACKED CONCRETE STEPS.** *Written as a question, per
+LOOK.md §8.* Session 40 rebuilt the parked vehicles specifically because *"the first version of
+both was a slab and the frames said so"*, and from 1.74 m looking along the rows they read as
+tiered slabs again — the wedge is a thing the SIDE elevation does and a car park is seen end-on.
+Whether that is a defect or is what a real car park looks like from inside it is a look decision
+nobody has taken. `s45-post-after-carpark-t0_5-dry.png`.
+
+    localhost:5173/?player=1&spawn=400,1.74,192&t=0.5
+
+**L24. AT NOON AN ASPHALT JUNCTION STILL READS AS ONE PALE PLAZA.** R4 repaired the CONCRETE
+carriageway — 34.7% of chunks — and this is one of the other two thirds: carriageway, pavement and
+crossing paint all arrive within a narrow band of light grey, the kerb reads only as a thin line,
+and the whole junction is a continuous surface with vehicles and people standing on it. It is the
+operator's fourth complaint at a pose R4 does not reach. `w-crossing-t0_5-wet.png`.
+
+    localhost:5173/?player=1&spawn=384,1.74,384&t=0.5&wet=1
 
 **L1. EVERY WINDOW IN THE STREAMED CITY IS 220 cd/m² AND THE ORIGIN BLOCK'S ARE 7 TO 30.**
 This is CONTRACT §9's own class — one quantity, two files, nothing comparing them — and it is
@@ -493,6 +606,13 @@ paint spent.
 
 Run individually, because `npm run gates` is `&&`-joined and stops at the first red.
 
+**THE WHOLE SET WAS RUN TWICE: once at `b757a37` in the first half (the block below), and again at
+`8dfb614` after the second half's five repairs (§6.3).** Both runs are recorded because the second
+half changed the light list, the rain and the mass count, and a reader should be able to see which
+numbers moved and which did not.
+
+### 6.1 THE FIRST-HALF RUN, AT `b757a37` PLUS R8
+
 ```
   parsecheck   GREEN   112 files, contract-clean. Unchanged from sessions 42-44 — this session
                        added no file; its five probes are in the scratchpad.
@@ -530,7 +650,7 @@ boxes and one draw call, measured at every pose in §5.1, and the four routes ha
 and 180 000 triangles of margin. `gateaudit`'s control will now name three assertions rather than
 two, and L15 says which.
 
-### 6.1 CITYCHECK — RED AT 3, THE SAME THREE AS SESSIONS 40–44, NO NEW VIOLATION
+### 6.2 CITYCHECK IN THAT RUN — RED AT 3, THE SAME THREE AS SESSIONS 40–44
 
 ```
   clumping             CV 0.443    floor 0.60    untouched by instruction, fifth session
@@ -567,7 +687,7 @@ stalls of a floor of 60, 8 landmarks placed and 8 visible and 0 unreachable on f
 1.46x, 5 eras, 3 road materials, 74.1% of 4982 objects off-axis, 341 instanced meshes with 341
 labelled and 0 not.
 
-### 6.2 PERFCHECK — EVERY COUNT, AND THE MILLISECONDS ARE NOT ADMISSIBLE
+### 6.2b PERFCHECK IN THAT RUN — EVERY COUNT, AND THE MILLISECONDS ARE NOT ADMISSIBLE
 
 ```
                        draws   draws s44      tris   tris s44   instances    inst s44
@@ -637,7 +757,36 @@ All at seed 1337, all `?paused=1`, all at 1.70–1.74 m on the street unless the
                   8% of its own derived radiance".
   pick.mjs        raycast the delivered scene through one pixel and print what is there, with its
                   material. Two of this session's findings are one line of its output each: the
-                  kerb is `block:ground`, and the white rectangle is a window at 220 cd/m².
+                  kerb is `block:ground`, and the white rectangle is a window at 220 cd/m². It also
+                  produced this session's one WRONG reading — see §13 — because a street lamp's
+                  bowl hangs 2.1 m out on its arm and a ray straight down from one correctly finds
+                  nothing.
+```
+
+**FOUR MORE IN THE SECOND HALF, ALL SCRATCHPAD, `parsecheck` STILL 112.**
+
+```
+  diff.mjs        two frames in, a per-pixel difference map out — green where the second is
+                  brighter, red where it is darker, x8 — plus the brighter/darker shares and the
+                  largest single delta. IT IS THE INSTRUMENT THAT MADE THE SECOND HALF WORK: three
+                  of its five repairs were invisible in a side-by-side and unmistakable in a
+                  difference map, because auto-exposure pays for everything added and moves 30-80%
+                  of the frame the other way.
+  signsize.mjs    the sign population by mount, area and I = L·A, straight out of `citygen` with
+                  no browser in it. §11's table.
+  streakstat.mjs  the percentile structure of a rectangle, so a rain streak — a bright outlier on
+                  a smooth sky — can be measured without the sky averaging it away.
+  beamstat.mjs    reads `particleStats().beam`. §14 is the reason it exists: the claim being made
+                  was "this adds variation, not level", the claim was FALSE by a factor of ten,
+                  and no frame was going to say so.
+```
+
+**AND THE SECOND HALF ADDED TWO PERMANENT NUMBERS TO THE WORLD**, both for the same reason —
+a claim that no frame can check:
+
+```
+  city.stats().signsActive / signCandidates / signPool     §11.1
+  weather.particleStats().beam {mean, min, max, n, sources} §14
 ```
 
 **THE TWENTY-ONE FRAMES THIS FILE CITES**, all in `tools/shot-out/` and all regenerable from the
@@ -670,6 +819,21 @@ All at seed 1337, all `?paused=1`, all at 1.70–1.74 m on the street unless the
   s45-pillar-slivers-t0-wet.png     L9 — a correct 748 cd/m2 panel seen edge-on at 2.6 m
 ```
 
+**AND THE SECOND HALF'S**, same directory, same rule:
+
+```
+  s45-sl2-before-bigroof-t0-wet.png   R9 — a facade at 1.013x an unlit control wall
+  s45-sl2-after-bigroof-t0-wet.png    R9 — the same wall at 1.772x it
+  s45-sl3-chroma-bigroof-t0-wet.png   R10 — the same wall again, red instead of neutral
+  s45-crown-{before,after}-crowns-t0-wet.png    R11 — the crowns arrive on the road
+  s45-post-{before,after}-carpark-t0_5-dry.png  R12 — the posts arrive under the heads
+  s45-beam-{before,after}-underlamp-t0-wet.png  R13 — the rain redistributes toward the lamp
+  s45-lean-{north,south}-t0-wet.png   L17 — the lean flips under a 180 deg yaw, so it is world
+  w-{blockmain,citystreet,bigroof,retail,weir,arch,aerial,crossing}-t{0,0_25,0_5,0_78}-wet.png
+                                      the walk — 8 poses x 4 times of day, one boot. L19, L20,
+                                      L21 and L24 are each one of these thirty-two.
+```
+
 **EVERY FRAME WAS CHECKED FOR ITS SUBJECT BEFORE ANYTHING WAS MEASURED OFF IT**, which is STATE 43
 §6's lesson. Three poses from the first batch were discarded for being blocked by a stall or a
 sign panel at the lens, and they are why `walkshot` prints its counts per frame.
@@ -678,9 +842,9 @@ sign panel at the lens, and they are why `walkshot` prints its counts per frame.
 
 ## 8. WHERE THE BRIEF DISAGREES WITH THE CODE
 
-The brief asked for this section explicitly. **All three of its numbered claims are TRUE**, which
-is the first time in several sessions, and two of them are true with a mechanism the brief did not
-have:
+The brief asked for this section explicitly. **All four of its numbered claims are TRUE and one of
+its SUB-claims is false**, and the false one is exactly the kind the brief warned about in its own
+last paragraph:
 
 1. **"The rain does not fall."** True, and the reason is not that the layers are dormant — STATE
    44's *"500 of 500 delivered"* is also true. A median streak renders at **7.2% of the radiance the
@@ -698,6 +862,22 @@ have:
    third of the city's chunks**, plus a kerb that was a hole. §4, §5.
 4. **"Check whether the lamp POPULATION along a pavement is right, not only each lamp's
    brightness."** This was the largest of the four and the brief only asked it as an aside. §3.
+5. **"Nine hundred and seventy-five signs and not one of them lights anything."** TRUE, and it is
+   the item the first half of this session did not reach. The census the brief quotes is the
+   evidence and it is exact. What the brief did not have is that **`block.js` has lit its five
+   since session 3**, so this is the same two-content-paths class as claims 2 and 4 and not a
+   missing feature. §11.
+
+**AND ONE SUB-CLAIM IS FALSE.** *"The streaks LEAN HARD toward the right edge … orientation looks
+like screen space or camera-facing rather than world."* **It is world-space**, the code says so in
+a comment written before this session, and a 180° yaw flips the lean — which a camera-facing
+billboard cannot do. L17 has the two frames. What the operator saw is the real wind lean plus
+perspective convergence, which is asymmetric whenever the wind is not square to the view.
+
+**AND ONE CONSTRAINT IN THE BRIEF IS STALE IN THE HELPFUL DIRECTION.** *"Draw calls 439 of 440. ONE
+spare and it stays spare."* §3.1 of this same session took `highway_speed` to **395 of 440**. Every
+repair in §11 to §14 still cost zero draw calls, so the spare is untouched either way — but the
+sentence a future brief should carry is 45 and not 1.
 
 ---
 
@@ -705,23 +885,40 @@ have:
 
 - **The window radiance.** L1, and it is the biggest single finding of the session. Not repaired
   because it is a subtraction from a reserve with 0.24 points of margin.
-- **No re-derivation of any threshold.** `look-budget.json`, `budget.json` and `input-budget.json`
-  are byte-identical. `city-budget.json` moves ONE number, `lampBowl.minRatio` 0.2151 → 0.9999,
-  which is the tightening direction its own definition names.
+- **No re-derivation of any threshold.** `look-budget.json` and `input-budget.json` are
+  byte-identical. `city-budget.json` moves ONE number, `lampBowl.minRatio` 0.2151 → 0.9999, which
+  is the tightening direction its own definition names. **`budget.json` gains a `sign` role
+  ceiling of 16 and a floor of 1 — an ADDED bound for added content, not a moved one**; every
+  existing number in that file is untouched.
 - **`clumping` was not touched.** Red by instruction.
-- **No quiet battery.** `load1` 2.48–7.18, never inside 1.6.
-- **No merge to main.** Eight commits of code and three of documents on
+- **No quiet battery.** `load1` 2.48–7.18 in the first half and 2.69–3.04 in the second, never
+  inside 1.6.
+- **No merge to main.** Fourteen commits of code and four of documents on
   `claude/noctis-44-make-it-rain`, all pushed.
-- **`minPairMSD` was NOT re-derived**, and R8 took it red by 0.00005. L15.
+- **`minPairMSD` was NOT re-derived**, and R8 took it red by 0.00005. L15. It reads 0.02992 at the
+  end of the session against 0.02995 after R8 — the second half moved it by 0.00003, which is
+  three times the instrument's resolution and still nowhere near the floor.
+- **L18, wetness above ground level**, is the one part of the brief's first item nobody has
+  touched in either half of this session.
+- **The window (L1) was still not repaired**, and L22 is why the next session should re-read the
+  reserve before starting: it is 6.35% on the median with one run of three at 5.73, below the
+  floor.
 
 ---
 
 ## 10. WHAT TO DO FIRST NEXT TIME
 
+0. **L16, THE POSES THAT DO NOT REPRODUCE — BEFORE ANY OF THE REST.** Two of three street poses
+   render differently in two boots of identical code at the same seed, one of them by 20% of the
+   frame. **Every before/after pair in this project is a single-boot pair**, including most of the
+   ones cited above, and this session already mistook boot noise for a result once. It is the
+   cheapest item on this list and it decides how much the others' numbers are worth: take one arm
+   twice at six poses, publish which poses are admissible, and put the check in `walkshot`.
 1. **L1, THE WINDOW.** 220 against 7–30, one quantity in two files, and the same class session 28
    spent a session on for the lamp bowl. The first hour is the attribution: zero each path in turn
-   and read the bright reserve, exactly as `$lampBowl_measured` did. **This session left it 0.91
-   points of margin where session 44 left 0.24.**
+   and read the bright reserve, exactly as `$lampBowl_measured` did. **Read L22 FIRST**: the
+   reserve the first half of this session left at 6.91 now reads 6.35 on the median with one run of
+   three at 5.73, below the floor — so the margin this repair was promised is 0.35 and not 0.91.
 2. **L15, `minPairMSD`.** R8 took it red by 0.00005 and it is owed a derivation, not a number: what
    is a pair of times supposed to differ BY, and is one figure right for `midnight ↔ dusk` — the
    only pair where both frames are lit by the same lamps — as well as for `midnight ↔ noon`? Five
@@ -737,13 +934,226 @@ have:
    calls, STATE 44 §9 item 11), the hologram's transparency (LOOK.md §3), the weir's ledge planters
    (LOOK.md §4, built and removed at 441). **They are affordable now, and the same merge is
    available again**: `#,#:masses` is 116 meshes and `#,#:windows` is 50.
-6. **L12, COLOUR OPPOSITION.** Still the biggest unspent lever in LOOK.md §3 and now with a frame
-   behind it.
-7. Everything else in §0's list, then STATE 44 §9 items 3, 4, 6, 7, 8, 9, 10 and 11, all carried.
+6. **L12, COLOUR OPPOSITION — PART-SPENT AND WORTH FINISHING.** §11.2 put the signs' own chroma
+   on the facades and moved one wall's R/B from 1.306 to 1.938, and half of `SIGN_CHROMA` is cold.
+   The lever is the WINDOWS and the emissive materials, which are still warm and are still the
+   larger area. The measurement to reuse is R/B on a named patch, and the trap to avoid is in
+   §11.2: adding NEUTRAL light to a one-hue city makes it more neutral, not less.
+7. **L18, WETNESS ABOVE GROUND.** The last untouched third of the brief's first item.
+8. Everything else in §0's list, then STATE 44 §9 items 3, 4, 6, 7, 8, 9, 10 and 11, all carried.
 
 ---
 
-## 11. KNOWN GAPS CARRIED FORWARD
+## 11. THE 975 SIGNS LIGHT SOMETHING, AND `block.js` HAS LIT ITS FIVE SINCE SESSION 3
+
+`perfcheck`'s own light-role census has printed `aircraft:1 traffic:96 stall:12 block:56 lamp:192`
+for two sessions, and LOOK.md §3 carried *"there is no sign role, and there are 975 signs"* as a
+FACT ABOUT THE LIGHT LIST. It is a defect. `block.js` lights every one of its five signs — the
+`signLights` push at the foot of its sign loop — and says so in `BLOCK_RETAIL.shopLightSlots`'s own
+derivation: *"this file delivers 32 lamp beams and 5 sign lights"*. **That is the fifth time in
+this one session that two content paths turned out to be two different cities, after the lamp
+radiance, the lamp population, the kerb and the road markings.**
+
+**WHAT THE SIGNS ARE WORTH**, measured straight out of the generator over `citycheck`'s own 10 × 10
+at seed 1337, as the Lambertian panel's normal intensity `I = L·A`:
+
+```
+  mount            n    median A    median I        max I     nits
+  rooftop        340     40.0 m²   40 035 cd   217 320 cd     1000
+  flush          181      6.3 m²      540 cd    11 269 cd       86
+  projecting     176      5.3 m²      457 cd     3 223 cd       86
+  roof            68      5.6 m²      478 cd    12 352 cd       86
+  freestanding    39      2.6 m²      222 cd     3 312 cd       86
+```
+
+**243 OF THE 555 LIT SIGNS — 43.8% — ARE AT OR ABOVE ONE STREET LAMP'S 6 800 cd**, and every one
+of them lit nothing. A rooftop cabinet at a median 40 035 cd is 5.9 street lamps hung over a roof.
+
+**THE SOURCE IS A POINT ONE EQUIVALENT RADIUS BEHIND ITS OWN PANEL.** `lights.js` windows the
+inverse square exactly as three does, so a light AT the panel is a 1/d² singularity on the wall it
+is bolted to — 11 269 cd at the 0.12 m a channel-letter box stands proud of its masonry is
+**780 000 lx**, and the wall goes white. A Lambertian disc of radiance L and area A delivers
+`E(d) = π·L·A/(A + π·d²)`, and a point of intensity `L·A` placed `r = √(A/π)` behind the face
+reproduces both of its limits exactly — `π·L` at the face and `L·A/d²` far away. **So the near
+field is capped by the physics and not by a clamp**: the brightest thing any sign in this city can
+do to what it is mounted on is 270 lx for a fascia and 3 140 lx for a rooftop cabinet, against a
+street lighting design level of 16 lx. Between the two limits the shifted point is up to 2× darker
+than the exact disc, which is the safe direction and is written in the constant.
+
+**THE CONE IS THE FRONT HEMISPHERE**, `coneOuter = π/2`, or every sign lights the inside of its own
+building. A double-sided sign gets one hemisphere and not two — under-delivery, and the alternative
+is a second slot per sign.
+
+### 11.1 THE POOL IS 16 AND THE RANKING IS THE HALF THAT MATTERS
+
+A fixed pool assigned per frame, the same shape as `updateLampPool`, so the clustered count is
+bounded by construction. `budget.json` → `lightRoles.$aircraft` states the spare in its own words —
+*"357 of 384, and 27 spare"* — and the live census agreed exactly.
+
+**THE RANKING IS `I·cosθ/d²` AND NOT DISTANCE**, which is where this differs from the pool it
+copies. Every street lamp in this city is the same lamp, so nearest-first IS brightest-first for
+them; signs span **222 cd to 217 320 cd, a factor of 979**. **The cosine is not a refinement.** The
+first arm ranked on `I/d²` alone and handed most of sixteen slots to rooftop cabinets pointing AWAY
+from the camera — candidates whose contribution to the frame is exactly zero, held against fascias
+eight metres away lighting the pavement the player stands on.
+
+Delivered, per pose: `citystreet` 6 candidates, `junction` 3, `retail` 9, `cabinet` 7, **`bigroof`
+15 of 16**. So the pool very nearly binds at the densest pose and does not bind at the others —
+**the limiter is the 128 m cutoff and the facing test, not the sixteen slots.**
+
+```
+  role census   aircraft 1  traffic 96  stall 12  block 56  lamp 192  SIGN 16
+                373 of 384, unrolled 0, 11 spare
+  cluster       overflow false at every pose, peak froxel 34-47 of 96 against a
+                `minOccupancyMargin` floor of 40
+```
+
+**AND THE FIRST ARM SHIPPED A FRAME THAT WAS BYTE-IDENTICAL TO THE ONE BEFORE IT.** The resident
+record in `city.js` is assembled FIELD BY FIELD rather than spread, so `signEmitters` — returned by
+`buildChunk`, named in no field list — reached nothing. 16 slots, 0 candidates, and a pool whose
+own boot line read correctly. It is CONTRACT §9's shape with a field name, and what found it was
+adding `signsActive` / `signCandidates` to `city.stats()` rather than looking harder at a frame.
+
+**DELIVERED**, at the pose that stands under a sign, as a RATIO INSIDE ONE FRAME — exposure pays
+for what is added (CONTRACT §5.4), so absolutes are not the statement:
+
+```
+  a sign-lit facade against an unlit control wall in the same frame   1.013x -> 1.772x
+  a second one                                                        0.077x -> 0.152x
+```
+
+and the lit wall rises **25% in absolute code value while the frame's own exposure falls 15%**.
+**ZERO DRAW CALLS** — 118 / 103 / 299 / 250 / 147 / 292 identical in both arms at six poses.
+
+### 11.2 A SIGN THROWS ITS OWN COLOUR, AND IT IS FREE
+
+`EMITTER_CHROMA` is **luminance-normalised — every one of `SIGN_CHROMA`'s six entries has
+Y = 1.000, checked** — so carrying the sign's chroma into its light changes the HUE of what it
+throws and not how much. The intensity derivation stands, and the light and the panel can no longer
+disagree about what colour the sign is: both are `color[ch] × intensity` off one table.
+
+**THE WHITE ARM WAS WASHING COLOUR OUT OF THE FRAME**, which is the finding. Measured on one wall,
+7 700 pixels, as R/B:
+
+```
+  no sign light      R/B 1.620   Y 0.0763    the ambient sodium-lit wall
+  white sign light   R/B 1.306   Y 0.0955    DESATURATED, a third of the way to neutral
+  its own chroma     R/B 1.938   Y 0.0937
+```
+
+Adding neutral light to a city that is already one hue does not oppose that hue, it moves the wall
+toward grey. Three of the six chromas are cold, so half of what the signs put on this city's
+facades now fights the sodium the street lamps put there — LOOK.md §3's *"biggest unspent lever"*,
+and L12's own frame is what it was spent against.
+
+---
+
+## 12. THE CROWNS' POPULATION SHARE IS 40.72 AND NOT THE STREAKS' 91.41
+
+L5, opened by the first half of this session in as many words: *"R1 gives the streaks ×91.41 for
+the drops below `DROP_MM`; the crowns did not get it, deliberately."* The 130 crowns stand for
+every impact on the road exactly as the 500 streaks stand for every drop in the air, so they are
+owed the same correction — **and a different number.**
+
+A streak is a GLINT: its flux is the drop's projected disc, so the moment is D². A crown is DIFFUSE
+FOAM RAISED BY AN IMPACT: what arrives is a FLUX of drops onto the ground and what each buys is the
+AREA of the crown it throws, so the integrand is `N(D)·v(D)·A_crown(D)` with this module's own
+`v = 3.78·D^0.67` and `A_crown ∝ D²` — **the D^2.67 moment.**
+
+```
+  streaks   D^2.00   all 1.2379e-1   D >= 3.28 mm 1.3543e-3   91.41
+  crowns    D^2.67   all 1.3392e-1   D >= 3.28 mm 3.2889e-3   40.72
+```
+
+**0.445× the streaks'**, because weighting by `v` tilts the integral toward the large drops that are
+already above the split. The first half of this session was right not to hand them the same figure.
+
+**THE QUADRATURE CHECKS ITSELF.** 2.67 is not an integer, so there is no elementary antiderivative
+of the kind `STREAK_POPULATION_SHARE` writes out; run at p = 2 the same integrator must reproduce
+that closed form's 91.41, and it **throws** if it misses by more than 0.1%. It reproduces 91.405.
+
+**DELIVERED**, midnight, wet, `rainfall=1`, camera low inside `SPLASH_RANGE_M`: crowns that were not
+there are on the road — 2.27% of pixels brighter, max **+199 code values**, frame mean 21.22 →
+21.29. 118 and 105 draw calls in both arms. `budget.json` is untouched: every bound in `particles`
+is a count or an area and this is a radiance.
+
+**WHAT IT COSTS, SAID RATHER THAN DISCOVERED LATER.** A crown is 0.0246 m across — about 2 px at
+15 m and 10 px at 3 m, i.e. **RESOLVED in the near field**, unlike a streak which is sub-pixel
+everywhere. So a near crown now renders brighter than foam at this road's illuminance can
+physically be. The honest rendering of the same energy is more crowns rather than brighter ones,
+and 130 is the instance ceiling.
+
+---
+
+## 13. FIFTY-THREE LAMP HEADS WERE HANGING IN THE AIR
+
+Found by looking at a noon junction: dark ellipsoids floating in the sky. **The count says it
+exactly** — over the resident ring at seed 1337, `city:bowls` has **497** instances and
+`city:lamps` has **444**.
+
+A street lamp pushes TWO matrices, a column into `lampBodies` and a bowl into `bowls`. The
+`chunk.features` loop pushes a bowl AND NOTHING ELSE. Counted straight out of the generator over
+the same 5 × 5 near ring: **36 `lamp` + 17 `flood` = 53**, the shortfall to the unit. Every park
+lamp, every car-park column and every site flood mast in this city was a head with nothing holding
+it up.
+
+**IT IS A BOX IN `masses`, NOT AN INSTANCE OF `geometries.lamp`**, and the reason is the shape
+rather than the budget: that geometry is a pole MERGED WITH ITS ARM, built for a lantern that
+overhangs a carriageway from the kerb. These are post-top — the bowl is directly over the base and
+the feature loop's own `dir: [0, −1, 0]` says so — so instancing the street lantern would stand a
+2.1 m bracket beside every one of them reaching out at nothing. It is emitted just before `bodies`
+closes into the chunk's `masses` mesh, gated on the same `near` the feature loop is gated on.
+
+**ZERO DRAW CALLS** — 123 and 116 in both arms. **+780 and +828 triangles**, which is 65 boxes at 12.
+
+**THE FIRST READING OF THIS WAS WRONG AND IS WORTH RECORDING.** The blob raycast first was a STREET
+lamp's bowl, and a ray straight down from one correctly finds nothing, because the head hangs 2.1 m
+out on its arm. **The count is what turned a suspicion into a defect, not the raycast.**
+
+---
+
+## 14. A DROP IN A LAMP'S BEAM, AND AN INSTRUMENT THAT CAUGHT ITS OWN AUTHOR
+
+The operator's third observation and the one the brief said to do FIRST: *"session 44 lit the AIR
+in that beam and left the DROPS out of it."* The first half of this session changed the streaks'
+MAGNITUDE by 326.3 and left **every drop in the world at the same radiance**, which is a different
+sentence. `STREAK_GLINT_NITS` is `F·L_bowl·dilution` — a constant — so a drop three metres from a
+lantern and a drop fifty metres from any light were identical.
+
+**WHAT THE VARIATION IS, AND IT IS NOT A TASTE.** A drop is a SPHERE, i.e. a convex mirror: it
+intercepts `I·πr²/d²` from a source of intensity I, reflects a Fresnel fraction and spreads it over
+the whole sphere. So the flux a drop sends to the eye goes as `I/d²` — **the illuminance at the
+drop** — and not as the source's radiance. Sampled on the CPU into the per-instance gain the layer
+already carries, off `lights.all()`, so it sees the street lamps, the shopfronts, the stalls and
+§11's sign pool without any of them declaring themselves to weather. Bounded by construction: a
+12-source shortlist rebuilt once a frame, so the inner loop is 500 × 12 and not 500 × 384.
+
+**THE FIRST ARM WAS WRONG BY TEN AND ITS OWN INSTRUMENT CAUGHT IT.** Referencing the drops to
+`STREET_DESIGN_LUX` = 15 gave a measured modulation mean of **9.794 and 13.619** — a tenfold
+brightening of the whole layer wearing a variation's clothes, which would have moved R1's delivered
+gain to **3 263**, an order of magnitude outside the 70–400 bracket the first half of this session
+chose by looking at six frames. 15 lx is what the CARRIAGEWAY is lit to: a horizontal plane at
+ground level, averaged between the poles. A drop is in the air from 0 to 12 m, beside an 8.08 m
+lantern rather than under it. **The reference is the measured figure, 175 lx** (147 and 204 at two
+poses), and `particleStats().beam` prints the mean so the claim is checkable rather than trusted.
+
+```
+  beam mean    0.840 and 1.167    bracketing 1, so this is VARIATION and not LEVEL
+  beam range   0.007 to 3.43      a factor of 490 between the darkest drop and the brightest
+  clamps       0.3 lx and 600 lx, in ABSOLUTE illuminance so they do not move when the
+               reference is re-measured. 600 lx is 6800/d² at d = 3.4 m, where a lantern
+               stops being a point source to a drop; 0.3 lx is this module's own
+               "within a factor of two of full moonlight"
+```
+
+**DELIVERED**, midnight, wet, `rainfall=1`: frame mean **29.63 → 29.62** and **38.57 → 38.56** —
+unchanged, which is the point — with 2.0% of pixels brighter and 2.1–2.8% darker and individual
+drops up to **+218 code values**. The difference map is **red streaks on the dark side of the frame
+and green streaks toward the lamp**. 119 and 107 draw calls, identical in both arms.
+
+---
+
+## 15. KNOWN GAPS CARRIED FORWARD
 
 **Unchanged from s8–s44**: `stats().cutoffM` hard-codes 0.8, the headroom probe inert,
 `saturation-peak.png` overwritten every run, `$fovYDrift`, `camera.setRouteAt(name, 1.0)` at the
@@ -775,6 +1185,13 @@ delivered `sign ×` overlaps and the two sign quads inside a building**.
 - **The origin block having no road markings**, which nobody had noticed in forty-four sessions
   because the gate that counts markings counts the LATTICE's. §5.1.
 - **The draw-call ceiling as the project's limiter.** 439 of 440 for three sessions; 395 now.
+- **`LOOK.md` §3's *"there is no sign role, and there are 975 signs"***, carried since session 44
+  as a fact about the light list. It was a defect and there is a sign role now. §11.
+- **L5, the crowns' population share**, opened by this session's own first half and closed by its
+  second. §12.
+- **The operator's third rain observation** — a drop in a beam as dull as a drop in the dark. §14.
+- **The claim that the streaks' orientation is screen-space.** It is world-space and a 180° yaw
+  proves it. L17.
 
 **NEW THIS SESSION — all of it measured, none of it inferred:**
 
@@ -798,3 +1215,15 @@ delivered `sign ×` overlaps and the two sign quads inside a building**.
   with the streamed city correct. Every one was found by looking and none by a gate.
 - **`distinct:midnight|dusk` HAD A MARGIN OF 0.00007 AGAINST AN INSTRUMENT THAT RESOLVES 0.00001**,
   and one street's worth of white paint spent it. L15.
+- **243 OF 555 LIT SIGNS ARE AT OR ABOVE ONE STREET LAMP'S 6 800 cd** and every one of them lit
+  nothing, while `block.js` had lit its five since session 3. §11.
+- **ADDING NEUTRAL LIGHT TO A ONE-HUE CITY MAKES IT MORE NEUTRAL, NOT LESS** — a wall's R/B went
+  1.620 → 1.306 under white sign light and → 1.938 under the signs' own chroma. §11.2.
+- **`city:bowls` 497 AGAINST `city:lamps` 444** — 53 lamp heads with no post, which is exactly the
+  36 park lamps plus 17 site floods the generator emits. §13.
+- **THE RAIN'S BEAM MODULATION WAS WRONG BY TEN AND ITS OWN PRINTED MEAN SAID SO**, against a
+  reference (the carriageway's design lux) that is the wrong plane for something in the air. §14.
+- **TWO OF THREE STREET POSES DO NOT REPRODUCE BOOT TO BOOT**, one of them by 20% of the frame,
+  and this session mistook that noise for a result once before it measured it. L16.
+- **THE EARTH PLANE SPECKLES AT 1.9 km**, which is the colour repair of session 42 with its
+  high-frequency half still open. L19.
