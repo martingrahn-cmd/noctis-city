@@ -186,6 +186,56 @@ It is that the street wall is broken.
   should be. At 950 m the frame is about 1 575 m wide and the streamed city is
   1 280 m. **From high enough, the honest answer is that you are looking past
   the edge of the city**, and no ground colour and no fill law changes that.
+- **AND THE THIRD ANSWER IS THE BLOCK INTERIOR, MEASURED IN THE FRAME'S OWN
+  PIXELS — SESSION 46.** The operator's sixth defect is *"between and behind
+  buildings, in daylight, wide flat areas with nothing on them"*, for the third
+  time in seven sessions. Neither of the first two instruments can answer it:
+  `groundprobe` divides objects by OPEN GROUND, and `bareprobe` attributes a
+  REGION's square metres, and a perspective frame spends most of its pixels on
+  the nearest two hundred metres. `tools`' new scratchpad `frameown` casts a ray
+  through a grid of the DELIVERED frame's own pixels, names the mesh each one
+  hit, and resolves every ground hit back through `generateChunk` to the kind
+  that owns it. From the operator's own spawn, looking down 45° at noon:
+
+  ```
+    building mass         56.51%      ground road            7.51%
+    ground coreGround     16.19%      ground walk            3.99%
+    landmark exchange      4.51%      ground siteGround      2.30%
+    building windows       3.78%      ground parkingGround   0.65%
+    BARE — block.js's earth plane                            0.00%
+  ```
+
+  **BARE GROUND IS 0.00% OF THAT FRAME**, so the bullet above is closed at this
+  pose, and the residency ring is not it either — from 91.73 m looking east the
+  earth plane is 10.53% of the not-sky frame at a MEDIAN RANGE OF 1 641 m, which
+  is that bullet's own *"you are looking past the edge of the city"*.
+  **The largest ground owner in the picture is the block interior at 16.19%, and
+  it is drawn, correctly coloured, and almost empty.**
+
+  **AND THE PER-HECTARE COLUMN SAYS THE KNOB IS NOT THE ONE ANYBODY WOULD
+  REACH FOR.** `groundprobe`, same seed, same region, objects per hectare of
+  open ground with the fixture count beside it:
+
+  ```
+    kind          chunks   props  feats   objects / ha
+    park             2       45    278       275.1
+    lot              4       49    495       202.4
+    parking          5       82    894       178.2
+    construction     3       54    518       174.6
+    yard             3       85    410       150.8
+    built           83     1898     55        43.8
+  ```
+
+  A `built` island delivers a quarter of a car park and a sixth of a park, and
+  the column that explains it is `feats`: the other five get **83–92% of their
+  content from FIXTURES** — bays and parked bodywork and a boundary rail and
+  lighting columns; a palisade, stacks and two floods — while the core has 0.7
+  features per chunk and everything else it has is scatter. **Its scatter is not
+  short**: `DEAD_ZONE.core` delivers 41.8 props per hectare where
+  `DEAD_ZONE.yard` delivers 29. So raising the core's count would be choosing a
+  number for a reason the data does not support. **The item is fixtures**, and
+  `DEAD_ZONE.core`'s own comment already names them — bin stores, a plant
+  enclosure, stacked material and a delivery bay.
 - **THE EMPTY CHUNKS ARE NOT THE DEFECT, AND THE CLAIM THAT THEY WERE WAS MINE.**
   This bullet used to read *"23 of 100 chunks carry zero buildings, one of them at
   density 0.715 — that is the defect"*, and STATE 31, this file and session 32's
@@ -612,6 +662,35 @@ Light is the city's main material. Geometry is what the light lands on.
 
   **What is still emissive-with-no-candela is EVERY WINDOW**, and that is the
   larger area — see STATE 45 L1, which is where the 220 cd/m² question lives.
+
+  **AND THE SAME BLOCK PUT A HARD EDGE ACROSS THE HORIZON, WHICH IS THE OTHER
+  END OF THE SAME TERM — SESSION 46, AND IT IS THE OPERATOR'S FIRST DEFECT.**
+  His words: *"a distinct horizontal line where the atmosphere starts — above it
+  clear, below it a flat wash, with a visible seam between."* Raycast at his own
+  spawn: the pixel above the seam is SKY and the one below is `block:ground` at
+  **4 123.23 m**, i.e. the 8 km earth plane's own rim. So it is the sky dome
+  meeting the ground plane and not the residency ring, which ends three
+  kilometres nearer.
+
+  **WHAT MADE IT A SEAM RATHER THAN A FADE IS THE OPENNESS RAMP.**
+  `clamp(wdir.y · 5, 0, 1)` is exactly 0 for any DOWNWARD ray, so the ground at
+  the rim got the CANYON's openness — 0.511 — while the sky one pixel above got
+  the dome at full strength. **The eye was 91.73 m up; there is no canyon.**
+  Delivered: sky 141.3 code values against ground 103.7, a 37.6 cv step in two
+  pixels. The ramp gains a second term — the eye's height, zero below six
+  storeys and one above the 60 m this block already calls *"above every
+  parapet"* — and the ground/sky ratio goes **0.8376 → 0.9774** at three
+  bearings, with the four luminance bands moving 0.0001, 0.0000, 0.0001, 0.0001.
+
+  **AN `abs(wdir.y)` ARM WAS MEASURED AND REJECTED, AND THAT IS THE part worth
+  keeping.** It is the obvious repair and it is wrong: the symmetry only holds
+  for a ray that STARTS above the parapets, and from 1.7 m a ray 11° down meets
+  the road in nine metres and never leaves the canyon. It lifted the street's
+  road band 4.1% on a pose nobody complained about and closed the seam only to
+  0.8616, where the height term alone reaches 0.9774 against a forced-open
+  0.9778. **The rim cannot vanish**: τ at 4 123 m is 1.71, so 18% of that pixel
+  is still the ground, and closing the last of it means a bigger plane rather
+  than more air.
 - **Colour opposition.** This is close to free and it is the biggest unspent
   lever. NOCTIS is currently monochrome amber — nearly every emitter is warm.
   The reference works because cold cyan fights warm sodium in the same frame.
@@ -666,6 +745,34 @@ Light is the city's main material. Geometry is what the light lands on.
   are, it asks for 2. `highway_speed` 439 → **395 of 440**. The ceiling that has
   deferred five sessions of items is no longer the limiter.
 
+  **AND HALF OF THEM WERE NOT LAMPS — SESSION 46, FROM THREE METRES.** The
+  operator's fifth defect is *"the head, the arm and the column do not go
+  together"*, and it was exact. `city.js` gave an axis-`z` column a yaw of +90
+  and put its head at `spot.z − side · 2.1`; three's rotation about +Y takes the
+  bracket tip at local `(−2.1, 0)` to `(0, +2.1)` at that yaw, so the lantern
+  hung **4.2 m from the end of its own arm, on the other side of the pole.** The
+  x-axis lamps agreed because 0 and 180 are the two yaws at which the two
+  expressions coincide, and that is the whole of why forty-three sessions of
+  frames did not show it. Measured on the delivered instance matrices as the
+  distance from each column's arm tip to the nearest bowl: **165 of 344 columns
+  had no bowl within a metre, at a median of 4.200 m; 0 of 382 after.** The head
+  was the correct half — it is the one over the carriageway — so the repair
+  turns the column and **moves no light in the city**. `promenadeLamps` had the
+  same defect and a comment asserting the opposite rotation.
+
+  **AND SIXTEEN PER CENT OF THEM STOOD IN THE ROAD.** `off` is the pole's
+  distance along its own kerb from the chunk corner, and the corner IS a
+  junction: `phase` runs 0 to 9 against a cross carriageway that reaches 7.5 m.
+  **53 of 320 columns inside a delivered `ground:road` rectangle; 0 of 374
+  after.** The registry could not have stopped it and that is the finding rather
+  than the count: of 11 054 delivered claims, **172 carry an owner beginning
+  `lamp:` and all 172 are PARK lamps — zero of the 382 street columns was
+  covered by any claim at all.** `lampprobe.mjs` has printed that since session
+  23. The column is claimed `prop` and the arm and bowl `canopy` now, and within
+  one `citycheck` run the delivered census found **eight advertising pillars
+  standing inside a lamp column**, worst 0.072 m² of a 0.09 m² footprint, as old
+  as the pillars.
+
 ---
 
 ## 4. The street at eye level
@@ -684,6 +791,35 @@ is judged from about 1.7 m.
   left the pavement — and no vehicle yields to anyone standing on it. A crossing
   with no one crossing is a texture. Judge this bullet from the pavement, not
   from the marking census.
+
+  **AND THE STOP BAR IS ON THE RIGHT SIDE OF IT, IN 392 OF 392 PLACES — SESSION
+  46, AND THIS IS A QUESTION BECOMING A STATEMENT PER §8.** The operator's third
+  defect is *"a vehicle would stop ON the crossing rather than behind it"*, and
+  nobody had checked the ORDER since session 33 rebuilt the crossings and
+  session 44 took `minStopLineM` to zero. Out of the pure generator over
+  `citycheck`'s own 10 × 10 at seed 1337, as the near and far EDGES of the
+  delivered paint from the junction centre:
+
+  ```
+    stop bar   8.800 .. 9.200 m        zebra   7.550 .. 8.750 m
+    approaches carrying both                                    392
+      zebra entirely NEARER the junction than the bar           392
+      bar nearer                                                  0
+      overlapping                                                 0
+    gap, bar.near − zebra.far      min 0.050  mean 0.050  max 0.050 m
+  ```
+
+  A vehicle meets the bar at 9.0 m, stops, and the zebra at 8.15 m is then
+  between it and the junction. `stoplineprobe` says the same from the vehicle's
+  end: over 21 583 frames with someone held at a red, **no settled vehicle is
+  ever past its own line.** **The claim is false and the geometry is right.**
+
+  **WHAT IS TRUE IS THE FIFTY MILLIMETRES.** The gap is a constant in all 392,
+  because both edges are solved against the same two numbers with the same
+  0.05 m clearance every join in this project uses — so from a pavement the bar
+  and the zebra are one continuous band of white 1.65 m deep and which half is
+  which is not readable. Widening it means moving `CITY.stopLineFromJunctionM`,
+  which has three readers. **A look decision nobody has taken.**
 - **THE ROAD HAS TO READ AS A ROAD, AND FOR A THIRD OF THIS CITY IT DID NOT —
   SESSION 45.** The operator's words about a noon frame: *"the road is the same
   pale tone as the pavement, no kerb reads, markings barely visible, the whole
