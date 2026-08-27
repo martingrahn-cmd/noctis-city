@@ -19,10 +19,10 @@ measured before anything was changed.
 - **FOUR WERE REAL AND ARE REPAIRED** — the haze seam, the lamps in the road, the lamps built
   wrong and the viaduct's footings (items 1, 4, 5, 2). Two of the four were about half the street
   lamps in the city.
-- **A FOURTH WAS REAL, AND THE TABLE THE BRIEF ASKED FOR IS WHAT FOUND IT** (item 2). Six of the
-  eight landmarks put not one box outside their own claim; the ninth thing in a road is the
-  VIADUCT'S PIER FOOTING, which is 2.6 m square where the placement cleared 0.8. Repaired after a
-  sweep, because the same constant caps the search band.
+  The fourth of them is item 2, and **the table the brief asked for is what found it**: six of
+  the eight landmarks put not one box outside their own claim, and the thing standing in a road is
+  the VIADUCT'S PIER FOOTING — 2.6 m square where the placement cleared 0.8. Repaired after a
+  sweep, because the same constant also caps the search band it is searched in.
 - **ONE IS REAL, IS MEASURED, AND THE NUMBER SAYS THE OBVIOUS KNOB IS THE WRONG ONE** (item 6).
 - **ONE IS FALSE.** The delivered geometry is the right way round in 392 of 392 places (item 3),
   and what he is looking at is fifty millimetres of gap, which is worth naming.
@@ -531,27 +531,35 @@ a machine and they are each other's load.
   citycheck    RED at 3 on the run before R8 — THE SAME THREE as sessions 40-46 — and
                        `occupancy` reports THE SAME TWO delivered overlaps it reported before
                        this session, with a claim band of 333 lamp columns and 333 canopies
-                       added under it. §2. **The confirming run after R8 is RED AT 4 and the
-                       fourth is the machine**: `sceneWalk` timed out on WALL CLOCK at
-                       20 030.7 ms with 3 bakes queued and 1 in flight, where the run twenty
-                       minutes earlier read *"city arrived over 3054 frames / 15 853.7 ms"* on
-                       the same streaming path. `load1` was **3.04** for that run and **12.38**
-                       for this one, because the operator started a screen-share and audio
-                       session on the machine (`coreaudiod` 195%, `screensharingd` 25.6%). The
-                       gate's own message says a wall timeout means a bake is slow; it is, and
-                       the reason is not in this repository. **Every count in that run is
-                       unchanged and the viaduct row IMPROVED** — see R8. Re-run it on a quiet
-                       machine before reading anything into it.
+                       added under it. §2. **RED AT 3 AFTER R8 TOO, ON THE THIRD
+                       RUN, AND THE SECOND RUN'S FOURTH RED WAS THE MACHINE — WHICH IS ONLY
+                       KNOWN BECAUSE IT WAS TAKEN TWICE.** The first run after R8 added
+                       `sceneWalk: the city had not finished arriving`, a WALL-CLOCK timeout at
+                       20 030.7 ms with 3 bakes queued and 1 in flight. Re-run twenty minutes
+                       later on the same commit:
+
+                         load1 12.38   city arrived  20 030.7 ms  TIMEOUT, red at 4
+                         load1  4.19   city arrived  16 117.7 ms  3054 frames, red at 3
+
+                       `load1` went to 12.38 because a screen-share and audio session started on
+                       the machine during `perfcheck` (`coreaudiod` 195%, `screensharingd`
+                       25.6%). The gate's own message says a wall timeout means a bake is slow;
+                       it was, and the reason is not in this repository. **Every count is
+                       identical across the two runs and the viaduct row IMPROVED in both.**
+                       `city arrived` is the one number in `citycheck` that is a MILLISECOND,
+                       and CONTRACT §0.2 applies to it exactly as it does to a frame time.
+
+                       The three that stand:
                          clumping CV 0.443 against 0.60, sixth session, untouched by instruction
                          2 of 2720 sign quads inside a building, the same two
                          2 delivered overlaps: sign(adpillar) x prop(tree) 0.013 m2 and
-                         sign(adpillar) x prop(planter) 0.086 m2 — the same two
-                         bright reserve 6.29% against 6.00 (s45 median 6.35, and read L22 before
-                         reading anything into that)
-                         saturation 4.00% pooled peak against 12%
+                           sign(adpillar) x prop(planter) 0.086 m2 — the same two
+                         bright reserve 6.34% against 6.00 (s45 median 6.35; read L22 before
+                           reading anything into that)
+                         viaduct 23 piers, 2 hammerhead, 7 nudged, 0 blocked, 0 leg(s) on a
+                           carriageway, worst |x| inside the block 9.94 m against 10.40 — R8
+                         saturation 4.00% pooled peak against a 12% ceiling
                          lamp bowls: origin 1.0000x derived, streamed 4.6102x, ratchet unmoved
-                         viaduct 23 piers, 2 hammerhead, 6 nudged, 0 blocked, 0 leg(s) on a
-                         carriageway — AND F7 IS ABOUT THAT LAST NUMBER
   perfcheck    RED at 13 — the same count as session 45 and the same three categories.
                        **NOT ONE IS A COUNT.** Every route, against session 45's own table:
 
