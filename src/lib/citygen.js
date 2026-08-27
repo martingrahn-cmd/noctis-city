@@ -2512,6 +2512,56 @@ export const LANDMARKS = [
     pierLegOffset: 8.3,
     pierLegHalf: 0.8,
     /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE THING THAT STANDS IN THE ROAD IS THE FOOTING, NOT THE LEG —
+     * SESSION 46. IT IS THE OPERATOR'S SECOND DEFECT.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Every clearance in the paragraph above is measured from `pierLegHalf`,
+     * and `legIsClear(leg, l.pierLegHalf)` is called *"the one predicate, so
+     * the search and the gate agree"*. They do agree — about a box that is not
+     * the one drawn. `city.js` builds the pier's pad as
+     * `push(leg.x, footH / 2, leg.z, 2.6, footH, 2.6, p.yawDeg, albedo, 0.86)`: **2.6 m
+     * square where the leg is 1.6**, which is what a footing is.
+     *
+     * MEASURED ON THE DELIVERED `landmark:viaduct` INSTANCE MATRICES against
+     * the delivered `ground:road` rectangles, resident ring, seed 1337:
+     * **7 pad footings and 3 shafts stood inside a carriageway**, the pads by
+     * up to 1.04 m of running surface. `citycheck` printed `0 leg(s) on a
+     * carriageway (max 0)` in the same run, because it reads the same 0.8.
+     * CONTRACT §9 with a length: one number standing for two objects.
+     *
+     * THE VALUE IS THE DRAWN PAD AND `city.js` READS IT FROM HERE, so the
+     * clearance and the geometry cannot drift apart again — the arrangement
+     * `CITY.stopLineFromJunctionM` has had since session 19.
+     *
+     * WHAT THE CLEARANCE COSTS, SWEPT IN THE PURE GENERATOR OVER THE WHOLE
+     * PIER POPULATION before anything was changed (23 piers, seed 1337):
+     *
+     *   clearance   hammerhead  nudged  blocked   footings in a road   worst
+     *      0.80  <-      2         6       0            12            0.926 m
+     *      1.00         2         6       0            12            0.680 m
+     *      1.10         2         7       0            10            0.675 m
+     *      1.30  <-      2         7       0             8            0.424 m
+     *      1.50         3         5       4            11            3.930 m
+     *      1.84         3         5       4             5            3.930 m
+     *
+     * **1.30 IS THE LARGEST CLEARANCE THIS DECK CAN CARRY WITH `0 blocked`**,
+     * which `citycheck` asserts, and it is `pierFootM / 2` exactly — the pad
+     * cleared SQUARE ON. The yawed worst case is `2.6·√2/2` = 1.838 m and the
+     * sweep says it is unreachable: the leg-offset band tops out at 10.9 m and
+     * four piers lose every solution. **So the residual is the yaw**, and it is
+     * 0.424 m at the worst of eight legs against 0.926 m at the worst of
+     * twelve.
+     *
+     * NOT ALSO WIDENED: the registry claim. `landmarkOccluders` boxes a leg at
+     * `arc.legHalf + 0.3` = 1.10 m, which under-declares this 1.30 m pad by
+     * 0.20 m — the same class of defect one level out. Widening it moves the
+     * road clip and the building keep-out and therefore re-phases the city,
+     * which is a change that needs its own measured arm. STATE 46 F7.
+     */
+    pierFootM: 2.6,
+    /**
      * Metres a pier may be moved along the deck to get both legs off a
      * carriageway. Half a bay: beyond that a pier is closer to its neighbour's
      * joint than to its own, and the span it is supposed to be dividing stops
@@ -3677,7 +3727,12 @@ export function viaductPiers(arc, l) {
         const off = l.pierLegOffset + sign * d;
         if (off < VIADUCT_LEG_OFFSET_MIN_M || off > VIADUCT_LEG_OFFSET_MAX_M) continue;
         const leg = legAt(st, off, side);
-        if (legIsClear(leg, l.pierLegHalf)) return leg;
+        /**
+         * THE PAD, NOT THE LEG — session 46. `l.pierFootM / 2` is the drawn
+         * footing's half-width square on; see that constant for the sweep that
+         * chose it and for why the yawed 1.838 m is not reachable.
+         */
+        if (legIsClear(leg, Math.max(l.pierLegHalf, l.pierFootM / 2))) return leg;
       }
     }
     return null;

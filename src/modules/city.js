@@ -6073,7 +6073,11 @@ export function createCity(options = {}) {
           const at = (t) => [p.x - sn * t, p.z + c * t];
 
           for (const leg of p.legs) {
-            push(leg.x, footH / 2, leg.z, 2.6, footH, 2.6, p.yawDeg,
+            // `l.pierFootM` — session 46. This was a literal 2.6 here while the
+            // placement cleared `pierLegHalf` = 0.8 over in `citygen.js`, so the
+            // pier stood off the kerb by the width of a box nobody drew. One
+            // length, two readers; the derivation is beside the constant.
+            push(leg.x, footH / 2, leg.z, l.pierFootM, footH, l.pierFootM, p.yawDeg,
               [albedo[0] * 0.8, albedo[1] * 0.8, albedo[2] * 0.79], 0.86);
             /**
              * A LEG IS SLIMMER THAN THE OLD SHAFT AND THAT IS THE POINT. The
