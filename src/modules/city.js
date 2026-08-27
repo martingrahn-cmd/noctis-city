@@ -1717,6 +1717,13 @@ export function createCity(options = {}) {
    * other. One name, three readers (CONTRACT §9.1).
    */
   const LAMP_ARM_M = 2.1;
+  /**
+   * m. Half the column's claim, which is the pole's widest radius: the taper in
+   * `buildGeometries` is `CylinderGeometry(0.11, 0.15)`. Read by the claim
+   * pushed in `buildChunkBody`, by the ad pillar's refusal and by the corner
+   * de-duplication in `lampStationsFor` — one length, three readers.
+   */
+  const LAMP_COLUMN_HALF_M = 0.15;
 
   /**
    * ═════════════════════════════════════════════════════════════════════════
@@ -1825,7 +1832,36 @@ export function createCity(options = {}) {
       const off = clear(raw);
       if (raw < CITY.chunkSize) {
         out.push({ x: b.x0 + inset, z: b.z0 + off, axis: 'x', side: 1 });
-        out.push({ x: b.x0 + off, z: b.z0 + inset, axis: 'z', side: 1 });
+        /**
+         * AT THE NEAR CORNER THE TWO KERB LINES MEET AT ONE POINT, AND THE
+         * REGISTRY SAID SO WITHIN ONE GATE RUN OF THE CLAIM EXISTING.
+         *
+         * Both stations above are `inset` from their own kerb, so when `off`
+         * clamps to `inset` the x-axis pole is at `(x0 + inset, z0 + off)` and
+         * the z-axis pole is at `(x0 + off, z0 + inset)` — **the same point.**
+         * `citycheck` reported it as `prop(lamp:column) × prop(lamp:column)`
+         * at 0.09 m², which is 0.30 × 0.30, i.e. the whole claim box: two
+         * columns exactly on top of each other, one per near chunk. That is
+         * not a fault in the clamp, it is the geometry — a junction corner has
+         * one pole position and two kerbs asking for it.
+         *
+         * The NS kerb takes the corner and the EW kerb's own `i = 0` is
+         * dropped. It costs one pole of twenty per chunk and no dark end: the
+         * far kerb's staggered station half a pitch along (`offFar` = phase +
+         * 15) already lays a pool over that end of the block, which is the
+         * whole argument `LUMINAIRE`'s stagger is built on.
+         *
+         * THE TEST IS GEOMETRIC AND NOT "WAS IT CLAMPED", because the first
+         * version was the second and the registry caught THAT too. The two
+         * stations sit `|off − inset|` apart on BOTH axes, so at `phase = 9`
+         * they are 0.20 m apart, no clamp fires, and two 0.30 m columns still
+         * overlap by 0.01 m² — which is exactly what `citycheck` reported once
+         * the coincident pairs were gone. The condition is the columns' own
+         * width.
+         */
+        if (Math.abs(off - inset) >= 2 * LAMP_COLUMN_HALF_M) {
+          out.push({ x: b.x0 + off, z: b.z0 + inset, axis: 'z', side: 1 });
+        }
       }
       // The far kerb, half a pitch along it. Staggered rather than opposed:
       // `LUMINAIRE`'s 36 x 13 m ellipse is sized so consecutive pools overlap
@@ -3280,7 +3316,7 @@ export function createCity(options = {}) {
      * counted apart for the same reason: the first was always live and the
      * second is the one that was dead.
      */
-    const pillarRefused = { block: 0, building: 0, claim: 0, ground: 0, busstop: 0 };
+    const pillarRefused = { block: 0, building: 0, claim: 0, ground: 0, busstop: 0, lamp: 0 };
     const GROUND_OWNED = /^ground:/;
     if (detail) {
       for (const bld of (chunk.buildings || [])) {
@@ -3355,10 +3391,42 @@ export function createCity(options = {}) {
               pz + PILLAR_PAD > sz - shz && pz - PILLAR_PAD < sz + shz;
           }
         }
-        if (inBlock || hitsBuilding || clash || hitsStop) {
+        /**
+         * AND AGAINST THE LAMP COLUMNS OF THE SAME 3x3 — SESSION 46, AND THE
+         * DELIVERED CENSUS FOUND IT THE INSTANT A LAMP HAD A CLAIM.
+         *
+         * The street lamps had never been in any registry band (see
+         * `lampStationsFor`), so `clash` above could not see one however
+         * correct its table lookup was. Claiming the column made `citycheck`
+         * report **8 forbidden `sign(adpillar) × prop(lamp:column)` overlaps in
+         * the DELIVERED scene**, worst 0.072 m² of a 0.09 m² column — 80% of a
+         * lamp post inside an advertising pillar, on ground both of them
+         * thought was empty. It is as old as the pillars.
+         *
+         * SAME SHAPE AS `hitsStop` DIRECTLY ABOVE AND FOR THE SAME REASON: a
+         * pillar stands off an elevation that may belong to the chunk next
+         * door, so the nine-chunk sweep is the bound, and `lampStationsFor` is
+         * pure in (cx, cz). THE PILLAR YIELDS, which is the same way round the
+         * bus stop is decided: a lamp's position is a lighting layout and a
+         * pillar's is a scatter along a frontage. The bus stop has run exactly
+         * this test since session 30; this is its third reader.
+         */
+        let hitsLamp = false;
+        for (let dz = -1; dz <= 1 && !hitsLamp; dz++) {
+          for (let dx = -1; dx <= 1 && !hitsLamp; dx++) {
+            for (const L of lampStationsFor(cx + dx, cz + dz)) {
+              if (px + PILLAR_PAD > L.x - LAMP_COLUMN_HALF_M && px - PILLAR_PAD < L.x + LAMP_COLUMN_HALF_M &&
+                  pz + PILLAR_PAD > L.z - LAMP_COLUMN_HALF_M && pz - PILLAR_PAD < L.z + LAMP_COLUMN_HALF_M) {
+                hitsLamp = true; break;
+              }
+            }
+          }
+        }
+        if (inBlock || hitsBuilding || clash || hitsStop || hitsLamp) {
           if (inBlock) pillarRefused.block++;
           else if (hitsBuilding) pillarRefused.building++;
           else if (hitsStop) pillarRefused.busstop++;
+          else if (hitsLamp) pillarRefused.lamp++;
           else if (GROUND_OWNED.test(clash.owner)) pillarRefused.ground++;
           else pillarRefused.claim++;
           continue;
@@ -3782,7 +3850,7 @@ export function createCity(options = {}) {
        *  cannot be summed into an instance count it is not part of. */
       $holograms: `${holoPanels} holograms, ${holoBars} bars in city:signs, ${holoRefused} refused`,
       $busStops: `${busStops} bus stops, ${busStopsRefused} refused`,
-      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground + ${pillarRefused.busstop} busstop refused`,
+      $adPillars: `${pillarBoxes.length / 3} pillars, ${pillarRefused.block} block + ${pillarRefused.building} building + ${pillarRefused.claim} claim + ${pillarRefused.ground} ground + ${pillarRefused.busstop} busstop + ${pillarRefused.lamp} lamp refused`,
     };
     for (let i = 0; i < crowns.length; i++) { bodies.push(crowns[i]); bodySkin.push(crownSkin[i]); }
     for (let i = 0; i < props.length; i++) { bodies.push(props[i]); bodySkin.push(propSkin[i]); }
@@ -4079,7 +4147,8 @@ export function createCity(options = {}) {
            */
           placed.push({
             kind: 'prop', owner: 'lamp:column',
-            x0: spot.x - 0.15, x1: spot.x + 0.15, z0: spot.z - 0.15, z1: spot.z + 0.15,
+            x0: spot.x - LAMP_COLUMN_HALF_M, x1: spot.x + LAMP_COLUMN_HALF_M,
+            z0: spot.z - LAMP_COLUMN_HALF_M, z1: spot.z + LAMP_COLUMN_HALF_M,
             y0: baseY, y1: baseY + HEAD_CLEAR_M,
           });
           placed.push({
