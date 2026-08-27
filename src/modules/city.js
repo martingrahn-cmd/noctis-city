@@ -41,7 +41,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, WATER, WATER_BODY } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, WATER, WATER_BODY } from '../core/constants.js';
 /**
  * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
  * occupancy*. The advertising pillar's placement test asks this rather than
@@ -152,6 +152,17 @@ const SIGN_CHROMA = [
  * of `SIGN_CHROMA` rather than written again, so the two palettes cannot drift.
  */
 const HOLO_CHROMA = [SIGN_CHROMA[1], SIGN_CHROMA[3], SIGN_CHROMA[5]];
+
+/**
+ * A SIGN'S STATE, AS A GAIN ON ITS OWN RADIANCE. One table, two readers —
+ * `pushSign` puts it in the instance tint and `pushSignLight` puts it in the
+ * candela — because a sign that is bright in the frame and dark in the light
+ * list, or the other way round, is CONTRACT §9's shape with two copies of one
+ * quantity. `dead` is 0.015 rather than 0 so an unlit panel reads as a dark
+ * plate and not as a hole; `pushSignLight` says in its own comment why it does
+ * not use that number for the light.
+ */
+const SIGN_STATE_GAIN = { lit: 1, half: 0.28, dead: 0.015 };
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -313,6 +324,10 @@ export function createCity(options = {}) {
   let builtCount = 0;
   let lampPool = [];
   let lampCandidates = [];
+  /** The sign-light pool and its per-frame candidate list. `constants.js` ->
+   *  `SIGN_LIGHT` carries the whole derivation. */
+  let signPool = [];
+  let signCandidates = [];
   let meanFacadeHeight = 26;
   let generateQueue = [];
   let frameStamp = 0;
@@ -1906,6 +1921,13 @@ export function createCity(options = {}) {
     const windows = [];
     const windowTint = [];
     const signQuads = [];
+    /**
+     * THE CHUNK'S CANDIDATE SIGN LIGHTS — session 45. Filled by
+     * `pushSignLight`, read by `updateSignPool`, and it is a CANDIDATE list
+     * rather than a light list: 804 signs over `citycheck`'s 10 x 10 against a
+     * pool of 16.
+     */
+    const signEmitters = [];
     const signTint = [];
     /**
      * Session 20. The delivered roof-sign face count and total emitting AREA
@@ -2129,7 +2151,7 @@ export function createCity(options = {}) {
        * a reflectance above 1, which is what would make this trick a defect.
        */
       const c = SIGN_CHROMA[s.chroma % SIGN_CHROMA.length];
-      const gain = (s.state === 'lit' ? 1 : s.state === 'half' ? 0.28 : 0.015) * nitsGain;
+      const gain = SIGN_STATE_GAIN[s.state] * nitsGain;
       signTint.push({ albedo: [c[0] * gain, c[1] * gain, c[2] * gain], roughness: 0.1 });
     };
     /** 1000 / 86 = 11.63. Computed, not typed, so neither constant can drift alone. */
@@ -2138,6 +2160,53 @@ export function createCity(options = {}) {
     const pushStruct = (x, y, z, sx, sy, sz, yawDeg) => {
       bodies.push(setMatrix(x, y, z, sx, sy, sz, yawDeg));
       bodySkin.push({ albedo: [0.13, 0.132, 0.138], roughness: 0.5 });
+    };
+
+    /**
+     * AND THE SIGN'S OWN CLAIM ON A CLUSTER SLOT — SESSION 45. See
+     * `constants.js` → `SIGN_LIGHT` for the whole derivation; what is built
+     * here is the CANDIDATE, and `updateSignPool` decides which candidates a
+     * frame can afford.
+     *
+     * `I = nits · A` is the Lambertian panel's normal intensity, and the state
+     * gain is the SAME one `pushSign` puts in the tint — a dead sign lights
+     * nothing and a half-lit one lights 0.28 of what it would. Two places
+     * deciding separately whether a sign is on is CONTRACT §9's shape, so the
+     * literal lives in one of them and this reads it.
+     *
+     * The record is a candidate and not a light: it carries the panel's centre,
+     * its outward normal, its intensity and its equivalent radius, and nothing
+     * about pools or slots.
+     */
+    const pushSignLight = (x, y, z, nx, nz, w, h, nits, state) => {
+      /**
+       * A DEAD SIGN EMITS NOTHING, and that is not the same as
+       * `SIGN_STATE_GAIN.dead`. 0.015 is a RENDER gain — it keeps an unlit
+       * panel off pure black so it reads as a dark plate rather than a hole —
+       * and applying it here would give a dead rooftop cabinet
+       * 0.015 × 40 035 = 600 cd, which is a tenth of a street lamp thrown by a
+       * sign that is switched off.
+       */
+      const gain = state === 'dead' ? 0 : SIGN_STATE_GAIN[state];
+      if (!(gain > 0)) return;
+      const A = w * h;
+      if (!(A > 0)) return;
+      signEmitters.push({
+        x, y, z, nx, nz,
+        /** cd, the panel's own normal intensity. */
+        I: nits * A * gain,
+        /** m, √(A/π) — the disc of the same area. The light stands this far
+         *  BEHIND the face, which is what caps its near field at π·L. */
+        r: Math.sqrt(A / Math.PI),
+        /** m, where this sign's own illuminance reaches `SIGN_LIGHT.floorLux`.
+         *  Clamped to the pool's own cutoff at the top, because a light bigger
+         *  than the radius the pool culls at is a light in froxels nobody
+         *  reads. */
+        reach: Math.min(
+          SIGN_LIGHT.cutoffM * SIGN_LIGHT.radiusFactor,
+          Math.sqrt((nits * A * gain) / SIGN_LIGHT.floorLux)
+        ),
+      });
     };
 
     for (const s of chunk.signs) {
@@ -2339,6 +2408,9 @@ export function createCity(options = {}) {
             out[0] ? 0.24 : s.width, 0.2, out[0] ? s.width : 0.24, 0
           );
         }
+        /** One hemisphere, facing out, whether or not the cabinet is
+         *  double-sided — `SIGN_LIGHT`'s own note on what that under-delivers. */
+        pushSignLight(cx3, s.y, cz3, out[0], out[1], s.width, height, LIGHT.roofSignNits, s.state);
         roofSignFaces += two.length;
         roofSignArea += s.width * height * two.length;
       } else if (mount === 'flush') {
@@ -2347,6 +2419,8 @@ export function createCity(options = {}) {
           wx + out[0] * 0.12, s.y, wz + out[1] * 0.12,
           s.width, height, 1, s.yawDeg + faceYaw
         ), s);
+        pushSignLight(wx + out[0] * 0.12, s.y, wz + out[1] * 0.12,
+          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state);
       } else if (mount === 'projecting') {
         /**
          * A BLADE. Its plane is perpendicular to the elevation, so its normal
@@ -2376,6 +2450,9 @@ export function createCity(options = {}) {
             s.yawDeg + yawForNormal(tan[0] * dir, tan[1] * dir)
           ), s);
         }
+        /** A blade reads ALONG the street, so its normal is `tan` and not `out`.
+         *  One of its two faces gets the slot; see `SIGN_LIGHT`. */
+        pushSignLight(cx2, s.y, cz2, tan[0], tan[1], proj, height, LIGHT.signPlateNits, s.state);
         // The bracket, at the sign's own top edge, from the wall to its inner edge.
         pushStruct(
           wx + out[0] * (0.35 + proj / 2) * 0.5, s.y + height / 2 + 0.1, wz + out[1] * (0.35 + proj / 2) * 0.5,
@@ -2397,6 +2474,8 @@ export function createCity(options = {}) {
           wx - out[0] * 0.05, y, wz - out[1] * 0.05,
           s.width, height, 1, s.yawDeg + faceYaw
         ), s);
+        pushSignLight(wx - out[0] * 0.05, y, wz - out[1] * 0.05,
+          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state);
         for (const k of [-1, 1]) {
           pushStruct(
             wx + tan[0] * k * s.width * 0.34 - out[0] * 0.2,
@@ -2429,6 +2508,8 @@ export function createCity(options = {}) {
             s.yawDeg + yawForNormal(out[0] * dir, out[1] * dir)
           ), s);
         }
+        pushSignLight(px, baseY + py, pz, out[0], out[1],
+          Math.min(s.width, 2.6), height, LIGHT.signPlateNits, s.state);
         const POST_M = 0.26;
         pushStruct(px, baseY + (py - height / 2) / 2, pz, POST_M, py - height / 2, POST_M, 0);
         /**
@@ -3941,7 +4022,7 @@ export function createCity(options = {}) {
       if (o.name === `${rngKey}:masses`) massMesh = o;
     });
     return {
-      group, bytes, lamps, chunk, ground, massMesh, lampParts,
+      group, bytes, lamps, chunk, ground, massMesh, lampParts, signEmitters,
       signs: signQuads.length ? { matrices: signQuads, skin: signTint } : null,
       roofSignFaces,
       roofSignArea,
@@ -6298,6 +6379,109 @@ export function createCity(options = {}) {
     }
   }
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE SIGN POOL — SESSION 45, AND THE STREAMED CITY'S 804 SIGNS LIGHT
+   * SOMETHING FOR THE FIRST TIME.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `constants.js` -> `SIGN_LIGHT` carries the derivation: why the source is a
+   * point one equivalent radius behind its own panel, why the cone is the
+   * front hemisphere, why the pool is 16 and why the ranking is `I/d²` rather
+   * than the lamp pool's distance. This is the assignment.
+   *
+   * IT IS THE SAME SHAPE AS `updateLampPool` DELIBERATELY — a fixed pool,
+   * parked below the world at zero intensity rather than added and removed, so
+   * the clustered count is bounded by construction (CONTRACT §5.6). A light
+   * that comes and goes from the array changes every froxel's index list; one
+   * that sits still and goes dark changes nothing.
+   *
+   * AND IT RUNS OFF THE SAME PHOTOCELL, for the reason the lamp pool's own
+   * comment gives: two lighting systems switching at two different times is
+   * exactly what nobody notices until a frame is captured between them. A sign
+   * is not a street lamp — shop signage is on before the lamps and off after
+   * them in a real city — but this project has ONE dusk signal and inventing a
+   * second one here would be a second photocell nobody derived. Stated so the
+   * next session changes it on purpose rather than by accident.
+   */
+  function updateSignPool(ctx) {
+    const camera = ctx.camera;
+    const lighting = ctx.get('lighting');
+    const lampsOn = lighting ? lighting.photocellOn : true;
+
+    signCandidates.length = 0;
+    if (lampsOn) {
+      const cut2 = SIGN_LIGHT.cutoffM * SIGN_LIGHT.cutoffM;
+      for (const rec of resident.values()) {
+        if (!rec.signEmitters) continue;
+        for (const e of rec.signEmitters) {
+          const dx = e.x - camera.position.x;
+          const dy = e.y - camera.position.y;
+          const dz = e.z - camera.position.z;
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 > cut2) continue;
+          /**
+           * THE RANKING KEY IS THE ILLUMINANCE THIS CANDIDATE WOULD DELIVER AT
+           * THE CAMERA, and the camera stands in for the frame. `I·cosθ/d²` is
+           * lux, so a 40 000 cd cabinet fifty metres up and a 540 cd fascia
+           * eight metres away are compared in the one unit that says which of
+           * them changes the picture. Distance alone — which is all the lamp
+           * pool needs, because every street lamp in this city is the same lamp
+           * — would spend all sixteen slots on whatever shopfront the camera is
+           * standing beside.
+           *
+           * AND THE COSINE IS NOT A REFINEMENT, IT IS THE HALF THAT MAKES THE
+           * RANKING MEAN ANYTHING. A sign is a PANEL: it emits into the
+           * half-space it faces and nothing into the other one. The first arm
+           * of this ranked on `I/d²` alone and handed most of sixteen slots to
+           * rooftop cabinets pointing away from the camera — candidates whose
+           * delivered contribution to the frame is exactly zero, holding slots
+           * against fascias eight metres away that were lighting the pavement
+           * the player is standing on. A sign facing away is not a dim
+           * candidate, it is not a candidate.
+           */
+          const cos = -(dx * e.nx + dz * e.nz) / Math.max(Math.sqrt(d2), 1e-3);
+          if (cos <= 0) continue;
+          signCandidates.push({ e, key: (e.I * cos) / Math.max(d2, 1) });
+        }
+      }
+      signCandidates.sort((a, b) => b.key - a.key);
+    }
+
+    for (let i = 0; i < signPool.length; i++) {
+      const slot = signPool[i];
+      const cand = signCandidates[i];
+      if (!cand) { slot.light.intensity = 0; continue; }
+      const e = cand.e;
+      /**
+       * ONE EQUIVALENT RADIUS BEHIND THE FACE. That is the whole of the
+       * near-field model and it is why no clamp is needed: at the panel the
+       * illuminance is `I/r²` = `π·L`, which is what standing against a
+       * Lambertian surface of radiance L actually gives you.
+       */
+      slot.light.position.set(e.x - e.nx * e.r, e.y, e.z - e.nz * e.r);
+      slot.light.direction.set(e.nx, 0, e.nz);
+      slot.light.intensity = e.I;
+      /**
+       * THE FALLOFF WINDOW IS THIS SIGN'S OWN AND NOT THE POOL'S — CONTRACT §9
+       * rows 6b and 20, which `updateLampPool` twenty lines up already carries
+       * a paragraph about after a 45 000 cd site flood delivered 0.69% of
+       * itself through a window sized for a street lamp.
+       *
+       * Signs span 222 cd to 217 320 cd, a factor of 979, so ONE window is
+       * wrong at both ends: sized for the cabinet it puts a 37 m pylon's
+       * sphere across a quarter of the city and into every froxel on the way,
+       * and sized for the pylon it clips the cabinet at the second building.
+       * `e.reach` is where this sign's own illuminance falls to
+       * `SIGN_LIGHT.floorLux`; the derivation is beside that constant.
+       */
+      slot.light.radius = e.reach;
+      /** The specular smear a wet road takes from a panel is the panel's own
+       *  size, not a point's. */
+      slot.light.sourceRadius = e.r;
+    }
+  }
+
   // -------------------------------------------------------------------------
 
   return {
@@ -6373,6 +6557,38 @@ export function createCity(options = {}) {
         lampPool.push({ beam, spill, spillCandela });
       }
 
+      /**
+       * THE SIGN POOL. `SIGN_LIGHT.poolSlots` of them, created dark and parked
+       * below the world, exactly as the lamp pool above is.
+       *
+       * `color` is white because the CHROMA IS THE SIGN'S OWN and it changes
+       * every time a slot is reassigned — `SIGN_CHROMA` has eight entries and a
+       * pool slot may carry any of them from one frame to the next. Carrying
+       * the tint here would mean a slot that reassigns from a cyan blade to a
+       * sodium fascia keeps the cyan; the light is white and the SIGN is what
+       * is coloured, which under-delivers the colour opposition LOOK.md §3 asks
+       * for and is the honest thing to do until the pool carries a per-slot
+       * chroma. Written down rather than left as a surprise.
+       */
+      for (let i = 0; i < SIGN_LIGHT.poolSlots; i++) {
+        const light = lights.add({
+          role: 'sign',
+          position: new THREE.Vector3(0, -1000, 0),
+          color: [1, 1, 1],
+          intensity: 0,
+          radius: SIGN_LIGHT.cutoffM * SIGN_LIGHT.radiusFactor,
+          type: 'spot',
+          direction: new THREE.Vector3(0, 0, 1),
+          /** The front hemisphere and nothing more: a panel does not light the
+           *  inside of its own building. `coneInner` 0 leaves the shader's
+           *  `smoothstep(0, 1, cos)` standing in for the panel's cosine. */
+          coneOuter: Math.PI / 2,
+          coneInner: 0,
+          sourceRadius: 1,
+        });
+        signPool.push({ light });
+      }
+
       ctx.log(
         `city: ${CITY.chunkSize} m chunks, rings detail ${CITY.detailRadius} / geometry ${CITY.geometryRadius} / ` +
         `field ${CITY.fieldRadius}, ${poolLamps} pooled lamps (${poolLamps * 2} clustered lights of ` +
@@ -6434,9 +6650,9 @@ export function createCity(options = {}) {
        */
       ctx.log(
         `city: light pool ${blockLights} block + ${poolLamps * 2} lamp + ` +
-        `${CLUSTER.trafficLightReserve} traffic reserved = ` +
-        `${blockLights + poolLamps * 2 + CLUSTER.trafficLightReserve} of ${CLUSTER.maxLights}, ` +
-        `margin ${CLUSTER.maxLights - blockLights - poolLamps * 2 - CLUSTER.trafficLightReserve}; ` +
+        `${SIGN_LIGHT.poolSlots} sign + ${CLUSTER.trafficLightReserve} traffic reserved = ` +
+        `${blockLights + poolLamps * 2 + SIGN_LIGHT.poolSlots + CLUSTER.trafficLightReserve} of ${CLUSTER.maxLights}, ` +
+        `margin ${CLUSTER.maxLights - blockLights - poolLamps * 2 - SIGN_LIGHT.poolSlots - CLUSTER.trafficLightReserve}; ` +
         `lamp pool pinned at ${legacyPool} by the old ${CLUSTER.lampPoolLegacyCap} cap, ` +
         `remainder would have allowed ${Math.floor(spare / 2)}`
       );
@@ -6542,6 +6758,17 @@ export function createCity(options = {}) {
           peakMB: +(peakBytes / 1048576).toFixed(2),
           lampsActive: Math.min(lampCandidates.length, lampPool.length),
           lampPool: lampPool.length,
+          /**
+           * Session 45. The sign pool, reported exactly as the lamp pool above
+           * is — how many candidates were in range and facing the camera, and
+           * how many slots there are to hand them. `signCandidates` is the
+           * number that says whether the pool is the limiter or the city is:
+           * candidates BELOW the pool size means every sign that could light
+           * something is lighting it.
+           */
+          signsActive: Math.min(signCandidates.length, signPool.length),
+          signCandidates: signCandidates.length,
+          signPool: signPool.length,
           /**
            * Session 20. Resident roof-sign faces and their total emitting area,
            * so `citycheck` can assert the population and the HUD can show it.
@@ -7066,6 +7293,15 @@ export function createCity(options = {}) {
            */
           chunk: made.chunk,
           lamps: made.lamps,
+          /**
+           * Session 45 — the chunk's candidate sign lights, read by
+           * `updateSignPool`. THIS RECORD IS ASSEMBLED FIELD BY FIELD AND NOT
+           * SPREAD, so a value `buildChunk` returns and this list does not name
+           * reaches nothing and fails silently: the first arm of the sign pool
+           * shipped with 16 slots, 0 candidates and a frame byte-identical to
+           * the one before it. CONTRACT §9's shape with a field name.
+           */
+          signEmitters: made.signEmitters,
           /** Session 20 — see `roofSignCensus()`. */
           roofSignFaces: made.roofSignFaces,
           roofSignArea: made.roofSignArea,
@@ -7109,6 +7345,7 @@ export function createCity(options = {}) {
       }
 
       updateLampPool(ctx);
+      updateSignPool(ctx);
     },
 
     dispose(ctx) {
@@ -7133,7 +7370,10 @@ export function createCity(options = {}) {
       disposables.length = 0;
       const lights = ctx.get('lights');
       if (lights) for (const slot of lampPool) { lights.remove(slot.beam); lights.remove(slot.spill); }
+      if (lights) for (const slot of signPool) lights.remove(slot.light);
       lampPool = [];
+      signPool = [];
+      signCandidates = [];
       described.clear();
       materials = null;
       lightsApi = null;

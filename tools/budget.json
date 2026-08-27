@@ -315,14 +315,17 @@
       "lamp": 200,
       "traffic": 96,
       "stall": 40,
-      "aircraft": 1
+      "aircraft": 1,
+      "sign": 16
     },
     "$floors": "A role that stopped being created reads as excellent margin. Floors are what makes the margin mean something, and they are set from the delivered counts.",
     "floors": {
       "traffic": 96,
       "stall": 1,
-      "aircraft": 1
-    }
+      "aircraft": 1,
+      "sign": 1
+    },
+    "$sign": "SESSION 45. 16 SLOTS, AND THE ROLE THAT DID NOT EXIST WHILE 804 SIGNS DID. `perfcheck`'s own census read `aircraft:1 traffic:96 stall:12 block:56 lamp:192` and LOOK.md \u00a73 carried \"there is no sign role, and there are 975 signs\" as a fact about the light list; it was a defect, and `block.js` has lit every one of its five signs since session 3. THE CEILING IS THE POOL and the floor is 1: a sign pool that stopped being created reads as excellent margin, which is the failure `$floors` exists for. What it spends: 357 of 384 before, 373 after, 11 spare. The panel-to-point derivation, the \u03c0\u00b7L near-field cap and the I/d\u00b2 ranking are in `src/core/constants.js` -> `SIGN_LIGHT`."
   },
   "winding": {
     "$comment": "THE WINDING GATE, SESSION 14. `tools/windcheck.mjs` and `tools/lib/winding.mjs`. Three winding defects in three places across two sessions — the pedestrian loft (s12), the ground quad (s13) and the reveal's double rotation (s13) — every one of them geometry submitted every frame and never seen, and every one of them invisible to six gates for the same reason: THE SILHOUETTE OF A CONVEX SOLID IS IDENTICAL WHICHEVER SHELL IS DRAWN. Nothing in this project has ever asked which shell reached the frame.",

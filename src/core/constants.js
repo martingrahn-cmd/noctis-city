@@ -1577,6 +1577,174 @@ const BOWL_STREAMED_FACTOR = 4.610209;
  */
 const BOWL_ORIGIN_FACTOR = 1.0;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * A SIGN THAT LIGHTS SOMETHING — SESSION 45, AND IT IS THE FIFTH TIME IN ONE
+ * SESSION THAT TWO CONTENT PATHS TURNED OUT TO BE TWO DIFFERENT CITIES.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `perfcheck`'s own role census prints every light in the world by role:
+ * `aircraft:1  traffic:96  stall:12  block:56  lamp:192`. **There is no sign
+ * role and there are 804 signs.** LOOK.md §3 has carried that sentence since
+ * session 44 as a fact about the light list; it is a defect, and `block.js`
+ * has not had it since session 3 — that file lights every one of its five
+ * signs (`block.js`, the `signLights` push) and says so in `BLOCK_RETAIL
+ * .shopLightSlots`'s own derivation: *"this file delivers 32 lamp beams and 5
+ * sign lights"*. The streamed city delivers 804 signs and none.
+ *
+ * WHAT THE SIGNS ARE WORTH, MEASURED OUT OF THE GENERATOR over `citycheck`'s
+ * own 10 × 10 at seed 1337, as peak intensity `I = L · A` — the Lambertian
+ * panel's own normal intensity, which is the one quantity a radiance and an
+ * area determine between them:
+ *
+ *     mount            n    median A     median I      max I      nits
+ *     rooftop        340     40.0 m²    40 035 cd   217 320 cd    1000
+ *     flush          181      6.3 m²       540 cd    11 269 cd      86
+ *     projecting     176      5.3 m²       457 cd     3 223 cd      86
+ *     roof            68      5.6 m²       478 cd    12 352 cd      86
+ *     freestanding    39      2.6 m²       222 cd     3 312 cd      86
+ *
+ * **243 of the 555 LIT signs (43.8%) are at or above one street lamp's
+ * `LIGHT.streetlampCandela` = 6 800 cd, and every one of them lights nothing.**
+ * That is the whole finding. A rooftop sign is not a decoration that happens to
+ * be bright — at a median 40 035 cd it is 5.9 street lamps hung over a roof.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHY A POINT SOURCE OFFSET BY THE PANEL'S OWN EQUIVALENT RADIUS, AND NOT A
+ * POINT SOURCE AT THE PANEL.
+ * ───────────────────────────────────────────────────────────────────────────
+ *
+ * `lights.js` windows the inverse square exactly as three does
+ * (`getDistanceAttenuation(d, R, 2)`), so a light AT the panel is a 1/d²
+ * singularity on the wall the panel is bolted to — 11 269 cd at the 0.12 m a
+ * channel-letter box stands proud of its masonry is 780 000 lx, and the wall
+ * goes white. That is not a tuning problem, it is the wrong source model: a
+ * sign is an AREA and its illuminance does not diverge.
+ *
+ * A Lambertian disc of radiance L and area A, seen along its normal at
+ * distance d, delivers
+ *
+ *     E(d) = π · L · A / (A + π·d²)          exactly, for a disc
+ *
+ * whose two limits are `E(0) = π·L` and `E(d→∞) = L·A/d²`. A POINT of
+ * intensity `I = L·A` placed one equivalent radius `r = √(A/π)` BEHIND the
+ * panel's face reproduces both limits exactly:
+ *
+ *     E(0) = L·A / r²  =  L·A / (A/π)  =  π·L          the disc's own near field
+ *     E(d) → L·A / d²                                   the disc's own far field
+ *
+ * So the near field is capped BY THE PHYSICS rather than by a clamp: the
+ * brightest thing any sign in this city can do to the surface it is mounted on
+ * is π·L — **270 lx for a fascia at 86 cd/m² and 3 140 lx for a rooftop
+ * cabinet at 1 000** — against a street lighting design level
+ * (`LUMINAIRE.streetAverageLux`) of 16 lx. A bright patch on the wall around a
+ * sign is exactly what LOOK.md §3 asks for; a white one is not.
+ *
+ * THE HEMISPHERE IS THE CONE. A panel emits into the half-space in front of
+ * it and a point light emits into all of it, so the light is a `spot` at
+ * `coneOuter = π/2`, which is the front hemisphere and nothing more. Without
+ * it every sign lights the inside of its own building. `coneInner = 0` makes
+ * the shader's `smoothstep(0, 1, cosθ)` stand in for the panel's own cosine —
+ * the same shape, slightly tighter, and bounded identically at both ends.
+ *
+ * WHAT IT UNDER-DELIVERS, SAID RATHER THAN DISCOVERED LATER. A double-sided
+ * sign — a projecting blade, a pylon, a rooftop cabinet with `doubleSided` —
+ * gets ONE hemisphere and not two, so it lights one side of its street and not
+ * the other. Under-delivery is the safe direction and the alternative costs a
+ * second slot per sign out of a budget of 27.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE POOL, AND WHY IT IS 16.
+ * ───────────────────────────────────────────────────────────────────────────
+ *
+ * A fixed pool assigned per frame, exactly as `city.js` → `updateLampPool`
+ * does, so the clustered count is bounded by construction and
+ * `CLUSTER.maxLights` cannot overflow (CONTRACT §5.6).
+ *
+ * THE BUDGET. `tools/budget.json` → `lightRoles.$aircraft` states the spare in
+ * its own words — *"357 of 384, and 27 spare"* — and the live census agrees
+ * exactly: `aircraft 1 + traffic 96 + stall 12 + block 56 + lamp 192 = 357`.
+ *
+ * THE PHYSICAL TARGET. `updateLampPool`'s own cutoff is one chunk, 128 m, on
+ * the argument that *"one 6800 cd luminaire at 128 m delivers 0.41 lux, which
+ * is within a factor of two of full moonlight — so beyond a chunk a street
+ * lamp stops being a light"*. The same cutoff applies here because it is the
+ * same arithmetic, and the measured LIT-sign density over the 10 × 10 above is
+ * 339 /km², so the mean number of lit signs inside 128 m is
+ *
+ *     339 × π × 128² / 10⁶  =  17.4
+ *
+ * **16 is a budget and it is within 8% of the physical target, which is why
+ * both numbers are here.** 27 spare less the 8 slots `city.js` already holds
+ * back for a lamp coming round a corner leaves 19; 16 of those leaves 11 spare
+ * rather than 3. It is not the count that lights every sign that matters — it
+ * is the count that lights all but the weakest of them, and the assignment
+ * below is what decides which.
+ *
+ * THE ASSIGNMENT IS BY DELIVERED ILLUMINANCE AND NOT BY DISTANCE, which is
+ * where this differs from the lamp pool it copies. Every street lamp in this
+ * city is the same lamp, so nearest-first IS brightest-first for them. Signs
+ * span **222 cd to 217 320 cd — a factor of 979** — so nearest-first would
+ * hand all sixteen slots to whatever shopfronts the camera is standing among
+ * and leave the 40 000 cd cabinet over the junction dark. Ranking on `I/d²`
+ * is ranking on what each candidate actually contributes to the frame, and it
+ * is the brief's own *"the biggest signs over the busiest frontage rather than
+ * all 975"* written as an arithmetic.
+ */
+export const SIGN_LIGHT = {
+  /**
+   * Slots. 16 of the 27 spare; the derivation and the 17.4 it is measured
+   * against are above. A ceiling and a floor for this number live in
+   * `tools/budget.json` → `lightRoles`, which is what stops it drifting.
+   */
+  poolSlots: 16,
+  /**
+   * m. Beyond this a sign is not a light, by `updateLampPool`'s own argument
+   * and its own number — one chunk. It is also what the 17.4 above is counted
+   * inside, so the pool size and the cutoff cannot drift apart.
+   */
+  cutoffM: 128,
+  /**
+   * The falloff window, in metres, and it is DERIVED THROUGH THE THING IT
+   * WINDOWS rather than picked — CONTRACT §9 rows 6b and 20, which `city.js`
+   * → `updateLampPool` already carries a paragraph about after a site flood
+   * delivered 0.69% of its intensity through a 30 m window.
+   *
+   * three's `getDistanceAttenuation(d, R, 2)` carries a Frostbite window
+   * `(1 − (d/R)⁴)²`, which is 0.9 of unity at `d = 0.55·R` and falls to zero
+   * at R. Sizing R at the cutoff would put the window's own shoulder in the
+   * middle of the useful range; sizing it at `cutoffM` × this factor puts the
+   * cutoff at the 0.55 point, so the window is doing nothing where the sign is
+   * doing something and closes the light off tidily where it is not.
+   */
+  radiusFactor: 1.82,
+  /**
+   * lx. THE ILLUMINANCE AT WHICH A SIGN STOPS BEING A LIGHT, and it is what
+   * sizes each sign's own falloff window rather than the pool's.
+   *
+   * One window for a population spanning 222 cd to 217 320 cd is wrong at both
+   * ends — a 37 m pylon carrying the cabinet's sphere is a light in a quarter
+   * of the city's froxels doing nothing in any of them, and the froxel loop is
+   * `CLUSTER.maxPerCluster` long whatever is in it.
+   *
+   * 0.16 lx is 1% of `LUMINAIRE.streetAverageLux` = 16, the level this city's
+   * street lighting is DESIGNED to, so the floor is a hundredth of the light a
+   * surface is already receiving. It is the same argument `updateLampPool`
+   * makes for its own 128 m in the units the sign population actually varies
+   * in: *"one 6800 cd luminaire at 128 m delivers 0.41 lux, which is within a
+   * factor of two of full moonlight — so beyond a chunk a street lamp stops
+   * being a light."* 6800 cd at 0.16 lx is 206 m and at 0.41 lx is 129 m, so
+   * this floor is the lamp pool's own cutoff read off a 2.6× longer reach —
+   * deliberately the generous end, because a sign is the one emitter in this
+   * city that is supposed to be read from another block.
+   *
+   * DELIVERED, over the five mounts' median intensities: freestanding 37 m,
+   * projecting 53 m, roof 55 m, flush 58 m, rooftop 500 m — the last clamped
+   * by `cutoffM × radiusFactor` = 233 m.
+   */
+  floorLux: 0.16,
+};
+
 export const LAMP_BOWL = {
   /**
    * The geometry BOTH emitters build. The tessellation is each emitter's own
