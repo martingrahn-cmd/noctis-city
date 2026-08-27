@@ -1764,14 +1764,66 @@ export function createCity(options = {}) {
    * the bowls are emissive geometry and still read as a receding line of
    * lights, which is what they already were at 250 m.
    */
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * A POLE'S DISTANCE ALONG ITS OWN KERB HAS TO CLEAR THE CROSS ROAD — SESSION
+   * 46, AND SIXTEEN PER CENT OF THIS CITY'S LAMP COLUMNS STOOD IN A
+   * CARRIAGEWAY.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * The operator, walking at noon: *"lamp posts stand in the carriageway. Not
+   * on the pavement — in the road, with traffic around them."*
+   *
+   * `off` is the distance along one kerb from the chunk's own corner, and the
+   * corner IS a junction: the road this chunk owns on its other axis runs
+   * along the same boundary, `CITY.roadHalfWidth` = 7.5 m either side of it.
+   * `phase` is `(cx·7 + cz·13) % 10`, so `off` for `i = 0` is 0 to 9 m and the
+   * pole lands INSIDE the cross carriageway for every phase under 7.5. The far
+   * end is the same statement at the next junction: `off = phase + 120` is 120
+   * to 127 against a road that starts at 120.5.
+   *
+   * MEASURED ON THE DELIVERED `city:lamps` INSTANCE MATRICES against the
+   * DELIVERED `ground:road` rectangles, resident ring, seed 1337:
+   * **53 of 320 columns (16.6%) stood inside a carriageway claim.**
+   *
+   * AND THE REGISTRY COULD NOT HAVE STOPPED IT, WHICH IS THE ANSWER THAT
+   * MATTERS MORE THAN THE REPAIR. `occupancy.js` forbids `prop × carriageway`
+   * outright, and this loop asks it nothing: it tests `BLOCK_KEEPOUT`,
+   * `riverBlocks` and `landmarkOccupies` — three bespoke predicates — and
+   * writes no claim of its own. Of 11 054 delivered claims over this ring,
+   * **172 carry an owner beginning `lamp:` and every one of them is a PARK
+   * lamp** (`chunk.features`, category `feature`); **zero of the 382 street
+   * columns is covered by any claim at all.** `lampprobe.mjs`'s header has said
+   * so since session 23 — *"the lamps that light this city are emitted by
+   * `city.js` directly and are in NO registry band at all"* — and nothing had
+   * read it. The column is claimed at the point of emission now, so the
+   * delivered census can see this class the next time it appears.
+   *
+   * THE CLEARANCE IS THE INSET, WHICH IS NOT A COINCIDENCE. A column stands
+   * `LAMP_KERB_INSET_M − roadHalfWidth` = 1.3 m back from its OWN kerb line;
+   * at a corner it should stand 1.3 m back from the CROSS kerb line by the same
+   * argument, which is `roadHalfWidth + 1.3` = `LAMP_KERB_INSET_M` along the
+   * edge. So the legal band is `[inset, chunkSize − inset]` and there is no
+   * second number.
+   *
+   * CLAMPED, NOT DROPPED. Refusing the two offending stations per edge would
+   * leave a 60 m stretch with no pole across every junction — the thing
+   * session 45 spent a repair closing. Clamping moves a corner pole 1.8 m at
+   * the near end and up to 7.8 m at the far one, which is what setting a column
+   * back from a junction looks like, and it keeps the count, the instance
+   * buffers and the draw calls byte-for-byte.
+   */
   function lampStationsFor(cx, cz) {
     const b = chunkBounds(cx, cz);
     const out = [];
     const phase = (((cx * 7 + cz * 13) % 10) + 10) % 10;
     const inset = LAMP_KERB_INSET_M;
+    /** Along-kerb distance clear of the junction at either end of this edge. */
+    const clear = (t) => Math.min(Math.max(t, inset), CITY.chunkSize - inset);
     for (let i = 0; i < LAMP_PER_EDGE; i++) {
-      const off = phase + i * LAMP_PITCH_M;
-      if (off < CITY.chunkSize) {
+      const raw = phase + i * LAMP_PITCH_M;
+      const off = clear(raw);
+      if (raw < CITY.chunkSize) {
         out.push({ x: b.x0 + inset, z: b.z0 + off, axis: 'x', side: 1 });
         out.push({ x: b.x0 + off, z: b.z0 + inset, axis: 'z', side: 1 });
       }
@@ -1779,8 +1831,9 @@ export function createCity(options = {}) {
       // `LUMINAIRE`'s 36 x 13 m ellipse is sized so consecutive pools overlap
       // ALONG the road and stop short of each other ACROSS it, and two poles
       // facing each other would put both pools in the same 36 m of street.
-      const offFar = off + LAMP_PITCH_M / 2;
-      if (offFar < CITY.chunkSize) {
+      const rawFar = raw + LAMP_PITCH_M / 2;
+      const offFar = clear(rawFar);
+      if (rawFar < CITY.chunkSize) {
         out.push({ x: b.x0 - inset, z: b.z0 + offFar, axis: 'x', side: -1 });
         out.push({ x: b.x0 + offFar, z: b.z0 - inset, axis: 'z', side: -1 });
       }
@@ -3998,6 +4051,43 @@ export function createCity(options = {}) {
           };
           bowls.push(setMatrix(head.x, baseY + 8.08, head.z, 1, 1, 1, 0));
           lamps.push({ x: head.x, y: baseY + 8.08, z: head.z, axis: spot.axis, side: spot.side });
+          /**
+           * AND THE COLUMN GOES IN THE DELIVERED REGISTRY — SESSION 46.
+           *
+           * `lampprobe.mjs` has printed *"the lamps that light this city are
+           * emitted by `city.js` directly and are in NO registry band at all —
+           * not their column, not their head"* since session 23, and nothing
+           * acted on it. Counted at HEAD before this line existed: of 11 054
+           * delivered claims over the resident ring at seed 1337, 172 carry an
+           * owner beginning `lamp:` and all 172 are PARK lamps; **zero of the
+           * 382 street columns was covered by any claim.** That is why the
+           * registry did not forbid the sixteen per cent of them that stood in
+           * a carriageway (`lampStationsFor`) — it was never told they existed.
+           *
+           * TWO BANDS, SPLIT AT `HEAD_CLEAR_M`, WHICH IS THE ARRANGEMENT EVERY
+           * PROP IN THIS FILE ALREADY HAS. The column is `prop`, so
+           * `prop × carriageway` makes this class refusable by the table
+           * instead of by a bespoke predicate. The arm and the bowl are
+           * `canopy`, which conflicts with SOLIDS ONLY — a lantern over a
+           * carriageway is the whole point of the 2.1 m bracket, and a lantern
+           * inside a wall is not.
+           *
+           * IT IS A CLAIM AND NOT A GUARD. `citycheck` runs the conflict table
+           * over this list; adding a test here would be a second opinion
+           * beside the registry's, which is the thing `occupancy.js` exists to
+           * end.
+           */
+          placed.push({
+            kind: 'prop', owner: 'lamp:column',
+            x0: spot.x - 0.15, x1: spot.x + 0.15, z0: spot.z - 0.15, z1: spot.z + 0.15,
+            y0: baseY, y1: baseY + HEAD_CLEAR_M,
+          });
+          placed.push({
+            kind: 'canopy', owner: 'lamp:head',
+            x0: Math.min(spot.x, head.x) - LAMP_BOWL.radiusM, x1: Math.max(spot.x, head.x) + LAMP_BOWL.radiusM,
+            z0: Math.min(spot.z, head.z) - LAMP_BOWL.radiusM, z1: Math.max(spot.z, head.z) + LAMP_BOWL.radiusM,
+            y0: baseY + HEAD_CLEAR_M, y1: baseY + 8.08 + LAMP_BOWL.radiusM,
+          });
         }
       }
       /**

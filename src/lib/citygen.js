@@ -3081,6 +3081,18 @@ export function promenadeLamps(rootSeed, x0, x1) {
      */
     if (bridgesTouching(rootSeed, st.x - 8, st.x + 8).length) continue;
     /**
+     * AND A LAMP ON THE NORTH–SOUTH CARRIAGEWAY IS THE SAME MISTAKE WITHOUT A
+     * BRIDGE OVER IT — SESSION 46. The bank lattice is stepped every
+     * `RIVER.bankStationM` and knows nothing about the road grid, so a station
+     * that lands on a chunk boundary lands on the centreline of a north–south
+     * road. Measured on the delivered columns against the delivered
+     * `ground:road` rectangles at seed 1337: **3 promenade columns stood in a
+     * carriageway**, at x = −128, +128 and +256 — three chunk boundaries
+     * exactly. Same clearance the road lamps use at a junction.
+     */
+    const toGrid = Math.abs(st.x - Math.round(st.x / CITY.chunkSize) * CITY.chunkSize);
+    if (toGrid < CITY.roadHalfWidth + PROMENADE_LAMP_SETBACK_M) continue;
+    /**
      * The bank's tangent, differentiated over the same 8 m the promenade props
      * use, so a lamp and the bench beside it face the same way. The third copy
      * of this formula, and §9.1's note on `river.js` and `city.js` having the

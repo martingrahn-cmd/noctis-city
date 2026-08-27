@@ -561,8 +561,89 @@ export function createLights(options = {}) {
    * Ramped off with elevation, because a ray that climbs out of the canyon
    * really does see the open sky: at 11 degrees above horizontal a 300 m ray has
    * risen 60 m, which is above every parapet in the block.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * AND THE RAMP WAS ONE-SIDED, WHICH PUT A HARD EDGE ACROSS THE HORIZON —
+   * SESSION 46. IT IS THE OPERATOR'S FIRST DEFECT.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * His words: *"a distinct horizontal line where the atmosphere starts —
+   * above it clear, below it a flat wash, with a visible seam between."*
+   *
+   * WHAT IS ON EITHER SIDE OF THE SEAM, RAYCAST THROUGH THE DELIVERED SCENE at
+   * (188.72, 91.73, −8.33), yaw 180, pitch −8, fov 60, t 0.5362:
+   *
+   *     y <= 286 px   NOTHING — the ray misses the world and gets sky
+   *     y  = 288 px   block:ground at 4123.23 m, i.e. the 8 km earth plane's
+   *                   own rim, one pixel past which there is no more ground
+   *
+   * So it is neither the aerial perspective failing nor the residency ring nor
+   * session 43's scattering term: it is the SKY DOME MEETING THE GROUND PLANE,
+   * and what makes it a SEAM rather than a fade is this line. "wdir.y" for a
+   * ray to that rim is −0.022, so "clamp(wdir.y · 5, 0, 1)" is exactly 0 and
+   * the in-scatter is multiplied by the CANYON's openness — 0.511 at that pose
+   * — while the sky one pixel above it is the sky at full strength. Delivered,
+   * as a scanline at x = 340: **sky 141.3 code values, ground 103.7, a 37.6 cv
+   * step in two pixels.**
+   *
+   * A ray 4 km long over open country is not in a canyon. The elevation ramp's
+   * own argument is about the path leaving the street, and it is symmetric: at
+   * 11 degrees BELOW horizontal a 300 m ray has DESCENDED 60 m, which from any
+   * eye above the parapets means the whole path but its last stretch was in
+   * open air. It cannot cost anything at street level either, because a ray
+   * that steep from 1.7 m meets the road in 9 m, where tau is 4e-3 and f is
+   * 0.4 percent. So the ramp reads |wdir.y| and the horizontal case — a ray
+   * straight down the street, which is what the argument above was written for
+   * — is untouched at exactly "uNoctisHazeOpen".
+   *
+   * WHAT IT IS WORTH AT THE SEAM, from this block's own arithmetic. tau at
+   * 4123 m from h0 = 91.73 to h1 = 0 is "rho0·H·(dist/dh)·(e^(−h0/H) − 1)" =
+   * 1.7086, so f = 0.8188 and the in-scatter goes from "0.8188 × 0.511" to
+   * "0.8188 × 1.0" — **1.957x the sky term**, against a surface term that
+   * keeps its 0.1812. The rim cannot vanish entirely: 18 percent of the
+   * transmittance is still the ground, and closing the last of it means a
+   * bigger plane rather than more air.
+   *
+   * AND abs() ALONE WAS NOT ENOUGH, WHICH A LIVE SWEEP SAID AND THE
+   * ARITHMETIC ABOVE DID NOT. Driving the uniform directly at that pose, as
+   * the ground band over the sky band immediately above it — a ratio inside
+   * one frame, which is the only exposure-invariant thing a screenshot carries:
+   *
+   *     openness 0.05          ground / sky   0.6980
+   *     the ramp, abs() only                  0.8616
+   *     openness 1.00                         0.9771     no seam
+   *     density x20, open                     0.9962
+   *
+   * The angle ramp reaches 1.0 at 11 degrees and a ray to the horizon from
+   * 91.73 m is at 1.3 degrees, so abs() bought it eleven per cent of a ramp
+   * built for a different question. The ramp asks "has this ray CLIMBED out of
+   * the canyon", and the case it cannot express is the one where the ray never
+   * had to: THE EYE IS ALREADY ABOVE THE ROOFLINE.
+   *
+   * So the ramp gains a second term and it is the EYE HEIGHT, not abs().
+   *
+   * AND abs() IS NOT IN THE SHIPPED ARM, WHICH IS THE SECOND CORRECTION THIS
+   * COMMENT OWES. The symmetry argument two paragraphs up holds only for a ray
+   * that STARTS above the parapets: from 1.7 m a ray 11 degrees down meets the
+   * road in nine metres and never leaves the canyon at all, so opening it is
+   * the lift this whole block refuses. Measured — abs() alone moved the street
+   * frame mean 123.898 to 126.103 and its road band 140.13 to 145.90, +4.1
+   * percent, on a pose nobody complained about. The height term alone closes
+   * the seam by itself (the sweep above reads the shipped arm at 0.9774
+   * against a forced-open 0.9778), so abs() bought nothing the eye can see and
+   * spent something it can.
+   *
+   * TWO POINTS, BOTH THIS PROJECT'S OWN. The eye is inside the canyon until it
+   * clears the lowest roofs — six storeys at 3.60 m, which is the bottom of
+   * LOOK.md section 2's height band — and is clear of the block when it is
+   * above the 60 m the paragraph above already calls "above every parapet".
+   * Below 21.6 m this term is exactly ZERO, so a person standing in a street
+   * is measured at exactly uNoctisHazeOpen and nineteen sessions of luminance
+   * bands keep their subject to the last decimal.
    */
-  float openness = mix(uNoctisHazeOpen, 1.0, clamp(wdir.y * 5.0, 0.0, 1.0));
+  float aboveRoofs = clamp((uNoctisCamHeight - 21.6) / (60.0 - 21.6), 0.0, 1.0);
+  float openness = mix(uNoctisHazeOpen, 1.0,
+    max(clamp(wdir.y * 5.0, 0.0, 1.0), aboveRoofs));
   vec3 inscatter = texture2D(uNoctisSky, equirectUv(wdir)).rgb * openness;
   gl_FragColor.rgb = mix(gl_FragColor.rgb, inscatter, f);
 
