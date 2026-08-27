@@ -45,7 +45,11 @@ Every entry has a `spawn=` link you can paste and a frame in `tools/shot-out/`. 
 parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many poses) rather than
 `lookat`, which is one boot per pose — §7 has the arrangement.
 
-### REPAIRED — eight commits, each revertible on its own
+### REPAIRED — sixteen, each on its own revertible commit
+
+**R1–R8 are the first half of the session and R9–R16 the second.** Every one is a separate commit
+whose message carries its own measurement, so any single repair can be reverted without touching
+the others.
 
 | # | what looked wrong | what it was | frames |
 |---|---|---|---|
