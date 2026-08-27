@@ -2178,7 +2178,7 @@ export function createCity(options = {}) {
      * its outward normal, its intensity and its equivalent radius, and nothing
      * about pools or slots.
      */
-    const pushSignLight = (x, y, z, nx, nz, w, h, nits, state) => {
+    const pushSignLight = (x, y, z, nx, nz, w, h, nits, state, chroma) => {
       /**
        * A DEAD SIGN EMITS NOTHING, and that is not the same as
        * `SIGN_STATE_GAIN.dead`. 0.015 is a RENDER gain — it keeps an unlit
@@ -2193,6 +2193,23 @@ export function createCity(options = {}) {
       if (!(A > 0)) return;
       signEmitters.push({
         x, y, z, nx, nz,
+        /**
+         * THE SIGN'S OWN COLOUR, AND IT IS FREE — LOOK.md §3's *"colour
+         * opposition … the biggest unspent lever"*.
+         *
+         * `EMITTER_CHROMA` is LUMINANCE-NORMALISED — every entry in
+         * `SIGN_CHROMA` has Y = 1.000, checked — so carrying the chroma instead
+         * of white changes the HUE of what a sign throws and not how much. The
+         * intensity derived above stays exactly valid, and `lights.js` packs
+         * `color[ch] * intensity`, which is the same product `pushSign` puts in
+         * the panel's own tint. The light and the panel therefore cannot
+         * disagree about what colour the sign is.
+         *
+         * Three of the six are cold (`neonCyan`, `fluorescentCold`,
+         * `neonGreen`), so half of what the signs put on this city's facades
+         * fights the sodium the street lamps put there.
+         */
+        chroma: SIGN_CHROMA[chroma % SIGN_CHROMA.length],
         /** cd, the panel's own normal intensity. */
         I: nits * A * gain,
         /** m, √(A/π) — the disc of the same area. The light stands this far
@@ -2410,7 +2427,7 @@ export function createCity(options = {}) {
         }
         /** One hemisphere, facing out, whether or not the cabinet is
          *  double-sided — `SIGN_LIGHT`'s own note on what that under-delivers. */
-        pushSignLight(cx3, s.y, cz3, out[0], out[1], s.width, height, LIGHT.roofSignNits, s.state);
+        pushSignLight(cx3, s.y, cz3, out[0], out[1], s.width, height, LIGHT.roofSignNits, s.state, s.chroma);
         roofSignFaces += two.length;
         roofSignArea += s.width * height * two.length;
       } else if (mount === 'flush') {
@@ -2420,7 +2437,7 @@ export function createCity(options = {}) {
           s.width, height, 1, s.yawDeg + faceYaw
         ), s);
         pushSignLight(wx + out[0] * 0.12, s.y, wz + out[1] * 0.12,
-          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state);
+          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state, s.chroma);
       } else if (mount === 'projecting') {
         /**
          * A BLADE. Its plane is perpendicular to the elevation, so its normal
@@ -2452,7 +2469,7 @@ export function createCity(options = {}) {
         }
         /** A blade reads ALONG the street, so its normal is `tan` and not `out`.
          *  One of its two faces gets the slot; see `SIGN_LIGHT`. */
-        pushSignLight(cx2, s.y, cz2, tan[0], tan[1], proj, height, LIGHT.signPlateNits, s.state);
+        pushSignLight(cx2, s.y, cz2, tan[0], tan[1], proj, height, LIGHT.signPlateNits, s.state, s.chroma);
         // The bracket, at the sign's own top edge, from the wall to its inner edge.
         pushStruct(
           wx + out[0] * (0.35 + proj / 2) * 0.5, s.y + height / 2 + 0.1, wz + out[1] * (0.35 + proj / 2) * 0.5,
@@ -2475,7 +2492,7 @@ export function createCity(options = {}) {
           s.width, height, 1, s.yawDeg + faceYaw
         ), s);
         pushSignLight(wx - out[0] * 0.05, y, wz - out[1] * 0.05,
-          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state);
+          out[0], out[1], s.width, height, LIGHT.signPlateNits, s.state, s.chroma);
         for (const k of [-1, 1]) {
           pushStruct(
             wx + tan[0] * k * s.width * 0.34 - out[0] * 0.2,
@@ -2509,7 +2526,7 @@ export function createCity(options = {}) {
           ), s);
         }
         pushSignLight(px, baseY + py, pz, out[0], out[1],
-          Math.min(s.width, 2.6), height, LIGHT.signPlateNits, s.state);
+          Math.min(s.width, 2.6), height, LIGHT.signPlateNits, s.state, s.chroma);
         const POST_M = 0.26;
         pushStruct(px, baseY + (py - height / 2) / 2, pz, POST_M, py - height / 2, POST_M, 0);
         /**
@@ -6462,6 +6479,9 @@ export function createCity(options = {}) {
       slot.light.position.set(e.x - e.nx * e.r, e.y, e.z - e.nz * e.r);
       slot.light.direction.set(e.nx, 0, e.nz);
       slot.light.intensity = e.I;
+      /** The sign's own hue. Luminance-normalised, so this is a colour change
+       *  and not a brightness one — see the emitter record. */
+      slot.light.color = e.chroma;
       /**
        * THE FALLOFF WINDOW IS THIS SIGN'S OWN AND NOT THE POOL'S — CONTRACT §9
        * rows 6b and 20, which `updateLampPool` twenty lines up already carries
@@ -6561,14 +6581,13 @@ export function createCity(options = {}) {
        * THE SIGN POOL. `SIGN_LIGHT.poolSlots` of them, created dark and parked
        * below the world, exactly as the lamp pool above is.
        *
-       * `color` is white because the CHROMA IS THE SIGN'S OWN and it changes
-       * every time a slot is reassigned — `SIGN_CHROMA` has eight entries and a
-       * pool slot may carry any of them from one frame to the next. Carrying
-       * the tint here would mean a slot that reassigns from a cyan blade to a
-       * sodium fascia keeps the cyan; the light is white and the SIGN is what
-       * is coloured, which under-delivers the colour opposition LOOK.md §3 asks
-       * for and is the honest thing to do until the pool carries a per-slot
-       * chroma. Written down rather than left as a surprise.
+       * `color` is white ONLY AS AN INITIAL VALUE. A slot's chroma is the
+       * chroma of whatever sign it is holding this frame — `SIGN_CHROMA` has
+       * six entries and a slot may carry any of them from one frame to the
+       * next — so `updateSignPool` assigns it per frame from the emitter, and
+       * a slot reassigned from a cyan blade to a sodium fascia does not keep
+       * the cyan. It is free because `EMITTER_CHROMA` is luminance-normalised;
+       * see the emitter record for the whole of that argument.
        */
       for (let i = 0; i < SIGN_LIGHT.poolSlots; i++) {
         const light = lights.add({
