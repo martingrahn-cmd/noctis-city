@@ -1705,19 +1705,34 @@ export const SIGN_LIGHT = {
    */
   cutoffM: 128,
   /**
-   * The falloff window, in metres, and it is DERIVED THROUGH THE THING IT
-   * WINDOWS rather than picked — CONTRACT §9 rows 6b and 20, which `city.js`
-   * → `updateLampPool` already carries a paragraph about after a site flood
-   * delivered 0.69% of its intensity through a 30 m window.
+   * THE CEILING ON ANY ONE SIGN'S THROW, AND IT IS `cutoffM` ITSELF — SESSION
+   * 45, AND IT IS A FROXEL BUDGET AND NOT AN OPTICS ONE.
    *
-   * three's `getDistanceAttenuation(d, R, 2)` carries a Frostbite window
-   * `(1 − (d/R)⁴)²`, which is 0.9 of unity at `d = 0.55·R` and falls to zero
-   * at R. Sizing R at the cutoff would put the window's own shoulder in the
-   * middle of the useful range; sizing it at `cutoffM` × this factor puts the
-   * cutoff at the 0.55 point, so the window is doing nothing where the sign is
-   * doing something and closes the light off tidily where it is not.
+   * The first arm capped a sign's falloff window at `cutoffM × 1.82` = 233 m,
+   * derived through the Frostbite window's own shoulder so that the useful
+   * range sat below it. Optically that is right and **`perfcheck` refused it**:
+   *
+   *     downtown_dense   worst froxel 58 of 96, margin 38 against a floor of 40
+   *     highway_speed    worst froxel 17 of 96, margin 79
+   *
+   * `lights.assign()` writes a light into every froxel its RADIUS SPHERE
+   * touches, and the froxel loop is `CLUSTER.maxPerCluster` long whatever is in
+   * it. A 233 m sphere is **470× the volume of the 30 m one a street lamp
+   * carries**, so sixteen of them in a dense downtown is the entire margin that
+   * `trafficLights.minOccupancyMargin` reserved for traffic coming round a
+   * corner. `budget.json` derived that 40 from measured worst froxels of 39 /
+   * 11 / 34 with the real traffic on; this took the first of those to 58.
+   *
+   * ONE NUMBER FOR BOTH THE CANDIDACY TEST AND THE THROW. A sign further than
+   * `cutoffM` from the camera is not a candidate at all, so bounding its throw
+   * by the same figure makes the pool's whole spatial extent `2 × cutoffM` and
+   * removes a second constant that could drift from the first. What it costs is
+   * real and small: the largest cabinet in the city delivers 2.4 lx at 128 m
+   * and 0.74 lx at 233 m, so what is given up is between a seventh and a
+   * twentieth of the street's own design level, on surfaces a block and a half
+   * away. What it buys is the froxel margin the traffic reserve is made of.
    */
-  radiusFactor: 1.82,
+  radiusFactor: 1.0,
   /**
    * lx. THE ILLUMINANCE AT WHICH A SIGN STOPS BEING A LIGHT, and it is what
    * sizes each sign's own falloff window rather than the pool's.
@@ -1740,7 +1755,7 @@ export const SIGN_LIGHT = {
    *
    * DELIVERED, over the five mounts' median intensities: freestanding 37 m,
    * projecting 53 m, roof 55 m, flush 58 m, rooftop 500 m — the last clamped
-   * by `cutoffM × radiusFactor` = 233 m.
+   * by `cutoffM × radiusFactor` = 128 m.
    */
   floorLux: 0.16,
 };
