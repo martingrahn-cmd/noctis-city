@@ -3780,6 +3780,52 @@ export function createCity(options = {}) {
      * of. It was written twice — as a `2` here and as nothing at all there —
      * and the road surface was missing from 96% of the city for four sessions.
      */
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE POST UNDER A PARK LAMP AND UNDER A SITE FLOOD — SESSION 45, FOUND
+     * BY LOOKING AT A NOON JUNCTION.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * A street lamp pushes TWO matrices, a column into `lampBodies` and a bowl
+     * into `bowls`. The `chunk.features` loop two hundred lines below pushes a
+     * bowl AND NOTHING ELSE, so every park lamp and every site flood in this
+     * city was a lamp head hanging in the air with no post under it. Delivered
+     * over the resident ring at seed 1337: **`city:bowls` 497 instances against
+     * `city:lamps` 444 — 53 bowls with nothing holding them up**, and a raycast
+     * straight down from one at a noon junction returns empty sky at 130 px and
+     * 200 px and the far city at 739 m.
+     *
+     * IT IS A BOX IN `masses` AND NOT AN INSTANCE OF `geometries.lamp`, for a
+     * reason that is about the shape rather than the budget: that geometry is a
+     * pole MERGED WITH ITS ARM, built for a lantern that overhangs a
+     * carriageway from the kerb. A park lamp and a car-park column are
+     * POST-TOP — the bowl is directly over the base, `dir: [0, -1, 0]`, and the
+     * feature loop says so — so instancing the street lantern here would stand
+     * a 2.1 m bracket beside every one of them reaching out at nothing.
+     *
+     * AND IT IS HERE RATHER THAN BESIDE THE BOWL because `bodies` closes into
+     * the chunk's `masses` mesh on the very next statement; emitting from the
+     * feature loop below would need a mesh of its own, and this costs ZERO draw
+     * calls exactly as `pushStruct` does for a sign's mast. Gated on the same
+     * `near` the feature loop is gated on, or a post would stand on chunks
+     * whose bowl was never built.
+     *
+     * The taper is the street column's own — `CylinderGeometry(0.11, 0.15, …)`
+     * in `buildGeometries` — read as a mean 0.26 m across, and the head sits
+     * `LAMP_BOWL.radiusM` down from the mounting height so the post meets the
+     * bowl rather than passing through it.
+     */
+    if (near) {
+      for (const f of (chunk.features || [])) {
+        if (f.kind !== 'lamp' && f.kind !== 'flood') continue;
+        const fy = worldSurface(ctx, f.x, f.z).y;
+        const top = f.height - LAMP_BOWL.radiusM;
+        if (!(top > 0.3)) continue;
+        bodies.push(setMatrix(f.x, fy + top / 2, f.z, 0.26, top, 0.26, 0));
+        bodySkin.push({ albedo: [0.13, 0.132, 0.138], roughness: 0.5 });
+      }
+    }
+
     bytes += addInstanced(
       group, geometries.box, materials.facade, bodies, `${rngKey}:masses`, bodySkin, casts, massCensus
     );
