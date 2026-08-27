@@ -728,7 +728,101 @@ const STREAK_NITS = STREAK_GLINT_NITS * STREAK_POPULATION_SHARE;
  * crown is the one part of this system that is genuinely bright, and it is
  * bright for the same reason surf is.
  */
-const SPLASH_NITS = 0.5 * STREET_DESIGN_LUX / Math.PI;
+const SPLASH_FOAM_NITS = 0.5 * STREET_DESIGN_LUX / Math.PI;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE CROWNS' POPULATION SHARE — SESSION 45, AND IT IS NOT THE STREAKS'.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * STATE 45 L5 left this open in as many words: *"R1 gives the streaks ×91.41
+ * for the drops below `DROP_MM`; the crowns did not get it, deliberately."*
+ * The 130 crowns stand for every impact on the road exactly as the 500 streaks
+ * stand for every drop in the air, so they are owed the same correction — and
+ * they are owed a DIFFERENT NUMBER, because the moment is different.
+ *
+ * A STREAK IS A GLINT. Its flux is the drop's projected disc, so the moment is
+ * D² and the answer is `STREAK_POPULATION_SHARE` = 91.41.
+ *
+ * A CROWN IS DIFFUSE FOAM RAISED BY AN IMPACT. What arrives is not a
+ * cross-section, it is a FLUX of drops onto the ground, and what each one buys
+ * is the AREA of the crown it throws up:
+ *
+ *     share = integral over all D of  N(D) · v(D) · A_crown(D)
+ *             ─────────────────────────────────────────────────
+ *             the same integral over  D >= DROP_MM
+ *
+ * with `N(D) = N0·e^(-ΛD)` the same Marshall-Palmer this module already uses,
+ * `v(D) = 3.78·D^0.67` its own terminal-velocity law — the one
+ * `DROP_TERMINAL_MS` is a single evaluation of — and `A_crown ∝ D²`, because
+ * `SPLASH_CROWN_M` is a fixed multiple of the drop's own diameter. The
+ * integrand is therefore `D^2.67·e^(-ΛD)` against the streak's `D²·e^(-ΛD)`.
+ *
+ * IT IS SMALLER THAN THE STREAKS' AND THAT IS THE POINT. Weighting by
+ * `v ∝ D^0.67` tilts the integral toward the LARGE drops, which are the ones
+ * already above the split, so less of the total is hiding below it:
+ *
+ *     streaks   D^2.00 moment    all 1.2379e-1   D >= 3.28 mm 1.3543e-3   91.41
+ *     crowns    D^2.67 moment    all 1.3392e-1   D >= 3.28 mm 3.2889e-3   40.72
+ *
+ * The crowns' share is **0.445× the streaks'**, which is the whole of why
+ * session 45's first half was right not to hand them the same figure.
+ *
+ * WHY QUADRATURE AND NOT A CLOSED FORM. `∫ D^p e^(-ΛD)` is an incomplete gamma
+ * and 2.67 is not an integer, so there is no elementary antiderivative of the
+ * kind `STREAK_POPULATION_SHARE` writes out. THE QUADRATURE CHECKS ITSELF
+ * AGAINST THAT CLOSED FORM instead: run at p = 2 it must reproduce 91.41, and
+ * it throws if it does not. An integrator nobody validated is CONTRACT §9's
+ * shape with a number that looks like a measurement.
+ *
+ * WHAT IT CHANGES ABOUT WHAT A CROWN MEANS — the same compromise `STREAK_NITS`
+ * writes down, and it is a WEAKER claim here than there. A streak is sub-pixel
+ * at every range this layer draws, so concentrating a column's water into one
+ * is a statement about a source smaller than the sampling grid. A crown is
+ * 0.0246 m across, which is about 2 px at the 15 m `SPLASH_RANGE_M` and about
+ * 10 px at 3 m — RESOLVED in the near field. So a near crown now renders
+ * brighter than foam at this road's illuminance can physically be, and the
+ * honest rendering of the same energy would be more crowns rather than
+ * brighter ones. 130 is the instance ceiling `budget.json` sets. Written here
+ * so the next session disagrees with the compromise rather than with the code.
+ */
+const SPLASH_POPULATION_SHARE = (() => {
+  const L = MP_LAMBDA_FULL;
+  /** `∫_lo^∞ D^p e^(-ΛD) dD`, trapezoid to 60/Λ — 24 e-foldings past the
+   *  split, so the tail it drops is below the last digit quoted. */
+  const moment = (pw, lo) => {
+    const N = 40001;
+    const h = (lo + 60 / L - lo) / (N - 1);
+    let acc = 0;
+    for (let i = 0; i < N; i++) {
+      const D = lo + i * h;
+      acc += (i === 0 || i === N - 1 ? 0.5 : 1) * Math.pow(D, pw) * Math.exp(-L * D);
+    }
+    return acc * h;
+  };
+  const share = (pw) => moment(pw, 1e-9) / moment(pw, DROP_MM);
+  /**
+   * THE CONTROL. At p = 2 this integrator is computing the quantity
+   * `STREAK_POPULATION_SHARE` has a closed form for, so the two must agree.
+   * They do, to 1 part in 10 000; the tolerance is 0.1% and a breach throws
+   * rather than shipping a silently wrong exponent.
+   */
+  const control = share(2);
+  if (Math.abs(control / STREAK_POPULATION_SHARE - 1) > 1e-3) {
+    throw new Error(
+      `weather: the crown-share quadrature disagrees with the streak's closed form — ` +
+      `${control.toFixed(4)} against ${STREAK_POPULATION_SHARE.toFixed(4)}`
+    );
+  }
+  return share(2 + 0.67);
+})();
+
+/**
+ * cd/m². The crown's foam radiance carrying its own population's water —
+ * 2.387 × 40.72 = 97.2. The other factor, 1/0.48064, is applied by `makeLayer`
+ * from the layer's `coverageMean`, exactly as it is for the streaks.
+ */
+const SPLASH_NITS = SPLASH_FOAM_NITS * SPLASH_POPULATION_SHARE;
 
 /**
  * cd/m^2. A spray puff is an optically thin ball of 150 micron droplets. Its
@@ -2070,7 +2164,10 @@ export function createWeather(options = {}) {
         `x population share ${STREAK_POPULATION_SHARE.toFixed(2)} / coverage mean ` +
         `${STREAK_COVERAGE_MEAN.toFixed(5)} ` +
         `(the ensemble mean is 2.55e-3 and draws nothing), splash ` +
-        `${SPLASH_NITS.toFixed(3)}, spray ${SPRAY_NITS.toFixed(3)} cd/m2. Wind ${WIND_10M_MS} m/s at ` +
+        `${SPLASH_NITS.toFixed(1)} = foam ${SPLASH_FOAM_NITS.toFixed(3)} x population share ` +
+        `${SPLASH_POPULATION_SHARE.toFixed(2)} (the D^2.67 moment, ` +
+        `${(SPLASH_POPULATION_SHARE / STREAK_POPULATION_SHARE).toFixed(3)}x the streaks' D^2), spray ` +
+        `${SPRAY_NITS.toFixed(3)} cd/m2. Wind ${WIND_10M_MS} m/s at ` +
         `10 m, u* ${WIND_USTAR.toFixed(3)}, so a streak leans ` +
         `${(Math.atan(windSpeedAt(12) / DROP_TERMINAL_MS) / RAD).toFixed(1)} deg at 12 m and ` +
         `${(Math.atan(windSpeedAt(2) / DROP_TERMINAL_MS) / RAD).toFixed(1)} deg at 2 m.`
