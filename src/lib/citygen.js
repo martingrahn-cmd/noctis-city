@@ -3094,19 +3094,33 @@ export function promenadeLamps(rootSeed, x0, x1) {
       if (onBridgeDeck(rootSeed, st.x, z, 8)) continue;
       const dz = bank < 0 ? e1.north - e0.north : e1.south - e0.south;
       const tangentDeg = (-Math.atan2(dz, 8) * 180) / Math.PI;
+      /**
+       * WHICH WAY THE ARM POINTS — CORRECTED IN SESSION 46, AND THE SENTENCE
+       * IT REPLACES WAS WRONG ABOUT THE ROTATION ITSELF.
+       *
+       * It read: *"`rot` 90 puts the arm in −z — that is what the axis-'z' road
+       * lamp does."* Neither half is true. three's rotation about +Y takes a
+       * local `(x, z)` to `(x·cos + z·sin, −x·sin + z·cos)`, and the bracket
+       * tip is at local `(−ARM, 0)`, so **yaw +90 puts the tip at z + ARM**.
+       * The road lamp it cites had the same defect and is repaired in the same
+       * session (`city.js`, `lampStationsFor`'s caller). Measured on the
+       * delivered matrices, the promenade's own columns read a median arm
+       * tip-to-bowl distance of **4.19 m** against an arm 2.1 m long.
+       *
+       * AND THE HEAD IS THE ARM'S TIP NOW, not a second expression for it.
+       * `headX: st.x` ignored `tangentDeg` altogether, so even with the sign
+       * right the head sat up to `ARM·(1 − cos θ)` off the bracket wherever the
+       * bank turns. One derivation, two readers.
+       */
+      const rotDeg = (bank < 0 ? -90 : 90) + tangentDeg;
+      const armA = (rotDeg * Math.PI) / 180;
       out.push({
         x: st.x,
         z,
         bank,
-        /**
-         * `rot` 90 puts the arm in −z — that is what the axis-'z' road lamp
-         * does, whose head is at `spot.z − 2.1`. The north bank's land is at
-         * −z, so it takes 90 and the south bank takes 270. The road code never
-         * needed the flip because it only ever placed `side: +1`.
-         */
-        rotDeg: (bank < 0 ? 90 : 270) + tangentDeg,
-        headX: st.x,
-        headZ: z + bank * PROMENADE_LAMP_ARM_M,
+        rotDeg,
+        headX: st.x - PROMENADE_LAMP_ARM_M * Math.cos(armA),
+        headZ: z + PROMENADE_LAMP_ARM_M * Math.sin(armA),
         /**
          * The pool aims a lamp from `axis` and `side`: axis 'z' makes the
          * luminaire's long axis x, which is the way this band runs, and the

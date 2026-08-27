@@ -476,8 +476,10 @@ export function createCity(options = {}) {
      */
     const pole = new THREE.CylinderGeometry(0.11, 0.15, 8.4, 6);
     pole.translate(0, 4.2, 0);
-    const arm = new THREE.BoxGeometry(2.1, 0.12, 0.12);
-    arm.translate(-1.05, 8.2, 0);
+    // The bracket reaches toward −x at yaw 0, which is what the head offset in
+    // `buildChunkBody` solves against. `LAMP_ARM_M` is the one length.
+    const arm = new THREE.BoxGeometry(LAMP_ARM_M, 0.12, 0.12);
+    arm.translate(-LAMP_ARM_M / 2, 8.2, 0);
     const lamp = mergeGeometries([pole, arm]);
     pole.dispose();
     arm.dispose();
@@ -1705,6 +1707,16 @@ export function createCity(options = {}) {
    * fifth from landing on the next chunk's first.
    */
   const LAMP_PER_EDGE = Math.ceil(CITY.chunkSize / LAMP_PITCH_M);
+  /**
+   * m. THE ARM'S REACH, AND IT HAD THREE SPELLINGS — SESSION 46.
+   *
+   * `buildGeometries` builds the bracket as `BoxGeometry(2.1, 0.12, 0.12)` translated to
+   * `-1.05`, and the head offset below was a third literal `2.1`. Three copies
+   * of one length, in two functions, and the failure below is what happens when
+   * one of the readers gets its sign from a different expression than the
+   * other. One name, three readers (CONTRACT §9.1).
+   */
+  const LAMP_ARM_M = 2.1;
 
   /**
    * ═════════════════════════════════════════════════════════════════════════
@@ -3909,8 +3921,45 @@ export function createCity(options = {}) {
            * from the +x pavement and reaches a shopfront from the −x one. Both
            * this and the head offset below take their sign from `spot.side`,
            * which is the same field `slot.beam.direction` has always read.
+           *
+           * ═══════════════════════════════════════════════════════════════
+           * AND ON EVERY z-AXIS ROAD THE ARM POINTED AWAY FROM THE HEAD —
+           * SESSION 46, AND IT IS HALF THE STREET LAMPS IN THE CITY.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * The operator, from three metres: *"the head, the arm and the
+           * column do not go together."* They did not. `+90` here and
+           * `spot.z − spot.side · 2.1` below are TWO EXPRESSIONS FOR ONE
+           * POINT, and on the `z` axis they disagreed by the whole arm twice
+           * over. three's rotation about +Y takes a local (x, z) to
+           * `(x·cos + z·sin, −x·sin + z·cos)`, so the bracket tip at local
+           * (−2.1, 0) lands at:
+           *
+           *     yaw    0   →  (−2.1,  0)     head  (x − 2.1, z)     agree
+           *     yaw  180   →  (+2.1,  0)     head  (x + 2.1, z)     agree
+           *     yaw  +90   →  ( 0,  +2.1)    head  (x, z − 2.1)     4.2 m APART
+           *     yaw  270   →  ( 0,  −2.1)    head  (x, z + 2.1)     4.2 m APART
+           *
+           * Measured on the delivered instance matrices over the resident ring
+           * at seed 1337, as the horizontal distance from each column's arm tip
+           * to the nearest bowl: **165 of 344 columns had no bowl within a
+           * metre**, and the offenders are exactly the two yaws above, at a
+           * median of **4.200 m**. The x-axis columns read 0.022–0.027 m, which
+           * is `yawJitter` and nothing else.
+           *
+           * WHICH OF THE TWO WAS WRONG IS DECIDED BY THE CARRIAGEWAY. A
+           * station on the `z` axis stands at `b.z0 ± inset` = ±8.8 m from a
+           * road centred on `b.z0` with `roadHalfWidth` 7.5, so the head at
+           * `z − side·2.1` = ±6.7 m is OVER the carriageway and the arm tip at
+           * `z + side·2.1` = ±10.9 m was over the back of the pavement. The
+           * HEAD was right and the COLUMN was turned the wrong way, so this
+           * moves the column and not one light in the city.
+           *
+           * IT IS ONE EXPRESSION NOW. The head is the arm's own tip carried
+           * through the column's own yaw, so the two cannot disagree again
+           * whatever a later session does to either.
            */
-          const rot = (spot.axis === 'x' ? 0 : 90) + (spot.side < 0 ? 180 : 0);
+          const rot = (spot.axis === 'x' ? 0 : -90) + (spot.side < 0 ? 180 : 0);
           /**
            * THE COLUMN STANDS ON ITS OWN PAVEMENT — session 19. The base was
            * the literal 0 and the mounting height 8.08 was measured from it, so
@@ -3931,9 +3980,22 @@ export function createCity(options = {}) {
            */
           const baseY = worldSurface(ctx, spot.x, spot.z).y;
           lampBodies.push(setMatrix(spot.x, baseY, spot.z, 1, 1, 1, rot + yawJitter));
-          const head = spot.axis === 'x'
-            ? { x: spot.x - spot.side * 2.1, z: spot.z }
-            : { x: spot.x, z: spot.z - spot.side * 2.1 };
+          /**
+           * THE ARM'S TIP, THROUGH THE COLUMN'S OWN YAW. Local (−LAMP_ARM_M,
+           * ·, 0) under three's Y rotation is `(−L·cos, ·, +L·sin)`. Delivered
+           * unchanged at all four yaws — see the table above — so this is the
+           * same four head positions with one derivation behind them instead of
+           * a second table that can go out of step with the first.
+           *
+           * `yawJitter` is deliberately NOT in here: it is a ±0.8° wobble on
+           * the COLUMN, worth 3 cm at the tip, and putting it in would move
+           * every light in the streamed city by that much for no gain.
+           */
+          const armA = rot * DEG;
+          const head = {
+            x: spot.x - LAMP_ARM_M * Math.cos(armA),
+            z: spot.z + LAMP_ARM_M * Math.sin(armA),
+          };
           bowls.push(setMatrix(head.x, baseY + 8.08, head.z, 1, 1, 1, 0));
           lamps.push({ x: head.x, y: baseY + 8.08, z: head.z, axis: spot.axis, side: spot.side });
         }
