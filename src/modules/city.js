@@ -2195,7 +2195,7 @@ export function createCity(options = {}) {
         x, y, z, nx, nz,
         /**
          * THE SIGN'S OWN COLOUR, AND IT IS FREE — LOOK.md §3's *"colour
-         * opposition … the biggest unspent lever"*.
+         * opposition, the biggest unspent lever"*.
          *
          * `EMITTER_CHROMA` is LUMINANCE-NORMALISED — every entry in
          * `SIGN_CHROMA` has Y = 1.000, checked — so carrying the chroma instead
@@ -3810,7 +3810,7 @@ export function createCity(options = {}) {
      * `near` the feature loop is gated on, or a post would stand on chunks
      * whose bowl was never built.
      *
-     * The taper is the street column's own — `CylinderGeometry(0.11, 0.15, …)`
+     * The taper is the street column's own — `CylinderGeometry(0.11, 0.15)`
      * in `buildGeometries` — read as a mean 0.26 m across, and the head sits
      * `LAMP_BOWL.radiusM` down from the mounting height so the post meets the
      * bowl rather than passing through it.
