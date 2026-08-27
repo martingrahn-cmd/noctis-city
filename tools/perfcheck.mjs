@@ -1575,10 +1575,28 @@ function goodRun() {
       layers: [{ label: 'a' }, { label: 'b' }, { label: 'c' }, { label: 'd' }],
       written: 600, carried: 40, sameFrameViolations: 0, reads: 1800,
     },
+    /**
+     * SESSION 45 — `sign: 16`, AND THE REASON IT IS HERE IS THAT `gateaudit`
+     * REFUSED THE RUN WITHOUT IT.
+     *
+     * `budget.json` -> `lightRoles.floors` gained a `sign` floor of 1 when the
+     * sign pool landed, and this fixture is the GOOD world every falsify case
+     * is measured against. A floor for a role the good world does not declare
+     * fails the control, which correctly makes every case below meaningless —
+     * so the fixture is what had to move, not the floor. That is the same rule
+     * `$floors` states in its own words: a role that stopped being created
+     * reads as excellent pool margin.
+     *
+     * The other five rows are NOT re-synced to the delivered city (which reads
+     * block 56, lamp 192, stall 12) and that is deliberate: they carry only
+     * ceilings, this fixture is a description of a world that PASSES rather
+     * than a snapshot of today's, and moving them would be a change no failing
+     * assertion asked for.
+     */
     roles: {
-      total: 344, unrolled: 0, maxLights: 384,
-      byRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1 },
-      enabledByRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1 },
+      total: 360, unrolled: 0, maxLights: 384,
+      byRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1, sign: 16 },
+      enabledByRole: { block: 52, lamp: 196, traffic: 96, stall: 8, aircraft: 1, sign: 16 },
     },
     traffic: {
       vehicles: BUDGET.trafficLights.contentVehicles,
