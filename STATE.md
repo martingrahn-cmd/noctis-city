@@ -101,7 +101,7 @@ more air.
 `s46-recon-{s,e,w}.png` before · `s46-haze-after-{s,e,w}.png` after ·
 `s46-hazesweep-*.png` the six sweep arms
 
-### 2. THE LANDMARK OVERHANGS THE ROAD — MEASURED FOR ALL EIGHT, AND THE TABLE IS THE ANSWER
+### 2. THE LANDMARK OVERHANGS THE ROAD — TRUE OF ONE, MEASURED FOR ALL EIGHT, REPAIRED
 
 The brief asked for delivered extent against claimed extent for every landmark. Read off the
 DELIVERED meshes — every instance matrix in `landmark:*` and every lathe's world bounding box —
@@ -272,7 +272,7 @@ boundary. Same clearance, now zero.
 
 `s46-junction-{before,after}-t0_5.png`
 
-### 5. THE LAMPS ARE BUILT WRONG — TRUE, AND IT IS HALF THE STREET LAMPS IN THE CITY
+### 5. THE LAMPS ARE BUILT WRONG — TRUE, REPAIRED, AND IT IS HALF THE STREET LAMPS IN THE CITY
 
 **LOOKED AT ONE FROM THREE METRES FIRST, AS INSTRUCTED, AND THEN MEASURED IT.** `s46-lamp-before-
 close.png`: the column stands with its bracket reaching left and ending in nothing, and the lantern
@@ -692,10 +692,19 @@ links above (the directory is gitignored, so a fresh clone has to take them agai
   s46-hazesweep-*.png                 the six live arms of the openness and density sweep
   s46-lamp-before-{close,row,junction,xroad}.png    before R1
   s46-lamp-after-{close,row,junction,xroad}.png     after R1
-  s46-junction-{before,after}-t0_5.png              R2, from the s45 worktree and from HEAD
+  s46-junction-{before,after}-t0_5.png     R1 AND R2 IN ONE PAIR, and the session's best frame:
+  s46-junction-{before,after}-ns-t0_5.png  a lamp column on the centre line of a carriageway
+                                           with traffic passing it, and detached bowls behind
+                                           it. 306 draws in both arms.
   s46-own-down.png                    the frame §0.6's ray census was taken through
   s46-ctrl-street-{A,B}.png           F6's two boots of one build
 ```
+
+**THREE POSES WERE TAKEN AND DISCARDED BEFORE ANYTHING WAS MEASURED OFF THEM**, which is STATE 45
+§7's rule and it earned its keep again: `s46-lamp-before-junction` framed the inside of a market
+stall, `s46-street-n` framed L20's blank flank at 3 m, and the first `s46-junction-before-b` put
+the lens inside a tree. A frame that does not show its subject is not a weaker frame, it is a
+different measurement.
 
 **THE BEFORE FRAMES FOR R2 CAME OUT OF A SECOND WORKTREE**, because R1 and R2 landed in one
 sitting and a before frame taken after the fact is not a before frame. `git worktree add` at
