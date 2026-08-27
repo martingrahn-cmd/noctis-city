@@ -63,6 +63,8 @@ parameters. Frames were taken with a scratchpad multi-pose tool (one boot, many 
 | **R12** | **53 lamp heads hang in the air with no post under them.** Found by looking at a noon junction. | `city:bowls` 497 instances against `city:lamps` 444. The `chunk.features` loop pushes a bowl and nothing else: **36 park lamps + 17 site floods = 53**, exactly the shortfall. A box in `masses`, not the street lantern — that geometry is a pole merged with its ARM. §13 | `s45-post-{before,after}-carpark-t0_5-dry.png` |
 | **R13** | **A drop falling through a lamp's beam is as dull as a drop in the dark** — the operator's own third observation, and the one the brief said to do FIRST. | `STREAK_GLINT_NITS` is a CONSTANT. A drop is a sphere, i.e. a convex mirror, so its flux goes as the **illuminance at the drop** and not the source's radiance. Sampled on the CPU into the gain the layer already carries. **The first arm was wrong by ten and its own instrument caught it.** §14 | `s45-beam-{before,after}-underlamp-t0-wet.png` |
 | **R14** | Two ellipsis characters in this session's own comments. | `parsecheck`, run BEFORE this file was written. 112 files, contract-clean. | — |
+| **R15** | **The sign pool spent the froxel margin the traffic reserve is made of**, and `perfcheck` refused it. | Each sign's window was sized through the Frostbite shoulder — 233 m for every rooftop cabinet — and `lights.assign()` writes a light into every froxel its radius sphere touches. `downtown_dense` **58 of 96, margin 38** against a floor of 40. Capped at `cutoffM` = 128 m: **56 of 96, margin 40**. §11.3 | — |
+| **R16** | `perfcheck`'s own GOOD FIXTURE declared no sign role, so R9's new floor refused the control. | `gateaudit` caught it, and perfcheck reported 74 meaningless passes as ZERO rather than as 74. **The fixture moved, not the floor.** §6.3 | — |
 
 ### FOUND AND NOT REPAIRED — the list the next session starts from
 
@@ -137,13 +139,27 @@ legitimately absent over the origin block or five are never requested there is a
 question nobody has asked, and `poseprobe`'s carried blindness to the origin block (§15) is the
 reason it has never come up.
 
-**L22. THE BRIGHT RESERVE FELL 6.91% → 6.35% AND ONE OF ITS THREE RUNS IS BELOW THE FLOOR.**
-`citycheck` per-run means **5.73 / 6.35 / 6.81**, spread **1.08 points**, against a 6.00% floor;
-the gate reads the median and passes. The first half of this session left it at 6.91 with a spread
-of 0.47. **The spread has more than doubled and the low run is now under the bound**, which is a
-different statement from the median moving. L1's window repair is costed against this reserve, so
-the margin it was promised — *"0.91 points where session 44 left 0.24"* — is now 0.35 on the median
-and negative on one run in three.
+**L22. THE BRIGHT RESERVE'S FLOOR IS INSIDE ITS OWN RUN-TO-RUN NOISE, AND THAT IS THE FINDING —
+NOT THE NUMBER IT FELL TO.** `citycheck` was run twice in the second half. Against a 6.00% floor:
+
+```
+  run A (uncontended)   median 6.35   per-run 5.73 / 6.35 / 6.81   spread 1.08
+  run B (contended)     median 6.16   per-run 6.16 / 6.00 / 6.67   spread 0.66
+  first half            median 6.91   per-run 6.92 / 6.45 / 6.91   spread 0.47
+```
+
+The gate reads the MEDIAN and passes in all three. But **individual runs span 5.73 to 6.92 — a
+range of 1.19 points across a floor of 6.00 — so a single run of this gate can report either
+verdict on an unchanged city.** The first half's *"6.91, the largest margin this floor has ever
+had"* is one draw from that distribution and was quoted as a level. **L1's window repair is costed
+against this reserve**, and what it actually has is not 0.91 points of margin, nor 0.35: it is a
+median 0.2–0.4 above a floor that one run in three is already at or under. The item L1 owes is
+therefore the reserve's own repeatability before any window is dimmed — how many runs does this
+statistic need before its median means anything?
+
+*Run B was taken while `perfcheck` was running, which is §6.3's own warning ignored twenty minutes
+after it was written. Its counts and reds are identical to run A's; only the pixel statistics
+differ, and they differ by less than run A differs from itself.*
 
 **L23. A CAR PARK FROM EYE LEVEL READS AS STACKED CONCRETE STEPS.** *Written as a question, per
 LOOK.md §8.* Session 40 rebuilt the parked vehicles specifically because *"the first version of
@@ -161,6 +177,40 @@ and the whole junction is a continuous surface with vehicles and people standing
 operator's fourth complaint at a pose R4 does not reach. `w-crossing-t0_5-wet.png`.
 
     localhost:5173/?player=1&spawn=384,1.74,384&t=0.5&wet=1
+
+**L27. `minOccupancyMargin` DOES NOT REPRODUCE TO BETTER THAN EIGHT POINTS, AND IT IS ASSERTED
+AGAINST A FLOOR OF FORTY.** This is the session's most useful finding about a GATE rather than
+about the city, and it cost an attempted repair to learn. `downtown_dense`, worst froxel over the
+run, five measurements of one feature:
+
+```
+  pool 16, 233 m throw   four routes    58 of 96   margin 38   BREACH — this is why R15 exists
+  pool 16, 128 m throw   four routes    56 of 96   margin 40
+  pool 16, 128 m throw   one route      52 of 96   margin 44
+  pool 12, 128 m throw   one route      52 of 96   margin 44
+  pool 12, 128 m throw   four routes    60 of 96   margin 36
+```
+
+**TWELVE SLOTS MEASURED WORSE THAN SIXTEEN, ON THREE OF THE FOUR ROUTES** — 36 / 79 / 41 / 41
+against 40 / 79 / 43 / 42. **Four fewer lights cannot raise a froxel's occupancy.** The statistic
+is a MAXIMUM over a moving route sampled while traffic drives through it, and maxima of a moving
+population do not average; its spread here is about eight points, a fifth of the floor it guards.
+
+**THE POOL WAS CUT TO 12 AND PUT BACK**, because cutting it on the strength of that measurement
+would have been choosing a number for a reason the data does not support — which is the thing this
+project's whole comment discipline exists to prevent. The 233 → 128 m throw cap STAYS: that one has
+a mechanism and it moved the worst reading of all five. **What is genuinely true: this feature took
+`downtown_dense`'s margin from 57 to about 40**, i.e. it spent most of the reserve, and the next
+session adding any clustered light of any kind should re-derive this statistic's repeatability
+before trusting either number.
+
+**L28. THE `night_rain` FRAME MEAN WENT FROM STRADDLING ITS FLOOR TO SITTING UNDER IT.** Per-run
+means **[0.0797, 0.0771, 0.0694]** against a floor of 0.08, where the first half read
+[0.0793, 0.0782, 0.0813]. It was already red in the first half and it is redder now, and the cause
+is not a mystery: CONTRACT §5.4 makes auto-exposure pay for everything added, and §11 added
+sixteen lights to the two `lampsOn` times. **The reserve and the mean move in opposite directions
+under the same change**, which is worth stating because L22's bright reserve and this floor are
+now both being pushed by the same repairs from opposite sides.
 
 **L1. EVERY WINDOW IN THE STREAMED CITY IS 220 cd/m² AND THE ORIGIN BLOCK'S ARE 7 TO 30.**
 This is CONTRACT §9's own class — one quantity, two files, nothing comparing them — and it is
@@ -728,6 +778,117 @@ does. Neither has anything to do with rain: every route printed `rain 0.00 (now 
 
 ---
 
+### 6.3 THE SECOND-HALF RUN, AT `8dfb614` — AND `gateaudit` REFUSED IT ONCE, CORRECTLY
+
+Run individually and, after the first attempt, **run ALONE** — see the note at the end of this
+section, which is a finding about the measurement and not about the city.
+
+```
+  parsecheck   GREEN   112 files, contract-clean. RED on the first attempt, on two ellipsis
+                       characters in this session's own comments (R14). The file count is
+                       unchanged from sessions 42-45: the second half added no file either, and
+                       its four new probes are in the scratchpad beside the first half's five.
+  windcheck    GREEN   563 of 563 cull-eligible meshes decided, 0 wound backwards. The 53 lamp
+                       posts of §13 are boxes inside `#,#:masses` and are in that count.
+  inputcheck   GREEN   keyboard, mouse and gamepad each deliver their own constant, the lock is
+                       acquired, and the mouse is inside the usable band.
+  faultcheck   GREEN   7 cases, quarantine surgical, the frame survives every one.
+  lookcheck    RED at 3 — THE SAME THREE, and no band moved out of its own range. `band:dusk`
+                       is still CLOSED, which is the first half's R2 holding through five more
+                       repairs including sixteen new lights.
+                         band:midnight 0.0828   band:dusk 0.1412   band:dawn 0.3025
+                         band:noon 0.4285       crushed black 0.575%   road pools 12 of 6
+                         distinct:midnight|dusk 0.02992 against 0.03000 — L15, and the second
+                         half moved it 0.00003, three times the instrument's resolution and
+                         nowhere near the floor
+                         102 local lights at midnight and at dusk, which includes the 16 signs
+  citycheck    RED at 3, THE SAME THREE as sessions 40-45, no new violation of any kind. §6.4
+  perfcheck    RED at 13 — the same count as the first half and the same three categories.
+                       ELEVEN are frame time at load1 2.7-4.2 and are not admissible in either
+                       direction; ONE is `night_rain`'s frame mean, which was already red in the
+                       first half and is redder now (L28); and ONE IS CONTENT, the carried vehicle
+                       tone-profile bar, TWELFTH session. **NOT ONE IS A COUNT** — no draw call, no
+                       triangle, no instance, no cluster slot and no role. §6.5
+  gateaudit    RED at 1 on the re-run, AND ON THE FIRST RUN IT WAS RED AT 2 AND THE SECOND ONE
+                       WAS THIS SESSION'S OWN (R16, below). The one that remains is the carried
+                       control, which now names THREE assertions where the first half predicted it
+                       would — `distinct:midnight|dusk`, `facadeAlbedo`, `facadeNeighbours`, which
+                       are exactly lookcheck's three reds. Everything else green, including
+                       `ok control — every assertion ran` (nothing suppressed), 74/74 perfcheck
+                       falsify cases at 100% coverage over 72 failure sites, 61/61 citycheck,
+                       13/13 inputcheck, and both control sweeps.
+```
+
+**`gateaudit` REFUSED THE RUN AND IT WAS RIGHT TO.** `budget.json` -> `lightRoles.floors` gained
+`sign: 1` when the pool landed (§11.1). `perfcheck --falsify` measures every case against a GOOD
+FIXTURE — a hand-written description of a world that passes — and that fixture predates the role,
+so it declares no sign lights and the new floor failed it. perfcheck did the right thing with it:
+
+```
+  ✗ the GOOD fixture failed 1 assertion(s), so every case below is meaningless:
+    highway_speed: only 0 lights with role 'sign' < 1
+```
+
+**It reported 74 meaningless passes as ZERO passes** rather than as 74. The FIXTURE is what moved,
+not the floor — `$floors`' own sentence is *"a role that stopped being created reads as excellent
+pool margin"*, and a floor withdrawn to make a stale fixture pass is that failure with a tidier
+face. The other five rows of that fixture are deliberately NOT re-synced to the delivered city
+(they read block 52 / lamp 196 / stall 8 against a delivered 56 / 192 / 12): they carry ceilings
+only, the fixture describes a passing world rather than today's, and moving them is a change no
+failing assertion asked for. **After the fix: 74/74 cases rejected, 72 failure sites, coverage
+100%, and the good fixture passes clean.**
+
+`gateaudit`'s remaining red is the carried control — *"the unperturbed frames do not pass their own
+gate"* — which now names `facadeAlbedo`, `facadeNeighbours` and `distinct:midnight|dusk`, exactly
+as L15 predicted at the end of the first half.
+
+**AND ONE FINDING IS ABOUT THE MEASUREMENT.** The first `perfcheck` of this half was launched and
+then `gateaudit` and `perfcheck --falsify` were launched beside it, so three browser harnesses
+were contending on one machine; `load1` went to **5.42** and the run had to be killed at 14 minutes
+having produced nothing. **Gates in this project are not concurrent-safe in the only sense that
+matters — they measure a machine, and they are each other's load.** CONTRACT §0.2's bar of 1.6 is
+about the operator's own machine being quiet; this is the same rule pointed inward. The run quoted
+above waited for `load1` to fall below 4.0 and then ran alone.
+
+---
+
+### 6.5 PERFCHECK IN THE SECOND-HALF RUN — EVERY COUNT, AND THE ROLE THAT DID NOT EXIST
+
+```
+                    draws  s45 first half    tris   tris s45   instances    froxel margin
+ downtown_dense       318         317       1.91M      1.91M     238 480     40  (was 57)
+ highway_speed        396         395       2.18M      2.18M     312 551     79  (was 85)
+ night_rain           317         316       1.88M      1.88M     292 804     43
+ player               307         306       1.86M      1.86M     238 480     42
+
+ roles   aircraft:1  traffic:96  stall:12  block:56  lamp:192  SIGN:16
+         373 of 384, unrolled 0
+```
+
+**+1 DRAW CALL ON EVERY ROUTE, AND IT IS R12's LAMP POSTS** — L26 has the mechanism. `highway_speed`
+reads **396 of 440**, so the ceiling the first half took from 439 to 395 is still not the limiter:
+**44 spare.** Triangles are unmoved to three figures; instances are +238 to +245, which is the
+posts.
+
+**THE FROXEL MARGIN IS THE ONE COUNT THAT MOVED AND IT IS §11.3's.** Three of the four routes now
+sit within 3 points of a floor of 40 where they had 57 to 85. L27 is why no further repair was
+attempted and why the pool is still 16.
+
+**THIRTEEN VIOLATIONS, AND THE SPLIT IS THE SAME AS THE FIRST HALF'S:**
+
+- **ELEVEN ARE FRAME TIME** — four cpu p95, three wall p95, three "frames over 33 ms" and the
+  headroom probe, measured at `load1` 2.7–4.2 with a browser rendering. Not admissible. The
+  closest to a real reading is `highway_speed` wall p95 **12.70 against 12.5**, which is the same
+  0.20 ms over that the first half recorded, with a three-run spread of **0.0**.
+- **ONE IS `night_rain`'s FRAME MEAN**, 0.0771 against a floor of 0.08. Already red in the first
+  half at 0.0793; L28.
+- **ONE IS CONTENT**, the carried vehicle tone-profile bar: *"only 52% of 63 vehicles carry a
+  non-monotone tone profile (min 75%)"*. **TWELFTH session**, and the population keeps moving
+  (23 → 68 → 78 → 70 → 63) which is its own carried question.
+- **NOT ONE IS A DRAW CALL, A TRIANGLE, AN INSTANCE, A CLUSTER SLOT OR A ROLE.**
+
+---
+
 ## 7. HOW EVERY FRAME AND EVERY NUMBER IN THIS FILE WAS TAKEN
 
 All at seed 1337, all `?paused=1`, all at 1.70–1.74 m on the street unless the pose says otherwise,
@@ -1025,6 +1186,35 @@ for what is added (CONTRACT §5.4), so absolutes are not the statement:
 and the lit wall rises **25% in absolute code value while the frame's own exposure falls 15%**.
 **ZERO DRAW CALLS** — 118 / 103 / 299 / 250 / 147 / 292 identical in both arms at six poses.
 
+### 11.3 WHAT IT COSTS, AND `perfcheck` NAMED IT
+
+**THE POOL SHIPPED WITH A FROXEL BREACH AND THE GATE FOUND IT.** Each sign's falloff window was
+sized through the Frostbite shoulder — `cutoffM × 1.82` = 233 m for anything bright enough to reach
+that far, which is every rooftop cabinet. Optically that is right; `lights.assign()` disagreed:
+
+```
+                     worst froxel   margin   floor   before any sign light
+  downtown_dense       58 of 96       38      40           57
+  highway_speed        17 of 96       79      40           85
+```
+
+A light is written into every froxel its RADIUS SPHERE touches and the froxel loop is
+`CLUSTER.maxPerCluster` long whatever is in it, so a 233 m sphere is **470× the volume of the 30 m
+one a street lamp carries**. Capping the throw at `cutoffM` — one number for both the candidacy
+test and the throw, so the pool's whole spatial extent is `2 × cutoffM` — takes it to **56 of 96,
+margin 40**, which clears the floor. What it gives up is between a seventh and a twentieth of the
+street's design level on surfaces a block and a half away: the largest cabinet delivers 2.4 lx at
+128 m and 0.74 lx at 233 m.
+
+**HALVING THE RADIUS DID NOT HALVE THE COST**, and the four static street poses moved by at most
+ONE froxel (45 → 46, 34 → 36, 47 → 47, 41 → 39). A sphere that CONTAINS the camera is in nearly
+every froxel whatever its radius, so the saving is on the route and not at the poses where the look
+was measured — **no frame in §11 or §11.2 changes.**
+
+**AND THE ATTEMPT TO SPEND LESS BY TAKING FEWER SLOTS WAS MEASURED AND REVERTED.** L27 is the whole
+of that, and it is the more useful finding: twelve slots measured WORSE than sixteen on three of
+four routes, which is causally impossible and therefore a statement about the instrument.
+
 ### 11.2 A SIGN THROWS ITS OWN COLOUR, AND IT IS FREE
 
 `EMITTER_CHROMA` is **luminance-normalised — every one of `SIGN_CHROMA`'s six entries has
@@ -1104,7 +1294,11 @@ the feature loop's own `dir: [0, −1, 0]` says so — so instancing the street 
 2.1 m bracket beside every one of them reaching out at nothing. It is emitted just before `bodies`
 closes into the chunk's `masses` mesh, gated on the same `near` the feature loop is gated on.
 
-**ZERO DRAW CALLS** — 123 and 116 in both arms. **+780 and +828 triangles**, which is 65 boxes at 12.
+**ZERO DRAW CALLS AT EVERY POSE MEASURED** — 123 and 116 in both arms, +780 and +828 triangles,
+which is 65 boxes at 12. **AND ONE DRAW CALL ON THE ROUTES**, which no pose showed and only the
+route census did: `downtown_dense` 317 → 318 and `highway_speed` 395 → 396. A post is a box in the
+chunk's existing `masses` mesh and is free — except on a chunk that had NO `masses` mesh because
+nothing was standing on it, which is exactly a `park` or `parking` chunk with a lamp in it. L26.
 
 **THE FIRST READING OF THIS WAS WRONG AND IS WORTH RECORDING.** The blob raycast first was a STREET
 lamp's bowl, and a ray straight down from one correctly finds nothing, because the head hangs 2.1 m

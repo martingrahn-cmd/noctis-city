@@ -1696,6 +1696,36 @@ export const SIGN_LIGHT = {
    * Slots. 16 of the 27 spare; the derivation and the 17.4 it is measured
    * against are above. A ceiling and a floor for this number live in
    * `tools/budget.json` → `lightRoles`, which is what stops it drifting.
+   *
+   * **AND AN ATTEMPT TO CUT IT TO 12 WAS MEASURED AND REVERTED, WHICH IS WORTH
+   * MORE THAN THE NUMBER.** The pool's real cost is not slots, it is froxel
+   * occupancy: `lights.assign()` writes a light into every froxel its radius
+   * sphere touches, and `budget.json` → `trafficLights.minOccupancyMargin`
+   * reserves 40 of `CLUSTER.maxPerCluster` for traffic coming round a corner.
+   * `downtown_dense`, worst froxel over the run, across five measurements of
+   * this feature:
+   *
+   *     pool 16, 233 m throw   four routes    58 of 96   margin 38   BREACH
+   *     pool 16, 128 m throw   four routes    56 of 96   margin 40
+   *     pool 16, 128 m throw   one route      52 of 96   margin 44
+   *     pool 12, 128 m throw   one route      52 of 96   margin 44
+   *     pool 12, 128 m throw   four routes    60 of 96   margin 36
+   *
+   * **TWELVE SLOTS MEASURED WORSE THAN SIXTEEN, ON THREE OF THE FOUR ROUTES**
+   * (36 / 79 / 41 / 41 against 40 / 79 / 43 / 42). Four fewer lights cannot
+   * raise a froxel's occupancy, so what that spread says is that the statistic
+   * — a MAXIMUM over a moving route, sampled while traffic drives through it —
+   * does not reproduce to better than about eight points, which is a fifth of
+   * the floor it is asserted against. Cutting the pool on the strength of it
+   * would have been choosing a number for a reason the data does not support,
+   * so the pool stays at the size its own derivation gives and the cost is
+   * written down instead. The 233 → 128 m throw cap stays, because that one has
+   * a mechanism and moved the worst reading of all five.
+   *
+   * What is genuinely true and should be carried: **this feature took
+   * `downtown_dense`'s margin from 57 to about 40**, and the next session
+   * adding any clustered light should re-derive `minOccupancyMargin`'s
+   * reproducibility before trusting either number. STATE 45 L27.
    */
   poolSlots: 16,
   /**
