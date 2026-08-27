@@ -1331,6 +1331,193 @@ export function createWeather(options = {}) {
     streakPos[i * 3 + 2] = z;
   }
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * A DROP FALLING THROUGH A LAMP'S BEAM — SESSION 45.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * THE OPERATOR'S OWN OBSERVATION, and it was the one of his three that this
+   * session was told to do FIRST: *"drops falling through a lamp's beam are as
+   * dull as drops in the dark. Session 44 lit the AIR in that beam and left the
+   * DROPS out of it."* Session 45's first half changed the streaks' MAGNITUDE
+   * by 326.3 and left every drop in the world at the same radiance, which is
+   * a different sentence.
+   *
+   * `STREAK_GLINT_NITS` is `F · L_bowl · dilution` — a CONSTANT. It says that
+   * every drop, everywhere, glints an image of a 9 000 cd/m² lamp bowl,
+   * whether there is a lamp within three metres or fifty.
+   *
+   * WHAT THE VARIATION SHOULD BE, and it is not a taste. A drop is a SPHERE,
+   * which is a convex mirror: it intercepts `I·πr²/d²` from a source of
+   * intensity I at distance d, reflects a Fresnel fraction of it and spreads
+   * that over the whole sphere. So the flux a drop sends to the eye goes as
+   * `I/d²` — **the illuminance at the drop** — and not as the source's
+   * radiance. The existing constant is therefore what a drop does at ONE
+   * illuminance, and the right correction is a modulation with that
+   * illuminance in it.
+   *
+   * THE REFERENCE IS `LIT_REF_LUX` AND THE FIRST ARM OF THIS CHANGE GOT IT
+   * WRONG BY TEN. See that constant: the modulation only ADDS VARIATION if its
+   * mean is near 1, and referencing a drop in the air to the level the ROAD is
+   * designed to gave a measured mean of 9.8 and 13.6 — a tenfold brightening
+   * of the whole layer wearing a variation's clothes. What caught it is
+   * `particleStats().beam`, which exists for exactly that reason and is
+   * reported beside the change rather than after it.
+   *
+   * Both clamps are in absolute lux and are derived beside `LIT_REF_LUX`.
+   *
+   * THE COST IS BOUNDED BY CONSTRUCTION. The shortlist is rebuilt once a frame
+   * and capped at `LIT_SOURCES_MAX`, so the inner loop is 500 × 12 and not
+   * 500 × 384. The streak volume is 12 m of range, so a light further than its
+   * own throw plus that cannot reach any drop and is not a candidate.
+   */
+  /**
+   * THE MODULATION'S OWN MEAN, MINIMUM AND MAXIMUM OVER THE DRAWN STREAKS.
+   *
+   * Reported rather than argued (CONTRACT §9 rule 4), because the claim this
+   * change makes is that it adds VARIATION and not LEVEL — and that claim is
+   * only true if the mean is near 1. If the drops nearest the camera all sit
+   * in a lamp's pool the mean is above 1 and the layer got brighter as well as
+   * more varied, which is a thing a reader should be able to see rather than
+   * take on trust. `particleStats().beam` is where it comes out.
+   */
+  let beamSum = 0;
+  let beamN = 0;
+  let beamMin = Infinity;
+  let beamMax = 0;
+
+  const LIT_SOURCES_MAX = 12;
+  const LIT_REACH_M = 12;
+  /**
+   * lx. THE ILLUMINANCE THE EXISTING CONSTANT ALREADY STOOD FOR, and it is
+   * MEASURED rather than assumed — the first arm of this change assumed it was
+   * `STREET_DESIGN_LUX` = 15 and that was wrong by an order of magnitude.
+   *
+   * 15 lx is the level this city lights its CARRIAGEWAY to: a horizontal plane
+   * at ground level, averaged between the poles. A drop is neither of those
+   * things. It is in the air from 0 to 12 m up, which is beside and above an
+   * 8.08 m lantern rather than under it, and the streak volume is a 12 m ball
+   * around a camera that is itself standing on a lit street. So the drops sit
+   * in FAR more light than the road does, and referencing them to the road's
+   * design level multiplies the whole layer rather than varying it.
+   *
+   * MEASURED, and the instrument is this module's own `particleStats().beam`
+   * over the 500 drawn streaks: **147 lx and 204 lx** at two street poses at
+   * midnight in full rain. 175 is the middle. The spread is 33% of it and that
+   * is honest — a camera between two poles sees less than one standing under
+   * a lantern, and that difference is exactly the variation this change is
+   * for.
+   *
+   * WHY IT MATTERS THAT THIS IS RIGHT. Session 45's R1 put the streaks at
+   * x326.3 and shipped it because *"the arm chosen by looking at six live-swept
+   * frames was 70-400, so the derivation lands inside the bracket the eye
+   * picked"*. A modulation whose mean is 10 rather than 1 moves the delivered
+   * gain to 3 263 and puts it an order of magnitude outside that bracket,
+   * silently. `beam.mean` is printed so the next session can check this
+   * reference against its own frames rather than trust it.
+   */
+  const LIT_REF_LUX = 175;
+  /**
+   * lx. THE TWO CLAMPS, IN ABSOLUTE ILLUMINANCE so they do not move when the
+   * reference above is re-measured.
+   *
+   *   600 lx  is `6 800 / d²` at **d = 3.4 m** — where a lantern stops being a
+   *           point source to a drop. Inside that the point model is wrong and
+   *           the clamp is honest about it rather than extrapolating it.
+   *   0.3 lx  is what this module's own haze note calls *"within a factor of
+   *           two of full moonlight"*. A drop with no lamp near it still
+   *           glints the sky and the wet road, and zero would make the rain
+   *           vanish between the poles instead of dimming there.
+   */
+  const LIT_CEIL = 600 / LIT_REF_LUX;
+  const LIT_FLOOR = 0.3 / LIT_REF_LUX;
+  /** x, y, z, I, dirx, diry, dirz, cosOuter, cosInner, isSpot — ten a source. */
+  const litSources = new Float64Array(LIT_SOURCES_MAX * 10);
+  let litCount = 0;
+
+  /**
+   * The lights that can reach a drop this frame, nearest first.
+   *
+   * `lights.all()` is the live pool — the same array `roleCensus` counts — so
+   * this sees the street lamps, the shopfronts, the stalls and (session 45)
+   * the signs, without any of them having to declare themselves to weather.
+   */
+  function rebuildLitSources(ctx) {
+    litCount = 0;
+    beamSum = 0;
+    beamN = 0;
+    beamMin = Infinity;
+    beamMax = 0;
+    const lights = ctx.get('lights');
+    if (!lights || !lights.all) return;
+    const all = lights.all();
+    /** Nearest-first by insertion, which beats a sort at this length. */
+    const d2s = new Float64Array(LIT_SOURCES_MAX);
+    for (let k = 0; k < all.length; k++) {
+      const L = all[k];
+      if (!L.enabled || !(L.intensity > 0)) continue;
+      const dx = L.position.x - camPos.x;
+      const dy = L.position.y - camPos.y;
+      const dz = L.position.z - camPos.z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      const reach = LIT_REACH_M + (L.radius || 12);
+      if (d2 > reach * reach) continue;
+      let at = litCount < LIT_SOURCES_MAX ? litCount : -1;
+      if (at < 0) {
+        let worst = -1;
+        let worstD = d2;
+        for (let j = 0; j < LIT_SOURCES_MAX; j++) if (d2s[j] > worstD) { worstD = d2s[j]; worst = j; }
+        if (worst < 0) continue;
+        at = worst;
+      } else {
+        litCount++;
+      }
+      d2s[at] = d2;
+      const b = at * 10;
+      litSources[b] = L.position.x;
+      litSources[b + 1] = L.position.y;
+      litSources[b + 2] = L.position.z;
+      litSources[b + 3] = L.intensity;
+      const spot = L.type === 'spot';
+      litSources[b + 4] = spot ? -L.direction.x : 0;
+      litSources[b + 5] = spot ? -L.direction.y : 0;
+      litSources[b + 6] = spot ? -L.direction.z : 0;
+      litSources[b + 7] = spot ? Math.cos(L.coneOuter) : -1;
+      litSources[b + 8] = spot ? Math.cos(L.coneInner) : -1;
+      litSources[b + 9] = spot ? 1 : 0;
+    }
+  }
+
+  /**
+   * Illuminance at a point, lux, from the shortlist. The same inverse square
+   * and the same `smoothstep(cosOuter, cosInner, cos)` cone the clustered
+   * shader runs, so a drop and the road under it cannot disagree about how
+   * much light is there.
+   */
+  function litLuxAt(x, y, z) {
+    let e = 0;
+    for (let i = 0; i < litCount; i++) {
+      const b = i * 10;
+      const dx = x - litSources[b];
+      const dy = y - litSources[b + 1];
+      const dz = z - litSources[b + 2];
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < 0.04) continue;
+      let a = litSources[b + 3] / d2;
+      if (litSources[b + 9] > 0.5) {
+        const d = Math.sqrt(d2);
+        const c = -(dx * litSources[b + 4] + dy * litSources[b + 5] + dz * litSources[b + 6]) / d;
+        const co = litSources[b + 7];
+        const ci = litSources[b + 8];
+        let t = (c - co) / Math.max(ci - co, 1e-4);
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        a *= t * t * (3 - 2 * t);
+      }
+      e += a;
+    }
+    return e;
+  }
+
   function updateStreaks(rng, dt, gain) {
     const layer = streakLayer;
     let active = 0;
@@ -1420,7 +1607,14 @@ export function createWeather(options = {}) {
        */
       const edge =
         Math.min(1, (1 - Math.abs(uu)) / 0.06) * Math.min(1, (1 - Math.abs(vv)) / 0.06);
-      layer.attr[i * 2] = streakGain[i] * Math.max(0, edge);
+      /** The beam this drop is falling through. See `rebuildLitSources`. */
+      const lux = litLuxAt(streakPos[o], streakPos[o + 1], streakPos[o + 2]) / LIT_REF_LUX;
+      const beam = lux < LIT_FLOOR ? LIT_FLOOR : lux > LIT_CEIL ? LIT_CEIL : lux;
+      beamSum += beam;
+      if (beam < beamMin) beamMin = beam;
+      if (beam > beamMax) beamMax = beam;
+      beamN++;
+      layer.attr[i * 2] = streakGain[i] * Math.max(0, edge) * beam;
       active++;
     }
 
@@ -1896,6 +2090,19 @@ export function createWeather(options = {}) {
         })),
         rainfall,
         /**
+         * Session 45. The beam modulation the streaks were drawn with — what
+         * `litLuxAt` returned over `STREET_DESIGN_LUX`, clamped. `mean` near 1
+         * says the change added variation and not level; `sources` is how many
+         * lights were close enough to reach a drop at all.
+         */
+        beam: {
+          mean: beamN ? beamSum / beamN : null,
+          min: beamN ? beamMin : null,
+          max: beamN ? beamMax : null,
+          n: beamN,
+          sources: litCount,
+        },
+        /**
          * The same state as a RATE, because the two are not the same number and
          * `hud.js` printed the fraction with "mm/h" after it for forty sessions
          * — CONTRACT §9's named failure mode, harmless only while the value was
@@ -2307,6 +2514,7 @@ export function createWeather(options = {}) {
        */
       sprayLayer.material.uniforms.uGain.value = rainfall * wetness;
 
+      rebuildLitSources(ctx);
       updateStreaks(ctx.rng('weather:streak'), dt, rainfall);
       updateSplashes(ctx.rng('weather:splash'), dt, rainfall);
       updateSpray(ctx, ctx.rng('weather:spray'), dt, rainfall * wetness);
