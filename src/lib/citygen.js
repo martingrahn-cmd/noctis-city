@@ -9446,6 +9446,24 @@ export function generateChunk(rootSeed, cx, cz) {
           const a = at(-26 + (i % 6) * 10.4, -22 + Math.floor(i / 6) * 15);
           parkVehicle(a.x, a.z, alongX ? 90 : 0, 'van');
         }
+        /**
+         * AND A ROW STANDING OUT IN THE OPEN, BECAUSE A ROOF HIDES WHAT IS
+         * UNDER IT FROM ABOVE. Every one of the twelve above is inside the
+         * cover's own footprint, which is right from the pavement and useless
+         * from the air: the aerial frame of this chunk was a blank 62 m roof on
+         * an empty apron, which is the operator's session-46 defect — *"wide
+         * flat areas with nothing on them"* — rebuilt by a session trying to
+         * fix it. Four outside and a row of bays give the apron something to be.
+         */
+        for (let i = 0; i < 4; i++) {
+          const a = at(-16 + i * 10.4, 10);
+          parkVehicle(a.x, a.z, alongX ? 90 : 0, 'van');
+        }
+        for (let i = 0; i < 10; i++) {
+          const a = at(-24 + i * 5.4, 17);
+          markings.push({ x: a.x, z: a.z, length: alongX ? 0.10 : D.bayL,
+            width: alongX ? D.bayL : 0.10, yawDeg: 0, kind: 'bay' });
+        }
         const w = at(0, 30);
         placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, G.depotShopHighM + 1.1,
           'depot:shop', { height: G.depotShopHighM, floors: 1, style: 'dock',
