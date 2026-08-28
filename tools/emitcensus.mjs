@@ -410,18 +410,45 @@ const HEAD_CLEAR = 2.10;
  * LOUD failure rather than an empty row.
  */
 const CANDIDATES = [
-  { src: 'lampBodies.push(setMatrix(spot.x', as: 'prop', clampTop: HEAD_CLEAR,
+  /**
+   * THE FOUR LAMP ROWS ARE `done` — SESSION 46 DECLARED THEM, and they are kept
+   * rather than deleted because a candidate that disappears when it is repaired
+   * takes its number with it. `done` skips the sweep: re-claiming an object that
+   * already carries a claim reports it colliding with ITSELF (333 of
+   * `prop(lamp:column) × prop(declared:city:4103)`), which is the self-pair case one
+   * level out and would read as a cost.
+   */
+  { src: 'lampBodies.push(setMatrix(spot.x', as: 'prop', clampTop: HEAD_CLEAR, done: 's46',
     why: 'a kerbside lamp COLUMN, 8.4 m of steel with a 2.1 m arm, 1.3 m outside the kerb' },
-  { src: 'bowls.push(setMatrix(head.x', as: 'canopy',
+  { src: 'bowls.push(setMatrix(head.x', as: 'canopy', done: 's46',
     why: 'the lamp HEAD, a 0.42 m bowl at 8.08 m on that arm' },
-  { src: 'lampBodies.push(setMatrix(L.x', as: 'prop', clampTop: HEAD_CLEAR,
+  { src: 'lampBodies.push(setMatrix(L.x', as: 'prop', clampTop: HEAD_CLEAR, done: 's46',
     why: 'a promenade lamp COLUMN' },
-  { src: 'bowls.push(setMatrix(L.headX', as: 'canopy',
+  { src: 'bowls.push(setMatrix(L.headX', as: 'canopy', done: 's46',
     why: 'the promenade lamp HEAD' },
   { src: 'masses.push(at(-faceW / 2 + bayW * i, 0.9', as: 'building',
     why: 'a colonnade PIER, standing 1.35 m clear of its own elevation, on the pavement' },
+  /**
+   * THE SAME PIER AS `prop`, WHICH IS THE CATEGORY IT ACTUALLY WANTS — session
+   * 47. `building × pavement` is forbidden and `prop × pavement` is absent
+   * ("a pavement carries people AND street furniture"), so the 342 pavement
+   * pairs the row above reports are the CATEGORY and not the pier. The file's
+   * own warning, two paragraphs up, made concrete.
+   */
+  { src: 'masses.push(at(-faceW / 2 + bayW * i, 0.9', as: 'prop',
+    why: 'the SAME colonnade pier as `prop` — a pavement carries street furniture' },
   { src: 'pushSign(setMatrix(', as: 'sign', nth: 2,
     why: 'a projecting BLADE over the pavement (occupancy.js says it claims nothing — this is the number behind that sentence)' },
+  { src: 'pushSign(setMatrix(', as: 'canopy', nth: 2,
+    why: 'the SAME projecting blade as `canopy` — it hangs over a footway at 3 m and up' },
+  { src: 'pushSign(setMatrix(', as: 'sign', nth: 1,
+    why: 'a FLUSH fascia, 0.12 m proud of the masonry it is bolted to' },
+  { src: 'pushStruct(', as: 'canopy', nth: 4,
+    why: 'the projecting blade\'s BRACKET, wall to inner edge, at the sign\'s top' },
+  { src: 'push(l.x, l.height + 3.2, l.z, l.span * 0.92', as: 'deck',
+    why: 'the ARCH\'S TRANSIT DECK — 1384 m2 of structure at 99 m, claimed by nobody' },
+  { src: 'pushSteel(l.x + x, (y + l.height + 3.2) / 2', as: 'deck',
+    why: 'the arch\'s nine HANGERS, deck up to the arc' },
   { src: 'patches.push(setMatrix(', as: 'prop',
     why: 'a road PATCH — a 10 mm reinstatement; declaring it as a solid is the wrong answer and this is the number that says so' },
   { src: 'props.push(setMatrix(mk.x', as: 'prop',
@@ -456,6 +483,7 @@ console.log(`  the census already carries ${delivered.length}; only what is ADDE
 const baseKeys = new Set(delivered.map((c) => `${c.a.kind}|${c.a.owner}|${c.a.x0}|${c.b.kind}|${c.b.x0}`));
 const costRows = [];
 for (const cand of CANDIDATES) {
+  if (cand.done) { costRows.push({ ...cand, boxes: 0, newPairs: 0, byPair: {}, note: `DECLARED in ${cand.done}` }); continue; }
   const boxes = [];
   for (const rec of bySite.values()) {
     const frames = rec.key.split(' < ');
