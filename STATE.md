@@ -1,428 +1,331 @@
 # NOCTIS — STATE
 
-*End of session 47. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+*End of session 48. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
 **Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`. The machine has
-**NOT** rebooted since session 40 — 9 d 14 h of uptime at the last command against session 46's
-9 d 2 h, the same boot. Every gate that reads a pixel printed
+**NOT** rebooted since session 40 — 9 d 16 h of uptime at the last command against session 47's
+9 d 14 h, the same boot. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RANGED 1.84 TO 4.2 ACROSS THE SESSION*** against CONTRACT §0.2's bar of **1.6**, and the
-first reading of the day — **1.84**, the lowest an agent has recorded while working — is because
-most of this session is `emitcensus`, which has no browser in it. **NO MILLISECOND IN THIS FILE IS
-ADMISSIBLE IN EITHER DIRECTION.** What is quoted is COUNTS, AREAS in square metres, and the
-delivered conflict sweep, none of which drift.
+***`load1` RANGED 2.98 TO 3.6 ACROSS THE SESSION*** against CONTRACT §0.2's bar of **1.6**. **NO
+MILLISECOND IN THIS FILE IS ADMISSIBLE IN EITHER DIRECTION.** What is quoted is COUNTS, AREAS in
+square metres, populations out of the pure generator, and the delivered conflict sweep.
 
 ---
 
-## 0. THE TABLE — WHAT THE REGISTRY DID NOT KNOW ABOUT, AND WHAT IT KNOWS NOW
+## 0. WHAT THE CITY HAS NOW THAT IT DID NOT HAVE
 
-`emitcensus.mjs` finds emission sites by wrapping `Matrix4.prototype.clone` for the duration of a
-build, so a site nobody knew about appears by itself. Session 24 built it, counted **80 sites — 9
-undeclared, 51 mismatched, 20 matching** — and **the list was never worked.** Twenty-three sessions
-later it is the instrument that answers the brief.
+The operator's words: *"density, but not only houses: sports arenas, a football stadium, parks,
+playgrounds, basketball courts, multi-storey car parks. Everything a city needs."*
 
-```
-                                        s24      s47 start    s47 end
-  emission sites in city.js              80         138         140
-    UNDECLARED                            9           9           5
-    MISMATCHED                           51          61          62
-    MATCHING                             20          68          73
-
-  delivered claims over the resident ring              11 247     15 127
-  delivered forbidden overlaps                              2          3
-  generator claims over citycheck's 10 x 10             9 215     13 332
-```
-
-**THE NINE THAT WERE UNDECLARED AT THE START OF THIS SESSION, AND WHAT EACH ONE IS:**
+Before this session every block in NOCTIS was **housing-shaped or empty-shaped**: five building
+eras, five kinds of empty, eight authored landmarks, a river. Nothing anywhere was a pitch, a
+court, a playground, a car park or a ground.
 
 ```
-  site         what it emits                       boxes   undeclared   verdict now
-  city:3145    a road MARKING                      13324    8302.9 m2   NOT A SOLID — §3
-  city:3229    a road PATCH                          244    8194.7 m2   NOT A SOLID — §3
-  city:5077    facade CLUTTER, the small units      3503     498.8 m2   MEASURED, NOT SHIPPED F1
-  city:5284    a colonnade PIER                      352     290.1 m2   DECLARED  `prop`
-  city:2536    a FLUSH sign fascia                   256      55.0 m2   COSTED, NOT SHIPPED F2
-  city:5058    facade CLUTTER, the pier run         1547      32.9 m2   MEASURED, NOT SHIPPED F1
-  city:2575    a projecting blade's BRACKET          233      28.9 m2   DECLARED  `sign`
-  city:2565    a projecting sign BLADE               466      14.0 m2   DECLARED  `sign`
-  city:5646    the ARCH's nine HANGERS                 9       1.1 m2   DECLARED  `deck`
+  tools/shot-out/                    what it shows
+  s48-pitch-{air,street}.png         a fenced grass pitch with two goals, four floodlight masts
+                                     and a centre circle — and from the pavement you see THROUGH
+                                     the ball-stop to the field, which is the second arm of it
+  s48-court-{air,street}.png         two basketball courts on a red macadam pad set into a lawn,
+                                     four hoops, fenced, floodlit
+  s48-play-{air,street}.png          a playground: safety surface, a play frame with a slide, a
+                                     swing set, a railing and a gate
+  s48-carpark-{air,street,obl}.png   a five-deck multi-storey car park — open decks, an upstand
+                                     per level, columns, a blank core, 35 cars parked on it
+  s48-stadium-{air,street,obl}.png   a small ground: four raked stands round a pitch with open
+                                     corners, blank outer walls, a roof edge, floodlights
 ```
 
-**AND ONE THAT WAS NOT IN THAT LIST AT ALL**, because it is MISMATCHED rather than UNDECLARED and
-nobody had read that half of the table: **`city:5641`, the arch's TRANSIT DECK — 997.93 m² with no
-solid claim over it at any height, reaching 47.53 m past the nearest one.** It is the largest single
-undeclared object this session found, it is 108.6 × 12.75 m of structure at 99 m, and **the brief's
-own framing would have missed it.**
-
-**FOUR OBJECT CLASSES ARE DECLARED THAT WERE NOT. WHAT THAT COST, IN THE ORDER IT HAPPENED:**
-
-```
-  declaration                      cost, measured BEFORE it was written      delivered sweep
-  the arch's deck + hangers  deck        0 new forbidden pairs                      2 -> 2
-  the colonnade pier         prop        0    (as `building` it is 349)             2 -> 2
-  the blade + its bracket    sign        6 over 3 objects                           2 -> 3
-  the courtyard boundary     feature     0    (after two of its own were found)     3 -> 3
-```
+**FIVE NEW KINDS OF PLACE, ALL DECLARED IN THE REGISTRY FROM THE FIRST COMMIT**, which is what
+session 47 spent a whole session earning. `emitcensus` goes **147 → 153 emission sites with every
+new one MATCHING** and `5 UNDECLARED` unchanged.
 
 ---
 
 ## 1. THE LIST
 
-### REPAIRED — each on its own revertible commit
+### BUILT — each on its own revertible commit
 
-| # | what it was | what happened |
+| # | what | where it goes, and it is derived |
 |---|---|---|
-| **R1** | **The arch has been carrying a transit deck that nothing knew about.** `LANDMARKS` calls it *"a 96 m parabolic arch carrying the transit deck across the arterial"*, `city.js` builds that deck, and `landmarkOccluders`'s arch case returned two legs. | Claimed `deck` — conflicts with `building` alone on `[y0, y1]`, so a 150 m tower under it is refused and a 40 m one is not. Session 23's viaduct end mass, one landmark over. |
-| **R2** | **And the deck box leaked into two GROUND readers.** `landmarkGroundBlockers` splits on `kind === 'viaduct'` where the question is `o.deck` — a KIND standing in for a PROPERTY — and `landmarkBlocks` tested neither. | Without it the arch's soffit walls off the arterial in the walkability flood fill and in every prop test that reads those lists. Latent for the viaduct's 352 deck segments as well. |
-| **R3** | **352 colonnade piers stand on a footway and nothing knew they were there.** `buildGroundFloor`'s own comment says *"a colonnade's piers are ALREADY 0.45 to 1.35 m proud of the wall"* — and proud of the wall is outside the building's claim. | Claimed `prop`. **The category is the whole cost**: as `building` 349 new pairs, 342 of them `pavement`; as `prop`, 0. §2.1 |
-| **R4** | **`pushSign` pushes geometry and a tint and no claim**, so all five wall mountings have been invisible to the registry since signs existed. | The projecting BLADE and its BRACKET are one claim, `sign`. The first sign in `city.js` to claim anything. §2.2 |
-| **R5** | **The courtyards get a boundary, a way in and a marked bay** — the operator's six-session complaint, answered with content and not with a density knob. | 3 556 wall segments = **10 668 m of boundary, 41.8% of the built island edge**, laid only where the registry says a building is not. 161 gate segments = 483 m of opening. §5 |
-| **R6** | The courtyard wall took `yaw()` like every other scattered thing in the file, and **196 `feature(edge:wall) × pavement(ground:walk)` overlaps** said it should not. | A wall CONTINUING a frontage is square, because the buildings it joins are on the lot line. `boundaryRun`'s own `yawBulge` note arriving by the door it was written to close. |
-| **R7** | The low wall's coping is drawn **2% longer than its segment** and that 1.02 was a literal in `city.js` while the claim was made in `citygen.js`. A uniform **0.013 m² = 0.03 × 0.44 m** at every segment end. | `LOW_WALL` — three numbers, exported, two readers. CONTRACT §9.1, found by a claim that had to cover a box somebody else drew. |
-| **R8** | `emitcensus`'s four lamp candidate rows re-claimed objects session 46 had already declared, reporting **333 `prop(lamp:column)` self-collisions as a cost**. | `done: 's46'` skips the sweep and keeps the number. Two rows gained the category they actually want beside the one they had, so the file's own *"a wrong category makes a free repair look expensive"* is checkable rather than asserted. §2.1 |
+| **R1** | **A five-a-side PITCH** — grass, touchlines, a centre circle, two goals with nets, a ball-stop, four floodlight masts. | The sparse third of the low-detail band: a pitch needs a whole flat block nobody built on, and 60 × 38 m only fits there. |
+| **R2** | **Two basketball COURTS** on a red macadam pad set into a lawn, four hoops, fenced, floodlit. | The middle third — a court is a leftover corner. |
+| **R3** | **A PLAYGROUND** — safety surface, a play frame with a slide, a swing set, a railing with a gate. | The dense third: a playground belongs where people live. |
+| **R4** | **A MULTI-STOREY CAR PARK** — five open decks at 2.90 m, an upstand per level, perimeter columns, a blank core, a stepped scissor ramp, 35 cars. | The TOP of the band — the blocks that only just failed to be built on, which is *"the edge of the dense core where people drive to and then walk"*. A `carpark` roll below that falls through to `parking`, so a deck and a surface lot are ONE decision about land value. §3 |
+| **R5** | **A STADIUM** — four raked stands with open corners round a pitch, blank outer walls, a roof edge over the back row. | The BOTTOM fifth — cheap land, the periphery. 4 over twelve regions. §4 |
+| **R6** | The park pond's coping was drawn **1% wider than its own claim**, so it overhung the circus paving it is set into by 0.05 m on four edges. | Found by the delivered sweep the moment a re-phase put a pond beside a path: `path × feature(centre:pond)` at 0.505, 0.505, 0.500, 0.500 m² = 0.05 × 10.1 four times. Fixed in the DRAW. |
+| **R7** | **`y0: 0` on every delivered feature claim** — a hard-coded assumption that a feature stands on the ground, true of every feature written before this session. | A car on the fourth deck does not. §3 |
 
-### FOUND, MEASURED, NOT SHIPPED — the list the next session starts from
+### FOUND AND NOT FIXED
 
-**F1. FACADE CLUTTER CANNOT BE DECLARED UNTIL THE BUILDING CLAIMS MOVE EARLIER, AND THE NUMBER IS
-137.** `CLUTTER.standoffM` is the whole point of `buildFacadeClutter` — a cabinet BOLTED TO a wall
-is proud of it — so all **5 050 boxes over the resident ring carry 529.5 m² with no solid claim over
-them**, reaching 2.34 m past the nearest and standing 27.18 m above its top. Declared as `canopy`
-(the category this file already chose for the fire escape) the delivered sweep goes **3 → 145**:
+**F1. `prop(fence) × feature(deckpark)` AT 0.71 m², AND IT IS THE DELIVERED BOX EXCEEDING ITS OWN
+CLAIM.** The prop scatter runs after the kind branches, so the deck park's `building` claim is in
+`reg` before any prop is placed and `prop × building` is forbidden — the fence was not refused
+because the box `city.js` DRAWS for a `fence` prop is larger than the circumscribing square
+`propHalfWidth` reports for it. It is `emitcensus`'s MISMATCHED column with one instance in the
+delivered sweep, and the fix is one length in `PROP_MODELS`, measured rather than guessed.
 
-```
-  142   canopy(facade:clutter) x building(bld)   0.004 to 0.081 m2
-  137   after clamping the claim's inner face to the elevation plane, which is what the fire
-        escape's own comment says it does
-  137   after refusing any box that overlaps a `building` claim in `placed`
-        — THE REFUSAL FIRED ZERO TIMES, and that is the finding
-```
+**F2. THE PITCH AND COURT LINES ARE SUB-PIXEL FROM THE AIR AND CORRECT ON THE GROUND.** A pitch
+line is 0.12 m by the laws of the game and at 68 m of altitude over a 104.6 m island that is
+**0.76 px**. The centre circle reads because twelve chords cluster; the touchlines do not. The
+honest options are a wider line (a lie) or mowing stripes (a texture this project does not have),
+so neither was taken. **Recorded rather than repaired**, and the aerial frames show what it costs.
 
-**The refusal cannot fire because no building claim is in `placed` when `buildFacadeClutter` runs.**
-It is session 30's ordering defect exactly — *"these claims used to be pushed at the END of this
-function, below every generator that reads `placed`"* — with the buildings instead of the ground
-rectangles. **The 137 are two yawed AABBs' corner slop at a few centimetres of standoff, not units
-inside masonry**, and until the building claims are hoisted there is no way to tell those apart from
-inside that function. Reverted rather than shipped: 137 reds that all trace to one un-diagnosed
-ordering question would bury the three real ones.
+**F3. `emitcensus` HAS 5 UNDECLARED AND 69 MISMATCHED SITES**, unchanged by this session except for
+what it added. Session 47's list stands: facade clutter (blocked on hoisting the building claims
+into `placed`), the flush sign fascia, the road markings and patches, `block.js` and `river.js`
+never enumerated at all, and `water` and `block` with zero delivered claims.
 
-**F2. THE FLUSH FASCIA COSTS 7, ALL `building(bld)`, AND THEY ARE THE SAME DEFECT `citycheck`
-ALREADY CARRIES.** 256 boxes, 54.77 m² undeclared, reaching 12.63 m past the nearest claim. As
-`sign` it is 7 new pairs over 7 distinct objects, every one a panel intersecting a building — which
-is `sceneWalk`'s carried *"2 of 2720 delivered sign quads are inside a building"* found by a
-different test over a different population. Not shipped: it is the same finding twice and the second
-copy costs seven gate reds. It belongs with F1, which shares its cause.
-
-**F3. THE PAINT IS CORRECTLY UNDECLARED AND THE PATCH IS NOT CORRECTLY CLIPPED.** §3.
-
-**F4. `landmarkOccluders` IS STILL THREE QUESTIONS IN ONE LIST.** R2 fixed two readers by testing
-`o.deck`; the deeper problem is that this function answers *"what blocks a ray to the sky"* and four
-callers ask it three other questions. LOOK.md and STATE 34 §11 have carried it since session 34, and
-R2 is the third patch on it. **What is owed is a second list, not a fourth filter.**
-
-**F5. `emitcensus` DOES NOT COVER `block.js` OR `river.js`.** Its own header says so — *"they own
-their own meshes and are not in this census's scope"* — and it reports **2 070 matrices** falling
-back to the unit box for exactly that reason. **Two whole modules have never been enumerated**, and
-one of them is the origin block, the content path session 45 found five separate defects in. The
-brief's question — *"what else is the registry blind to"* — is answered for one module of three.
-
-**F6. TWO CATEGORIES IN THE CONFLICT TABLE HAVE ZERO DELIVERED CLAIMS: `water` AND `block`.** Printed
-by `emitcensus` every run since session 24 and never acted on. `block` is `BLOCK_KEEPOUT`, which the
-generator claims and the delivered census does not; `water` is the river. Both are authored, both
-are large, and neither is in the list `citycheck` sweeps.
-
-**CARRIED, UNTOUCHED:** everything on session 45's list of 28 and session 46's eight — the 220 cd/m²
-window (L1), the arch pose over the triangle ceiling (L2), the blend mode (L4), `minPairMSD` (L15,
-owed a derivation for a third session), the non-reproducing poses (L16), wetness above ground (L18),
-the 0.050 m gap between stop bar and zebra (s46 F1), `perfcheck`'s `player` route that never
-registers the player module, `clumping` CV 0.443 against 0.60 (seventh session, red by instruction),
-the two sign quads inside a building, and the vehicle tone-profile bar (fourteenth session).
+**CARRIED, UNTOUCHED:** the 220 cd/m² window (s45 L1), the arch pose over the triangle ceiling
+(L2), the blend mode (L4), `minPairMSD` (L15, owed a derivation for a fourth session), the
+non-reproducing poses (L16), wetness above ground (L18), the 0.050 m gap between stop bar and zebra
+(s46 F1), `perfcheck`'s `player` route that never registers the player module, and the vehicle
+tone-profile bar.
 
 ---
 
-## 2. THE FOUR DECLARATIONS
+## 2. TIER ONE — THE VARIANT IS DERIVED, AND THE FIRST DERIVATION WAS WRONG
 
-### 2.1 THE CATEGORY IS THE COST, AND `emitcensus` NOW SAYS SO ON ONE ROW TWICE
+`recreation` is a sixth low-detail kind built the way session 40 built the other five: **a surface,
+a boundary, and the fixtures that say what it is.** Which of the three a chunk gets is the chunk's
+own density, because these three have the plainest causes in the file.
 
-Session 24 wrote the warning into the file — *"a wrong category makes a free repair look expensive
-(`prop` for a road marking would collide with every carriageway in the city)"* — and left it as
-prose. The colonnade pier is that sentence with a number on both sides, on the same 352 boxes:
-
-```
-  as `building`   349 new forbidden pairs   342 of them pavement(ground:walk), 7 ground
-  as `prop`         0
-```
-
-`occupancy.js` explains it in one line: *"a pavement carries people AND street furniture, so
-`pavement × prop` is absent — that pair is the whole point of a pavement."* **A pier is street
-furniture that happens to hold a building up.** Both rows are in the candidate table now, so the
-next reader gets the pair rather than the sentence.
-
-### 2.2 THE BLADE FOUND TWO COLLISIONS AND REFUSED FOURTEEN PILLARS
-
-`canopy` for the blade costs 0 and `sign` costs 6, and **`sign` is the one that ships**, because
-`canopy` conflicts with solids only and would let a blade pass straight through an advertising
-pillar and report nothing. The delivered sweep, before and after:
+**THE FIRST ARM SPLIT THE BAND IN THIRDS AND DELIVERED SEVEN PLAYGROUNDS OUT OF SEVEN.** The band
+is `[0, CITY.lowDetailThreshold)` = [0, 0.34) by construction and its thirds are 0.1133 and 0.2267.
+That is the obvious cut and it is wrong, because **the band is not uniformly occupied**: a chunk is
+low-detail because its density fell under a threshold, so the population piles up just under it.
+Measured over 237 low-detail chunks, twelve regions of 10 × 10, seeds 1337–1348:
 
 ```
-  prop(colonnade:pier) x sign(sign:blade)   0.223 m2   NEW — as old as the mountings, and
-                                                       invisible until R3 gave the pier a claim
-                                                       an hour earlier
-  sign(sign:blade) x sign(pylon)            0.063 m2   NEW — as old as the mountings
-  sign(adpillar) x prop(planter)            0.086 m2   carried from session 45, untouched
-  sign(adpillar) x prop(tree)               0.013 m2   GONE
+  min 0.0625   p10 0.1486   p33 0.2082   median 0.2486   p67 0.2879   p90 0.3197   max 0.3385
+  split by the BAND's own thirds:   9 / 92 / 136        — 57% in one bucket, 4% in another
+  split by the POPULATION's terciles:  19 pitch / 12 court / 18 playground
 ```
 
-**The fourth one vanished because a claim is live in the GENERATOR and not only in the census.** The
-advertising pillar's `hitsClaim` reads `placed`, `sign × sign` is forbidden, and a pillar standing
-under a blade is now refused: **delivered pillar boxes 316 → 302, total instanced boxes 245 783 →
-245 713.** Fourteen pillars, and the tree one of them was colliding with went with them.
+It is LOOK.md §3's own lesson one field over — *"a band whose top touches the target delivers the
+target never"* — with a floor instead of a ceiling, and it is the second time this project has been
+caught by it.
 
-That is the shape of the whole item. **A claim is not a report, it is a refusal**, and every one of
-these four changes what the generator builds as well as what the census can see.
+**TWO MORE ARMS WERE WRONG AND A FRAME CAUGHT EACH.**
+
+**THE HARD SURFACE COVERED THE WHOLE ISLAND.** One 28 × 15 m court on a 104.6 m island is 3.9% of
+it, and the frame was an enormous red rectangle with two hoops in the middle. The pad is the play
+area plus its run-off now and the rest is the same grass a park has, so a court reads as a hard
+rectangle IN a green one. Courts come in banks of two, which is what municipal courts are.
+
+**AND THEN THE PAD WAS BURIED.** `GROUND.grass` is `kerbHeight − 0.02` = **0.14 m above the
+carriageway datum** the other three laid surfaces use, so macadam at the carriageway datum sat
+under the lawn: the second frame showed court markings floating on grass with no court under them.
+`GROUND_Y.sport` is the grass datum and the lawn is cut round the pad rather than drawn under it.
+
+**THE BALL-STOP WAS A SLAB.** A palisade is one slab because a palisade IS opaque; a ball-stop is
+4 m tall precisely so it can stand between a pitch and a street WITHOUT closing it. Drawn as a slab
+at 0.34 reflectance it read as **a blank white wall taller than a person and brighter than the
+pavement in front of it**, along the whole frontage — worse than the empty lot it replaced. It is
+posts and rails now and you see the pitch through it because nothing is there, which is LOOK.md
+§3's own hologram argument (*"16% light and 84% air … it is also the honest form"*) one object over.
 
 ---
 
-## 3. THE PAINT IS CORRECTLY UNDECLARED, AND THE PATCH IS NOT CORRECTLY CLIPPED
+## 3. TIER TWO — HOW A BLOCK-SCALE OBJECT GETS PLACED AT ALL
 
-The two biggest undeclared areas in the table are the road markings (8 302.9 m²) and the road patches
-(8 194.7 m²), and **neither should be declared.** `emitcensus`'s cost sweep is the argument:
+The brief asked to establish this before building one. There were two candidate paths:
+
+**THE LANDMARK PATH** is authored — eight entries in `LANDMARKS`, each with a bespoke `kind` in
+`landmarkOccluders` and a bespoke case in `buildLandmark`, each appearing exactly ONCE in the world
+at a coordinate somebody typed. It is right for a thing you navigate by and wrong for a thing a
+district has one of: a city has a car park every few blocks, not one.
+
+**THE LOW-DETAIL KIND PATH** already owns a whole island, **and the misleading part is its name**.
+`lowDetail` does not mean "little here" — a construction site with a 40 m crane on it is a
+low-detail chunk — it means **the perimeter walk does not run on this island**, which is exactly and
+only the property a block-scale object needs. The walk lofts 11–27 m buildings along an island edge
+and a 65 × 32 m deck structure is not a building it can produce at any parameter.
+
+**SO IT IS THE SECOND, AND NOTHING NEW WAS BUILT TO PLACE EITHER OBJECT.**
+
+**EVERY DIMENSION OF THE CAR PARK IS `DEAD_ZONE`'s OWN PARKING MODULE.** A double-loaded module is
+`bayL + aisleW + bayL` = 5.0 + 6.0 + 5.0 = 16.0 m and the surface lot lays two of them; this lays
+two per deck, so the structure is 32.0 m deep and 26 bays × 2.5 = 65.0 m long. The storey is 2.90 m
+because a parked van's own delivered height is 2.45 m and a car park a van cannot enter is a
+different building.
+
+**AND `y0: 0` ON EVERY DELIVERED FEATURE CLAIM WAS A HARD-CODED GROUND ASSUMPTION.** True of every
+feature written before this session; a car parked on the fourth deck is 11.6 m up. It reported
 
 ```
-  a road MARKING as `prop`   8000 new forbidden pairs   7889 of them carriageway(ground:road)
-  a road PATCH   as `prop`    460                        446 of them carriageway(ground:road)
+  70   prop(parked) x prop(parked)        7 columns x C(5,2) decks = 70 exactly
+  35   feature(deckpark) x prop(parked)   a car park colliding with the cars in it
 ```
 
-Paint is 4 mm thick and a patch is 10 mm, and both lie ON the carriageway that already claims that
-ground. They read as undeclared because the census's SOLID filter deliberately excludes
-`carriageway` — *"a pavement under a lamp column is the ground it stands on and is not a declaration
-of the lamp"* — and for paint that exclusion is the right answer rather than a gap.
+Both are the structure's own volume seen twice — the deck claims its whole 65 × 32 × 15.6 m box as
+`building`, one claim and not sixty, so what is inside it is spoken for. Lifted features are drawn
+and not re-claimed, and `f.lift` is the one field this needed.
 
-**WHAT IS ACTUALLY WRONG THERE IS THE EXTENT, WHICH IS THE OTHER HALF OF THE BRIEF'S OWN ITEM.**
-`emitcensus`'s last section, over the 25 NEAR chunks that draw a road surface:
+### 3.1 TRIANGLES — THE BRIEF'S PREMISE (g) IS THE ONE THING IN IT THAT IS WRONG
+
+The brief calls the triangle ceiling *"THE BINDING LIMIT for tier two"* and asks for the number
+before building. Measured before either object was written:
 
 ```
-  road patches   244 emitted,  49 in the near ring,   2 reach off every delivered carriageway
-                 0 lie wholly off one, worst 32.0% of a patch
-  road markings  13 324 emitted, 2 662 in the near ring, 26 reach off, worst 59.4% of a mark
-  `citygen.js` clips a marking to the delivered carriageway (`onRoad`, at HALF the mark's own
-  half-extents); NOTHING CLIPS A PATCH AT ALL.
+  a deck park    ~57 structure boxes + 35 cars at ~6 boxes    ~250 boxes    ~3 000 triangles
+  a stadium      4 stands at ~16 boxes + the pitch's own      ~324 boxes    ~3 900 triangles
+  spare at the start of the session                                        ~130 000 triangles
 ```
 
-One cause each: `onRoad` tests at half the mark's extent, so a mark up to 59.4% overhanging is
-accepted; and `onCarriageway(px, along)` tests the patch's CENTRE while the patch is 3–5 m by
-5–12.5 m. **Not repaired** — both are one-line changes whose effect is a population (marks and
-patches disappear) and want a frame beside them, and the session's time went where the brief put it.
+**FORTY DECK PARKS WOULD FIT.** The ceiling is not the binding limit for tier two and a stadium was
+never in danger of not fitting — **what binds is authoring time.** Delivered, `highway_speed` is in
+§5's table.
 
 ---
 
-## 4. THE RULE THIS SESSION ENDS WITH
+## 4. THE STADIUM, AND THE THREE ARMS THAT WERE WRONG
 
-The brief said to expect the overlap count to rise and to treat that as the instrument starting to
-work. It is right, and it needs one qualification that cost an hour to learn:
+**A stadium is a pitch with a bowl round it**, which is why it cost almost nothing: the playing
+surface, the goals, the ball-stop and the four floodlight masts are already what a `pitch` is.
 
-> **A rising overlap count is the instrument working when the new pairs name DIFFERENT objects, and
-> it is the instrument miscalibrated when they all name the same cause.** The blade's two are two
-> objects in two places, as old as the mountings. The clutter's 137 are one ordering question
-> reported 137 times, and shipping them would have buried the two.
+**THE p10 PUT NO STADIUM IN THE WORLD.** Recreation is one low-detail kind in seven and low-detail
+is 17% of chunks, so a further tenth is 0.24% — and at seed 1337 there was **no stadium within ±12
+chunks of the origin**, 1 536 m in every direction and three times the residency ring. **A thing
+nobody can walk to or photograph is not shipped, whatever the generator says it built.** At the
+measured p20 the nearest is chunk (−1, −6) and there are 4 over twelve regions.
 
----
+**THE BOWL WAS BUILT AFTER THE BALL-STOP AND DELIVERED ZERO STANDS ON FIVE QUALIFYING CHUNKS.** The
+fence runs at `DEAD_ZONE.edgeInset` = 0.9 m inside the island edge and a stand's outer face lands
+0.7 m inside it, so `building × feature` refused every one. The stand goes first now and the fence
+takes what frontage is left — which is also why a real ground has fence only where it has no stand.
 
-## 5. THE COURTYARDS
+**THE FOUR STANDS WRAPPED THE CORNERS AND REFUSED EACH OTHER.** Two of four survived: a stand
+running its own length plus both corners overlaps the two on the other axis and `building ×
+building` is forbidden. Ending at the play area's own corner makes the four abut exactly, and
+`overlaps()` is strict.
 
-Session 46 measured the operator's six-session complaint properly for the first time and the answer
-was not the one anybody expected: **bare ground is 0.00% of the frame he was standing in**,
-`coreGround` is **16.19%** and the largest single ground owner in it, and a `built` island already
-carries **41.8 props per hectare against a yard's 29**. The courtyards are not under-scattered. They
-are UNBOUNDED. The column that separates them from every other ground kind is FIXTURES:
-
-```
-  kind          props   feats    objects / ha of open ground
-  park             45     278        275.1
-  lot              49     495        202.4
-  parking          82     894        178.2
-  construction     54     518        174.6
-  yard             85     410        150.8
-  built          1898      55         43.8      <- 0.7 fixtures per chunk
-```
-
-**A yard is a yard because it has a wall round it, a gate, and something being done on it.**
-`DEAD_ZONE.core`'s own comment already says *"a block interior IS a service yard"*, so the boundary
-is the yard's boundary at the yard's own height (`palisadeHeight`, 2.20 m), drawn as masonry rather
-than palisade because it faces a street rather than a compound.
-
-**WHERE IT RUNS IS DECIDED BY THE REGISTRY AND NOT BY A RULE**, which is the part worth carrying.
-Segments are laid along all four island edges and every one is offered to `reg.conflict` first, so
-the wall appears exactly where a building does NOT — **which is the frontage gap**. Session 39
-measured those gaps and named them: 267 at seed 1337, 15.0 m mean, 4 001 m, 11.5% of the island
-edge, and **188 of them mid-side, *"where the walk goes on afterwards, which are the ones that read
-as a hole in a street wall"***. This is that hole, closed, without one new building and without
-touching the fill law LOOK.md §2 spends four bullets choosing.
-
-```
-  over 10 x 10 at seed 1337, 61 built chunks
-    wall segments delivered   3 556   = 10 668 m    41.8% of the built island edge
-    gate segments withheld      161   =    483 m
-    loading-bay marks         1 636
-```
-
-The way in is **cut from the longest contiguous run** and not rolled: a gate rolled onto a random
-side lands inside a building four times in five and is a way in nobody can see. Contiguity is in the
-segment index, so a run broken by a building is two runs and a gate is never cut across masonry.
-
-**COSTS: ZERO DRAW CALLS ON ALL SIX PAIRED FRAMES** — 114 / 156 / 138 before and after — because an
-`edge` feature rides in the chunk's existing mass mesh and a `built` chunk always has one. Triangles
-+0.017 to +0.053 M per frame. Delivered forbidden overlaps 3 → 3. Walkability **54 304 of 54 438**
-free cells reached, identical to session 46: **the wall closed the street and blocked nobody.**
-
-`s47-wall-{before,after}-court.png` is the pair to look at — a gap between two buildings opening
-straight onto the street, with a van and two bins on pale ground behind it, closed — and
-`s47-wall-{before,after}-front.png` is the same thing from the pavement, where the street gains a
-second wall.
+**AND ONE THE REGISTRY COULD NOT SEE.** The claim is `depth / 2` on the axis a stand stands off —
+correct — and the DRAW ran the 50 m length along that same axis, so **the four stands crossed the
+pitch in a plus instead of ringing it**. The claim was right, so nothing in the occupancy machinery
+could report it; only a frame from above could, and did. CONTRACT §9.1 with a yaw instead of a
+length, and it is the one defect this session that no instrument would have found.
 
 ---
 
-## 6. GATE STATE
+## 5. GATE STATE
 
 Run individually and ALONE, which is STATE 45 §6.3's finding about this machine.
 
 ```
-  parsecheck   GREEN   112 files, contract-clean. Unchanged from sessions 42-47: this session
-                       added no file, and its one scratchpad probe is a shot tool.
+  parsecheck   GREEN   112 files, contract-clean. Unchanged from sessions 42-48: this session
+                       added no file.
   windcheck    GREEN   567 mesh names over 567 meshes (floor 400), 563 of 563 cull-eligible
-                       decided, 0 wound backwards, 0 unmeasured. The 3 556 wall segments are
-                       boxes in a mesh that already existed and are in that count.
+                       decided, 0 wound backwards. Every goal, hoop, stand, deck and ball-stop
+                       is in that count.
   faultcheck   GREEN   7 cases — quarantine surgical, the frame survives every one.
   inputcheck   GREEN   keyboard, mouse and gamepad each deliver their own constant.
-  lookcheck    RED at 3 — THE SAME THREE AS SESSIONS 45-47, and no band moved by more than the
-                       instrument's own resolution:
-                         band:midnight 0.0828 (s46 0.0829)   band:dusk 0.1412 (0.1412)
-                         band:dawn     0.3023 (0.3026)       band:noon 0.4288 (0.4286)
-                         crushed black 0.579% (0.577%)       102 local lights at both lamps-on times
-                         distinct:midnight|dusk 0.02993 against 0.03000 — L15, third session owed
-                       `facadeAlbedo` and `facadeNeighbours` at dusk are the other two, both
-                       carried and both about the origin block's own facade.
-  citycheck    RED at 3 — THE SAME THREE as sessions 40-47, and `city arrived` did not time out
-                       (15 976 ms at load1 4.16, against session 46's 20 031 ms at 12.38 — the
-                       check the brief asked for).
-                         clumping CV 0.443 against 0.60, seventh session, untouched by instruction
+  lookcheck    RED at 3 — THE SAME THREE AS SESSIONS 45-48, and NOT ONE BAND MOVED:
+                         band:midnight 0.0828   band:dusk 0.1412   band:dawn 0.3023
+                         band:noon 0.4288       crushed black 0.579%
+                         distinct:midnight|dusk 0.02993 against 0.03000 — L15, fourth session
+                       byte-for-byte session 47's four numbers, which is what a change confined
+                       to low-detail islands 400 m from the look camera should read.
+  citycheck    RED at 3 — the same three, and `city arrived` did not time out (16 793 ms at
+                       load1 3.45).
+                         clumping CV 0.451 against 0.60 — was 0.443, and it MOVED THE RIGHT WAY
+                           for the first time in seven sessions. A stadium island and an empty
+                           one are more different than two empty ones, which is what that
+                           statistic measures. Still red, still untouched by instruction.
                          2 of 2720 sign quads inside a building, the same two
-                         3 delivered overlaps (was 2) — §2.2 names all four, two of them new,
-                           one of them gone
-                         generator claims 9 215 -> 13 332, delivered 11 247 -> 15 127
-                         bright reserve 6.81% against 6.00 — the most margin this floor has had
-                         walkability 54 304 of 54 438 free cells, IDENTICAL to session 46
-                         viaduct 23 piers, 2 hammerhead, 7 nudged, 0 blocked, 0 legs on a
-                           carriageway, worst |x| inside the block 9.94 m against 10.5
-  perfcheck    RED at 14 — one more than session 46, and it is a CARRIED content bar that
-                       changed sides rather than anything new. Every count, against session 46:
+                         4 delivered overlaps (was 3): the three carried, plus F1's
+                           prop(fence) x feature(deckpark) 0.71 m2
+                         generator claims 13 332 -> 13 392, delivered 15 262
+                         bright reserve 6.79% against 6.00
+                         negative space 6 kinds (min 3), 17.0% low-detail
+                         walkability 54 304 of 54 438 free cells — IDENTICAL to sessions 46
+                           and 47, so five new kinds of place blocked nobody
+  perfcheck    RED at 11 — THREE FEWER THAN SESSION 47, and every count is flat:
 
-                            draws  s46     tris   tris s46   instances   inst s46   froxel  s46
-    downtown_dense            317  318    1.95M     1.91M     244 553   238 336      44     43
-    highway_speed             396  396    2.23M     2.18M     320 429   312 410      79     79
-    night_rain                317  317    1.92M     1.88M     300 281   292 666      46     49
-    player                    306  307    1.90M     1.86M     244 553   238 336      41     45
+                            draws  s47     tris   tris s47   instances   inst s47   froxel  s47
+    downtown_dense            317  317    1.96M     1.95M     245 654   244 553      42     44
+    highway_speed             396  396    2.23M     2.23M     320 403   320 429      79     79
+    night_rain                317  317    1.92M     1.92M     300 205   300 281      43     46
+    player                    306  306    1.90M     1.90M     245 654   245 654      46     41
 
     roles  aircraft:1  traffic:96  stall:12  block:56  lamp:192  sign:16   — identical
 
-                       **`highway_speed` IS 396 OF 440, UNCHANGED — the courtyard boundary cost
-                       ZERO draw calls on every route** and two routes went DOWN by one, which is
-                       the fourteen pillars §2.2's blade claim refused. Triangles +0.04 to +0.05 M
-                       on every route; `highway_speed` reads 2.23 M against a 2 360 000 ceiling,
-                       **5.5% spare**. Instances +6 200 to +8 000, which is the wall.
-  gateaudit    RED at 1, THE SAME ONE AS SESSIONS 45-47 — the carried control, "the unperturbed
-                       frames do not pass their own gate", naming exactly lookcheck's three.
-                       Everything else green: `ok control — every assertion ran`, perfcheck
-                       --falsify 74/74 at 100% coverage over 72 failure sites, citycheck 61/61 at
-                       100% over 61, inputcheck 13/13 at 100% over 12 with its good fixture clean,
-                       and both control sweeps.
+                       **NOT ONE DRAW CALL AND NOT ONE TRIANGLE TO THREE FIGURES ON ANY ROUTE.**
+                       `highway_speed` is 396 of 440 and 2.23 M of 2 360 000 exactly as it was
+                       before this session: five new kinds of place, all of them instanced boxes
+                       in meshes that already existed.
+  gateaudit    RED at 1, THE SAME ONE AS SESSIONS 45-48 — the carried control, naming exactly
+                       lookcheck's three. 59 green rows: perfcheck --falsify 74/74 at 100%
+                       coverage over 72 failure sites, citycheck 61/61 over 61, inputcheck 13/13
+                       over 12, and both control sweeps.
 ```
 
-**THE FOURTEEN PERFCHECK REDS SPLIT ELEVEN / ONE / TWO.**
+**THE ELEVEN PERFCHECK REDS SPLIT TEN / ONE, AND THREE WENT GREEN.**
 
-**ELEVEN ARE FRAME TIME** — three cpu p95, four wall p95, three "frames over 33 ms" and the headroom
-probe, at `load1` 3.5–4.2 with a browser rendering. Not admissible in either direction. The closest
-to a reading is `highway_speed` wall p95 **12.90 against 12.5**, with a three-run spread of **0.1 ms**
-— the tightest spread this route has recorded outside the one attested quiet battery, and still a
-0.40 ms breach that CONTRACT §0.2 says only a quiet machine can adjudicate.
+**TEN ARE FRAME TIME** — three cpu p95, three wall p95, three "frames over 33 ms" and the headroom
+probe, at `load1` 3.45 with a browser rendering. Not admissible in either direction.
 
-**ONE IS THE MEAN-LUMINANCE FLOOR, AND IT DID EXACTLY WHAT SESSION 46's F8 SAID IT WOULD.** That
-finding was *"the 0.08 floor is inside its own run-to-run spread and this run swapped which route it
-fails"*. This run swapped it back: `night_rain` per-run means **[0.0785, 0.0846, 0.0787]**, asserted
-on the last, RED at 0.0787 — where session 46 had `night_rain` green at 0.0856 and `downtown_dense`
-red. **Two sessions, two different routes, one floor, and the gate prints its own warning beside the
-number: "ASSERTED ON THE LAST OF THESE, NOT POOLED."** It is CONTRACT §0.1's original incident with
-a luminance instead of a millisecond and it is now confirmed rather than suspected.
+**`highway_speed`'s WALL p95 IS NOT AMONG THEM, AND THAT IS THE FIRST TIME.** It reads **12.20 ms
+against a 12.5 ms ceiling with a three-run spread of 0.2** — session 47 had 12.90 with a spread of
+0.1 and session 46 had 12.90. CONTRACT §0.2 says a GREEN absolute measured under load IS a verdict,
+because drift on this machine is one-sided and load can only make a frame slower. **So that route's
+ceiling is met, on a session that added five new kinds of place to it.**
 
-**TWO ARE CONTENT AND BOTH ARE CARRIED.** `highway_speed`'s vehicle bars — 68% with a dark gap at
-the ground against 75%, and 55% with a non-monotone tone profile against 75%. The tone-profile bar
-is in its **fourteenth** session; the ground-gap bar was green last session at a different vehicle
-population (56 vehicles this run against 69). LOOK.md §4 records both as evidence for the same
-finding — *"a monotone tone profile is a body with no surfaces that catch light differently"* — and
-neither was touched here.
+**THE MEAN-LUMINANCE FLOOR IS GREEN ON ALL FOUR ROUTES**, which is the third reading of session
+47's F8 and confirms it: session 46 failed `downtown_dense`, session 47 failed `night_rain`,
+session 48 fails neither, and no content change explains any of the three. **The 0.08 floor is
+inside its own run-to-run spread and which route it fails is a draw, not a verdict.**
 
-**NOT ONE RED IS A DRAW CALL, A TRIANGLE, AN INSTANCE, A CLUSTER SLOT OR A ROLE.**
+**ONE IS CONTENT AND IT IS CARRIED:** `highway_speed`'s vehicle tone-profile bar, 56% of 66 against
+75%. The ground-contact bar that was red beside it in session 47 is green this run at a different
+vehicle population — the same drawing-from-a-distribution the luminance floor does, on a second
+statistic.
 
 ---
 
-## 7. HOW EVERY NUMBER IN THIS FILE WAS TAKEN
+## 6. HOW EVERY NUMBER IN THIS FILE WAS TAKEN
 
-**NO NEW INSTRUMENT WAS BUILT.** The brief said not to and there was no need: `emitcensus.mjs`
-answers the whole of item 1 and has been in the tree since session 24. It gained a `done` flag and
-six candidate rows and lost nothing. `parsecheck` counts **112 files**, unchanged from sessions
-42–47.
+**NO NEW INSTRUMENT WAS BUILT.** `emitcensus.mjs` answered the registry side and the pure generator
+answered the populations; the only scratchpad file is session 47's `shot.mjs`, a many-poses-one-boot
+camera, copied forward unchanged. `parsecheck` counts **112 files**, unchanged from sessions 42–48.
 
-```
-  emitcensus.mjs   the census, the classification, the cost of each candidate declaration, and the
-                   paint-on-carriageway check. No browser: the delivered claim list is CPU
-                   bookkeeping, and its own CONTROL reproduces STATE 22 §2.4's conflict areas.
-  shot.mjs         (scratchpad) many poses, one boot, with `--root` so the same code shoots a
-                   second worktree — because R3, R4 and R5 landed in one sitting and a before frame
-                   taken afterwards is not a before frame. `git worktree add` at `b8cb5e9` with
-                   `node_modules` symlinked; the worktree is removed at the end.
-```
-
-**THE FRAMES THIS FILE CITES**, all in `tools/shot-out/`, all regenerable, the directory gitignored:
-
-```
-  s47-core-{before,after}-{air,street,gap}.png    the block from 120 m and from the pavement
-  s47-wall-{before,after}-{front,at,court}.png    chunk (2,2)'s north frontage, close
-```
+**THE FRAMES THIS FILE CITES** are §0's table, all in `tools/shot-out/`, all regenerable, the
+directory gitignored. Every one was checked for its subject before anything was measured off it —
+**four poses were discarded**: three that pointed 180° away from what they were aimed at (the yaw
+convention), and one aerial at 96 m that overshot the island and framed the block behind it.
 
 ---
 
-## 8. WHERE THE BRIEF DISAGREES WITH THE CODE
+## 7. WHERE THE BRIEF DISAGREES WITH THE CODE
 
-The brief asked to verify everything in it. Three corrections, none large:
-
-1. **"Session 24 … counted 80 sites: 9 undeclared, 51 mismatched, 20 matching. That list has never
-   been worked."** The counts are right for session 24 and the city has grown since — **138 sites at
-   the start of this session, still 9 undeclared.** The second half of the sentence is exactly right.
-   But one of this session's four declarations — **the arch's transit deck, the largest object it
-   found** — was in the MISMATCHED column, not the UNDECLARED one, so **the brief's own framing
-   would have missed it.**
-2. **"The generator registry also contains no sign claims at all."** Not quite: it carries **378**,
-   every one a `pylon` or an `adpillar`. What it carries none of is a sign on a WALL, which is all
-   five of the mountings `pushSign` draws. The distinction matters because it says where to look.
-3. **"Draw calls 396 of 440 … forty-four spare, and item 2 may want some."** Item 2 wanted **none**:
-   114 / 156 / 138 draws before and after on three paired poses, because an `edge` feature rides in
-   a mesh that already exists. The spare is unchanged.
+1. **"WATCH THE TRIANGLE CEILING … a stadium is the largest single object anyone has proposed."**
+   It is not, by two orders of magnitude. A stadium is ~324 boxes where the resident ring carries
+   123 117 building boxes. §3.1.
+2. **"Add ground uses as variants of `park` and `lot`."** They are a KIND of their own rather than
+   variants of two existing ones, because the surface, the boundary and the fixture set all differ —
+   a pitch is not a park with goals on it, and reusing `park` would have meant a variant flag on
+   every one of that branch's twelve decisions. The brief's *"same pattern"* is honoured; the
+   attachment point is not.
+3. **"This is instances and ground rectangles. It should cost no draw calls."** True for tier one
+   and true for tier two as well — see §5's route table, where the deck park and the stadium ride
+   the chunk's existing mass mesh exactly as a park bench does.
 
 ---
 
-## 9. WHAT TO DO FIRST NEXT TIME
+## 8. WHAT TO DO FIRST NEXT TIME
 
-1. **HOIST THE BUILDING CLAIMS IN `buildChunkBody`, THEN SHIP F1 AND F2 TOGETHER.** Session 30 did
-   exactly this for the ground rectangles and wrote down why; the buildings are the same move. It
-   unblocks 5 050 clutter boxes and 256 flush fascias — the two largest remaining undeclared classes
-   — and it is the only thing standing between the census and `UNDECLARED 5 → 3`.
-2. **`emitcensus` OVER `block.js` AND `river.js`** (F5). The brief asked what else the registry is
-   blind to; two whole modules have never been asked, and one of them is the content path session 45
-   found five defects in.
-3. **THE PATCH AND MARKING CLIPS** (§3). Two one-line extent fixes with a population effect, so take
-   a frame with them.
-4. **`water` AND `block` HAVE ZERO DELIVERED CLAIMS** (F6).
-5. **L1, THE WINDOW.** Carried from session 45 and still the largest single finding in this project.
-   The bright reserve reads **6.81%** this session against a 6.00% floor — the most margin it has
-   ever had — and L22 still says one run in three lands under.
-6. **L15, `minPairMSD`.** Owed a derivation for a third session. Do not lower it to 0.029.
-7. Everything else in §1's carried list.
+1. **AN ARENA IS THE THIRD OBJECT AND IT IS THE ONE STILL MISSING.** The brief names *"a closed
+   shell, a large roof, a plaza in front of it"*; the car park and the stadium are both open
+   structures and this city has no large enclosed span. The path is established (§3) and the
+   triangle cost is known to be trivial.
+2. **F1, THE FENCE PROP'S DELIVERED BOX.** One length in `PROP_MODELS`, and it is the only new
+   delivered overlap this session added.
+3. **HOIST THE BUILDING CLAIMS IN `buildChunkBody`** — session 47's item 1, still the thing standing
+   between the census and `UNDECLARED 5 → 3`.
+4. **`emitcensus` OVER `block.js` AND `river.js`** — two modules never enumerated.
+5. **PROGRAM THAT IS NOT SPORT.** A school, a depot, a market hall and a hospital are the same
+   machinery again and the operator's *"everything a city needs"* names none of them yet. A school
+   is a playground with a building on one side of it.
+6. **L1, THE WINDOW.** Carried since session 45 and still the largest single finding in this
+   project. The bright reserve reads **6.79%** against a 6.00% floor.
+7. **L15, `minPairMSD`.** Owed a derivation for a fourth session. Do not lower it to 0.029.
