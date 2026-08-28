@@ -2555,6 +2555,47 @@ export const LOW_WALL = {
   copingLongFactor: 1.02,
 };
 
+/**
+ * WHAT THE LOOSE STUFF ON EACH LOW-DETAIL ISLAND IS MADE OF. Paired with
+ * `DEAD_ZONE`, which says HOW MANY: a floor without a palette furnishes a
+ * churchyard with containers, and a palette without a floor delivers one of
+ * them. Both tables are keyed by the same `kind`, so a kind added later is
+ * missing from both in the same place.
+ *
+ * A KIND REPEATED IN THE ARRAY IS WEIGHTED — `propRng.pick` is uniform over
+ * entries, which is how `park` has read as three-quarters trees since it was
+ * written.
+ */
+export const LOW_DETAIL_PROPS = {
+  /** The five that existed before session 50, carried across UNCHANGED. */
+  park: ['tree', 'tree', 'tree', 'bench', 'planter', 'bin'],
+  construction: ['container', 'container', 'fence', 'cabinet', 'bollard'],
+  parking: ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence'],
+  yard: ['stack', 'stack', 'stack', 'container', 'bin', 'cabinet', 'fence'],
+  $default: ['fence', 'stack', 'container', 'bollard'],
+
+  /** A playing field's margin: seating and litter, and a tree for shade. */
+  recreation: ['bench', 'bench', 'bin', 'tree', 'bollard'],
+  /** A deck park's apron is a car park's apron. */
+  carpark: ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence'],
+  /** A hospital forecourt: guarded edges, planting, seating for waiting. */
+  hospital: ['bollard', 'planter', 'bench', 'bin', 'cabinet'],
+  /** A school: trees along the boundary, seating and bins on the hard yard. */
+  school: ['tree', 'tree', 'bench', 'bin', 'bollard', 'planter'],
+  /** A fire station: HYDRANTS, which exist as a model and belong nowhere else
+   *  in this city more than here, and the bollards that keep an apron clear. */
+  firestation: ['hydrant', 'hydrant', 'bollard', 'bollard', 'bin', 'cabinet'],
+  /** An estate and a depot are both works yards, and take `yard`'s own list. */
+  industrial: ['stack', 'stack', 'container', 'fence', 'cabinet', 'bin'],
+  depot: ['stack', 'container', 'bollard', 'cabinet', 'fence', 'bin'],
+  /** A churchyard is PLANTED. Not one container, which is what it had. */
+  church: ['tree', 'tree', 'tree', 'bench', 'planter', 'bollard'],
+  /** A market forecourt: goods, planting and the bins a market needs. */
+  market: ['stack', 'planter', 'bin', 'bench', 'bollard'],
+  /** A wharf stacks to its fence line. */
+  port: ['container', 'container', 'stack', 'stack', 'bollard', 'cabinet'],
+};
+
 export const DEAD_ZONE = {
   /**
    * A CAR PARK, AND ITS FIXTURES ARE ITS LIGHTING. A surface lot is lit by
@@ -2581,6 +2622,73 @@ export const DEAD_ZONE = {
    * The slope is the lowest of the five for the same reason.
    */
   lot: { floor: 9, slope: 12 },
+  /**
+   * ───────────────────────────────────────────────────────────────────────
+   * SESSION 50: THE TEN KINDS SESSIONS 48 AND 49 ADDED FELL STRAIGHT BACK INTO
+   * THE HOLE THE THREE ABOVE WERE LIFTED OUT OF.
+   *
+   * `deadZoneLaw = DEAD_ZONE[kind]` and this table held four rows, so every
+   * kind added after session 40 took the `96 · d³` fall-through — and a chunk
+   * is low-detail BECAUSE `density < 0.34`, which is the same field, so that
+   * law cannot exceed `96 × 0.34³` = 3.8 objects and rounds to ONE below
+   * `d = 0.216`. The paragraph in `citygen.js` beside `propCount` says this in
+   * as many words about the previous three; nobody re-read it while adding
+   * ten more. Measured over twelve regions (seeds 1337–1348), props per chunk:
+   *
+   *     WITH a floor          WITHOUT one
+   *     yard         28.3     firestation   1.0     school      2.2
+   *     park         27.8     hospital      0.5     carpark     3.0
+   *     construction 17.7     recreation    1.2     industrial  4.1
+   *     parking      15.5     depot         1.9     port        9.1
+   *     lot          12.1     church        1.9     market     13.3
+   *
+   * A seven-to-twenty-eight-fold gap, and the four bottom rows are exactly the
+   * four islands session 49's own frames show as bare. THE FRAMES AND THE
+   * GENERATOR AGREE, which is why this is one table and not a look question.
+   *
+   * EVERY FLOOR BELOW IS `(104.6 / L)²` FOR A LENGTH `L` THAT BELONGS TO THE
+   * KIND, which is the form the three rows above use, and the spacing it
+   * implies is printed beside it. **THEY ARE DELIBERATELY UNEQUAL** — 8 to 38
+   * against the existing 9 to 24. Levelling ten kinds onto one number would
+   * flatten the prop-density spread `citycheck`'s clumping CV measures, and
+   * that statistic has moved the right way for two sessions on VARIETY rather
+   * than fill. A church is not a works yard and must not be furnished like one.
+   */
+  /** A PLAYING FIELD IS EMPTY BY DEFINITION — its furniture lives on the margin,
+   *  one object per `36 m`: `(104.6/36)² = 8.4 → 8`, spacing 37.0 m. The
+   *  sparsest floor in the table, because the pitch is the content. */
+  recreation: { floor: 8, slope: 12 },
+  /** A DECK PARK'S SURFACE APRON, on the same 30 m lighting square `parking`
+   *  derives above: `(104.6/30)² = 12.2 → 12`, spacing 30.2 m. The decks are
+   *  features; this is the loose stuff on the ground beside them. */
+  carpark: { floor: 12, slope: 16 },
+  /** HALF A HOSPITAL SITE IS VISITORS' PARKING, so it takes the same 30 m
+   *  square: 12, spacing 30.2 m. */
+  hospital: { floor: 12, slope: 16 },
+  /** A SCHOOL'S FURNITURE RINGS ITS HARD PLAY AREA rather than crossing it —
+   *  one per `26 m`, about the side of the yard itself: `(104.6/26)² = 16.2 →
+   *  16`, spacing 26.2 m. */
+  school: { floor: 16, slope: 16 },
+  /** AN APRON WORKED BY 8 m APPLIANCES. Three appliance lengths is the turn a
+   *  pump needs to come off the apron nose-first — `24 m`: `(104.6/24)² = 19.0
+   *  → 19`, spacing 24.0 m. */
+  firestation: { floor: 19, slope: 16 },
+  /** AN INDUSTRIAL ESTATE IS A WORKS YARD and takes `yard`'s own 21 m van
+   *  apron unchanged: 24, spacing 21.4 m. */
+  industrial: { floor: 24, slope: 16 },
+  /** SO IS A DEPOT — the same apron, the same 24. */
+  depot: { floor: 24, slope: 16 },
+  /** A CHURCHYARD IS PLANTED, not worked. One tree or bench per `18 m`, which
+   *  is a crown's spread plus a path's width: `(104.6/18)² = 33.8 → 34`,
+   *  spacing 17.9 m. */
+  church: { floor: 34, slope: 12 },
+  /** A MARKET FORECOURT IS THE BUSIEST GROUND IN THIS CITY OUTSIDE A SITE —
+   *  one per `17 m`, a stall pitch and its queue: `(104.6/17)² = 37.9 → 38`,
+   *  spacing 17.0 m. */
+  market: { floor: 38, slope: 16 },
+  /** A WHARF STACKS TO ITS FENCE LINE. A container is 12.2 m and needs a
+   *  handler's width beside it — `17 m`: 38, spacing 17.0 m. */
+  port: { floor: 38, slope: 16 },
   /**
    * THE BLOCK INTERIOR — the largest bare surface in the city and the one kind
    * here that is not a `LOW_DETAIL_KINDS` member at all.
@@ -9807,12 +9915,21 @@ export function generateChunk(rootSeed, cx, cz) {
      * scatter, is CONTRACT §9.1's arrangement.
      */
     const propKind = lowDetail
-      ? propRng.pick(
-        kind === 'park' ? ['tree', 'tree', 'tree', 'bench', 'planter', 'bin']
-          : kind === 'construction' ? ['container', 'container', 'fence', 'cabinet', 'bollard']
-            : kind === 'parking' ? ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence']
-              : kind === 'yard' ? ['stack', 'stack', 'stack', 'container', 'bin', 'cabinet', 'fence']
-                : ['fence', 'stack', 'container', 'bollard'])
+      /**
+       * THE OTHER HALF OF `DEAD_ZONE`'s SESSION-50 HOLE, and it was the worse
+       * half. The chain this replaces named four kinds and sent every other
+       * low-detail island to `['fence', 'stack', 'container', 'bollard']` —
+       * works-yard content — so the ten kinds added in sessions 48 and 49
+       * furnished a CHURCHYARD AND A SCHOOL WITH SHIPPING CONTAINERS. It went
+       * unseen because the count law was refusing all but one or two of them;
+       * raising the floor without this would have delivered thirty-four
+       * containers onto a lawn. A table rather than a chain, in `LOW_DETAIL_PROPS`
+       * beside `DEAD_ZONE`, so a kind added later is missing from BOTH visibly.
+       *
+       * The five original rows are carried across unchanged, and `propRng.pick`
+       * draws one number whatever the array holds, so no sequence moves.
+       */
+      ? propRng.pick(LOW_DETAIL_PROPS[kind] || LOW_DETAIL_PROPS.$default)
       /**
        * `hydrant` and `bench` added to the built list this session. A bench on
        * an ordinary pavement is the commonest street object there is and it
