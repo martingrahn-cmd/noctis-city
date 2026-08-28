@@ -2890,7 +2890,14 @@ export function createCity(options = {}) {
        * have and is the reason a park can afford lighting columns at all.
        */
       for (const f of chunk.features) {
-        const y0 = worldSurface(ctx, f.x, f.z).y;
+        /**
+         * `f.lift` — session 48, and it is the one field the deck park needed.
+         * Every feature before this one stood on the ground, so `y0` was the
+         * ground; a car parked on the fourth deck of a multi-storey stands on a
+         * slab 11.6 m above it. Optional and defaulting to 0, so every feature
+         * written before this line is byte-identical.
+         */
+        const y0 = worldSurface(ctx, f.x, f.z).y + (f.lift || 0);
         let fx0 = Infinity; let fx1 = -Infinity; let fz0 = Infinity; let fz1 = -Infinity; let fTop = 0;
         const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
           const c = Math.cos(((f.yawDeg || 0) * Math.PI) / 180);
@@ -3090,7 +3097,24 @@ export function createCity(options = {}) {
            */
           const r = f.half;
           if (f.centre === 'pond') {
-            put(0, 0.10, 0, r * 2.02, 0.20, r * 2.02, [0.33, 0.325, 0.31], 0.75);
+            /**
+             * THE COPING WAS DRAWN 1% WIDER THAN ITS OWN CLAIM — session 48,
+             * and the delivered census found it the moment a re-phase put a
+             * pond next to a path. `PARK.centreHalf` is 5.0 and the claim is
+             * +-5.0; `r * 2.02` delivers +-5.05, so the pond overhung the
+             * circus paving it is set into by 0.05 m on each of four edges:
+             * `path(ground:path) x feature(centre:pond)` at **0.505, 0.505,
+             * 0.500 and 0.500 m2**, which is 0.05 x 10.1 four times over.
+             *
+             * The 2% was there so the coping and the water read as one edge,
+             * which they do at 2.00 as well because the water below is inset by
+             * its own margin. Session 47's `LOW_WALL` coping is the same
+             * number making the same mistake one object over; this one is fixed
+             * in the DRAW rather than in the claim, because the claim is what
+             * the generator refused a path against and widening it would move
+             * ponds rather than stop them overhanging.
+             */
+            put(0, 0.10, 0, r * 2.0, 0.20, r * 2.0, [0.33, 0.325, 0.31], 0.75);
             /**
              * The water. Reflectance 0.02 and roughness 0.06 — Fresnel does the
              * work, which is what makes a still pond read as a mirror of the
@@ -3153,6 +3177,62 @@ export function createCity(options = {}) {
           }
           for (let k = 1; k < f.levels; k++) {
             put(0, k * f.storey, 0, half * 2 + 0.6, 0.26, half * 2 + 0.6, [0.33, 0.325, 0.31], 0.9);
+          }
+        } else if (f.kind === 'deckpark') {
+          /**
+           * A MULTI-STOREY CAR PARK — session 48. Six elements and every one of
+           * them is what the building actually is: decks, the upstand that
+           * stops a car going off one, the columns that carry them, the blank
+           * core at one end, and the ramp up the flank.
+           *
+           * WHAT IT IS NOT is a prism with windows. `buildFacade` cannot make
+           * this at any parameter — the thing that reads is the STACK OF GAPS,
+           * and every box below is drawn so that the gap between two decks
+           * stays empty.
+           */
+          const conc = [0.28, 0.276, 0.264];
+          const dark = [0.17, 0.168, 0.160];
+          const hl = f.long / 2;
+          const hd = f.deep / 2;
+          const H = f.levels * f.storey;
+          for (let k = 1; k <= f.levels; k++) {
+            const y = k * f.storey;
+            put(0, y, 0, f.long, 0.25, f.deep, conc, 0.88);
+            /** The vehicle barrier at every open edge — the horizontal that reads. */
+            for (const e of [-1, 1]) {
+              put(0, y + f.upstand / 2, e * hd, f.long, f.upstand, 0.22, conc, 0.84);
+              put(e * hl, y + f.upstand / 2, 0, 0.22, f.upstand, f.deep, conc, 0.84);
+            }
+          }
+          const nL = Math.max(2, Math.round(f.long / f.columnEvery));
+          for (let i = 0; i <= nL; i++) {
+            const dx = -hl + (i * f.long) / nL;
+            for (const e of [-1, 1]) put(dx, H / 2, e * hd, f.column, H, f.column, conc, 0.88);
+          }
+          const nD = Math.max(2, Math.round(f.deep / f.columnEvery));
+          for (let j = 1; j < nD; j++) {
+            const dz = -hd + (j * f.deep) / nD;
+            for (const e of [-1, 1]) put(e * hl, H / 2, dz, f.column, H, f.column, conc, 0.88);
+          }
+          /** The core: stair, lift and the blank end wall a car park always has. */
+          put(hl - f.core / 2, (H + 1.4) / 2, 0, f.core, H + 1.4, f.deep * 0.6, dark, 0.9);
+          /**
+           * THE RAMP, STEPPED AND NOT RAKED. `put` yaws and does not pitch, and
+           * a raked slab needs a rotation about a horizontal axis that this loop
+           * has never had — so the run is three short flats per level, which at
+           * any distance a car park is read from is a ramp and which needs no
+           * new transform. It alternates ends, which is what a scissor ramp is.
+           */
+          for (let k = 0; k < f.levels; k++) {
+            const side = k % 2 ? -1 : 1;
+            for (let t = 0; t < 3; t++) {
+              const y = k * f.storey + ((t + 0.5) / 3) * f.storey;
+              put(side * (hl * 0.30 + t * 3.4 * side * 0 + (t - 1) * 4.2 * side),
+                y, -hd - f.ramp / 2, 4.6, 0.22, f.ramp, conc, 0.9);
+            }
+          }
+          for (let k = 0; k <= f.levels; k++) {
+            put(0, k * f.storey + f.upstand / 2, -hd - f.ramp, f.long * 0.62, f.upstand, 0.2, conc, 0.86);
           }
         } else if (f.kind === 'parked') {
           /**
@@ -3254,7 +3334,26 @@ export function createCity(options = {}) {
             put(0, k * 12, 0, 2.4, 0.35, 2.4, [0.52, 0.34, 0.09], 0.62);
           }
         }
-        if (fx1 > fx0) {
+        /**
+         * A FEATURE INSIDE A STRUCTURE IS CLAIMED BY THE STRUCTURE — session 48,
+         * and it is the line `f.lift` made necessary.
+         *
+         * The claim below is `y0: 0` to `y1: fTop`, which is a hard-coded
+         * assumption that a feature stands on the ground — true of every
+         * feature written before this session. A car parked on the fourth deck
+         * of a multi-storey does not, and claiming it from y = 0 reported
+         * **70 `prop(parked) x prop(parked)` overlaps** (the same plan position
+         * on five decks, 7 columns x C(5,2) = 70 exactly) and **35
+         * `feature(deckpark) x prop(parked)`**, which is a car park colliding
+         * with the cars in it.
+         *
+         * Both are the structure's own volume seen twice. `DECK_PARK` claims
+         * the whole 65 x 32 x 15.6 m box as `building` in the generator — one
+         * claim, not sixty — so what is inside it is spoken for, and a second
+         * claim per car is `emitcensus`'s self-pair case with a building
+         * instead of a pylon. Lifted features are drawn and not re-claimed.
+         */
+        if (fx1 > fx0 && !f.lift) {
           placed.push({
             /**
              * SESSION 40 — `parked` IS A `prop` AND `stub` IS A `site`, AND

@@ -2049,7 +2049,72 @@ export const ROAD_MATERIALS = ['asphalt', 'patched', 'concrete'];
 // ---------------------------------------------------------------------------
 // dead zones — docs/authored-city.md §5
 
-export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction', 'recreation'];
+export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction', 'recreation', 'carpark'];
+
+/**
+ * A MULTI-STOREY CAR PARK — SESSION 48, TIER TWO, AND THE FIRST BLOCK-SCALE
+ * OBJECT IN THIS CITY THAT IS NOT A HAND-PLACED LANDMARK.
+ *
+ * HOW A BLOCK-SCALE OBJECT GETS PLACED AT ALL, which the brief asked to
+ * establish before anything was built. There were two candidate paths and
+ * neither is obviously right:
+ *
+ *   THE LANDMARK PATH is authored — eight entries in `LANDMARKS`, each with a
+ *   bespoke `kind` in `landmarkOccluders` and a bespoke case in `buildLandmark`,
+ *   each appearing exactly ONCE in the world at a coordinate somebody typed. It
+ *   is the right path for a thing you navigate by and the wrong one for a thing
+ *   a district has one of: a city has a car park per few blocks, not one.
+ *
+ *   THE LOW-DETAIL KIND PATH already owns a whole island. `lowDetail` does not
+ *   mean "little here" — a construction site with a 40 m crane on it is a
+ *   low-detail chunk — it means **the perimeter walk does not run on this
+ *   island**, which is exactly and only the property a block-scale object
+ *   needs. The walk lofts 11-27 m buildings along an island edge; a 64 x 32 m
+ *   deck structure is not a building it can produce at any parameter.
+ *
+ * SO IT IS THE SECOND, and the misleading part is the name rather than the
+ * mechanism. Nothing new was built to place this.
+ *
+ * WHERE IT GOES IS THE BRIEF'S OWN SENTENCE, MADE A NUMBER. *"A car park goes
+ * at the edge of the dense core where people drive to and then walk"* — which
+ * is the TOP of the low-detail band, the blocks that only just failed to be
+ * built on. `RECREATION.courtBelow` is the measured p67 of that population
+ * (see `RECREATION` for the 237-chunk distribution) and it is read here rather
+ * than a second quantile being derived: above it you build a deck because land
+ * is dear, below it the die falls through to `parking` and you lay a surface
+ * lot, because it is not. **The two car parks in this file are one decision
+ * about land value.**
+ *
+ * EVERY DIMENSION IS `DEAD_ZONE`'s OWN PARKING MODULE. A double-loaded module
+ * is `bayL + aisleW + bayL` = 5.0 + 6.0 + 5.0 = 16.0 m and the surface lot
+ * lays two of them; this lays two of them per deck, so the structure is
+ * 32.0 m deep. The length is 26 bays of `bayW` 2.5 = 65.0 m, which is what
+ * fits the 104.6 m island with the ramp and the boundary either side.
+ */
+export const DECK_PARK = {
+  /** Decks above the ground one. 5 -> a 14.5 m box, four storeys of housing. */
+  levels: 5,
+  /**
+   * Metres, floor to floor. A parked van's own delivered height is 2.45 m
+   * (`parkVehicle`), the slab is 0.25 and the services under it 0.20, so 2.90
+   * is the smallest deck a van clears — and a car park that a van cannot enter
+   * is a car park with a height barrier on it, which is a different building.
+   */
+  storeyM: 2.90,
+  /** Bays along the deck, and the two double-loaded modules across it. */
+  baysLong: 26,
+  modulesDeep: 2,
+  /** Metres. The upstand at every open deck edge — a 1.1 m vehicle barrier. */
+  upstandM: 1.10,
+  /** Metres. Column pitch on the perimeter, and the column itself. */
+  columnEveryM: 8.0,
+  columnM: 0.44,
+  /** Metres. The straight ramp up one flank, and the core at one end. */
+  rampWidthM: 6.0,
+  coreM: 7.0,
+  /** Cars left on each deck. A car park at four in the afternoon is not empty. */
+  carsPerDeck: 7,
+};
 
 /**
  * WHAT A CITY NEEDS THAT IS NOT A HOUSE — SESSION 48, TIER ONE.
@@ -6153,9 +6218,18 @@ export function generateChunk(rootSeed, cx, cz) {
   const nearLandmarks = landmarksTouching(cx, cz, CORRIDOR);
 
   const lowDetail = !hasLandmark && density < CITY.lowDetailThreshold;
-  const kind = lowDetail
+  /**
+   * `carpark` IS THE ONE KIND WITH A CONDITION ON IT, AND THE CONDITION IS THE
+   * DERIVATION — session 48. See `DECK_PARK`: a deck is what you build where
+   * land is dear, and a surface lot is what you lay where it is not, so a
+   * `carpark` roll under `RECREATION.courtBelow` falls through to `parking`
+   * rather than being re-rolled. Re-rolling would make the two kinds compete
+   * for one die face; falling through makes them one decision about land value.
+   */
+  let kind = lowDetail
     ? LOW_DETAIL_KINDS[Math.floor(rng.next() * LOW_DETAIL_KINDS.length)]
     : 'built';
+  if (kind === 'carpark' && density < RECREATION.courtBelow) kind = 'parking';
 
   /**
    * Road surface. Three variants, and which one a stretch gets is a function of
@@ -8749,6 +8823,87 @@ export function generateChunk(rootSeed, cx, cz) {
           reg.claim(box);
         }
       }
+    } else if (kind === 'carpark') {
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * A MULTI-STOREY CAR PARK — SESSION 48, TIER TWO. See `DECK_PARK` for how
+       * a block-scale object gets placed at all and for where this one goes.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * IT READS BY ITS SECTION AND NOT BY ITS DETAIL: horizontal open decks
+       * stacked with nothing between them, a blank core at one end, and cars
+       * parked on every level with sky behind them. That silhouette is unlike
+       * every other mass in this city — a building here is a prism with windows
+       * punched in it and this is a stack of gaps — which is the whole reason
+       * the operator can name it from a moving car.
+       */
+      const P = DECK_PARK;
+      const D = DEAD_ZONE;
+      const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'parkingGround', yKey: 'parking' };
+
+      /** Every dimension off `DEAD_ZONE`'s own parking module. See `DECK_PARK`. */
+      const deckLong = P.baysLong * D.bayW;
+      const deckDeep = P.modulesDeep * (D.bayL * 2 + D.aisleW);
+      const alongX = featRng.chance(0.5);
+      const hx = (alongX ? deckLong : deckDeep) / 2;
+      const hz = (alongX ? deckDeep : deckLong) / 2;
+      const topY = P.levels * P.storeyM + P.upstandM;
+
+      /**
+       * `building` AND NOT `feature`, because that is what it is: a solid a
+       * road may not run through, a pavement may not cross and nothing may be
+       * placed inside. It is claimed BEFORE the surface is laid so the asphalt
+       * is cut round it by the same `subtractBoxes` a park's grass is cut round
+       * its paths with — a car park's deck does not stand on its own tarmac.
+       */
+      const box = claimAt('building', mx, mz, hx, hz, { y0: 0, y1: topY, owner: 'carpark:deck' });
+      const built = !reg.conflict(box);
+      if (built) {
+        reg.claim(box);
+        features.push({
+          kind: 'deckpark', x: mx, z: mz, yawDeg: alongX ? 0 : 90,
+          long: deckLong, deep: deckDeep, levels: P.levels, storey: P.storeyM,
+          upstand: P.upstandM, columnEvery: P.columnEveryM, column: P.columnM,
+          ramp: P.rampWidthM, core: P.coreM,
+        });
+        /**
+         * THE CARS ON THE DECKS, AND THEY ARE THE SAME `parked` FEATURE THE
+         * SURFACE LOT USES — with a `lift`, which is the one field the feature
+         * loop gained for this. A deck park with empty decks is a concrete
+         * frame; what says "car park" from the street is a row of roofs behind
+         * an upstand with sky above them.
+         *
+         * NOT CLAIMED. A car standing on the fourth deck is inside the
+         * `building` claim above, and claiming it as `prop` would report the
+         * structure colliding with its own contents — which is `emitcensus`'s
+         * self-pair case, and the reason the deck is one claim rather than
+         * sixty.
+         */
+        for (let k = 1; k <= P.levels; k++) {
+          for (let i = 0; i < P.carsPerDeck; i++) {
+            const u = ((i + 0.5) / P.carsPerDeck - 0.5) * (deckLong - 8);
+            const v = (i % 2 ? 1 : -1) * (D.bayL + D.aisleW) / 2;
+            features.push({
+              kind: 'parked', vehicle: featRng.chance(0.22) ? 'van' : 'car',
+              x: mx + (alongX ? u : v), z: mz + (alongX ? v : u),
+              yawDeg: (alongX ? 90 : 0) + (i % 2 ? 180 : 0),
+              chroma: featRng.int(0, 5), lift: k * P.storeyM + 0.13,
+            });
+          }
+        }
+      }
+      for (const g of subtractBoxes([surf], [...islandSolids(), ...(built ? [box] : [])])) ground.push(g);
+
+      /** The same knee rail the surface lot has, and one gate. */
+      const gateSide = featRng.int(0, 3);
+      boundaryRun({
+        inset: D.edgeInset, seg: D.edgeSegment, halfT: 0.07, height: D.railHeight,
+        category: 'feature', owner: 'carpark:rail',
+        gateSide, gateAt: featRng.range(0.3, 0.7), gateHalf: D.gateHalf,
+        make: (x, z, yawDeg) => ({
+          kind: 'edge', edge: 'rail', x, z, length: D.edgeSegment, height: D.railHeight, yawDeg,
+        }),
+      });
     }
   }
 
