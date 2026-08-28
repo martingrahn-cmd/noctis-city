@@ -9382,7 +9382,8 @@ export function generateChunk(rootSeed, cx, cz) {
       const floods = (n) => {
         for (let i = 0; i < n; i++) {
           const a = (i / n) * Math.PI * 2 + 0.6;
-          const p = at(Math.cos(a) * 40, Math.sin(a) * 40);
+          /** Session 50: the ring is the island's own, not a flat 40 m. */
+          const p = at(Math.cos(a) * halfU * 0.76, Math.sin(a) * halfV * 0.76);
           if (p.x < isl.x0 + 3 || p.x > isl.x1 - 3 || p.z < isl.z0 + 3 || p.z > isl.z1 - 3) continue;
           const box = claimAt('site', p.x, p.z, 0.7, 0.7,
             { y0: 0, y1: SITE.floodHeightM, owner: `${kind}:flood` });
@@ -9391,10 +9392,110 @@ export function generateChunk(rootSeed, cx, cz) {
           reg.claim(box);
         }
       };
+      /**
+       * ─────────────────────────────────────────────────────────────────────
+       * SESSION 50: THE ISLAND'S OWN HALF-EXTENTS, WHICH IS WHAT EVERY FIXTURE
+       * BELOW SHOULD HAVE BEEN SIZED FROM AND WAS NOT.
+       *
+       * Session 49 put a BUILDING-scale fixture set on a BLOCK-scale island: a
+       * flood ring at a flat 40 m, a stack spread of 34, a school yard of
+       * 68 x 44, a church square of 52 x 32 — every one a constant, on an
+       * island that is 104.6 m square. The remainder is what the operator has
+       * been calling *"wide flat areas with nothing on them"* since session 41.
+       * `lay()` already covers the whole island; nothing else did.
+       *
+       * On the same axes `at(u, v)` uses, so a fixture written in `at` co-ordinates
+       * can be clamped against them without thinking about `alongX` twice —
+       * which is CONTRACT §9's shape and the reason session 48's stands ended
+       * up rotated ninety degrees off their own claim.
+       */
+      const halfU = (alongX ? isl.x1 - isl.x0 : isl.z1 - isl.z0) / 2;
+      const halfV = (alongX ? isl.z1 - isl.z0 : isl.x1 - isl.x0) / 2;
+
+      /** Every SOLID standing on this island, including the masses just placed. */
+      const hereSolids = () => reg.all().filter((c) => (c.kind === 'landmark' || c.kind === 'block'
+        || c.kind === 'water' || c.kind === 'building')
+        && c.x1 > isl.x0 && c.x0 < isl.x1 && c.z1 > isl.z0 && c.z0 < isl.z1);
+
+      /**
+       * A PATH THE WIDTH OF THE ISLAND, cut round whatever stands on it. The
+       * park has had exactly this since session 19 and no other kind could
+       * reach it, so a churchyard was a lawn you could not walk across. Two
+       * spines at the island's own centre lines, `PARK.pathHalf` wide, claimed
+       * `path` — which forbids `prop` and `feature`, so the scatter that runs
+       * later puts its trees BESIDE the path rather than on it, without either
+       * routine knowing about the other.
+       */
+      const layPath = (owner) => {
+        const h = PARK.pathHalf;
+        const runs = [
+          { x0: mx - h, x1: mx + h, z0: isl.z0, z1: isl.z1, kind: 'path', yKey: 'pathEW' },
+          { x0: isl.x0, x1: isl.x1, z0: mz - h, z1: mz + h, kind: 'path', yKey: 'pathEW' },
+        ];
+        let n = 0;
+        for (const q of subtractBoxes(runs, hereSolids())) {
+          ground.push(q);
+          reg.claim(claimBox('path', q.x0, q.z0, q.x1, q.z1, { owner }));
+          n++;
+        }
+        return n;
+      };
+
+      /**
+       * BAYS ACROSS THE ISLAND rather than across the building. The hospital's
+       * own row is `for (i < 14) at(-30 + i * 4.6, 34)` — fourteen marks and
+       * two constants, on an apron four times that wide. Here the column count
+       * comes OUT of `2 * halfU / bayW`, and every mark is offered to the
+       * registry as `ground` first — which forbids exactly `building`,
+       * `landmark` and `water` — so paint stops at whatever stands on the
+       * island instead of being drawn under it, and a bay under a CANOPY is
+       * still a bay, which is what a covered depot stand is.
+       */
+      const bayRows = (vs, owner) => {
+        const cols = Math.max(1, Math.floor((halfU * 2 - 6) / D.bayW));
+        let n = 0;
+        for (const v of vs) {
+          for (let c = 0; c < cols; c++) {
+            const a = at(-halfU + 3 + (c + 0.5) * D.bayW, v);
+            const probe = claimAt('ground', a.x, a.z,
+              alongX ? D.bayW / 2 : D.bayL / 2, alongX ? D.bayL / 2 : D.bayW / 2,
+              { y0: 0, y1: 0.02, owner });
+            if (reg.conflict(probe)) continue;
+            markings.push({ x: a.x, z: a.z,
+              length: alongX ? 0.10 : D.bayL, width: alongX ? D.bayL : 0.10,
+              yawDeg: 0, kind: 'bay' });
+            n++;
+          }
+        }
+        return n;
+      };
+
+      /**
+       * THE KERB LINE WAS BUILT, LOOKED AT, AND TAKEN OUT AGAIN — session 50,
+       * and the reason is worth more than the fixture was.
+       *
+       * The brief asks for *"an apron, a kerb line, a gate"*, so a `kerbLine`
+       * helper laid four island-length painted runs inset 4 m, segmented and
+       * probed exactly as `bayRows` is. It delivered about fifty marks an
+       * island and **it is invisible in both frames.** From 78 m a 0.16 m line
+       * is about one pixel; from the pavement it is white paint on pale
+       * hardstanding, which is white on near-white — `MARKING_ALBEDO` against
+       * `GROUND.carriageway` is a contrast a painted line simply does not have
+       * on this surface.
+       *
+       * SO THE RULE THIS ISLAND-SCALE ITEM ACTUALLY YIELDS: on pale ground, the
+       * fixture that reads is a change of SURFACE or an object with HEIGHT, not
+       * paint. `bayRows` survives because a bay is read as a RHYTHM of many
+       * marks rather than as one line, and the eye finds a repeat where it
+       * cannot find an edge.
+       */
+
       /** Stacked containers, which every freight use in this list has. */
-      const stack = (n, spread) => {
+      const stack = (n, spread = halfU - 8) => {
         for (let i = 0; i < n; i++) {
-          const p = at(featRng.range(-spread, spread), featRng.range(-spread, spread));
+          /** Session 50: to the FENCE LINE by default, not to a constant 34. */
+          const p = at(featRng.range(-spread, spread),
+            featRng.range(-Math.min(spread, halfV - 8), Math.min(spread, halfV - 8)));
           const half = propHalfWidth('container', 0) * 1.1;
           const spot = claimAt('prop', p.x, p.z, half, half, { owner: 'container' });
           if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
@@ -9429,6 +9530,7 @@ export function generateChunk(rootSeed, cx, cz) {
           markings.push({ x: a.x, z: a.z, length: alongX ? 0.12 : 26, width: alongX ? 26 : 0.12,
             yawDeg: 0, kind: 'sport' });
         }
+        layPath('school:path');
         fence('railing', 1.6, 'school:fence');
         floods(2);
       } else if (kind === 'hospital') {
@@ -9454,12 +9556,12 @@ export function generateChunk(rootSeed, cx, cz) {
         placeMass('canopy', c.x, c.z, G.hospBayLongM, G.hospBayDeepM, G.hospBayHighM + 1.6,
           'hospital:bay', { height: G.hospBayHighM, albedo: [0.42, 0.40, 0.38] },
           { category: 'canopy', base: G.hospBayHighM });
-        /** Visitors' parking, marked, which is half of what a hospital site is. */
-        for (let i = 0; i < 14; i++) {
-          const a = at(-30 + i * 4.6, 34);
-          markings.push({ x: a.x, z: a.z, length: alongX ? 0.10 : D.bayL,
-            width: alongX ? D.bayL : 0.10, yawDeg: 0, kind: 'bay' });
-        }
+        /**
+         * VISITORS' PARKING, MARKED, WHICH IS HALF OF WHAT A HOSPITAL SITE IS —
+         * and session 49 drew fourteen marks from `-30 + i * 4.6`, two constants
+         * on an apron four times that wide. Three rows the island's own width.
+         */
+        bayRows([halfV * 0.44, halfV * 0.58, halfV * 0.72], 'hospital:bays');
         fence('rail', D.railHeight, 'hospital:rail');
         floods(2);
       } else if (kind === 'firestation') {
@@ -9493,6 +9595,14 @@ export function generateChunk(rootSeed, cx, cz) {
         }
         const v = at(-10, 10);
         parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
+        /**
+         * STAFF BAYS AT THE FAR END, AND THE APPLIANCE RUN LEFT CLEAR. Two rows
+         * across the island's full width rather than fourteen marks in front of
+         * the building — but NOT across the apron itself, because the ground a
+         * pump reverses onto is the one part of a fire station that is empty on
+         * purpose. Sized by `bayRows` from `2 * halfU / bayW`.
+         */
+        bayRows([halfV * 0.52, halfV * 0.66], 'fire:bays');
         fence('palisade', D.palisadeHeight, 'fire:palisade');
         floods(2);
       } else if (kind === 'industrial') {
@@ -9510,7 +9620,7 @@ export function generateChunk(rootSeed, cx, cz) {
             `industrial:shed${i}`,
             { height: G.shedHighM, floors: 1, style: 'dock', albedo: [0.30, 0.298, 0.286] });
         }
-        stack(6, 34);
+        stack(6);
         for (let i = 0; i < 2; i++) {
           const v = at(featRng.range(-30, 30), featRng.range(-6, 18));
           parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
@@ -9567,11 +9677,8 @@ export function generateChunk(rootSeed, cx, cz) {
           const a = at(-16 + i * 10.4, 10);
           parkVehicle(a.x, a.z, alongX ? 90 : 0, 'van');
         }
-        for (let i = 0; i < 10; i++) {
-          const a = at(-24 + i * 5.4, 17);
-          markings.push({ x: a.x, z: a.z, length: alongX ? 0.10 : D.bayL,
-            width: alongX ? D.bayL : 0.10, yawDeg: 0, kind: 'bay' });
-        }
+        /** Session 50: rows the island's width, not ten marks at a constant. */
+        bayRows([halfV * 0.30, halfV * 0.44, halfV * 0.58], 'depot:bays');
         const w = at(0, 30);
         placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, G.depotShopHighM + 1.1,
           'depot:shop', { height: G.depotShopHighM, floors: 1, style: 'dock',
@@ -9600,6 +9707,15 @@ export function generateChunk(rootSeed, cx, cz) {
           placeTower(t.x, t.z, G.spireHalfM, G.spireM, 'spire',
             [0.34, 0.30, 0.25], 'church:spire');
         }
+        /**
+         * A PATH TO THE DOOR, AND IT IS THE WHOLE OF SESSION 50'S ITEM ON THIS
+         * KIND. The lawn was 104.6 m square with a 30 x 13 m nave at one edge
+         * and nothing else — `s50-church-air-before.png`. A churchyard is a
+         * lawn you can WALK ACROSS; the path is what makes the grass somebody's
+         * rather than leftover, and it is sized from the island because that is
+         * what it crosses.
+         */
+        layPath('church:path');
         fence('hedge', 1.4, 'church:hedge');
       } else if (kind === 'port') {
         /**
@@ -9613,7 +9729,7 @@ export function generateChunk(rootSeed, cx, cz) {
         const p = at(0, -24);
         placeMass('shed', p.x, p.z, G.wharfLongM, G.wharfDeepM, G.wharfHighM + 1.1, 'port:shed',
           { height: G.wharfHighM, floors: 1, style: 'dock', albedo: [0.28, 0.286, 0.296] });
-        stack(10, 36);
+        stack(10);
         {
           const c = at(14, 22);
           /** `SITE`'s own mast and jib, and the same record `construction` pushes. */
@@ -9736,7 +9852,17 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const parkClumps = [];
   const pathStations = [];
-  if (kind === 'park') {
+  /**
+   * SESSION 50: A CHURCHYARD AND A SCHOOL ARE PLANTED, NOT SCATTERED. This
+   * condition read `kind === 'park'`, so the two other kinds whose ground is
+   * GRASS got the uniform island scatter — and the paragraph above says in as
+   * many words what that looks like: *"trees scattered uniformly over an island
+   * read as an orchard."* `s50-church-air` at the floor alone is that sentence
+   * as a picture. Same clumps, same Gaussian, same island-derived bounds; the
+   * bench and bin stations come with it, and both kinds now have a path for
+   * those stations to follow.
+   */
+  if (kind === 'park' || kind === 'church' || kind === 'school') {
     const clumpRng = chunkRng(rootSeed, cx, cz, 'clump');
     for (let i = 0; i < PARK.clumps; i++) {
       parkClumps.push({
