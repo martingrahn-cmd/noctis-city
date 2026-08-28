@@ -6598,8 +6598,21 @@ const QUAY_SETBACKS = {
  */
 const PROP_SETBACKS = { landmark: 3, precinct: 3 };
 
-/** A landmark apron's own furniture: 3 m off the structure, and inside its precinct. */
-const APRON_SETBACKS = { landmark: 3 };
+/**
+ * A landmark apron's own furniture: 3 m off the structure, and inside its
+ * precinct.
+ *
+ * `feature: 0.25` IS A DELIVERED-EXTENT MARGIN AND NOT A TASTE. A prop's
+ * registry claim is `propHalfWidth`, which is the model's own half-width, and
+ * `city.js` draws the boxes that model is made of — the two agree to a
+ * millimetre and not to zero. Placed hard against a railing the sweep reported
+ * `prop(bench) x feature(edge:wall)` at **0.001 m²**, which is a fifth
+ * delivered overlap earned by a tolerance rather than by a mistake. A quarter
+ * of a metre is under the 0.35 m this file already calls the smallest gap
+ * worth having, and it is also what a bench standing clear of a wall looks
+ * like.
+ */
+const APRON_SETBACKS = { landmark: 3, feature: 0.25 };
 
 /**
  * Metres. The smallest ground rectangle worth emitting after a clip.
@@ -11282,7 +11295,17 @@ export function generateChunk(rootSeed, cx, cz) {
           if (reg.conflict(box)) continue;
           features.push({
             kind: 'edge', edge: spec.edge, x, z,
-            length: APRON_BAY_M, height: spec.edgeHeight, yawDeg: yawDeg + 90,
+            length: APRON_BAY_M, height: spec.edgeHeight,
+            /**
+             * THE BOUNDARY IS ALIGNED TO ITS OWN CHORD AND SAYS SO. A run of
+             * railing round a circle is at every angle by construction, so it
+             * declares `refDeg` — its own tangent — and the alignment
+             * criterion measures the deviation FROM that rather than from the
+             * world axes. That field exists for exactly this: session 35 found
+             * the gate reading a promenade bollard's 11.46 degree world yaw as
+             * 11.46 degrees of deviation because the projection dropped it.
+             */
+            yawDeg: yawDeg + 90, refDeg: yawDeg + 90,
           });
           reg.claim(box);
         }
@@ -11333,8 +11356,26 @@ export function generateChunk(rootSeed, cx, cz) {
         const spot = claimAt('prop', x, z, half, half, { owner: `${l.name}:apron` });
         if (reg.conflict(spot, 0, APRON_SETBACKS)) continue;
         reg.claim(spot);
+        /**
+         * `yaw()` AND NOT A FREE ROTATION, AND THE GATE SAID SO IN ONE LINE.
+         *
+         * The first arm drew `apronRng.range(0, 360)`, and `citycheck`'s
+         * alignment criterion measures a prop's deviation from the axis it
+         * declares itself aligned to (`refDeg`) against a 3 degree ceiling:
+         * **largest deviation 42.80 degrees**, on a criterion that had been
+         * green for sixteen sessions. A free rotation is not a hand-placed
+         * object, it is an object nobody placed — which is the sentence that
+         * criterion exists to make checkable.
+         *
+         * `yaw()` is the city's own jitter — `CITY.offAxisFraction` of props
+         * take a Gaussian at a third of `CITY.maxYawDeg` and the rest are
+         * square — and it is what `stack()` and every other fixture in this
+         * file uses. It draws from `yawRng`, which is safe HERE and would not
+         * be anywhere else: the apron runs LAST, after the scatter, so a draw
+         * taken now displaces nothing.
+         */
         props.push({
-          x, z, yawDeg: apronRng.range(0, 360), refDeg: 0, kerb: false, kind: pk,
+          x, z, yawDeg: yaw(), refDeg: 0, kerb: false, kind: pk,
           scale: apronRng.range(PROP_SCALE.min, PROP_SCALE.max),
           variant: apronRng.int(0, propVariantCount(pk) - 1),
           soil: apronRng.range(0.5, 0.95), lean: 0, leanAzDeg: 0, core: true,
