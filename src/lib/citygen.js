@@ -3555,13 +3555,58 @@ export function landmarkOccluders(l) {
       }
       return out;
     }
-    case 'arch':
+    case 'arch': {
       // The two legs. The span between them is open, which is the point of an
       // arch and the reason it does not read as a wall in the field.
-      return [
+      const legs = [
         box(l.x - l.span / 2, l.z, l.thickness, l.thickness, l.height * 0.72),
         box(l.x + l.span / 2, l.z, l.thickness, l.thickness, l.height * 0.72),
       ];
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * AND THE DECK THE ARCH IS CARRYING WAS CLAIMED BY NOBODY — SESSION 47.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * `LANDMARKS` describes this thing as *"a 96 m parabolic arch carrying
+       * the transit deck across the arterial"*, and `city.js` builds that deck:
+       * `push(l.x, l.height + 3.2, l.z, l.span * 0.92, 1.4, l.thickness * 1.7)`
+       * — **108.6 × 12.75 m of structure at 98.5 to 99.9 m**, plus nine
+       * hangers down to the arc. This list had two legs in it and nothing else,
+       * so `emitcensus` measured the deck at **997.93 m² with no solid claim
+       * over it at any height, reaching 47.53 m past the nearest one**.
+       *
+       * IT IS EXACTLY SESSION 23's VIADUCT END MASS, one landmark over. The
+       * viaduct's deck segments carry `deck: true` and became `kind: 'deck'`
+       * claims in session 34; the arch's deck was never in the list at all, so
+       * neither half of the two-sided check has ever known it is there.
+       *
+       * `deck` AND NOT `landmark`, which is the split the viaduct's own note
+       * three cases down already writes out: `deck` conflicts with `building`
+       * alone and the test is on `[y0, y1]`, so a 150 m tower under this thing
+       * is refused and a 40 m one is not — which is what a bridge 99 m up
+       * means. A `landmark` claim would take the arterial it crosses out of the
+       * road network, which is the opposite of what an arch is for.
+       *
+       * `base` IS THE HANGERS' OWN FOOT and not the deck soffit. The nine
+       * hangers run from the deck down to the parabola, so the lowest structure
+       * in this footprint is the arc at the span's ends — `height · (1 − 1²)`
+       * = 0 at the very ends, but the hangers only reach `±0.43·span`, where
+       * the parabola is at `height · (1 − 0.86²)` = 0.26·height. Taking that as
+       * the base claims the hangers and leaves the opening under them open.
+       *
+       * COST, measured by `emitcensus` before it was written: **0 new forbidden
+       * pairs** for the deck and 0 for the hangers.
+       */
+      const deckHalfX = (l.span * 0.92) / 2;
+      const deckHalfZ = (l.thickness * 1.7) / 2;
+      const deckY = l.height + 3.2;
+      legs.push({
+        ...box(l.x, l.z, deckHalfX, deckHalfZ, deckY + 0.7),
+        base: l.height * (1 - Math.pow(0.86, 2)),
+        deck: true,
+      });
+      return legs;
+    }
     case 'viaduct': {
       // The same stations the deck is drawn from, so the bake marches against
       // the bridge that is on screen. Session 4 sampled the curve at 14 here
@@ -3917,7 +3962,20 @@ export function landmarkGroundBlockers(l) {
   // object's plan silhouette, and the bake box is an area match that is 0.70 of
   // it under the dish. Same list, the other pair of numbers.
   if (l.kind !== 'viaduct') {
-    return landmarkOccluders(l).map((o) => ({
+    /**
+     * A DECK STOPS NOBODY, AND SESSION 47 IS THE FIRST SESSION IN WHICH A
+     * NON-VIADUCT LANDMARK HAS ONE. This function's own header says a viaduct
+     * is *"the first structure in this city that a person walks UNDER, so the
+     * two answers separate"* — and then the split was implemented as
+     * `kind === 'viaduct'` rather than as `o.deck`, which is the same mistake
+     * one level down: a KIND standing in for a PROPERTY. The arch now carries a
+     * transit deck at 99 m, so without this line its 108.6 x 12.75 m soffit
+     * would wall off the arterial it was built to cross, in the walkability
+     * flood fill and in every prop test that reads this list.
+     * `landmarkGroundClaims` two hundred lines down has tested `o.deck` since
+     * session 34; this is the same test, in the second of the three readers.
+     */
+    return landmarkOccluders(l).filter((o) => !o.deck).map((o) => ({
       ...o, x0: o.gx0, x1: o.gx1, z0: o.gz0, z1: o.gz1,
     }));
   }
@@ -4829,7 +4887,12 @@ export function landmarkBlocks(l, x, z, pad = 0) {
     return Math.hypot(x - l.x, z - l.z) < r;
   }
   for (const b of boxes) {
-    // Ground extents — "does a landmark stand here" is a ground question.
+    // Ground extents — "does a landmark stand here" is a ground question, and a
+    // DECK is the one box in this list that answers it `no` however wide it is.
+    // Session 47, the third reader; see `landmarkGroundBlockers`. It matters for
+    // the viaduct too and always did — 352 deck segments — and was invisible
+    // because this spelling has no callers left (STATE 34 §11).
+    if (b.deck) continue;
     if (x > b.gx0 - pad && x < b.gx1 + pad && z > b.gz0 - pad && z < b.gz1 + pad) return true;
   }
   return false;
