@@ -9332,13 +9332,16 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('parkingGround', 'parking');
         const p = at(0, -20);
-        placeMass('shed', p.x, p.z, G.hospLongM, G.hospDeepM,
+        const slab = placeMass('shed', p.x, p.z, G.hospLongM, G.hospDeepM,
           G.hospStoreyM * G.hospFloors + 1.1, 'hospital:slab',
           { height: G.hospStoreyM * G.hospFloors, floors: G.hospFloors, style: 'window',
             albedo: [0.46, 0.452, 0.435] });
         const t = at(-G.hospLongM * 0.28, -20 + G.hospDeepM / 2 + G.hospTowerHalfM + 1.5);
-        placeTower(t.x, t.z, G.hospTowerHalfM, G.hospTowerM, 'flat',
-          [0.46, 0.452, 0.435], 'hospital:tower');
+        /** Same rule: the tower is what the slab is tall for. */
+        if (slab) {
+          placeTower(t.x, t.z, G.hospTowerHalfM, G.hospTowerM, 'flat',
+            [0.46, 0.452, 0.435], 'hospital:tower');
+        }
         const c = at(G.hospLongM * 0.22, 4);
         placeMass('canopy', c.x, c.z, G.hospBayLongM, G.hospBayDeepM, G.hospBayHighM + 1.6,
           'hospital:bay', { height: G.hospBayHighM, albedo: [0.42, 0.40, 0.38] },
@@ -9360,12 +9363,26 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('siteGround', 'site');
         const p = at(0, -26);
-        placeMass('shed', p.x, p.z, G.fireLongM, G.fireDeepM, G.fireHighM + 1.1, 'fire:house',
+        const house = placeMass('shed', p.x, p.z, G.fireLongM, G.fireDeepM, G.fireHighM + 1.1, 'fire:house',
           { height: G.fireHighM, floors: 2, style: 'bay', bays: G.fireBays,
             albedo: [0.38, 0.30, 0.28] });
         const t = at(G.fireLongM * 0.5 + G.fireTowerHalfM + 1.0, -26);
-        placeTower(t.x, t.z, G.fireTowerHalfM, G.fireTowerM, 'flat',
-          [0.38, 0.30, 0.28], 'fire:tower');
+        /**
+         * A VERTICAL ONLY IF ITS OWN BUILDING STOOD — session 49. `placeMass`
+         * has returned the record or `null` since the port lost nine sheds to
+         * the river, and NOTHING READ THE RETURN, so a chunk whose mass was
+         * refused still got its tower: at seed 1337 one fire station of two
+         * delivered an 18 m hose tower alone in an empty yard, because the
+         * viaduct's own claim sits across that island and a 34 x 14 shed does
+         * not fit between the piers where a 6.4 m tower does. A yard with a
+         * fence and no shed reads as a yard, which is fine; a lone tower reads
+         * as a mistake. The refusal was CORRECT — this is the consequence of it
+         * that was not carried through.
+         */
+        if (house) {
+          placeTower(t.x, t.z, G.fireTowerHalfM, G.fireTowerM, 'flat',
+            [0.38, 0.30, 0.28], 'fire:tower');
+        }
         const v = at(-10, 10);
         parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
         fence('palisade', D.palisadeHeight, 'fire:palisade');
@@ -9448,11 +9465,15 @@ export function generateChunk(rootSeed, cx, cz) {
           z0: mz - (alongX ? 16 : 26), z1: mz + (alongX ? 16 : 26) };
         for (const g of subtractBoxes([sq], islandSolids())) ground.push(g);
         const p = at(6, -26);
-        placeMass('shed', p.x, p.z, G.naveLongM, G.naveDeepM, G.naveHighM + 1.1, 'church:nave',
+        const nave = placeMass('shed', p.x, p.z, G.naveLongM, G.naveDeepM, G.naveHighM + 1.1,
+          'church:nave',
           { height: G.naveHighM, floors: 1, style: 'window', albedo: [0.34, 0.30, 0.25] });
         const t = at(6 - G.naveLongM * 0.5 - G.spireHalfM - 1.0, -26);
-        placeTower(t.x, t.z, G.spireHalfM, G.spireM, 'spire',
-          [0.34, 0.30, 0.25], 'church:spire');
+        /** A spire without its nave is the same misread as a hose tower without its bays. */
+        if (nave) {
+          placeTower(t.x, t.z, G.spireHalfM, G.spireM, 'spire',
+            [0.34, 0.30, 0.25], 'church:spire');
+        }
         fence('hedge', 1.4, 'church:hedge');
       } else if (kind === 'port') {
         /**
