@@ -2102,6 +2102,43 @@ export const PROGRAM_KINDS = new Set([
   'school', 'hospital', 'firestation', 'industrial', 'market', 'depot', 'church', 'port',
 ]);
 
+/**
+ * THE SHED'S OWN OVERHANGS, EXPORTED BECAUSE `city.js` DRAWS THEM AND
+ * `placeMass` MUST CLAIM THEM — session 50, and both were found by the
+ * delivered sweep the moment this session put a path and a container next to a
+ * shed. Same arrangement as `LOW_WALL`, session 47.
+ *
+ * `dockReachM` IS THE ONE THAT MATTERED. A `dock` shed draws a loading platform
+ * at `d / 2 + 0.9` that is 1.8 m deep, so it stands **1.8 m outside the body**,
+ * and `placeMass` claimed the body alone: `prop(container) x feature(shed:)` at
+ * 0.773 m² and two `path(ground:path) x feature(shed:)` at 0.364. A platform
+ * outside the wall is CORRECT — that is what a loading dock is — so the claim
+ * grows to meet the draw rather than the other way round, and it grows on BOTH
+ * sides because which side `+v` is after `alongX` is exactly the question
+ * CONTRACT §9 keeps catching this file on.
+ *
+ * `parapetLongFactor` IS THE THIRD TIME THIS PROJECT HAS SHIPPED A COPING WIDER
+ * THAN THE THING IT COPES. The pond's was 2% (session 48), the park centre's
+ * arrived through a yaw (session 49), and the shed's is `w * 1.01` by
+ * `d * 1.02` against a claim of exactly `w` by `d`. It is 0.22 m on a 44 m
+ * shed — invisible, and forbidden. Flush.
+ */
+export const SHED = {
+  dockReachM: 1.8,
+  parapetLongFactor: 1.0,
+  parapetDeepFactor: 1.0,
+  /**
+   * WHAT THE LONG FACE CARRIES, AND IT HAS TO STAND PROUD. A ribbon window sits
+   * at `d / 2 + 0.04` and an appliance door at `d / 2 + 0.06`; INSETTING them
+   * to remove the overhang would bury them inside an opaque body and they would
+   * not be drawn at all. So the claim grows to meet the draw. The deepest of
+   * the three is the `bay` door at `0.06 + 0.14 / 2` = 0.13; 0.14 covers all
+   * of them and is the number `placeMass` adds on the depth axis for EVERY
+   * shed, whatever its style.
+   */
+  faceProudM: 0.14,
+};
+
 export const PROGRAM = {
   /** Metres. A school block: two storeys, a long face to the playground. */
   schoolLongM: 58, schoolDeepM: 14, schoolStoreyM: 4.0, schoolFloors: 2,
@@ -9311,8 +9348,16 @@ export function generateChunk(rootSeed, cx, cz) {
       const placeMass = (fkind, x, z, long, deep, top, owner, extra, opts = {}) => {
         const cat = opts.category || 'building';
         const base = opts.base || 0;
-        const hx = alongX ? long / 2 : deep / 2;
-        const hz = alongX ? deep / 2 : long / 2;
+        /**
+         * A `dock` SHED'S PLATFORM STANDS OUTSIDE ITS OWN WALL — `SHED.dockReachM`,
+         * claimed on both sides because which side it is on depends on `alongX`
+         * and guessing that is how this file has been wrong three times.
+         */
+        const grow = fkind === 'shed'
+          ? SHED.faceProudM + (extra && extra.style === 'dock' ? SHED.dockReachM : 0)
+          : 0;
+        const hx = (alongX ? long / 2 : deep / 2 + grow);
+        const hz = (alongX ? deep / 2 + grow : long / 2);
         /**
          * IT SEARCHES, AND THE FIRST ARM DID NOT — which delivered a WHARF WITH
          * NO SHED ON IT. A port chunk is one the river envelope reaches, so

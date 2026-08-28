@@ -62,6 +62,7 @@ import {
   LANDMARKS,
   ZIGGURAT_STEP_YAW_DEG,
   LOW_WALL,
+  SHED,
   landmarkOccluders,
   landmarkGroundBlockers,
   landmarkGroundClaims,
@@ -3205,8 +3206,15 @@ export function createCity(options = {}) {
           const glass = [0.055, 0.075, 0.095];
           const dark = [0.13, 0.128, 0.124];
           put(0, h / 2, 0, w, h, d, body, 0.86);
-          /** The parapet — the one line that stops a box reading as a box. */
-          put(0, h + 0.35, 0, w * 1.01, 0.7, d * 1.02, trim, 0.8);
+          /**
+           * The parapet — the one line that stops a box reading as a box, and
+           * it was drawn `w * 1.01` by `d * 1.02` against a claim of exactly
+           * `w` by `d`. FLUSH, from `SHED`, which is the third coping in this
+           * project to be wider than the thing it copes (the pond, session 48;
+           * the park centre's yaw, session 49). 0.22 m on a 44 m shed: invisible
+           * to look at and three forbidden overlaps to the delivered sweep.
+           */
+          put(0, h + 0.35, 0, w * SHED.parapetLongFactor, 0.7, d * SHED.parapetDeepFactor, trim, 0.8);
           const floors = Math.max(1, f.floors || 1);
           if (f.style === 'window') {
             for (let k = 0; k < floors; k++) {
@@ -3217,7 +3225,7 @@ export function createCity(options = {}) {
             }
           } else if (f.style === 'dock') {
             /** A loading platform at lorry-bed height with shutters over it. */
-            put(0, 0.6, d / 2 + 0.9, w * 0.96, 1.2, 1.8, trim, 0.9);
+            put(0, 0.6, d / 2 + SHED.dockReachM / 2, w * 0.96, 1.2, SHED.dockReachM, trim, 0.9);
             const n = Math.max(2, Math.round(w / 7));
             for (let i = 0; i < n; i++) {
               const dx = (-0.5 + (i + 0.5) / n) * w * 0.9;
