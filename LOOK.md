@@ -475,6 +475,48 @@ It is that the street wall is broken.
   with occasional towers standing well clear. `citygen.js` already carries the
   argument and both measured arms: sd/mean 0.664 against today's 0.425, p99
   134 m against 65.
+- **AND EVERY BLOCK WAS HOUSING-SHAPED OR EMPTY-SHAPED, WHICH IS A DIFFERENT
+  DEFECT FROM DENSITY AND IS THE ONE THE OPERATOR NAMED — SESSION 48.** His
+  words: *"density, but not only houses: sports arenas, a football stadium,
+  parks, playgrounds, basketball courts, multi-storey car parks. Everything a
+  city needs."* Every bullet above this one is about HOW MUCH is built; this is
+  about WHAT. Before session 48 the answer was five building eras, five kinds of
+  empty, eight authored landmarks and a river — and nothing anywhere in it was a
+  pitch, a court, a playground, a car park or a ground.
+
+  **THE MACHINERY WAS ALREADY THERE AND ITS NAME WAS THE MISLEADING PART.**
+  `lowDetail` does not mean *"little here"* — a construction site with a 40 m
+  crane on it is a low-detail chunk — it means **the perimeter walk does not run
+  on this island**, which is exactly and only the property a block-scale object
+  needs. So the five new places are five new low-detail kinds and nothing was
+  built to place them:
+
+  ```
+    pitch        grass, touchlines, two goals, a ball-stop, four floodlight masts
+    court        two courts on a macadam pad set into a lawn, four hoops
+    playground   a safety surface, a play frame with a slide, a swing set
+    carpark      five open decks at 2.90 m, an upstand a level, 35 cars on it
+    stadium      four raked stands with open corners round a pitch
+  ```
+
+  **WHERE EACH GOES IS DERIVED, WHICH IS WHAT THIS SECTION ASKS FOR AND IS THE
+  half THAT STOPS IT LOOKING GENERATED.** A playground belongs where people
+  live, a court is a leftover corner, a pitch needs a whole flat block nobody
+  built on, a deck park is *"the edge of the dense core where people drive to
+  and then walk"* and a stadium goes where land is cheap. All five are cuts in
+  the chunk's own density — and the cuts are the MEASURED terciles and quantiles
+  of the low-detail population, not of the band it lives in, because the band is
+  not uniformly occupied: the first arm split [0, 0.34) in thirds and delivered
+  **seven playgrounds out of seven**. §3's own *"a band whose top touches the
+  target delivers the target never"*, with a floor instead of a ceiling.
+
+  **IT COST NOTHING.** Not one draw call and not one triangle to three figures
+  on any of the four gate routes: `highway_speed` reads 396 of 440 and 2.23 M of
+  2 360 000 exactly as it did before. A stadium is about 324 boxes against the
+  123 117 the resident ring already carries in buildings, so the ceiling was
+  never the limit for block-scale program — **authoring time is.** What is still
+  missing is an arena, and everything that is not sport: a school, a depot, a
+  market hall, a hospital.
 - **Density has causes.** A river, a viaduct, an elevated railway with stations
   — the city already has all four and nothing reads them. Land by water and by
   transit gets built tall and to the line. Land under a viaduct gets sheds and
