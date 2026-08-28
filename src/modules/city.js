@@ -3178,6 +3178,110 @@ export function createCity(options = {}) {
           for (let k = 1; k < f.levels; k++) {
             put(0, k * f.storey, 0, half * 2 + 0.6, 0.26, half * 2 + 0.6, [0.33, 0.325, 0.31], 0.9);
           }
+        } else if (f.kind === 'shed') {
+          /**
+           * ═══════════════════════════════════════════════════════════════════
+           * THE SHARED BLOCK — SESSION 49, AND IT IS FOUR PLACES' WORTH OF
+           * BUILDING IN ONE FEATURE.
+           * ═══════════════════════════════════════════════════════════════════
+           *
+           * A school, a hospital slab, a fire station, an industrial shed, a
+           * depot workshop and a market's flank are all THE SAME OBJECT at
+           * different proportions: a long low mass with a parapet and something
+           * on its long face. Session 48 built five places by writing five
+           * bespoke draws; this session has eight to build, so the vocabulary
+           * comes first and the places compose out of it.
+           *
+           * `style` is what the long face carries and it is the only thing that
+           * differs: `window` a ribbon per floor, `dock` roller shutters on a
+           * raised platform, `bay` full-height openings (an appliance bay),
+           * `blank` nothing at all.
+           */
+          const w = f.length;
+          const d = f.depth;
+          const h = f.height;
+          const body = f.albedo || [0.36, 0.352, 0.334];
+          const trim = [body[0] * 0.72, body[1] * 0.72, body[2] * 0.70];
+          const glass = [0.055, 0.075, 0.095];
+          const dark = [0.13, 0.128, 0.124];
+          put(0, h / 2, 0, w, h, d, body, 0.86);
+          /** The parapet — the one line that stops a box reading as a box. */
+          put(0, h + 0.35, 0, w * 1.01, 0.7, d * 1.02, trim, 0.8);
+          const floors = Math.max(1, f.floors || 1);
+          if (f.style === 'window') {
+            for (let k = 0; k < floors; k++) {
+              const y = ((k + 0.62) / floors) * h;
+              for (const e of [-1, 1]) {
+                put(0, y, e * (d / 2 + 0.04), w * 0.92, (h / floors) * 0.42, 0.10, glass, 0.12);
+              }
+            }
+          } else if (f.style === 'dock') {
+            /** A loading platform at lorry-bed height with shutters over it. */
+            put(0, 0.6, d / 2 + 0.9, w * 0.96, 1.2, 1.8, trim, 0.9);
+            const n = Math.max(2, Math.round(w / 7));
+            for (let i = 0; i < n; i++) {
+              const dx = (-0.5 + (i + 0.5) / n) * w * 0.9;
+              put(dx, 2.2, d / 2 + 0.06, w * 0.9 / n * 0.66, 3.2, 0.12, dark, 0.7);
+            }
+          } else if (f.style === 'bay') {
+            /** Appliance doors: full height, the width of a machine, and red. */
+            const n = Math.max(2, f.bays || 3);
+            for (let i = 0; i < n; i++) {
+              const dx = (-0.5 + (i + 0.5) / n) * w * 0.92;
+              put(dx, 2.1, d / 2 + 0.06, (w * 0.92 / n) * 0.78, 4.2, 0.14, [0.30, 0.055, 0.045], 0.6);
+            }
+          }
+          /** Roof plant, so the top is not a lid. Two boxes, always. */
+          put(w * 0.22, h + 1.5, 0, w * 0.18, 1.6, d * 0.4, trim, 0.9);
+          put(-w * 0.28, h + 1.0, d * 0.18, 2.2, 0.9, 2.2, dark, 0.9);
+        } else if (f.kind === 'canopy') {
+          /**
+           * A ROOF ON COLUMNS — session 49. A market hall, a depot's parking
+           * cover, an ambulance bay and a wharf shed are one object: a big
+           * plane held up at its corners with air under it, which is the
+           * silhouette none of this city's prisms has.
+           */
+          const w = f.length;
+          const d = f.depth;
+          const h = f.height;
+          const steel = [0.30, 0.305, 0.312];
+          const deck = f.albedo || [0.34, 0.336, 0.322];
+          put(0, h + 0.35, 0, w, 0.7, d, deck, 0.84);
+          /** A shallow ridge, so the roof is a roof rather than a slab. */
+          put(0, h + 1.0, 0, w * 0.9, 0.6, d * 0.32, deck, 0.84);
+          const n = Math.max(2, Math.round(w / 9));
+          for (let i = 0; i <= n; i++) {
+            const dx = (-0.5 + i / n) * w * 0.94;
+            for (const e of [-1, 1]) put(dx, h / 2, e * d * 0.44, 0.34, h, 0.34, steel, 0.7);
+          }
+          /** A fascia on the two long edges — what a market roof shows a street. */
+          for (const e of [-1, 1]) put(0, h - 0.1, e * d / 2, w, 0.8, 0.16, steel, 0.66);
+        } else if (f.kind === 'tower') {
+          /**
+           * ONE TALL VOLUME — session 49, and it is the whole of what a church,
+           * a fire station's hose tower and a hospital's stair core have in
+           * common. `cap` is the only difference and it is the difference that
+           * reads at a kilometre: a spire is a taper, a drum is a cylinder-ish
+           * mass, `flat` is a parapet.
+           */
+          const hw = f.half;
+          const h = f.height;
+          const body = f.albedo || [0.34, 0.33, 0.31];
+          const trim = [body[0] * 0.7, body[1] * 0.7, body[2] * 0.68];
+          put(0, h / 2, 0, hw * 2, h, hw * 2, body, 0.88);
+          put(0, h + 0.4, 0, hw * 2.16, 0.8, hw * 2.16, trim, 0.82);
+          if (f.cap === 'spire') {
+            for (let k = 0; k < 5; k++) {
+              const t = k / 5;
+              put(0, h + 1.0 + t * hw * 3.2, 0, hw * 2 * (1 - t * 0.86), (hw * 3.2) / 5,
+                hw * 2 * (1 - t * 0.86), trim, 0.8);
+            }
+          } else if (f.cap === 'drum') {
+            put(0, h + 1.6, 0, hw * 1.7, 1.8, hw * 1.7, trim, 0.8);
+            put(0, h + 3.0, 0, hw * 0.9, 1.4, hw * 0.9, trim, 0.8);
+          }
+          /** A slot of glazing up one face, so the mass has a front. */
+          put(0, h * 0.52, hw + 0.05, hw * 0.5, h * 0.7, 0.10, [0.05, 0.07, 0.09], 0.12);
         } else if (f.kind === 'stand') {
           /**
            * A STADIUM STAND — session 48. Raked seating in `tiers` steps, a
@@ -3403,9 +3507,29 @@ export function createCity(options = {}) {
              */
             kind: f.kind === 'hoarding' || f.kind === 'spoil' || f.kind === 'frame'
               || f.kind === 'crane' || f.kind === 'flood' || f.kind === 'stub' ? 'site'
-              : f.kind === 'parked' ? 'prop' : 'feature',
+              : f.kind === 'parked' ? 'prop'
+                /**
+                 * A ROOF ON POSTS IS `canopy` ON BOTH SIDES — session 49.
+                 * `occupancy.js`'s own category for the part of a thing that is
+                 * over your head, which conflicts with solids and not with what
+                 * stands under it. The generator claims a market hall and a
+                 * depot cover that way; this is the delivered half, and until it
+                 * matched, the sweep reported **12
+                 * `feature(canopy) × prop(parked)`** — a depot colliding with
+                 * the vehicles it is built to cover.
+                 */
+                : f.kind === 'canopy' ? 'canopy' : 'feature',
             owner: `${f.kind}:${f.edge || f.centre || ''}`,
-            x0: fx0, x1: fx1, z0: fz0, z1: fz1, y0: 0, y1: Math.max(0.05, fTop),
+            x0: fx0, x1: fx1, z0: fz0, z1: fz1,
+            /**
+             * `y0` WAS A HARD-CODED 0 AND SESSION 48 ONLY HALF-CLOSED IT. That
+             * session made LIFTED features skip the claim entirely; this one
+             * gives the rest a base, because a canopy's claim has to start at
+             * its own soffit or everything under it is a conflict. `f.height`
+             * is the soffit for a `canopy` and the ground for everything else.
+             */
+            y0: f.kind === 'canopy' ? f.height : 0,
+            y1: Math.max(0.05, fTop),
           });
         }
       }

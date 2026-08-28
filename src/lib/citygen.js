@@ -2049,7 +2049,83 @@ export const ROAD_MATERIALS = ['asphalt', 'patched', 'concrete'];
 // ---------------------------------------------------------------------------
 // dead zones — docs/authored-city.md §5
 
-export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction', 'recreation', 'carpark'];
+export const LOW_DETAIL_KINDS = [
+  'parking', 'lot', 'yard', 'park', 'construction', 'recreation', 'carpark',
+  /**
+   * SESSION 49 — THE PROGRAM. See `PROGRAM` for what each one is and, more to
+   * the point, for where each one goes: every entry below carries a condition,
+   * and a roll whose condition fails FALLS THROUGH to a neighbouring kind
+   * rather than being re-rolled — the arrangement `carpark` established in
+   * session 48, because falling through makes two kinds one decision about the
+   * land and re-rolling makes them compete for a die face.
+   */
+  'school', 'hospital', 'firestation', 'industrial', 'market', 'depot', 'church', 'port',
+];
+
+/**
+ * WHAT A CITY NEEDS THAT IS NEITHER A HOUSE NOR A PITCH — SESSION 49.
+ *
+ * Session 48 built five kinds of place and proved the budget is not the limit:
+ * a stadium is 324 boxes and 3 900 triangles against 130 000 spare, so forty
+ * car parks would fit. **What limits block-scale program is authoring time**,
+ * and the answer to that is a shared vocabulary rather than eight bespoke
+ * draws. `city.js` gained three feature kinds this session — `shed`, `canopy`
+ * and `tower` — and the eight places below are compositions of those three
+ * plus what session 40 and 48 already built.
+ *
+ * EVERY PLACEMENT IS DERIVED FROM SOMETHING THE CITY ALREADY KNOWS, and the
+ * cuts are the MEASURED quantiles of the low-detail population (see
+ * `RECREATION` for the 237-chunk distribution) rather than the thirds of the
+ * band it lives in — which is session 48's own lesson, learnt when the band's
+ * thirds delivered seven playgrounds out of seven.
+ *
+ *   school       where people live      density >= p33, the same land a
+ *                                       playground takes
+ *   hospital     an arterial            the chunk's own west boundary carries a
+ *                                       RIVER BRIDGE, which is the one road in
+ *                                       this city that is a through route by
+ *                                       construction (`bridgeX`, every 512 m)
+ *   firestation  a corner, clear access the middle tercile — between the core it
+ *                                       serves and the roads it needs
+ *   industrial   cheap land, freight    the river, the viaduct, or density < p33
+ *   market       the dense core         density >= p67, where the retail
+ *                                       frontage roll is already highest
+ *   depot        near the viaduct       the viaduct's own AABB, padded a chunk
+ *   church       anywhere               no condition: a parish is not a land use
+ *   port         the water              `riverTouchesChunk`, and nothing else
+ */
+/**
+ * The eight, as a set, so the one branch that builds them all can be selected
+ * without an eight-way `||`. `LOW_DETAIL_KINDS` keeps the order the die reads.
+ */
+export const PROGRAM_KINDS = new Set([
+  'school', 'hospital', 'firestation', 'industrial', 'market', 'depot', 'church', 'port',
+]);
+
+export const PROGRAM = {
+  /** Metres. A school block: two storeys, a long face to the playground. */
+  schoolLongM: 58, schoolDeepM: 14, schoolStoreyM: 4.0, schoolFloors: 2,
+  /** Metres. A hospital slab and the tower on it. */
+  hospLongM: 56, hospDeepM: 18, hospFloors: 4, hospStoreyM: 3.6,
+  hospTowerHalfM: 7.0, hospTowerM: 34,
+  /** Metres. Ambulance bay: a canopy a vehicle turns under. */
+  hospBayLongM: 16, hospBayDeepM: 9, hospBayHighM: 4.6,
+  /** Metres. A fire station: three appliance bays and a hose tower. */
+  fireLongM: 34, fireDeepM: 14, fireHighM: 7.4, fireBays: 3,
+  fireTowerHalfM: 3.2, fireTowerM: 18,
+  /** Metres. An industrial shed, and how many an estate carries. */
+  shedLongM: 44, shedDeepM: 22, shedHighM: 9.5, sheds: 2,
+  /** Metres. A market hall: one roof, open sides, a forecourt. */
+  marketLongM: 62, marketDeepM: 34, marketHighM: 7.2,
+  /** Metres. A depot: a parking canopy and a workshop beside it. */
+  depotLongM: 62, depotDeepM: 26, depotHighM: 6.0,
+  depotShopLongM: 28, depotShopDeepM: 14, depotShopHighM: 8.0,
+  /** Metres. A church: a nave and a spire. */
+  naveLongM: 30, naveDeepM: 13, naveHighM: 11,
+  spireHalfM: 3.6, spireM: 21,
+  /** Metres. A wharf shed and the container stacks beside it. */
+  wharfLongM: 46, wharfDeepM: 18, wharfHighM: 8.0,
+};
 
 /**
  * A MULTI-STOREY CAR PARK — SESSION 48, TIER TWO, AND THE FIRST BLOCK-SCALE
@@ -6258,6 +6334,71 @@ export function generateChunk(rootSeed, cx, cz) {
     ? LOW_DETAIL_KINDS[Math.floor(rng.next() * LOW_DETAIL_KINDS.length)]
     : 'built';
   if (kind === 'carpark' && density < RECREATION.courtBelow) kind = 'parking';
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE PROGRAM'S OWN CONDITIONS — SESSION 49. See `PROGRAM` for each one's
+   * reason; this is the whole of the placement machinery.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * FALL THROUGH, NEVER RE-ROLL, which is session 48's `carpark` rule applied
+   * eight more times: a re-roll makes two kinds compete for one die face, and a
+   * fall-through makes them ONE DECISION ABOUT THE LAND. Land by the water that
+   * did not draw `port` is still waterside land, so it becomes `industrial`;
+   * land in the core that did not draw `market` is still core land, so it
+   * becomes `park`.
+   *
+   * AND TWO SITES OVERRIDE THE DIE ENTIRELY, because a die over fifteen kinds
+   * would put a wharf on the river about once every four hundred chunks and the
+   * city would never have one. `riverTouchesChunk` is true for the two rows the
+   * envelope reaches and the viaduct's AABB for four chunks either side of its
+   * arc, so the override is confined to land that IS the reason for the use.
+   */
+  if (lowDetail) {
+    /**
+     * A WHARF GOES ON THE BANK AND NOT IN THE WATER, AND THE FIRST ARM PUT IT
+     * IN THE WATER. `riverTouchesChunk` is true for the rows the ENVELOPE
+     * reaches, and on those rows the channel takes z −497.9 to −350.3 out of a
+     * 128 m chunk — so a `port` island had **14 m of dry land** and its 46 × 18
+     * shed was refused by the water every time: 9 of 14 ports had no building
+     * on them and none within twelve chunks of the origin at seed 1337. The
+     * quay-side block is the one NEXT to the water, which is also where a wharf
+     * actually is: the cranes are on the quay and the sheds are behind them.
+     */
+    const wet = riverTouchesChunk(cx, cz);
+    const onBank = !wet && (riverTouchesChunk(cx, cz - 1) || riverTouchesChunk(cx, cz + 1));
+    const onRiver = wet || onBank;
+    const vb = landmarkAABB(LANDMARKS.find((l) => l.name === 'viaduct'));
+    const b = chunkBounds(cx, cz);
+    /**
+     * THREE CHUNKS OF PAD AND NOT ONE. A depot serves a railway from within a
+     * few hundred metres of it, and the band has to be wide enough that some of
+     * it is low-detail: at one chunk it held 24 chunks of which about four are,
+     * and there was **no depot within twelve chunks of the origin at seed
+     * 1337**. That is session 48's stadium-at-the-p10 again — a use nobody can
+     * walk to is not shipped — and it is the second time this session, after
+     * the wharf in the water. **The lesson generalises: a condition narrow
+     * enough to be precise is usually narrow enough to be empty, so check the
+     * delivered count at the shipped seed before believing a placement rule.**
+     */
+    const vpad = 3 * CITY.chunkSize;
+    const nearViaduct = b.x1 > vb.x0 - vpad && b.x0 < vb.x1 + vpad
+      && b.z1 > vb.z0 - vpad && b.z0 < vb.z1 + vpad;
+    /** A through route: this chunk's own west boundary carries a river bridge. */
+    const onArterial = Math.abs(b.x0 - bridgeX(bridgeIndexAt(b.x0))) < 1;
+
+    if (onRiver && rng.chance(0.6)) kind = onBank && rng.chance(0.6) ? 'port' : 'industrial';
+    else if (nearViaduct && rng.chance(0.55)) kind = rng.chance(0.6) ? 'depot' : 'industrial';
+
+    if (kind === 'port' && !onBank) kind = 'industrial';
+    if (kind === 'depot' && !nearViaduct) kind = 'industrial';
+    if (kind === 'industrial' && !(onRiver || nearViaduct || density < RECREATION.pitchBelow)) kind = 'yard';
+    if (kind === 'school' && density < RECREATION.pitchBelow) kind = 'recreation';
+    if (kind === 'hospital' && !onArterial) kind = 'carpark';
+    if (kind === 'firestation'
+      && !(density >= RECREATION.pitchBelow && density < RECREATION.courtBelow)) kind = 'lot';
+    if (kind === 'market' && density < RECREATION.courtBelow) kind = 'park';
+    if (kind === 'carpark' && density < RECREATION.courtBelow) kind = 'parking';
+  }
 
   /**
    * Road surface. Three variants, and which one a stretch gets is a function of
@@ -8146,7 +8287,20 @@ export function generateChunk(rootSeed, cx, cz) {
         { y0: 0, y1: centre === 'pavilion' ? 4.4 : centre === 'monument' ? 7.0 : 0.6, owner: `park:${centre}` });
       const hasCentre = !reg.conflict(centreBox);
       if (hasCentre) {
-        features.push({ kind: 'centre', centre, x: mx, z: mz, half: ch, yawDeg: yaw() });
+        /**
+         * A CENTRE IS SQUARE TO ITS OWN PATHS — session 49, and the yaw it used
+         * to take was decoration that cost a conflict. `centre` sits at the
+         * crossing of two AXIAL paths and is claimed as an axis-aligned box, so
+         * a rotation of up to `CITY.maxYawDeg` grows the delivered AABB by
+         * `half · (cos + sin − 1)` = 0.19 m on each side and nothing grows the
+         * claim with it: `path(ground:path) × feature(centre:square)` at 0.5 m²
+         * on four edges. Session 48 fixed the POND's 2% coping overrun and this
+         * is the same reading on the same object, arriving through the yaw
+         * instead of through a literal. Widening the claim does not help — the
+         * delivered census compares DRAWN boxes — so the thing that was wrong
+         * is the rotation, and a square at a crossroads does not have one.
+         */
+        features.push({ kind: 'centre', centre, x: mx, z: mz, half: ch, yawDeg: 0 });
         reg.claim(centreBox);
       }
 
@@ -9008,6 +9162,329 @@ export function generateChunk(rootSeed, cx, cz) {
           kind: 'edge', edge: 'rail', x, z, length: D.edgeSegment, height: D.railHeight, yawDeg,
         }),
       });
+    } else if (PROGRAM_KINDS.has(kind)) {
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * THE PROGRAM — SESSION 49. Eight places out of three feature kinds.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * See `PROGRAM` for what each one is and where it goes; the placement
+       * conditions are up in `generateChunk`'s kind selection. Everything here
+       * is composition: `shed`, `canopy` and `tower` are the vocabulary
+       * `city.js` gained this session, and the surfaces, boundaries, floods,
+       * containers and parked vehicles are what sessions 40 and 48 already
+       * built.
+       */
+      const G = PROGRAM;
+      const D = DEAD_ZONE;
+      const alongX = featRng.chance(0.5);
+
+      /**
+       * ONE HELPER, AND IT COMPUTES THE CLAIM FROM THE SAME `alongX` THE DRAW
+       * USES — which is session 48's stadium defect fixed before it can happen
+       * again. That stand's claim was thin on the axis it stood off (correct)
+       * while the draw ran its length along that same axis, so four stands
+       * crossed a pitch in a plus and no gate could see it, because the CLAIM
+       * was right. Here there is one expression: `yawDeg` and the half-extents
+       * come out of the same boolean.
+       */
+      /**
+       * A ROOF ON POSTS IS `canopy` AND NOT `building`, AND THE FIRST ARM WAS
+       * `building` AND DELIVERED A MARKET HALL WITH NOTHING UNDER IT.
+       *
+       * `occupancy.js` says it in one line: *"the part of a thing that is over
+       * your head", and "it conflicts with SOLIDS ONLY — a canopy inside a wall is
+       * wrong and a canopy over a carriageway is a street tree."* A market's
+       * whole point is that things stand under it, and `building x prop` is
+       * forbidden, so ten stalls were refused by their own roof — 2 halls,
+       * 0 stalls. Claimed from the UNDERSIDE up, so the roof is spoken for and
+       * the ground under it is not.
+       */
+      const placeMass = (fkind, x, z, long, deep, top, owner, extra, opts = {}) => {
+        const cat = opts.category || 'building';
+        const base = opts.base || 0;
+        const hx = alongX ? long / 2 : deep / 2;
+        const hz = alongX ? deep / 2 : long / 2;
+        /**
+         * IT SEARCHES, AND THE FIRST ARM DID NOT — which delivered a WHARF WITH
+         * NO SHED ON IT. A port chunk is one the river envelope reaches, so
+         * `islandSolids()` carries the water and the one nominal position was
+         * refused by it; the same happened to a fire station whose island had
+         * a landmark on it. One try is a placement rule that works only where
+         * nothing else is, which is not where these uses go.
+         *
+         * The sweep is the nominal spot first and then the island's own
+         * quarters, so the answer is deterministic and the smallest move —
+         * the same shape `viaductPiers`' nudge search has.
+         */
+        for (const [du, dv] of [[0, 0], [0, 26], [0, -26], [22, 0], [-22, 0],
+          [0, 44], [0, -44], [30, 22], [-30, -22]]) {
+          const px = x + (alongX ? du : dv);
+          const pz = z + (alongX ? dv : du);
+          if (px - hx < isl.x0 || px + hx > isl.x1 || pz - hz < isl.z0 || pz + hz > isl.z1) continue;
+          const box = claimAt(cat, px, pz, hx, hz, { y0: base, y1: top, owner });
+          if (reg.conflict(box)) continue;
+          reg.claim(box);
+          const f = {
+            kind: fkind, x: px, z: pz, yawDeg: alongX ? 0 : 90,
+            length: long, depth: deep, ...extra,
+          };
+          features.push(f);
+          return f;
+        }
+        return null;
+      };
+      /** Along the island's long axis from its centre, and across it. */
+      const at = (u, v) => ({ x: mx + (alongX ? u : v), z: mz + (alongX ? v : u) });
+      /**
+       * A TOWER, WITH THE SAME SEARCH THE MASSES GET. The first arm put the
+       * hospital's tower at the slab's own centre line and `building x
+       * building` refused **every one of them** — two hospitals, no towers, and
+       * the tower is the whole reason a hospital reads from a distance. A
+       * vertical goes BESIDE the slab it serves, not inside it.
+       */
+      const placeTower = (x, z, half, height, cap, albedo, owner) => {
+        for (const [du, dv] of [[0, 0], [0, 18], [0, -18], [16, 0], [-16, 0], [0, 30], [0, -30]]) {
+          const px = x + (alongX ? du : dv);
+          const pz = z + (alongX ? dv : du);
+          if (px - half < isl.x0 || px + half > isl.x1
+            || pz - half < isl.z0 || pz + half > isl.z1) continue;
+          const box = claimAt('building', px, pz, half, half,
+            { y0: 0, y1: height + half * 3.4, owner });
+          if (reg.conflict(box)) continue;
+          reg.claim(box);
+          features.push({ kind: 'tower', x: px, z: pz, half, height, cap, albedo, yawDeg: 0 });
+          return true;
+        }
+        return false;
+      };
+      /** The island's own surface, cut round everything standing on it. */
+      const lay = (gkind, yKey) => {
+        const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: gkind, yKey };
+        for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+      };
+      /** A boundary of one treatment with one gate, refused wherever a mass is. */
+      const fence = (edge, height, owner) => boundaryRun({
+        inset: D.edgeInset, seg: D.edgeSegment, halfT: 0.07, height,
+        category: 'feature', owner,
+        gateSide: featRng.int(0, 3), gateAt: featRng.range(0.3, 0.7), gateHalf: D.gateHalf,
+        make: (x, z, yawDeg) => ({ kind: 'edge', edge, x, z, length: D.edgeSegment, height, yawDeg }),
+      });
+      /** Two site floods aimed at the middle, the way a yard and a pitch are lit. */
+      const floods = (n) => {
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2 + 0.6;
+          const p = at(Math.cos(a) * 40, Math.sin(a) * 40);
+          if (p.x < isl.x0 + 3 || p.x > isl.x1 - 3 || p.z < isl.z0 + 3 || p.z > isl.z1 - 3) continue;
+          const box = claimAt('site', p.x, p.z, 0.7, 0.7,
+            { y0: 0, y1: SITE.floodHeightM, owner: `${kind}:flood` });
+          if (reg.conflict(box)) continue;
+          features.push({ kind: 'flood', x: p.x, z: p.z, height: SITE.floodHeightM, aimX: mx, aimZ: mz });
+          reg.claim(box);
+        }
+      };
+      /** Stacked containers, which every freight use in this list has. */
+      const stack = (n, spread) => {
+        for (let i = 0; i < n; i++) {
+          const p = at(featRng.range(-spread, spread), featRng.range(-spread, spread));
+          const half = propHalfWidth('container', 0) * 1.1;
+          const spot = claimAt('prop', p.x, p.z, half, half, { owner: 'container' });
+          if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+          reg.claim(spot);
+          props.push({
+            x: p.x, z: p.z, yawDeg: yaw(), refDeg: 0, kerb: false, kind: 'container',
+            scale: 1.1, variant: 0, soil: featRng.range(0.5, 0.95),
+            lean: 0, leanAzDeg: 0, core: true,
+          });
+        }
+      };
+
+      if (kind === 'school') {
+        /**
+         * A LONG LOW BLOCK ALONG ONE EDGE AND A HARD PLAYGROUND IN FRONT OF IT,
+         * which is what a school is from the air and is the only arrangement
+         * that reads as one rather than as an office with a yard.
+         */
+        lay('grass', 'grass');
+        const yard = { kind: 'sportGround', yKey: 'sport',
+          x0: mx - (alongX ? 34 : 22), x1: mx + (alongX ? 34 : 22),
+          z0: mz - (alongX ? 22 : 34), z1: mz + (alongX ? 22 : 34) };
+        for (const g of subtractBoxes([yard], islandSolids())) ground.push(g);
+        const p = at(0, -34);
+        placeMass('shed', p.x, p.z, G.schoolLongM, G.schoolDeepM,
+          G.schoolStoreyM * G.schoolFloors + 1.1, 'school:block',
+          { height: G.schoolStoreyM * G.schoolFloors, floors: G.schoolFloors, style: 'window',
+            albedo: [0.40, 0.375, 0.335] });
+        /** A court on the hard yard, so the playground is a playground. */
+        for (const sgn of [-1, 1]) {
+          const a = at(sgn * 14, 0);
+          markings.push({ x: a.x, z: a.z, length: alongX ? 0.12 : 26, width: alongX ? 26 : 0.12,
+            yawDeg: 0, kind: 'sport' });
+        }
+        fence('railing', 1.6, 'school:fence');
+        floods(2);
+      } else if (kind === 'hospital') {
+        /**
+         * A SLAB WITH A TOWER ON IT AND AN AMBULANCE BAY UNDER A CANOPY. The
+         * tower is what makes it read from a distance — every other mass in
+         * this district is a prism of about one height, and a hospital is the
+         * one civic building that is allowed to be taller than its street.
+         */
+        lay('parkingGround', 'parking');
+        const p = at(0, -20);
+        placeMass('shed', p.x, p.z, G.hospLongM, G.hospDeepM,
+          G.hospStoreyM * G.hospFloors + 1.1, 'hospital:slab',
+          { height: G.hospStoreyM * G.hospFloors, floors: G.hospFloors, style: 'window',
+            albedo: [0.46, 0.452, 0.435] });
+        const t = at(-G.hospLongM * 0.28, -20 + G.hospDeepM / 2 + G.hospTowerHalfM + 1.5);
+        placeTower(t.x, t.z, G.hospTowerHalfM, G.hospTowerM, 'flat',
+          [0.46, 0.452, 0.435], 'hospital:tower');
+        const c = at(G.hospLongM * 0.22, 4);
+        placeMass('canopy', c.x, c.z, G.hospBayLongM, G.hospBayDeepM, G.hospBayHighM + 1.6,
+          'hospital:bay', { height: G.hospBayHighM, albedo: [0.42, 0.40, 0.38] },
+          { category: 'canopy', base: G.hospBayHighM });
+        /** Visitors' parking, marked, which is half of what a hospital site is. */
+        for (let i = 0; i < 14; i++) {
+          const a = at(-30 + i * 4.6, 34);
+          markings.push({ x: a.x, z: a.z, length: alongX ? 0.10 : D.bayL,
+            width: alongX ? D.bayL : 0.10, yawDeg: 0, kind: 'bay' });
+        }
+        fence('rail', D.railHeight, 'hospital:rail');
+        floods(2);
+      } else if (kind === 'firestation') {
+        /**
+         * BAY DOORS FACING THE STREET AND A HOSE TOWER BEHIND THEM. The doors
+         * are the whole silhouette — a fire station is the one building in a
+         * street whose ground floor is mostly opening — and the tower is what
+         * says it is not a bus garage.
+         */
+        lay('siteGround', 'site');
+        const p = at(0, -26);
+        placeMass('shed', p.x, p.z, G.fireLongM, G.fireDeepM, G.fireHighM + 1.1, 'fire:house',
+          { height: G.fireHighM, floors: 2, style: 'bay', bays: G.fireBays,
+            albedo: [0.38, 0.30, 0.28] });
+        const t = at(G.fireLongM * 0.5 + G.fireTowerHalfM + 1.0, -26);
+        placeTower(t.x, t.z, G.fireTowerHalfM, G.fireTowerM, 'flat',
+          [0.38, 0.30, 0.28], 'fire:tower');
+        const v = at(-10, 10);
+        parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
+        fence('palisade', D.palisadeHeight, 'fire:palisade');
+        floods(2);
+      } else if (kind === 'industrial') {
+        /**
+         * SHEDS WITH LOADING DOCKS, HARDSTANDING AND CONTAINERS. It is the
+         * fall-through for every use in this list whose own condition failed,
+         * which is right rather than convenient: land by the water, land under
+         * a viaduct and land nobody wants is industrial land, and that is the
+         * one sentence all three of those have in common.
+         */
+        lay('yardGround', 'yard');
+        for (let i = 0; i < G.sheds; i++) {
+          const p = at(0, -30 + i * 34);
+          placeMass('shed', p.x, p.z, G.shedLongM, G.shedDeepM, G.shedHighM + 1.1,
+            `industrial:shed${i}`,
+            { height: G.shedHighM, floors: 1, style: 'dock', albedo: [0.30, 0.298, 0.286] });
+        }
+        stack(6, 34);
+        for (let i = 0; i < 2; i++) {
+          const v = at(featRng.range(-30, 30), featRng.range(-6, 18));
+          parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
+        }
+        fence('palisade', D.palisadeHeight, 'industrial:palisade');
+        floods(3);
+      } else if (kind === 'market') {
+        /**
+         * ONE LARGE ROOF WITH AIR UNDER IT AND A FORECOURT IN FRONT. Nothing
+         * else in this city is a span — every roof here is the lid of a prism —
+         * so a market hall reads by being the one place you can see under.
+         */
+        lay('parkingGround', 'parking');
+        const p = at(0, -8);
+        placeMass('canopy', p.x, p.z, G.marketLongM, G.marketDeepM, G.marketHighM + 2.0,
+          'market:hall', { height: G.marketHighM, albedo: [0.30, 0.22, 0.16] },
+          { category: 'canopy', base: G.marketHighM });
+        /** The stalls under it: crates and cabinets in two rows, not a scatter. */
+        for (let i = 0; i < 10; i++) {
+          const a = at(-26 + i * 5.8, -8 + (i % 2 ? 7 : -7));
+          const half = propHalfWidth('stack', 0);
+          const spot = claimAt('prop', a.x, a.z, half, half, { owner: 'stack' });
+          if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+          reg.claim(spot);
+          props.push({ x: a.x, z: a.z, yawDeg: alongX ? 0 : 90, refDeg: 0, kerb: false,
+            kind: 'stack', scale: 1.0, variant: 0, soil: 0.7, lean: 0, leanAzDeg: 0, core: true });
+        }
+        floods(2);
+      } else if (kind === 'depot') {
+        /**
+         * A PARKING CANOPY WITH ROWS OF VEHICLES UNDER IT AND A WORKSHOP BESIDE
+         * IT. The rows are what makes it a depot: a car park's bays are
+         * scattered by occupancy and a depot's are full, in line, all one way.
+         */
+        lay('parkingGround', 'parking');
+        const p = at(0, -14);
+        placeMass('canopy', p.x, p.z, G.depotLongM, G.depotDeepM, G.depotHighM + 2.0,
+          'depot:cover', { height: G.depotHighM, albedo: [0.32, 0.318, 0.308] },
+          { category: 'canopy', base: G.depotHighM });
+        for (let i = 0; i < 12; i++) {
+          const a = at(-26 + (i % 6) * 10.4, -22 + Math.floor(i / 6) * 15);
+          parkVehicle(a.x, a.z, alongX ? 90 : 0, 'van');
+        }
+        const w = at(0, 30);
+        placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, G.depotShopHighM + 1.1,
+          'depot:shop', { height: G.depotShopHighM, floors: 1, style: 'dock',
+            albedo: [0.30, 0.298, 0.286] });
+        fence('rail', D.railHeight, 'depot:rail');
+        floods(3);
+      } else if (kind === 'church') {
+        /**
+         * A NAVE AND A SPIRE, AND A SQUARE IN FRONT. The spire is the only
+         * tapering silhouette in this city — every other vertical is a prism or
+         * a lattice — so it reads at a distance no other building of its size
+         * does, which is exactly what a spire is for.
+         */
+        lay('grass', 'grass');
+        const sq = { kind: 'sportGround', yKey: 'sport',
+          x0: mx - (alongX ? 26 : 16), x1: mx + (alongX ? 26 : 16),
+          z0: mz - (alongX ? 16 : 26), z1: mz + (alongX ? 16 : 26) };
+        for (const g of subtractBoxes([sq], islandSolids())) ground.push(g);
+        const p = at(6, -26);
+        placeMass('shed', p.x, p.z, G.naveLongM, G.naveDeepM, G.naveHighM + 1.1, 'church:nave',
+          { height: G.naveHighM, floors: 1, style: 'window', albedo: [0.34, 0.30, 0.25] });
+        const t = at(6 - G.naveLongM * 0.5 - G.spireHalfM - 1.0, -26);
+        placeTower(t.x, t.z, G.spireHalfM, G.spireM, 'spire',
+          [0.34, 0.30, 0.25], 'church:spire');
+        fence('hedge', 1.4, 'church:hedge');
+      } else if (kind === 'port') {
+        /**
+         * A WHARF: A SHED ON THE QUAY, STACKED CONTAINERS AND A CRANE. The
+         * crane is `construction`'s own — already modelled, already slewing in
+         * `moving.js`, already claiming `site` — which is what makes a working
+         * wharf almost free, and it is also the honest reading: a container
+         * crane and a tower crane are the same machine at two scales.
+         */
+        lay('yardGround', 'yard');
+        const p = at(0, -24);
+        placeMass('shed', p.x, p.z, G.wharfLongM, G.wharfDeepM, G.wharfHighM + 1.1, 'port:shed',
+          { height: G.wharfHighM, floors: 1, style: 'dock', albedo: [0.28, 0.286, 0.296] });
+        stack(10, 36);
+        {
+          const c = at(14, 22);
+          /** `SITE`'s own mast and jib, and the same record `construction` pushes. */
+          const mast = featRng.range(SITE.mastMinM, SITE.mastMaxM);
+          const jib = featRng.range(SITE.jibMinM, SITE.jibMaxM);
+          const box = claimAt('site', c.x, c.z, 3.4, 3.4, { y0: 0, y1: mast, owner: 'port:crane' });
+          if (!reg.conflict(box)) {
+            reg.claim(box);
+            features.push({
+              kind: 'crane', x: c.x, z: c.z, mast, jib,
+              counterJib: jib * SITE.counterJibFrac,
+              phase: featRng.next(), slewDir: featRng.chance(0.5) ? 1 : -1,
+            });
+          }
+        }
+        fence('palisade', D.palisadeHeight, 'port:palisade');
+        floods(3);
+      }
     }
   }
 
