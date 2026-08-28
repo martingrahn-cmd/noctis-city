@@ -3178,6 +3178,40 @@ export function createCity(options = {}) {
           for (let k = 1; k < f.levels; k++) {
             put(0, k * f.storey, 0, half * 2 + 0.6, 0.26, half * 2 + 0.6, [0.33, 0.325, 0.31], 0.9);
           }
+        } else if (f.kind === 'stand') {
+          /**
+           * A STADIUM STAND — session 48. Raked seating in `tiers` steps, a
+           * blank outer wall behind them and a roof edge over the back row.
+           *
+           * IT IS A SILHOUETTE AND NOT A BUILDING, which is the brief's own
+           * word for it: what reads from anywhere in the district is a low
+           * ring rising away from a lit green rectangle, with four masts over
+           * it. The rake is the whole of that, so it is drawn as the steps
+           * themselves rather than as a mass with steps on it.
+           *
+           * `+z` IS AWAY FROM THE PITCH. `put` rotates by `f.yawDeg`, which the
+           * generator sets so that the stand's local +z points outward, so each
+           * tier is both taller and further back than the one in front of it —
+           * one expression, four sides.
+           */
+          const conc = [0.30, 0.296, 0.284];
+          const seat = [0.20, 0.23, 0.30];
+          const dark = [0.17, 0.168, 0.162];
+          for (let k = 0; k < f.tiers; k++) {
+            const y = (k + 0.5) * f.rise;
+            const dz = (k + 0.5) * f.tread - f.deep / 2;
+            put(0, y / 2, dz, f.long, y, f.tread, conc, 0.9);
+            /** The seating deck itself, a shade cooler than the concrete. */
+            put(0, y + 0.12, dz, f.long * 0.99, 0.24, f.tread * 0.92, seat, 0.72);
+          }
+          /** The blank outer wall — what a ground shows the street. */
+          const top = f.tiers * f.rise;
+          put(0, (top + 1.6) / 2, f.deep / 2 + 0.3, f.long, top + 1.6, 0.6, dark, 0.92);
+          /** A roof edge over the back row, on two posts. */
+          put(0, top + 2.4, f.deep / 2 - f.tread, f.long, 0.5, f.tread * 2.2, conc, 0.86);
+          for (const e of [-0.42, 0.42]) {
+            put(f.long * e, top + 1.2, f.deep / 2 - f.tread * 1.6, 0.3, 2.4, 0.3, dark, 0.8);
+          }
         } else if (f.kind === 'deckpark') {
           /**
            * A MULTI-STOREY CAR PARK — session 48. Six elements and every one of

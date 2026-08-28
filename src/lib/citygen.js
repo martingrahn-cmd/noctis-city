@@ -2211,6 +2211,34 @@ export const RECREATION = {
    */
   pitchBelow: 0.2082,
   courtBelow: 0.2879,
+  /**
+   * AND THE SPARSEST TENTH OF THE PITCHES GET STANDS ROUND THEM — session 48,
+   * tier two's second object.
+   *
+   * A STADIUM IS A PITCH WITH A BOWL ROUND IT, which is why it costs almost
+   * nothing to build here: the playing surface, the goals, the ball-stop and
+   * the four floodlight masts are already what a `pitch` is, and the stand is a
+   * ring of raked seating and an outer wall on top of them.
+   *
+   * WHERE, and it is the brief's own sentence: *"a stadium goes where land is
+   * cheap and access is good — the periphery, not the core."* Cheap land is the
+   * BOTTOM of the low-detail band, and the cut is its measured **p20** — the
+   * cheapest fifth — from the same 237-chunk distribution the other two come
+   * from.
+   *
+   * THE FIRST ARM WAS THE p10 AND IT PUT NO STADIUM IN THE WORLD. Recreation
+   * is one low-detail kind in seven and low-detail is 17% of chunks, so a
+   * further tenth of that is 0.24% — and at seed 1337 there was **no stadium
+   * within +-12 chunks of the origin**, which is 1 536 m in every direction and
+   * three times the residency ring. A thing nobody can walk to or photograph is
+   * not shipped, whatever the generator says it built. At the p20 the nearest
+   * is chunk (-1,-6) at density 0.1634.
+   */
+  stadiumBelow: 0.1867,
+  /** Metres. Rake per tier and the depth of one, over three tiers. */
+  tierRiseM: 3.4,
+  tierDeepM: 5.2,
+  tiers: 3,
 };
 
 /**
@@ -8621,6 +8649,8 @@ export function generateChunk(rootSeed, cx, cz) {
       const R = RECREATION;
       const variant = recreationVariant(density);
       const hard = variant !== 'pitch';
+      /** A pitch on the cheapest land gets a bowl round it. See `RECREATION`. */
+      const stadium = variant === 'pitch' && density < R.stadiumBelow;
 
       /** The play area's own long axis, so a pitch does not always run east. */
       const alongX = featRng.chance(0.5);
@@ -8779,6 +8809,80 @@ export function generateChunk(rootSeed, cx, cz) {
             reg.claim(box);
             break;
           }
+        }
+      }
+
+      /**
+       * THE BOWL. Four raked stands round the play area, each `tiers` deep, and
+       * a blank outer wall behind them — which is what a ground looks like from
+       * the street and is the whole reason the brief calls a stadium a
+       * silhouette rather than a building. The stand claims `building`, because
+       * that is what it is: a solid nothing may stand in and no road may cross.
+       *
+       * EACH SIDE IS ONE FEATURE AND NOT ONE PER TIER, so the four claims are
+       * four boxes and the delivered census sees four objects rather than
+       * twelve overlapping ones.
+       *
+       * IT IS BUILT BEFORE THE BALL-STOP AND THE FIRST ARM WAS AFTER IT, WHICH
+       * DELIVERED ZERO STANDS ON FIVE QUALIFYING CHUNKS. The fence runs at
+       * `DEAD_ZONE.edgeInset` = 0.9 m inside the island edge and a stand's
+       * outer face lands 0.7 m inside it, so `building x feature` refused every
+       * one of them. Ordering, and the right order is the one a ground is
+       * actually built in: the stand first, and then the fence takes whatever
+       * frontage is left — which is also why a real ground has fence only where
+       * it has no stand.
+       */
+      if (stadium) {
+        const depth = R.tiers * R.tierDeepM;
+        const gap = 6.0;
+        for (const [ax, sgn] of [['x', -1], ['x', 1], ['z', -1], ['z', 1]]) {
+          /**
+           * The stand stands off the play area on ITS OWN axis and runs the
+           * length of the other one plus both corners, so the four of them
+           * close into a bowl rather than leaving the corners open.
+           */
+          const off = (ax === 'x' ? hxP : hzP) + gap + depth / 2;
+          const cx2 = ax === 'x' ? mx + sgn * off : mx;
+          const cz2 = ax === 'x' ? mz : mz + sgn * off;
+          /**
+           * THE CORNERS ARE OPEN, AND THE FIRST ARM WRAPPED THEM AND DELIVERED
+           * TWO STANDS OF FOUR. A stand that runs its own length PLUS both
+           * corners overlaps the two stands on the other axis, and
+           * `building x building` is forbidden — so the third and fourth were
+           * refused by the first and second every time. Ending at the play
+           * area's own corner makes the four abut exactly, and `overlaps()` is
+           * strict, so all four stand. It is also what most grounds this size
+           * actually are.
+           */
+          const halfA = (ax === 'x' ? hzP : hxP) + gap;
+          const hxS = ax === 'x' ? depth / 2 : halfA;
+          const hzS = ax === 'x' ? halfA : depth / 2;
+          if (cx2 - hxS < isl.x0 || cx2 + hxS > isl.x1
+            || cz2 - hzS < isl.z0 || cz2 + hzS > isl.z1) continue;
+          const box = claimAt('building', cx2, cz2, hxS, hzS,
+            { y0: 0, y1: R.tiers * R.tierRiseM + 3.0, owner: 'stadium:stand' });
+          if (reg.conflict(box)) continue;
+          features.push({
+            kind: 'stand', x: cx2, z: cz2,
+            long: 2 * halfA, deep: depth, tiers: R.tiers,
+            rise: R.tierRiseM, tread: R.tierDeepM,
+            /**
+             * FACING THE PITCH: the stand's local +z points AWAY from the play
+             * area, so the rake climbs outward and its local X — the long axis
+             * — runs along the touchline. Three's Y rotation takes local (0, 1)
+             * to `(sin, cos)`, so an east stand wants 90 and a north one 0.
+             *
+             * THE FIRST ARM HAD THESE THE OTHER WAY ROUND AND THE CLAIM DID
+             * NOT. `hxS` is `depth / 2` for an `x` stand, i.e. the claim is
+             * thin on the axis it stands off — correct — while the draw ran the
+             * 50 m length along that same axis, so the four stands crossed the
+             * pitch in a plus instead of ringing it. The registry could not see
+             * it because the claim was right; only a frame from above could,
+             * and did. CONTRACT §9.1, with a yaw.
+             */
+            yawDeg: ax === 'x' ? (sgn > 0 ? 90 : 270) : (sgn > 0 ? 0 : 180),
+          });
+          reg.claim(box);
         }
       }
 
