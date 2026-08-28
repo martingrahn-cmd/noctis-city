@@ -2184,7 +2184,7 @@ export function createCity(options = {}) {
             mat.albedo, mat.roughness, t, floorBase, bld.floors);
           floorBase += Math.max(0, Math.round((t.y1 - t.y0) / era.floor));
         }
-        buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin);
+        buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin, placed);
         buildFacadeClutter(bld, era, mat, bodies, bodySkin, chunk, placed, clutterCensus, near);
       }
     }
@@ -5197,7 +5197,7 @@ export function createCity(options = {}) {
     }
   }
 
-  function buildGroundFloor(bld, era, mat, windows, windowTint, masses, massSkin) {
+  function buildGroundFloor(bld, era, mat, windows, windowTint, masses, massSkin, placed) {
     const front = bld.facing;
     const dir = front[0] === 'x' ? [front[1] === '+' ? 1 : -1, 0] : [0, front[1] === '+' ? 1 : -1];
     const faceW = dir[0] ? bld.depth : bld.width;
@@ -5283,6 +5283,47 @@ export function createCity(options = {}) {
         // Piers, and a covered walk behind them.
         masses.push(at(-faceW / 2 + bayW * i, 0.9, (plinth - 0.9) / 2, 0.9, plinth - 0.9, 0.9));
         massSkin.push({ albedo: mat.albedo, roughness: mat.roughness });
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND A COLONNADE PIER IS A SOLID ON A PAVEMENT THAT NOTHING KNEW WAS
+         * THERE — SESSION 47.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The comment sixty lines up says it in passing: *"a colonnade's piers
+         * are ALREADY 0.45 to 1.35 m proud of the wall"*. Proud of the wall is
+         * OUTSIDE the building's own claim, so `emitcensus` measures **352
+         * piers, 290.13 m2, every one of them wholly undeclared in plan** —
+         * 0.9 m square columns standing on a footway, which is a thing a person
+         * walks into and a bollard could be placed inside.
+         *
+         * `prop` AND NOT `building`, AND THE CATEGORY IS THE WHOLE COST.
+         * Measured both ways before either was written:
+         *
+         *     as `building`   349 new forbidden pairs — 342 of them
+         *                     `pavement(ground:walk)`, because a building may
+         *                     not stand on a footway and this one is supposed to
+         *     as `prop`         0 new forbidden pairs
+         *
+         * `occupancy.js` says why in one line: *"a pavement carries people AND
+         * street furniture, so `pavement x prop` is absent — that pair is the
+         * whole point of a pavement."* A pier is street furniture that happens
+         * to hold a building up.
+         *
+         * SQUARE IN PLAN, so the yawed axis-aligned half-extent is
+         * `0.9 * (|cos| + |sin|) / 2` and there is no second expression for it.
+         * The claim stops at the pier, not at the soffit it carries: `plinth`
+         * is 4.2 m here and the covered walk behind is open ground.
+         */
+        const pierYaw = (yaw + bld.yawDeg) * DEG;
+        const pierHalf = 0.9 * (Math.abs(Math.cos(pierYaw)) + Math.abs(Math.sin(pierYaw))) / 2;
+        const pu = -faceW / 2 + bayW * i;
+        const pxw = bld.x + (dir[0] ? dir[0] * (off + 0.9) : pu);
+        const pzw = bld.z + (dir[1] ? dir[1] * (off + 0.9) : pu);
+        placed.push({
+          kind: 'prop', owner: 'colonnade:pier',
+          x0: pxw - pierHalf, x1: pxw + pierHalf, z0: pzw - pierHalf, z1: pzw + pierHalf,
+          y0: 0, y1: plinth,
+        });
       } else if (G === 'blankPlinth') {
         // A solid base. One service door per building, not per bay — and only
         // where a shop has not taken that bay.
