@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY, riverNoRoad, landmarkOccupies, busStopAt, BUS_STOP } from '../lib/citygen.js';
+import { CITY, riverNoRoad, landmarkOccupies, blockNoRoad, busStopAt, BUS_STOP } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
@@ -1927,6 +1927,28 @@ function landmarkUnderBody(x, z, axis, type) {
 }
 
 /**
+ * THE ORIGIN BLOCK'S KEEP-OUT, UNDER THE SAME BODY — SESSION 51.
+ *
+ * The third sentence in this file's refusal set and the only one that was
+ * missing: `riverNoRoad` refuses a lane the water took (session 15),
+ * `landmarkUnderBody` one a landmark took (session 34), and nothing has ever
+ * refused one `BLOCK_KEEPOUT` took. See `blockNoRoad` in `citygen.js` for the
+ * measurement — two lattice lines, about 76 m each, driven since session 4b.
+ *
+ * NOSE, CENTRE AND TAIL, exactly as the landmark test does, and for the reason
+ * `landmarkOccupies` writes down: a 12 m bus whose origin is a metre outside a
+ * boundary has five metres of itself inside it.
+ */
+function blockUnderBody(x, z, axis, type) {
+  const half = BODY_TYPES[type].len * 0.5;
+  const ax = axis === 0 ? half : 0;
+  const az = axis === 0 ? 0 : half;
+  return blockNoRoad(x, z)
+    || blockNoRoad(x + ax, z + az)
+    || blockNoRoad(x - ax, z - az);
+}
+
+/**
  * Boxes, wheels and light quads per vehicle. Fixed, so the census is fixed.
  *
  * TWELVE BOXES SINCE SESSION 9, DOWN from fourteen, and the cost is stated
@@ -2883,6 +2905,7 @@ export function createTraffic(options = {}) {
            * of it are: a scored candidate still wins when every draw is bad.
            */
           if (landmarkUnderBody(pos.x, pos.z, axis, veh.type)) continue;
+          if (blockUnderBody(pos.x, pos.z, axis, veh.type)) continue;
           /**
            * NOR PAST A STOP LINE IT HAS NO PERMISSION TO HAVE PASSED —
            * SESSION 34. See `stopLineClearanceM` at the top of this file for
@@ -4126,7 +4149,8 @@ export function createTraffic(options = {}) {
           const dx = pos.x - cam.position.x;
           const dz = pos.z - cam.position.z;
           const offRoad = riverNoRoad(rootSeed, pos.x, pos.z, veh.axis === 0)
-            || landmarkUnderBody(pos.x, pos.z, veh.axis, veh.type);
+            || landmarkUnderBody(pos.x, pos.z, veh.axis, veh.type)
+            || blockUnderBody(pos.x, pos.z, veh.axis, veh.type);
           if (dx * dx + dz * dz > SIM_RADIUS * SIM_RADIUS || offRoad) {
             /**
              * Out of the ring, OR driven onto a road the river took, OR onto

@@ -515,6 +515,33 @@ function judgeCity(M, BUDGET) {
         `only ${M.deliveredClaims} delivered claims (min ${OC.minDeliveredClaims}) — a conflict check over ` +
         `an empty list passes for free, which is CONTRACT §7.1's quiet gate`]);
     }
+    /**
+     * SESSION 51 — A WALKABLE POINT WITH NO SURFACE UNDER IT.
+     *
+     * Three sessions have repaired this class in three places and every one of
+     * them was found by the operator standing on it. See the budget's
+     * `$surface` for the derivation of the zero and for the four places the
+     * residue is.
+     */
+    if (M.surfaceCensus == null) {
+      out.push(['occupancy', 'harness.surfaceCensus() returned nothing — nothing asked whether the city has a floor']);
+    } else {
+      if (M.surfaceCensus.walkable < OC.minWalkableSamples) {
+        out.push(['occupancy',
+          `only ${M.surfaceCensus.walkable} walkable samples (min ${OC.minWalkableSamples}) — a surface ` +
+          `census over an empty lattice passes for free, which is CONTRACT §7.1's quiet gate`]);
+      }
+      if (M.surfaceCensus.bare > OC.maxBareWalkableSamples) {
+        out.push(['occupancy',
+          `${M.surfaceCensus.bare} of ${M.surfaceCensus.walkable} walkable samples ` +
+          `(${(M.surfaceCensus.bareFraction * 100).toFixed(2)}%, ` +
+          `${((M.surfaceCensus.bare * M.surfaceCensus.step * M.surfaceCensus.step) / 1e4).toFixed(2)} ha) ` +
+          `stand on the block.js EARTH PLANE with no surface drawn over it (max ` +
+          `${OC.maxBareWalkableSamples}). This is the player's own \`worldSurfaceAt\` on a ` +
+          `${M.surfaceCensus.step} m lattice — the query that printed \`on earth at y -0.020\` twice ` +
+          `in four positions after session 50. \`node tools/surfacegrid.mjs --patches\` says where.`]);
+      }
+    }
     if (M.viaductLegsOnCarriageway == null) {
       out.push(['occupancy', 'the viaduct reported no legs — `viaductPiers` did not return them']);
     } else if (M.viaductLegsOnCarriageway > OC.maxViaductLegsOnCarriageway) {
@@ -765,6 +792,16 @@ function goodCityFixture() {
     genConflicts: [],
     deliveredConflicts: [],
     deliveredClaims: BUDGET.occupancy.minDeliveredClaims + 500,
+    surfaceCensus: {
+      step: BUDGET.occupancy.surfaceSampleStepM,
+      sampled: BUDGET.occupancy.minWalkableSamples * 2,
+      unwalkable: 0,
+      walkable: BUDGET.occupancy.minWalkableSamples * 2,
+      unknown: 0,
+      byKind: { ground: BUDGET.occupancy.minWalkableSamples * 2 },
+      bare: BUDGET.occupancy.maxBareWalkableSamples,
+      bareFraction: 0,
+    },
     viaductLegsOnCarriageway: 0,
     viaductPiersBlocked: 0,
     viaductLegMaxInBlockM: BUDGET.occupancy.viaductLegsInsideBlockClearBandM - 0.1,
@@ -893,6 +930,9 @@ const FALSIFY_CITY = [
     m.deliveredConflicts = [{ a: { kind: 'prop', owner: 'tree' }, b: { kind: 'building', owner: 'bld' }, areaM2: 1.9 }];
   }],
   ['occupancy.noCensus', (m) => { m.deliveredConflicts = null; }],
+  ['occupancy.bareSurface', (m) => { m.surfaceCensus = { ...m.surfaceCensus, bare: 42, bareFraction: 42 / m.surfaceCensus.walkable }; }],
+  ['occupancy.noSurfaceCensus', (m) => { m.surfaceCensus = null; }],
+  ['occupancy.emptySurfaceLattice', (m) => { m.surfaceCensus = { ...m.surfaceCensus, walkable: 10, sampled: 10 }; }],
   ['occupancy.emptyCensus', (m) => { m.deliveredClaims = 12; }],
   ['occupancy.legOnCarriageway', (m) => { m.viaductLegsOnCarriageway = 8; }],
   ['occupancy.noLegs', (m) => { m.viaductLegsOnCarriageway = null; }],
@@ -1348,6 +1388,8 @@ let pedestrians = null;
 let signQuads = null;
 let riverCensus = null;
 let occupancy = null;
+/** The delivered surface census — session 51. See `harness.surfaceCensus`. */
+let surfaceCensus = null;
 /** Hoisted out of the try: the metrics below and `judgeCity` both read it. */
 let softwareRenderer = false;
 let stalls = null;
@@ -1463,6 +1505,16 @@ try {
     return h.occupancyCensus ? h.occupancyCensus() : null;
   });
   /**
+   * AND WHETHER ANY OF IT HAS A FLOOR — session 51. Same window, same reason:
+   * `worldSurfaceAt` reads the resident chunks' emitted rectangles, so a
+   * census taken mid-stream measures the streaming system rather than the
+   * city.
+   */
+  surfaceCensus = await page.evaluate(([region, step]) => {
+    const h = window.__NOCTIS_HARNESS__;
+    return h.surfaceCensus ? h.surfaceCensus(region, step) : null;
+  }, [BUDGET.region, BUDGET.occupancy.surfaceSampleStepM]);
+  /**
    * The river's DELIVERED bridges, session 15. Off the records `river.js`
    * wrote as it pushed the boxes, never off `BRIDGE_STRUCTURES` — the second
    * is the vocabulary and a gate that read it would be verifying the config
@@ -1573,6 +1625,7 @@ const M = {};
   if (M.genConflicts !== null) M.genConflicts = findConflicts(genClaims, 60);
   M.genClaims = genClaims.length;
   M.refused = refusedTotal;
+  M.surfaceCensus = surfaceCensus;
   M.deliveredConflicts = occupancy ? findConflicts(occupancy.claims, 60) : null;
   M.deliveredClaims = occupancy ? occupancy.total : null;
   M.deliveredCounts = occupancy ? occupancy.counts : null;
@@ -1614,6 +1667,16 @@ const M = {};
   }
 }
 M.softwareRenderer = softwareRenderer;
+
+notes.push(
+  `surface          ${M.surfaceCensus ? `${M.surfaceCensus.bare} of ${M.surfaceCensus.walkable} walkable samples on the `
+    + `${M.surfaceCensus.step} m lattice stand on bare earth `
+    + `(${(M.surfaceCensus.bareFraction * 100).toFixed(2)}%, `
+    + `${((M.surfaceCensus.bare * M.surfaceCensus.step * M.surfaceCensus.step) / 1e4).toFixed(2)} ha, max `
+    + `${BUDGET.occupancy.maxBareWalkableSamples})\n`
+    + `                 by surface: `
+    + Object.entries(M.surfaceCensus.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
+    : 'harness.surfaceCensus() returned nothing'}`);
 
 notes.push(
   `occupancy        ${M.genClaims} generator claims over the region, ` +

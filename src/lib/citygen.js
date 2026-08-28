@@ -5714,6 +5714,53 @@ function insideKeepout(x, z, pad = 0) {
   );
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * IS THIS A PLACE THE LATTICE HAS A ROAD AND THE ORIGIN BLOCK DOES NOT —
+ * SESSION 51, AND IT IS `riverNoRoad` AND `landmarkOccupies` ONE KEEP-OUT OVER.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `traffic.js` refuses a lane the river took (`riverNoRoad`, session 15) and
+ * a lane a landmark took (`landmarkOccupies`, session 34). It has never had
+ * the third sentence, because `insideKeepout` was module-private and exported
+ * to nobody: **the fleet has driven the origin block's keep-out since session
+ * 4b with no test at all.**
+ *
+ * MEASURED, off `city.worldSurfaceAt` — the player's own query — on the
+ * driving lanes themselves, seed 1337, over |t| <= 60 m at 1 m:
+ *
+ *     lane            road   ground   walk    not a carriageway
+ *     x = +128 NS       45      68       8        76 of 121
+ *     x = -128 NS       45      68       8        76 of 121
+ *     x =    0 NS      121       0       0         0 of 121
+ *     z =    0 EW      121       0       0         0 of 121
+ *
+ * So it is **two lattice lines and about 76 m each**: `BLOCK_KEEPOUT` clips
+ * the lattice's carriageway out of a 336 x 92 m rectangle and `block.js` paves
+ * exactly two lines through it — its main street on z = 0 and its cross street
+ * on x = 0. Both are lattice lines, which is why nobody noticed: the two the
+ * block DOES pave are the two the eye is always on.
+ *
+ * And session 51 made it worse before it made it better. Those 68 m used to be
+ * the earth plane, which is 84% of asphalt's albedo and reads as a wide pale
+ * road; they are now the block's own core surface, so what a frame shows is a
+ * van driving across a service court.
+ *
+ * THE HALF-WIDTH IS `CITY.roadHalfWidth` FOR BOTH STREETS AND THAT IS THE
+ * FILE'S OWN SENTENCE: it is 7.5 and its comment says *"Matches
+ * BLOCK.streetWidth so the origin block's street continues"*. The cross street
+ * is 13 m rather than 15, so this is 1.0 m lenient on that one axis — in the
+ * direction that lets a vehicle drive rather than stopping one that could, and
+ * both lane centrelines (`LANE_OFFSET` 1.75 and 5.25) are inside 6.5 anyway.
+ * A second copy of `BLOCK.crossStreetWidth` in this file is the arrangement
+ * CONTRACT §9.1 is a list of, and it would buy nothing.
+ */
+export function blockNoRoad(x, z, pad = 0) {
+  if (!insideKeepout(x, z, pad)) return false;
+  const r = CITY.roadHalfWidth;
+  return Math.abs(z) > r + pad && Math.abs(x) > r + pad;
+}
+
 // ---------------------------------------------------------------------------
 
 /**

@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { TAA, LAMP_BOWL } from '../core/constants.js';
 import { gaitOffset } from '../lib/gait.js';
+import { CITY } from '../lib/citygen.js';
 
 /**
  * The traffic-saturation instrument. CONTRACT §8 — an instrument, not content.
@@ -305,6 +306,81 @@ export function createHarness(options = {}) {
           const counts = {};
           for (const c of claims) counts[c.kind] = (counts[c.kind] || 0) + 1;
           return { claims, counts, total: claims.length };
+        },
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * IS THERE A SURFACE UNDER EVERY POINT A PERSON CAN STAND ON —
+         * SESSION 51, AND IT IS THE THIRD TIME THIS CLASS HAS BEEN REPAIRED.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Session 34 found it at the weir, session 42 traced it to buildings
+         * drawn to ring 5 and ground to ring 4, session 40 found a built
+         * island emitting no ground rectangle at all — and this session found
+         * two more, the origin block's four quadrants and the corners of every
+         * round landmark's claim. Each time the operator found it by WALKING
+         * THERE and pressing `P`, because `player.js` prints
+         * `on <kind> at y <h>` and twice in four positions it printed
+         * `on earth at y -0.020`.
+         *
+         * A city where a walkable point can have no surface should fail a
+         * gate, not wait for somebody to stand on it. This is the census that
+         * lets it.
+         *
+         * IT IS THE PLAYER'S OWN QUERY AND NOT A SECOND DESCRIPTION OF IT.
+         * `city.worldSurfaceAt` is the one function the ground datum points
+         * everything at (`city.js`'s own comment says so), and
+         * `city.walkableAt` is the predicate `player.js` moves against. A
+         * census that rasterised `chunk.ground` instead would be asking the
+         * generator, and the generator has no opinion about residency, about
+         * the ground ring, or about `BLOCK_KEEPOUT` clipping a rectangle away
+         * afterwards — which is where 58% of the gap turned out to be.
+         *
+         * THE DENOMINATOR IS WALKABILITY, DELIBERATELY. A point inside a
+         * building is not a gap in the ground; nobody can stand there and no
+         * surface is owed. So a refused point is DROPPED rather than counted
+         * as covered, which makes the share this returns the share of the
+         * ground a person can actually reach.
+         *
+         * SAMPLED, AND THE STEP IS RETURNED WITH THE COUNTS so a reader can
+         * turn a count into an area without assuming one.
+         * `tools/surfacegrid.mjs` is the same walk outside the browser, with
+         * the attribution by owner that a gate does not need.
+         */
+        surfaceCensus(region, step = 2) {
+          const city = ctx.get('city');
+          if (!city || !city.worldSurfaceAt || !city.walkableAt) {
+            throw new Error('city.worldSurfaceAt/walkableAt are missing — there is nothing to check');
+          }
+          const S = CITY.chunkSize;
+          const x0 = region.cx[0] * S;
+          const x1 = (region.cx[1] + 1) * S;
+          const z0 = region.cz[0] * S;
+          const z1 = (region.cz[1] + 1) * S;
+          const byKind = {};
+          let sampled = 0;
+          let unwalkable = 0;
+          let unknown = 0;
+          for (let z = z0 + step / 2; z < z1; z += step) {
+            for (let x = x0 + step / 2; x < x1; x += step) {
+              sampled++;
+              if (!city.walkableAt(x, z).walkable) { unwalkable++; continue; }
+              const su = city.worldSurfaceAt(x, z);
+              if (!su.known) unknown++;
+              byKind[su.kind] = (byKind[su.kind] || 0) + 1;
+            }
+          }
+          const walkable = sampled - unwalkable;
+          return {
+            step,
+            sampled,
+            unwalkable,
+            walkable,
+            unknown,
+            byKind,
+            bare: byKind.earth || 0,
+            bareFraction: walkable > 0 ? (byKind.earth || 0) / walkable : 0,
+          };
         },
 
         signPlacement() {
