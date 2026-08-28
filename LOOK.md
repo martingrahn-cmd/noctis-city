@@ -561,6 +561,55 @@ It is that the street wall is broken.
   land by the water, land under a viaduct and land nobody wants are the same
   land.
 
+  **AND EVERY ONE OF THEM FELL THROUGH THE FLOOR THIS SECTION SPENT SESSION 40
+  BUILDING — SESSION 50.** The three bullets above this one are about giving
+  `parking`, `lot` and `yard` a fixture count with a floor under it, because
+  `26 · d³` and the gate that SELECTS a low-detail kind read the same field.
+  `propCount` reads `DEAD_ZONE[kind]`, that table held four rows, and **every
+  kind added after session 40 took the fall-through** — so the five places of
+  session 48 and the eight of session 49 were capped at one to four objects by
+  exactly the construction this section already describes. Measured over twelve
+  regions, props per chunk:
+
+  ```
+    WITH a floor              WITHOUT one
+    yard          28.3        hospital       0.5     school       2.2
+    park          27.8        firestation    1.0     carpark      3.0
+    construction  17.7        recreation     1.2     industrial   4.1
+    parking       15.5        depot          1.9     port         9.1
+    lot           12.1        church         1.9     market      13.3
+  ```
+
+  **The four bottom rows are exactly the four islands session 49's frames show
+  as bare**, so the frames and the generator agreed and it was one table rather
+  than a look question. The palette was the worse half: the chain that picks
+  WHAT an island is furnished with named four kinds and sent the rest to
+  `['fence', 'stack', 'container', 'bollard']`, so a **churchyard and a school
+  were furnished with shipping containers** — invisible only because the count
+  law was refusing all but one of them.
+
+  **AND THE FIXTURES THEMSELVES WERE SIZED FROM THE BUILDING, NOT THE ISLAND.**
+  A flood ring at a flat 40 m, a stack spread of 34, fourteen hospital bays from
+  `-30 + i · 4.6` — on an island 104.6 m square. The remainder is what the
+  operator sees. `layPath` and `bayRows` take their extent from the island's own
+  half-extents; a churchyard is now a lawn you can walk across, which the park
+  has been since session 19 and no other kind could reach.
+
+  **WHAT IT COST, PRINTED RATHER THAN ARGUED AWAY, EXACTLY AS SESSION 40's DID:
+  clumping CV 0.528 → 0.400** against a floor of 0.60, where session 40's own
+  equivalent fix cost 0.566 → 0.430. Ten kinds instead of three. `objects/chunk
+  min 0 max 92` is unchanged in both runs, so the tails did not move — the
+  middle filled in. **AND THE TWO NIGHT ROUTES GOT DARKER BY ABOUT 0.010**,
+  because the fill is hundreds of UNLIT dark objects; the fix is to light them,
+  which is what a worked yard is, not to move a floor.
+
+  **ONE FIXTURE WAS BUILT, LOOKED AT AND REMOVED, AND ITS LESSON IS THE
+  GENERAL ONE.** A painted kerb line round each apron — fifty marks an island —
+  is invisible from 78 m (one pixel) and from the pavement (white paint on pale
+  hardstanding). **On pale ground the thing that reads is a change of SURFACE or
+  an object with HEIGHT, not paint.** Bay rows survive because a bay is read as
+  a RHYTHM of many marks rather than as one line.
+
   **AND THE LESSON THAT COST THREE PLACEMENTS: A CONDITION NARROW ENOUGH TO BE
   PRECISE IS USUALLY NARROW ENOUGH TO BE EMPTY.** The depot's first band was one
   chunk of the viaduct's AABB and delivered nothing within twelve chunks of
