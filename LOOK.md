@@ -236,6 +236,35 @@ It is that the street wall is broken.
   number for a reason the data does not support. **The item is fixtures**, and
   `DEAD_ZONE.core`'s own comment already names them — bin stores, a plant
   enclosure, stacked material and a delivery bay.
+
+  **AND THE FIXTURE THAT MATTERED WAS THE BOUNDARY, WHICH IS THIS SECTION'S OWN
+  HEADLINE ARRIVING FROM THE OTHER SIDE — SESSION 47.** *"A yard is a yard
+  because it has a wall round it, a gate, and something being done on it."* The
+  core's boundary is the yard's boundary at the yard's own height — 2.20 m,
+  `DEAD_ZONE.palisadeHeight` — drawn as masonry rather than palisade because it
+  faces a street rather than a compound, and **where it runs is decided by the
+  registry and not by a rule**: every segment is offered to `reg.conflict`
+  first, so it appears exactly where a building does NOT.
+
+  **WHICH IS THE FRONTAGE GAP THIS SECTION HAS BEEN COUNTING SINCE SESSION 39.**
+  267 gaps at seed 1337, 15.0 m mean, 4 001 m, 11.5% of the island edge, *"188
+  of them MID-SIDE, where the walk goes on afterwards, and those are the ones
+  that read as a hole in a street wall"*. Delivered over 10 × 10 at seed 1337,
+  61 built chunks:
+
+  ```
+    wall segments   3 556   = 10 668 m    41.8% of the built island edge
+    gate segments     161   =    483 m    the way in, cut from the LONGEST run
+    loading bays    1 636 marks
+  ```
+
+  **The frontage is continuous at ground level now on 41.8% of the edge that had
+  nothing on it, at ZERO draw calls, without one new building and without
+  touching the fill law this section spends four bullets choosing.** Walkability
+  is identical — 54 304 of 54 438 free cells — so the wall closed the street and
+  blocked nobody. `tools/shot-out/s47-wall-{before,after}-{front,court}.png`;
+  the `court` pair is a gap between two buildings opening straight onto the
+  street, with a van and two bins on pale ground behind it, closed.
 - **THE EMPTY CHUNKS ARE NOT THE DEFECT, AND THE CLAIM THAT THEY WERE WAS MINE.**
   This bullet used to read *"23 of 100 chunks carry zero buildings, one of them at
   density 0.715 — that is the defect"*, and STATE 31, this file and session 32's
