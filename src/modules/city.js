@@ -66,6 +66,7 @@ import {
   landmarkOccluders,
   landmarkGroundBlockers,
   landmarkGroundClaims,
+  landmarkClaimParts,
   landmarkOccupies,
   landmarkFootprint,
   landmarkAABB,
@@ -773,6 +774,23 @@ export function createCity(options = {}) {
      * cuts out of, which is also what a court laid in a park is.
      */
     sport: GROUND.grass,
+    /**
+     * A LANDMARK'S FORECOURT — SESSION 51, AND IT IS AT THE PAVEMENT'S DATUM
+     * FOR THE REASON `sport` IS AT THE GRASS'S.
+     *
+     * The other laid surfaces (`parking`, `yard`, `core`) sit at
+     * `GROUND.carriageway` because each covers a whole island and has no
+     * neighbour to be level with. An apron does: it is the ground between a
+     * landmark and the street it stands on, and the thing on the other side
+     * of it is a PAVEMENT. Level with the footway it continues, which is also
+     * what a forecourt is, and the 0.16 m it stands above the carriageway is
+     * the same kerb the whole city has.
+     */
+    apron: GROUND.pavement,
+    /** The same surface as a park's lawn, on a landmark's rim. See `apron`. */
+    apronGrass: GROUND.grass,
+    /** The same hardstanding a `yard` island lays, in a plant compound. */
+    apronYard: GROUND.carriageway,
     /** The world's earth plane, in `block.js`. Everything not listed above. */
     earth: GROUND.earth,
   };
@@ -1352,7 +1370,10 @@ export function createCity(options = {}) {
                   : kind === 'yardGround' ? yardAlbedo
                     : kind === 'coreGround' ? coreAlbedo
                       : kind === 'sportGround' ? sportAlbedo
-                        : walkAlbedo);
+                        : kind === 'apron' ? walkAlbedo
+                          : kind === 'apronGrass' ? grassAlbedo
+                            : kind === 'apronYard' ? yardAlbedo
+                              : walkAlbedo);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1383,6 +1404,31 @@ export function createCity(options = {}) {
       coreGround: 'ground',
       /** Session 48. A court is a surface things stand on, like the four above. */
       sportGround: 'ground',
+      /**
+       * SESSION 51 — A LANDMARK'S APRON, AND IT CLAIMS `precinct` BECAUSE
+       * THAT IS WHAT IT IS.
+       *
+       * Three kinds and one category: paving for a civic forecourt, grass for
+       * the weir's park rim, hardstanding for the condenser's compound. They
+       * differ in reflectance and datum and in nothing else, which is the
+       * same relation `parkingGround`, `yardGround` and `coreGround` already
+       * have to each other.
+       *
+       * `ground` WAS THE FIRST ANSWER AND THE DELIVERED CENSUS REFUSED IT.
+       * `city.js` claims a landmark's DRAWN geometry, and a lathe's claim is
+       * its world AABB — a SQUARE for a round object. So an apron rectangle
+       * in the corner of the dish's claim, which is precisely the ground the
+       * cone does not stand on, came back as
+       * `ground(ground:ground) x landmark(dish)` in `emitcensus`'s conflict
+       * sweep, at 5.6 to 25.1 m² a piece. The generator knows the difference
+       * between a claim and a silhouette and the delivered census does not,
+       * and the category that says so already exists: `precinct` is permitted
+       * against `landmark` for the same reason `deck` is — the two are one
+       * structure's two halves rather than two objects in one place.
+       */
+      apron: 'precinct',
+      apronGrass: 'precinct',
+      apronYard: 'precinct',
     };
     const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
@@ -1985,9 +2031,25 @@ export function createCity(options = {}) {
      */
     for (const q of (ground && ground.rects) || []) {
       placed.push({
+        /**
+         * `precinct` IS NAMED HERE OR IT FALLS THROUGH TO `ground` — SESSION
+         * 51, AND THIS CHAIN IS A SECOND COPY OF `CATEGORY_FOR_GROUND`.
+         *
+         * `quad` records the CATEGORY in `rects`, so most of what arrives here
+         * is already a category name and this chain only has to translate the
+         * two that are not (`road`, `walk`). A category added to that table
+         * and not to this one is claimed as `ground` in the delivered census
+         * and as itself in the generator's — which is exactly the
+         * two-descriptions-of-one-thing CONTRACT §9.1 lists, and it cost this
+         * session a sweep: the dish's apron came back as
+         * `ground(ground:precinct) x landmark(dish)` at 5.6 to 25.1 m² a
+         * piece, twenty-four times, with the owner string already saying
+         * `precinct` and the kind not.
+         */
         kind: q.kind === 'road' ? 'carriageway'
           : q.kind === 'walk' ? 'pavement'
-            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site' : 'ground',
+            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site'
+              : q.kind === 'precinct' ? 'precinct' : 'ground',
         owner: `ground:${q.kind}`, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: 0, y1: 0.05,
       });
     }
@@ -2041,8 +2103,21 @@ export function createCity(options = {}) {
       for (const o of landmarkOccluders(l)) {
         if (o.deck) placed.push({ kind: 'deck', owner: l.name, x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, y0: o.base, y1: o.top });
       }
-      for (const g of landmarkGroundClaims(l)) {
-        placed.push({ kind: 'landmark', owner: g.owner, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: g.y0, y1: g.y1 });
+      /**
+       * `landmarkClaimParts` AND NOT `landmarkGroundClaims` — SESSION 51.
+       *
+       * The generator splits a landmark's claim into the ground it stands on
+       * (`landmark`) and the ground it merely took (`precinct`), so a round
+       * landmark's corners can carry a surface and its own furniture. This is
+       * the census the gate compares that registry against, and reading the
+       * UNSPLIT list here is the exact failure the comment above records
+       * session 34 finding: two halves of one check describing two worlds.
+       * The first arm of this session did it — the dish's apron bollards came
+       * back as `landmark(dish) x prop(bollard)` — so the split lives in one
+       * function that both sides call.
+       */
+      for (const g of landmarkClaimParts(l)) {
+        placed.push({ kind: g.kind, owner: g.owner, x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: g.y0, y1: g.y1 });
       }
     }
 

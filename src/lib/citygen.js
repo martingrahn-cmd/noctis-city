@@ -2790,6 +2790,75 @@ export const DEAD_ZONE = {
   columnEvery: 30.0,
 };
 
+/**
+ * Metres. One bay of a boundary run on a landmark's apron.
+ *
+ * `DEAD_ZONE.edgeSegment` is 3.0 and this is 4.0, and the difference is the
+ * SHAPE rather than the fence: an island boundary is four straight runs and
+ * this is a circle approximated by chords, so a bay buys sagitta as well as
+ * geometry. At the smallest radius this is used on (the dome's 33 + 2.1 m) a
+ * 4.0 m chord is 6.5 degrees and 0.06 m of sagitta — under the 0.07 m
+ * half-thickness of the rail itself, so the run reads as a curve and not as a
+ * polygon. It is also what a railing panel and a bollard spacing both are.
+ */
+export const APRON_BAY_M = 4.0;
+
+/**
+ * WHAT EACH LANDMARK'S APRON IS, AND EVERY ROW IS A SENTENCE ABOUT THE THING.
+ *
+ * Only the four ROUND landmarks have an apron at all — see `landmarkPrecinct`
+ * for why, and for the four that do not. The four rows are the four kinds of
+ * place a large structure sits in, and each one is what its own `LANDMARKS`
+ * entry already says it is:
+ *
+ *   condenser  *"260 m district heat-rejection tower"* — infrastructure. A
+ *              works compound: hardstanding, a palisade, cabinets and stacks.
+ *              `yardGround` is the surface `yard`, `industrial` and `port`
+ *              already lay, and `palisadeHeight` is the one a yard already
+ *              uses, so a plant compound in the middle of the city is built
+ *              out of the same parts as one on its edge.
+ *   exchange   *"a preserved 1890s exchange hall"* — a civic forecourt.
+ *              `apron` paving at the pavement's own datum and reflectance,
+ *              with BOLLARDS, which is what stands between a listed hall and
+ *              the traffic. No railing: a forecourt you cannot walk onto is a
+ *              car park.
+ *   weir       *"a stormwater basin and SUNKEN PARK"*, and there has never
+ *              been a park in it. The rim gets grass, trees, benches — and a
+ *              RAILING, because the thing on the other side of that line is a
+ *              nine-metre drop and fifty sessions have left it open.
+ *   dish       *"a 58 m inverted-cone civic hall"* — the same forecourt as the
+ *              exchange. Its overhang starts 32.8 m up, so its plaza is the
+ *              one in this city you can stand under.
+ *
+ * `spacingM` IS THE `DEAD_ZONE` LENGTH FOR THE SAME KIND OF PLACE, so the
+ * apron and the island it sits beside are furnished at one density: the
+ * weir's 18 m is `church`'s *"a crown's spread plus a path's width"*, the two
+ * forecourts' 12 m is a bollard line's own pitch, and the condenser's 21 m is
+ * `industrial`'s *"`yard`'s own van apron"*.
+ */
+export const LANDMARK_APRON = {
+  condenser: {
+    ground: 'apronYard', yKey: 'apronYard',
+    edge: 'palisade', edgeHeight: 2.20,
+    props: ['cabinet', 'stack', 'bollard'], spacingM: 21,
+  },
+  exchange: {
+    ground: 'apron', yKey: 'apron',
+    edge: null, edgeHeight: 0,
+    props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
+  },
+  weir: {
+    ground: 'apronGrass', yKey: 'apronGrass',
+    edge: 'railing', edgeHeight: 1.10,
+    props: ['tree', 'tree', 'bench', 'bin'], spacingM: 18,
+  },
+  dish: {
+    ground: 'apron', yKey: 'apron',
+    edge: null, edgeHeight: 0,
+    props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
+  },
+};
+
 // ---------------------------------------------------------------------------
 // landmarks — docs/authored-city.md §6
 //
@@ -4535,6 +4604,214 @@ export function landmarkGroundClaims(l) {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE GROUND A LANDMARK'S CLAIM TAKES AND THE LANDMARK DOES NOT STAND ON.
+ * SESSION 51, AND IT IS ONE SENTENCE: **A CLAIM IS A RECTANGLE AND FOUR OF
+ * THE EIGHT LANDMARKS ARE ROUND.**
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * WHAT THE OPERATOR PHOTOGRAPHED, AND IT IS NOT THE HYPOTHESIS HE OFFERED.
+ * The session-51 brief supposed that the registry was still using the canyon
+ * bake's AREA-INSCRIBED boxes as the ground keep-out, so that a round
+ * landmark's edge would lie outside its own claim by construction — session
+ * 35 measured the dish at delivered 88 x 88 m against a 62 x 62 m keep-out, a
+ * ratio of 2.041. **That was repaired in session 42** and the repair holds:
+ * `landmarkOccluders` carries `gx0..gz1` beside `x0..z1`, the ground extent is
+ * CIRCUMSCRIBED where the bake extent is inscribed, and `landmarkGroundClaims`
+ * reads the `g` fields. Re-measured this session with `tools/landmarkcensus.mjs`:
+ *
+ *     landmark    claim AABB    delivered      del/claim
+ *     stack        79 x 79       78.8 x 78.8     0.993
+ *     arch        133 x 15      124.5 x 12.8     0.795
+ *     viaduct     109 x 445     110.2 x 448.0    1.016   legs claimed, deck delivered
+ *     exchange     66 x 66       66.0 x 66.0     1.000
+ *     weir        210 x 210     210.0 x 210.0    1.000
+ *     mast         15 x 15       12.0 x 11.7     0.597
+ *     dish         88 x 88       88.0 x 88.0     1.000
+ *
+ * **NOT ONE LANDMARK EXCEEDS ITS CLAIM.** The dish reads 1.000 where session
+ * 35 read 2.041. So there is nothing to make bigger, and the defect is one
+ * level further in — which `landmarkcensus` has been printing under its own
+ * table for six sessions and nobody read:
+ *
+ *   > `del/claim` is delivered BOUNDING BOX over claim AABB, so it is 1.000
+ *   > for a structure that exactly fills its keep-out WHATEVER ITS SHAPE — a
+ *   > round one reads 1.000 and still leaves 1 - pi/4 = 21.5% of the claim in
+ *   > the corners.
+ *
+ * THOSE CORNERS ARE THE DEFECT AND THEY ARE MEASURED. `tools/surfacegrid.mjs`
+ * samples `city.worldSurfaceAt` — the player's own query — over the resident
+ * ring: **the weir's four corners are 0.88 ha of bare earth, 30.4% of every
+ * square metre in the city where a person can stand on no surface at all**,
+ * in four patches each 84 x 84 m. The weir's claim is 210 x 210 = 44 100 m²
+ * and its bowl is a 210 m CIRCLE = 34 636 m². The difference is 9 464 m²,
+ * which is the number `landmarkGroundClaims`' own header has carried since
+ * session 34 as a disagreement between two predicates. It is not a
+ * disagreement. It is a place.
+ *
+ * WHY IT WAS DRAWN AS NOTHING. `landmark` forbids `carriageway`, `pavement`,
+ * `path`, `prop`, `canopy`, `sign`, `site` and `feature` — every surface this
+ * city can lay and every object it can stand on one. So the corner of a round
+ * landmark's claim is ground that has been spoken for by a thing that is not
+ * there, and no generator in the project is permitted to put anything in it.
+ * The 8 km earth plane shows through, and that is what he stood on.
+ *
+ * THE SPLIT. This returns the part of the claim the landmark does NOT cover;
+ * `generateChunk` claims that part `precinct` and the rest `landmark`, so the
+ * UNION is bit-for-bit the claim that was there before. `precinct` forbids
+ * `building` and `carriageway`, which are the two readers the claim was
+ * written for, so the road network and the building population do not move —
+ * and it permits a surface, its furniture and its planting, which is what a
+ * forecourt is.
+ *
+ * A STAIRCASE PER QUADRANT, AND IT OVER-STATES THE CIRCLE ON PURPOSE. Each
+ * step's inner edge takes the circle's half-width at the step's INNER
+ * coordinate, so every box is strictly outside the circle. Under-stating
+ * would put a surface a few metres INSIDE the rim — over a nine-metre hole,
+ * at the weir — which is the failure mode `block.js`'s own earth-plane
+ * comment is about (*"a plane above water hides water"*). Over-stating leaves
+ * a thin residue of earth at the step corners instead, and residue that a
+ * later session can measure is the safe direction.
+ *
+ * THE STEP COUNT IS DERIVED FROM THE LANDMARK AND THE STEP SIZE IS MEASURED.
+ * `N = ceil(r / APRON_STEP_M)` per quadrant, and what a step buys is the
+ * share of the true corner area the staircase covers — the rest is the
+ * residue of earth at the step corners. Swept over the four round landmarks:
+ *
+ *     step    boxes    condenser   exchange   weir    dish
+ *     4.2 m     200      86.8%       76.5%    91.7%   82.4%
+ *     2.1 m     408      92.9%       87.3%    95.7%   90.2%
+ *     1.4 m     620      95.2%       91.2%    97.1%   93.3%
+ *
+ * **2.1 m, which is HALF a footway.** The first row is the footway itself and
+ * it leaves a quarter of the dome's corner bare; the third doubles the boxes
+ * again for four more points. Half a footway is also the width at which a
+ * step stops being something you could walk along and starts being a curve,
+ * which is the visual half of the same choice.
+ *
+ * ONLY THE ROUND ONES HAVE A PRECINCT, AND THE OTHER FOUR ARE SAID RATHER
+ * THAN OMITTED. The ziggurat's claim is its own turned plan silhouette, the
+ * arch's and the viaduct's are their legs, the mast's is a lattice bound —
+ * all boxes, all filling their claims, all `del/claim` at or below 1.000 for
+ * a reason that is not roundness. `landmarkPrecinct` returns `[]` for them
+ * and `generateChunk` claims `landmark` over the whole box exactly as before.
+ * The 0.04 ha `surfacegrid` attributes to `landmark:viaduct` — two 14 x 14 m
+ * pads at the deck's two end treatments — is NOT closed by this and is
+ * recorded in STATE rather than swept in here.
+ */
+export const APRON_STEP_M = CITY.sidewalkWidth / 2;
+
+/** The radius of a landmark's plan silhouette at grade, or 0 if it is not round. */
+export function landmarkGroundRadius(l) {
+  switch (l.kind) {
+    // The profile flares to `radiusBase` at the ground and to `radiusTop` at
+    // the crown, and `radiusBase` is the larger for the one hyperboloid there
+    // is — 62 against 46. `Math.max` rather than `radiusBase`, because a claim
+    // is the PLAN silhouette and the plan silhouette of a flared crown is the
+    // crown.
+    case 'hyperboloid': return Math.max(l.radiusBase, l.radiusTop);
+    case 'dome': return l.radius;
+    case 'basin': return l.radius;
+    /**
+     * THE CONE'S GROUND CONTACT IS `radiusBase` = 13 AND ITS PLAN SILHOUETTE
+     * IS `radiusTop` = 44, AND THE SILHOUETTE IS THE RIGHT ONE HERE.
+     *
+     * This function decides what a SURFACE may be laid under, and the answer
+     * is governed by what a look down sees rather than by what touches the
+     * ground: the overhang starts about 32.8 m up, so the 7 213 m² between
+     * the two radii is roofed. Paving it would be paving the inside of a
+     * building. The precinct is therefore the claim minus the 88 m circle,
+     * the same as for the other three, and the ground under the overhang
+     * stays the landmark's own.
+     */
+    case 'cone': return l.radiusTop;
+    default: return 0;
+  }
+}
+
+const landmarkPrecinctCache = new Map();
+
+export function landmarkPrecinct(l) {
+  const hit = landmarkPrecinctCache.get(l);
+  if (hit) return hit;
+  const out = [];
+  const r = landmarkGroundRadius(l);
+  if (r > 0) {
+    const n = Math.max(2, Math.ceil(r / APRON_STEP_M));
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        for (let k = 0; k < n; k++) {
+          // The step spans [a0, a1] in |x|; the circle's half-height over that
+          // span is largest at a0, so a0 is what keeps the box outside it.
+          const a0 = (r * k) / n;
+          const a1 = (r * (k + 1)) / n;
+          const c = Math.sqrt(Math.max(0, r * r - a0 * a0));
+          if (r - c < MIN_GROUND_PIECE_M || a1 - a0 < MIN_GROUND_PIECE_M) continue;
+          const x0 = l.x + (sx < 0 ? -a1 : a0);
+          const x1 = l.x + (sx < 0 ? -a0 : a1);
+          const z0 = l.z + (sz < 0 ? -r : c);
+          const z1 = l.z + (sz < 0 ? -c : r);
+          out.push({ x0, x1, z0, z1, owner: `${l.name}:precinct` });
+        }
+      }
+    }
+  }
+  landmarkPrecinctCache.set(l, out);
+  return out;
+}
+
+const landmarkClaimPartCache = new Map();
+
+/**
+ * THE CLAIM, SPLIT, AS ONE LIST — AND IT HAS TWO READERS THAT MUST NOT
+ * DISAGREE.
+ *
+ * `generateChunk` writes these into the keep-out registry and `city.js` writes
+ * them into the DELIVERED census, which is the two-sided check CONTRACT §9.1
+ * is about. Session 34's own comment beside the second of those readers says
+ * what happens when they drift:
+ *
+ *   > *"the two halves of the project's two-sided occupancy check have been
+ *   > describing two different worlds ... A two-sided check whose second side
+ *   > is blind passes exactly as long as the first side never fails."*
+ *
+ * It happened again in this session, in the first arm, and the sweep printed
+ * it: the generator's `landmark` claim shrank to the dish's circle while the
+ * delivered census still claimed its 88 x 88 m rectangle, so the apron's own
+ * bollards and planters — standing on ground the generator had just declared
+ * free — came back as `landmark(dish) x prop(bollard)`. One function, two
+ * readers, and the split cannot drift.
+ *
+ * `precinct` FIRST, so that it is the lower index in every registry bucket and
+ * `conflict` returns it before the pieces — see the call site in
+ * `generateChunk` for the two buildings that cost.
+ */
+export function landmarkClaimParts(l) {
+  const hit = landmarkClaimPartCache.get(l);
+  if (hit) return hit;
+  const precinct = landmarkPrecinct(l);
+  const out = [];
+  for (const g of landmarkGroundClaims(l)) {
+    if (!precinct.length) {
+      out.push({ kind: 'landmark', x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, y0: g.y0, y1: g.y1, owner: g.owner, tested: g.tested });
+      continue;
+    }
+    out.push({
+      kind: 'precinct', x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1,
+      y0: 0, y1: g.y1, owner: `${g.owner}:precinct`, tested: g.tested,
+    });
+    for (const part of subtractBoxes([{ x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1 }], precinct, 0)) {
+      out.push({
+        kind: 'landmark', x0: part.x0, x1: part.x1, z0: part.z0, z1: part.z1,
+        y0: g.y0, y1: g.y1, owner: g.owner, tested: g.tested,
+      });
+    }
+  }
+  landmarkClaimPartCache.set(l, out);
+  return out;
+}
+
+/**
  * DOES A LANDMARK STAND ON THE GROUND AT (x, z)?
  *
  * ONE NAME, BECAUSE THE RIVER'S TWO ARE A REAL DISTINCTION AND A LANDMARK'S
@@ -6234,17 +6511,48 @@ export const CORRIDOR = CITY.roadHalfWidth + CITY.sidewalkWidth;
  * claims, and a mass standing hard against a pavement edge is what a street
  * wall IS.
  */
-const BUILDING_SETBACKS = { landmark: CITY.sidewalkWidth, building: 0 };
+/**
+ * `precinct` CARRIES THE SAME NUMBER AS `landmark` AND OMITTING IT COST SIX
+ * BUILDINGS — SESSION 51, and it is the sharpest lesson of the claim split.
+ *
+ * `pads` is a PER-CATEGORY setback and it is keyed on the category NAME. So
+ * the moment `landmark` became `landmark | precinct`, this table applied to
+ * half of what it used to and **the perimeter walk placed 680 buildings where
+ * it had placed 674** — six masses that had been refused by a 4.2 m margin
+ * against ground that is still spoken for. It is not a conflict-table defect:
+ * `precinct × building` is forbidden and every one of those six is outside
+ * the claim. It is the SETBACK, which is the part of "occupancy" that lives
+ * in a key rather than in the table, and it is exactly CONTRACT §9's shape —
+ * one quantity split in two, with a reader that knew only the old name.
+ *
+ * Every setback table in this file therefore names both, and the delivered
+ * building population is 674 again.
+ */
+const BUILDING_SETBACKS = {
+  landmark: CITY.sidewalkWidth, precinct: CITY.sidewalkWidth, building: 0,
+};
 
 /** The quayside terrace's own, session 15's 1 m margin against the island's frontage. */
-const QUAY_SETBACKS = { landmark: CITY.sidewalkWidth, building: 1 };
+const QUAY_SETBACKS = {
+  landmark: CITY.sidewalkWidth, precinct: CITY.sidewalkWidth, building: 1,
+};
 
 /**
  * The same, for a prop. `landmark: 3` is the scatter's own pad from session 4b.
  * A bollard may stand a metre from a wall; it may not stand a metre inside a
  * landmark's plinth.
+ *
+ * `precinct: 3` KEEPS THE STREET SCATTER OUT OF A FORECOURT — session 51. It
+ * is the phase-preserving choice and it is also the right sentence: a
+ * landmark's apron is furnished by the landmark's OWN programme
+ * (`LANDMARK_APRON`), not by the kerbside scatter that happens to reach it.
+ * That programme uses `APRON_SETBACKS` below, which is this table without the
+ * row — because the thing it is placing stands IN the precinct.
  */
-const PROP_SETBACKS = { landmark: 3 };
+const PROP_SETBACKS = { landmark: 3, precinct: 3 };
+
+/** A landmark apron's own furniture: 3 m off the structure, and inside its precinct. */
+const APRON_SETBACKS = { landmark: 3 };
 
 /**
  * Metres. The smallest ground rectangle worth emitting after a clip.
@@ -6271,11 +6579,11 @@ const MIN_GROUND_PIECE_M = 0.35;
  * band gives long strips along the road rather than a pinwheel, which is what
  * keeps a clipped carriageway reading as a carriageway.
  */
-function subtractBox(r, b) {
+function subtractBox(r, b, minPiece = MIN_GROUND_PIECE_M) {
   if (!(r.x1 > b.x0 && r.x0 < b.x1 && r.z1 > b.z0 && r.z0 < b.z1)) return [r];
   const out = [];
   const push = (x0, z0, x1, z1) => {
-    if (x1 - x0 >= MIN_GROUND_PIECE_M && z1 - z0 >= MIN_GROUND_PIECE_M) out.push({ ...r, x0, z0, x1, z1 });
+    if (x1 - x0 >= minPiece && z1 - z0 >= minPiece) out.push({ ...r, x0, z0, x1, z1 });
   };
   if (b.x0 > r.x0) push(r.x0, r.z0, Math.min(r.x1, b.x0), r.z1);
   if (b.x1 < r.x1) push(Math.max(r.x0, b.x1), r.z0, r.x1, r.z1);
@@ -6288,12 +6596,27 @@ function subtractBox(r, b) {
   return out;
 }
 
-/** The same, over a list of rectangles and a list of boxes. */
-function subtractBoxes(rects, boxes) {
+/**
+ * The same, over a list of rectangles and a list of boxes.
+ *
+ * `minPiece` IS A PARAMETER SINCE SESSION 51 AND ITS ONE NON-DEFAULT CALLER
+ * IS A PARTITION RATHER THAN A CUT. `MIN_GROUND_PIECE_M` is a statement about
+ * a SURFACE — *"a missing surface is inside what `surfaceAt` already answers
+ * as bare earth"* — and dropping a 0.2 m sliver of pavement is invisible.
+ * Dropping a 0.2 m sliver of KEEP-OUT is not: the landmark claim split (see
+ * `landmarkPrecinct`) subtracts the precinct staircase out of the claim, and
+ * at the default the two halves stopped summing to the whole. Measured over
+ * `citycheck`'s own 10 x 10 region: **90 m² of claim lost, 0.02% of the road
+ * network moved and SIX buildings of 674 re-phased** — a re-phase, which this
+ * file's own comments are emphatic costs a differently-phased city rather
+ * than the same one with a change in it. At `minPiece: 0` the union is exact
+ * and both counts are identical.
+ */
+function subtractBoxes(rects, boxes, minPiece = MIN_GROUND_PIECE_M) {
   let cur = rects;
   for (const b of boxes) {
     const next = [];
-    for (const r of cur) for (const piece of subtractBox(r, b)) next.push(piece);
+    for (const r of cur) for (const piece of subtractBox(r, b, minPiece)) next.push(piece);
     cur = next;
     if (!cur.length) break;
   }
@@ -6806,17 +7129,97 @@ export function generateChunk(rootSeed, cx, cz) {
    * landmark in the city — 44 100 m² of it across the weir alone. The deck
    * half stays here because it is the one claim that is NOT a ground claim.
    */
+  /** The landmarks' claim rectangles, WHOLE, for the road clip. See below. */
+  const landmarkSolids = [];
   for (const l of nearLandmarks) {
     for (const o of landmarkOccluders(l)) {
       if (o.deck) {
         reg.claim(claimBox('deck', o.x0, o.z0, o.x1, o.z1, { y0: o.base, y1: o.top, owner: l.name }));
       }
     }
+    /**
+     * THE CLAIM, SPLIT INTO WHAT THE LANDMARK STANDS ON AND WHAT IT MERELY
+     * TOOK — SESSION 51. See `landmarkPrecinct` for the whole derivation.
+     *
+     * THE GROUND THE CLAIM SPEAKS FOR DOES NOT MOVE, which is what makes this
+     * safe to do at all. Every square metre that was `landmark` is now
+     * `precinct`, and the part the structure actually stands on is `landmark`
+     * as well — see the two claims below. `precinct` still forbids `building`
+     * and `carriageway`, the two readers the claim was written for, so the
+     * road clip below and the perimeter walk after it see exactly what they
+     * saw: measured over `citycheck`'s own 10 x 10 region, **carriageway
+     * 38.315 ha, pavement 16.799 ha, core 43.305 ha and 674 buildings, every
+     * one of them session 50's figure to the digit.**
+     *
+     * `landmarkGroundClaims` ITSELF IS UNTOUCHED. `landmarkOccupies` reads it
+     * and `traffic.js` reads that, so the fleet's idea of where a landmark is
+     * does not move by a millimetre. The split lives HERE, at the one place
+     * the registry is written, rather than in the description every other
+     * reader shares.
+     */
+    const precinct = landmarkPrecinct(l);
+    const parts = landmarkClaimParts(l);
     for (const g of landmarkGroundClaims(l)) {
+      /**
+       * THE WHOLE CLAIM, RECORDED FOR THE ROAD CLIP BEFORE IT IS SPLIT —
+       * SESSION 51, and it is a sliver defect with a measurement.
+       *
+       * `subtractBoxes` drops a piece under `MIN_GROUND_PIECE_M` = 0.35 m
+       * AFTER EACH BLOCKER, which is right for a surface and is a filter that
+       * COMPOUNDS. Cutting a carriageway against one 210 m box and cutting it
+       * against the eighty-eight staircase boxes that partition the same
+       * 210 m box are the same set difference and not the same result.
+       * Measured over `citycheck`'s 10 x 10 region before this array existed:
+       * **0.004 ha of carriageway and 0.005 ha of pavement lost, and SIX
+       * buildings of 674 placed that the lost slivers had been refusing.**
+       * Six buildings is a re-phased city, which is the thing every comment in
+       * this file about a new `rng` draw is protecting against.
+       */
       const box = claimBox('landmark', g.x0, g.z0, g.x1, g.z1, { y0: g.y0, y1: g.y1, owner: g.owner });
-      // `tested` is the viaduct end treatment's own refusal — see below.
+      // `tested` is the viaduct end treatment's own refusal — see below. It is
+      // tested BEFORE `landmarkSolids` records it: an end treatment that is
+      // not built must not cut a carriageway, and the first arm of this split
+      // pushed the box first and took 0.014 ha of pavement off two chunks.
       if (g.tested && reg.conflict(box)) continue;
-      reg.claim(box);
+      landmarkSolids.push({ x0: g.x0, x1: g.x1, z0: g.z0, z1: g.z1, kind: 'landmark' });
+      if (!precinct.length) { reg.claim(box); continue; }
+      /**
+       * THE PRECINCT IS THE WHOLE CLAIM AND THE LANDMARK IS THE PART OF IT
+       * THE STRUCTURE STANDS ON, SO THE TWO OVERLAP. That is deliberate and
+       * it is the `deck × landmark` arrangement one row down in
+       * `occupancy.js`: *"a deck's own legs are `landmark` claims directly
+       * under it, which is the arrangement rather than a defect."*
+       *
+       * IT IS ALSO THE ONLY VERSION THAT DOES NOT RE-PHASE THE CITY, and the
+       * first arm is why. Claiming the precinct as the eighty-eight STAIRCASE
+       * boxes and the landmark as the remainder is the same set and the same
+       * dilated union — verified over three chunks at 0.25 m, **zero
+       * disagreements in 262 144 samples** — and it still moved two buildings
+       * of 674, because `afterRefusal` reads `hit.x1`:
+       *
+       *   > `const far = (side.axis === 'x' ? hit.x1 : hit.z1) + gap;`
+       *
+       * The perimeter walk RESUMES PAST THE THING THAT REFUSED IT, so a hit
+       * that is one 2.1 m tread of a staircase advances `t` by 2.1 m where a
+       * hit that is the 210 m claim advances it by 210 — and every `rng` draw
+       * after that is a different draw. A partition can be exact as a SET and
+       * still be a different obstacle, which is CONTRACT §9's shape with a
+       * refusal instead of a length.
+       *
+       * Claimed BEFORE the landmark pieces, so that it is the lower index in
+       * every grid bucket and `conflict` returns it first — the same box, at
+       * the same insertion position, that the single claim used to be.
+       *
+       * `y1` IS THE LANDMARK'S OWN, NOT A SURFACE'S: a building is refused on
+       * `[y0, y1]`, so a forecourt that declared itself 0.02 m tall would let
+       * a 40 m tower stand in the dome's plaza. `y0` is the datum rather than
+       * the claim's, because the basin's is -10.9 m and its rim is at grade.
+       */
+      for (const part of parts) {
+        if (part.owner !== g.owner && part.owner !== `${g.owner}:precinct`) continue;
+        reg.claim(claimBox(part.kind, part.x0, part.z0, part.x1, part.z1,
+          { y0: part.y0, y1: part.y1, owner: part.owner }));
+      }
     }
     if (l.kind === 'viaduct') {
       /**
@@ -6909,8 +7312,29 @@ export function generateChunk(rootSeed, cx, cz) {
   {
     const r = CITY.roadHalfWidth;
     const w = CORRIDOR;
-    /** The blockers a ground surface is cut around: solid, at grade, not a deck. */
-    const solid = () => reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+    /**
+     * The blockers a ground surface is cut around: solid, at grade, not a deck.
+     *
+     * THE LANDMARKS COME FROM `landmarkSolids` AND NOT FROM THE REGISTRY —
+     * session 51, and the reason is at that array's push site above: the claim
+     * was split into `landmark` and `precinct`, and cutting a road against the
+     * eighty-eight staircase boxes that PARTITION a claim is not the same
+     * result as cutting it against the claim. `subtractBoxes` drops a piece
+     * under `MIN_GROUND_PIECE_M` after each blocker and the filter compounds.
+     * Every OTHER filter in this file that named `landmark` now names
+     * `precinct` beside it, because those cut a SURFACE and a surface is what
+     * that constant is a statement about.
+     *
+     * THE ORDER IS THE REGISTRY'S OWN — block, then water, then the landmarks
+     * — and it is load-bearing for the same reason. `subtractBox` is a
+     * GUILLOTINE, so the order of the blockers decides the SHAPE of the
+     * remainder and therefore which sub-pieces fall under
+     * `MIN_GROUND_PIECE_M`. Putting the landmarks first cost 0.014 ha of
+     * pavement on the two chunks the viaduct crosses, for no other reason.
+     */
+    const solid = () => reg.all()
+      .filter((c) => c.kind === 'block' || c.kind === 'water')
+      .concat(landmarkSolids);
     /**
      * ALL FOUR EDGES ARE CLAIMED; ONLY TWO ARE EMITTED.
      *
@@ -8275,6 +8699,7 @@ export function generateChunk(rootSeed, cx, cz) {
   // stream no park and no site has ever reached. The delivered park and
   // construction chunks are bit-identical (STATE 40 §7's determinism digest).
   const features = [];
+
   if (lowDetail) {
     const featRng = chunkRng(rootSeed, cx, cz, 'feature');
     const isl = island;
@@ -8286,7 +8711,8 @@ export function generateChunk(rootSeed, cx, cz) {
      * hardstanding all stop at the same landmark, the same block keep-out and
      * the same water.
      */
-    const islandSolids = () => reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+    const islandSolids = () => reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'precinct'
+      || c.kind === 'block' || c.kind === 'water');
 
     /**
      * A BOUNDARY RUN — SESSION 40, FACTORED OUT OF THE PARK'S OWN EDGE LOOP.
@@ -8384,7 +8810,8 @@ export function generateChunk(rootSeed, cx, cz) {
        * segments over the water, found by the registry in the first run after
        * they existed. Everything a park emits goes through one clip now.
        */
-      const solidHere = reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water');
+      const solidHere = reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'precinct'
+        || c.kind === 'block' || c.kind === 'water');
       const grass = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
       for (const g of subtractBoxes([grass], solidHere)) ground.push(g);
 
@@ -8553,7 +8980,8 @@ export function generateChunk(rootSeed, cx, cz) {
        * frame, spoil, and one crane.
        */
       const site = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'siteGround', yKey: 'site' };
-      for (const g of subtractBoxes([site], reg.all().filter((c) => c.kind === 'landmark' || c.kind === 'block' || c.kind === 'water'))) ground.push(g);
+      for (const g of subtractBoxes([site], reg.all().filter((c) => c.kind === 'landmark'
+        || c.kind === 'precinct' || c.kind === 'block' || c.kind === 'water'))) ground.push(g);
 
       const inset = SITE.hoardingInset;
       const seg = SITE.hoardingSegment;
@@ -9458,7 +9886,7 @@ export function generateChunk(rootSeed, cx, cz) {
       const halfV = (alongX ? isl.z1 - isl.z0 : isl.x1 - isl.x0) / 2;
 
       /** Every SOLID standing on this island, including the masses just placed. */
-      const hereSolids = () => reg.all().filter((c) => (c.kind === 'landmark' || c.kind === 'block'
+      const hereSolids = () => reg.all().filter((c) => (c.kind === 'landmark' || c.kind === 'precinct' || c.kind === 'block'
         || c.kind === 'water' || c.kind === 'building')
         && c.x1 > isl.x0 && c.x0 < isl.x1 && c.z1 > isl.z0 && c.z0 < isl.z1);
 
@@ -10672,11 +11100,203 @@ export function generateChunk(rootSeed, cx, cz) {
      * claims a park's grass is clipped against, plus the buildings — a
      * courtyard stops at its own back wall.
      */
-    const coreSolids = reg.all().filter((c) => c.kind === 'building' || c.kind === 'landmark'
+    const coreSolids = reg.all().filter((c) => c.kind === 'building' || c.kind === 'landmark' || c.kind === 'precinct'
       || c.kind === 'block' || c.kind === 'water');
     const yardRect = { x0: island.x0, z0: island.z0, x1: island.x1, z1: island.z1, kind: 'coreGround', yKey: 'core' };
     for (const g of subtractBoxes([yardRect], coreSolids)) ground.push(g);
   }
+
+  /**
+   * THE APRON RUNS LAST, AFTER THE PROP SCATTER, AND THAT IS THE WHOLE OF ITS
+   * PLACEMENT IN THE ORDER — SESSION 51.
+   *
+   * Put before the scatter it re-phased it: **284 existing props moved and 358
+   * appeared across the sixteen landmark-touching chunks**, because a claim
+   * added anywhere in a chunk changes which candidates the scatter's retries
+   * refuse. Every comment in this file about a new `rng` draw is about that
+   * cost, and the ordering pays none of it — the scatter runs against exactly
+   * the registry session 50 gave it, and the apron is laid into what is left.
+   *
+   * IT COSTS THE APRON NOTHING, and the reason is `PROP_SETBACKS.precinct`:
+   * the precinct is claimed at the TOP of this function with the landmarks, so
+   * the street scatter has been three metres clear of it all along and there
+   * is nothing in there for the apron to be refused by.
+   */
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE LANDMARK APRON — SESSION 51, AND IT IS THE OPERATOR'S THIRD DEFECT.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * *"Sessions 48, 49 and 50 gave fifteen island kinds a floor, a palette and
+   * fixtures sized to the island. THE EIGHT LANDMARKS GOT NONE OF IT."*
+   *
+   * AND ONE LINE OF THIS FILE IS WHY, 1800 LINES ABOVE:
+   *
+   *     const lowDetail = !hasLandmark && density < CITY.lowDetailThreshold;
+   *
+   * A chunk that touches a landmark is NEVER low-detail, so it never enters
+   * the `if (lowDetail)` branch below and never reaches `lay`, `layPath`,
+   * `bayRows`, `floods`, `fence`, `boundaryRun` or the prop palette. Three
+   * sessions of fixture work is behind a predicate that every landmark in the
+   * city fails by construction. The exclusion is CORRECT — a landmark chunk is
+   * not a works yard and must not draw one — and what was missing is the
+   * landmark's OWN programme.
+   *
+   * SIZED FROM THE LANDMARK'S OWN CLAIM, WHICH IS SESSION 50'S WHOLE LESSON.
+   * The apron is not a radius somebody chose: it is `landmarkPrecinct(l)` —
+   * the part of the registry claim the landmark does not stand on, which for a
+   * round landmark in a square claim is 21.5% of it by geometry. The boundary
+   * ring is on the landmark's own `landmarkGroundRadius`, and the furnishing
+   * count is the apron's own area over a spacing that belongs to the kind. Not
+   * one constant in `LANDMARK_APRON` is a length.
+   *
+   * WHAT IT IS MADE OF: `edge` features and `bollard`, `bench` and `tree`
+   * props, which is the vocabulary sessions 40 and 47 already built and which
+   * session 49 made eight kinds of place out of without adding a mesh. This
+   * adds none either.
+   *
+   * ONE CHUNK, ONE SHARE. A landmark spans up to four chunks and every one of
+   * them sees the same `landmarkPrecinct`, so each clips it to its OWN
+   * `chunkBounds` — not to the corridor-extended bounds the road strips use.
+   * Every square metre is in exactly one chunk, so nothing is emitted twice
+   * and nothing z-fights with a neighbour's copy of itself.
+   */
+  {
+    const apronRng = chunkRng(rootSeed, cx, cz, 'apron');
+    for (const l of nearLandmarks) {
+      const spec = LANDMARK_APRON[l.name];
+      const pre = spec ? landmarkPrecinct(l) : [];
+      if (!pre.length) continue;
+      const r = landmarkGroundRadius(l);
+
+      /**
+       * THE SURFACE. Cut against the two things that can be under it and are
+       * not the landmark — the origin block and the river — and against the
+       * buildings the perimeter walk has already placed, which is what `lay`
+       * does with `islandSolids` one branch down. The landmark's own claim
+       * needs no cut: the precinct IS the claim minus the landmark.
+       */
+      const cut = reg.all().filter((c) => c.kind === 'block' || c.kind === 'water' || c.kind === 'building');
+      const mine = [];
+      for (const q of pre) {
+        const x0 = Math.max(q.x0, b.x0);
+        const x1 = Math.min(q.x1, b.x1);
+        const z0 = Math.max(q.z0, b.z0);
+        const z1 = Math.min(q.z1, b.z1);
+        if (x1 - x0 < MIN_GROUND_PIECE_M || z1 - z0 < MIN_GROUND_PIECE_M) continue;
+        mine.push({ x0, x1, z0, z1, kind: spec.ground, yKey: spec.yKey });
+      }
+      for (const g of subtractBoxes(mine, cut)) {
+        ground.push(g);
+        /**
+         * `precinct` AND NOT `ground`, which is the category `city.js` gives
+         * the same rectangle when it emits it — see `CATEGORY_FOR_GROUND`
+         * there for the delivered-census measurement that decided it. The two
+         * sides of the claim must agree or `citycheck` is comparing a
+         * generator that said one thing with an artefact that said another,
+         * which is the whole reason the delivered census exists.
+         */
+        reg.claim(claimBox('precinct', g.x0, g.z0, g.x1, g.z1, { owner: `${l.name}:apron` }));
+      }
+
+      /**
+       * THE BOUNDARY, ON THE LANDMARK'S OWN CIRCLE.
+       *
+       * `APRON_STEP_M` out from the silhouette, because the staircase
+       * over-states the circle by up to one step and a run laid ON the radius
+       * would be refused by the residue rather than by anything real. At the
+       * weir that setback is also what a railing has: the rim is a NINE METRE
+       * DROP and there has never been anything at the top of it.
+       *
+       * Segments, not an arc: every boundary in this project is a run of
+       * straight bays (`boundaryRun`), and a 4.0 m bay on a 105 m radius is
+       * 2.2 degrees of chord — 0.02 m of sagitta, which is under the mesh's
+       * own tolerance. ONE GAP, at a rolled bearing, for the same reason
+       * `boundaryRun` leaves one: a compound you cannot get into is a wall.
+       */
+      if (spec.edge) {
+        const rr = r + APRON_STEP_M;
+        const n = Math.max(8, Math.round((2 * Math.PI * rr) / APRON_BAY_M));
+        const gate = Math.floor(apronRng.next() * n);
+        for (let i = 0; i < n; i++) {
+          if (Math.abs(i - gate) <= 1) continue;
+          const a = ((i + 0.5) / n) * Math.PI * 2;
+          const x = l.x + Math.cos(a) * rr;
+          const z = l.z + Math.sin(a) * rr;
+          if (x < b.x0 || x >= b.x1 || z < b.z0 || z >= b.z1) continue;
+          const yawDeg = (-a * 180) / Math.PI;
+          const ca = Math.abs(Math.cos(a));
+          const sa = Math.abs(Math.sin(a));
+          const halfAlong = APRON_BAY_M / 2;
+          const halfT = 0.07;
+          const box = claimAt('feature', x, z,
+            sa * halfAlong + ca * halfT, ca * halfAlong + sa * halfT,
+            { y0: 0, y1: spec.edgeHeight, owner: `${l.name}:edge` });
+          if (reg.conflict(box)) continue;
+          features.push({
+            kind: 'edge', edge: spec.edge, x, z,
+            length: APRON_BAY_M, height: spec.edgeHeight, yawDeg: yawDeg + 90,
+          });
+          reg.claim(box);
+        }
+      }
+
+      /**
+       * THE FURNISHING, AND THE COUNT IS THE APRON'S OWN AREA.
+       *
+       * `DEAD_ZONE` gives a low-detail island a floor of `(104.6 / L)²` for a
+       * length `L` that belongs to the kind — session 50's table. This is the
+       * same statement for a shape that is not an island: `area / L²`, with
+       * the same `L`, so a forecourt and a churchyard are furnished at one
+       * density and neither has to know the other's shape. The area is THIS
+       * CHUNK'S share, so a landmark spanning four chunks is furnished once.
+       */
+      const mineArea = mine.reduce((t, q) => t + (q.x1 - q.x0) * (q.z1 - q.z0), 0);
+      const want = Math.round(mineArea / (spec.spacingM * spec.spacingM));
+      let placed = 0;
+      /**
+       * THREE TRIES PER OBJECT AND THEN IT STOPS. A refusal here is the
+       * registry saying the ground is taken — by the railing that has just
+       * gone up, by a building, by another bollard — and the honest answer to
+       * a full apron is fewer objects, not a search that finds a gap in it.
+       * Session 40's own rule for the same loop.
+       */
+      for (let i = 0; i < want * 3 && want > 0 && placed < want; i++) {
+        if (mine.length === 0) break;
+        const q = mine[Math.floor(apronRng.next() * mine.length)];
+        const x = apronRng.range(q.x0, q.x1);
+        const z = apronRng.range(q.z0, q.z1);
+        const pk = spec.props[Math.floor(apronRng.next() * spec.props.length)];
+        const half = propHalfWidth(pk, 0);
+        /**
+         * A METRE INSIDE THE CLAIM'S OWN EDGE, AND IT IS NOT TIDINESS.
+         *
+         * `city.js` places the street lamps AFTER the pure generator has run,
+         * so they are in the delivered census and in no registry band the
+         * scatter can test against — session 23's finding, still true. A lamp
+         * stands on the kerb just OUTSIDE a landmark's claim (that is what
+         * `landmarkOccupies` refuses it), so the one object an apron prop can
+         * collide with is the one a metre the other side of the boundary.
+         * Measured: without this the sweep gained
+         * `prop(planter) x prop(lamp:column)` at 0.064 m², a fourth delivered
+         * overlap against the three this project has carried since session 24.
+         */
+        const edge = 1.0;
+        if (Math.abs(x - l.x) > r - half - edge || Math.abs(z - l.z) > r - half - edge) continue;
+        const spot = claimAt('prop', x, z, half, half, { owner: `${l.name}:apron` });
+        if (reg.conflict(spot, 0, APRON_SETBACKS)) continue;
+        reg.claim(spot);
+        props.push({
+          x, z, yawDeg: apronRng.range(0, 360), refDeg: 0, kerb: false, kind: pk,
+          scale: apronRng.range(PROP_SCALE.min, PROP_SCALE.max),
+          variant: apronRng.int(0, propVariantCount(pk) - 1),
+          soil: apronRng.range(0.5, 0.95), lean: 0, leanAzDeg: 0, core: true,
+        });
+        placed++;
+      }
+    }
+  }
+
 
   for (const l of touching) {
     for (const o of landmarkOccluders(l)) occluders.push(o);

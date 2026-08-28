@@ -69,6 +69,17 @@
  *   building      a generated mass, ground to roof
  *   landmark      a hand-placed structure's GROUND-STANDING solid: a drum, a
  *                 tower shell, a viaduct leg. Not its deck.
+ *   precinct      SESSION 51. The ground a landmark's claim TAKES and the
+ *                 landmark does not STAND ON. Split from `landmark` for the
+ *                 reason `pavement` is split from `carriageway`: a landmark's
+ *                 claim is an axis-aligned rectangle and four of the eight
+ *                 landmarks are ROUND, so 1 - pi/4 = 21.5% of each of those
+ *                 claims is ground the object never touches. As `landmark` it
+ *                 forbade every surface and every fixture, so it was drawn as
+ *                 nothing — the `block.js` earth plane, which is what the
+ *                 operator photographed at the weir. It still forbids a
+ *                 BUILDING and a CARRIAGEWAY, so the road clip and the
+ *                 building keep-out are bit-for-bit what they were.
  *   deck          an elevated structure with clear space under it: the viaduct
  *                 deck, the arch's transit deck, a bridge. Split from `landmark`
  *                 because it is the one category whose conflicts are decided by
@@ -100,7 +111,7 @@
 export const CATEGORIES = [
   'building', 'landmark', 'deck', 'water',
   'carriageway', 'pavement', 'path', 'block',
-  'prop', 'canopy', 'sign', 'site', 'feature', 'ground',
+  'prop', 'canopy', 'sign', 'site', 'feature', 'ground', 'precinct',
 ];
 
 /**
@@ -163,6 +174,33 @@ const FORBIDDEN = {
    * excused everywhere.
    */
   landmark: ['building', 'carriageway', 'pavement', 'path', 'prop', 'canopy', 'sign', 'site', 'feature'],
+
+  /**
+   * `precinct` — A FORECOURT. THREE ENTRIES, AND EACH ABSENCE IS THE POINT.
+   *
+   * It is the row above with six entries REMOVED, and the six are exactly the
+   * things a forecourt is made of: a surface (`ground`, `pavement`, `path`),
+   * the furniture standing on it (`prop`, `sign`), the planting over it
+   * (`canopy`) and a park's own built content (`feature`). A precinct that
+   * forbade those would be the `landmark` claim it was split out of.
+   *
+   * WHAT STAYS IS WHAT THE SPLIT MUST NOT COST. `building` and `carriageway`
+   * are the two readers session 34 and session 42 wrote the landmark claim
+   * FOR: `generateChunk` clips the carriageway and the pavement against it,
+   * and the perimeter walk refuses a mass inside it. Keeping both means the
+   * road network and the building population are unchanged by construction,
+   * and the only thing the split adds is permission for a SURFACE.
+   *
+   * `pavement` IS ABSENT WHERE `carriageway` IS PRESENT, which is the same
+   * asymmetry `landmark` does not have and is deliberate: a footway may run
+   * up to and around a landmark — that is what a forecourt is for — and a
+   * carriageway may not. `landmark` forbids both because a footway may not
+   * run THROUGH a drum.
+   *
+   * `water` stays because a precinct is at grade and the channel is not
+   * something a forecourt may be laid across.
+   */
+  precinct: ['building', 'carriageway', 'water'],
 
   /**
    * A deck conflicts by HEIGHT. Its footprint crosses roads, water and parks on
