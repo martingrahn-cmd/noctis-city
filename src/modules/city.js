@@ -1329,7 +1329,8 @@ export function createCity(options = {}) {
      */
     const parkingAlbedo = [0.082, 0.082, 0.086];
     const yardAlbedo = [0.172, 0.169, 0.160];
-    const coreAlbedo = [0.105, 0.102, 0.096];
+    /** `GROUND.coreAlbedo` since session 51 — `block.js` lays the same surface. */
+    const coreAlbedo = GROUND.coreAlbedo;
     /**
      * A HARD COURT — session 48. Coloured macadam, which is what a municipal
      * court and a playground safety surface are both laid in. It is the

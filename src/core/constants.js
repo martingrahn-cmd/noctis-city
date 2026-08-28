@@ -669,6 +669,28 @@ export const GROUND = {
    * the residency ring working, not a gap to be filled with a colour.
    */
   earthAlbedo: [0.1229, 0.1211, 0.1168],
+
+  /**
+   * THE BACK OF A BLOCK, LINEAR — SESSION 51, AND IT IS A MOVE RATHER THAN A
+   * NEW NUMBER.
+   *
+   * `city.js` has carried `coreAlbedo = [0.105, 0.102, 0.096]` as a literal
+   * inside `buildGround` since session 40, where it surfaces the core of every
+   * `built` island in the streamed city — the service court behind the
+   * perimeter ring, which is 40.96% of all the ground this city draws (the
+   * table above).
+   *
+   * IT IS HERE BECAUSE `block.js` NOW LAYS THE SAME SURFACE. The origin block
+   * is a `built` block and its keep-out is 336 x 92 m; `city.js` clips every
+   * streamed ground quad out of it so that `block.js` wins, and until this
+   * session `block.js` drew a street cross inside it and nothing else. The two
+   * cores MEET at `BLOCK_KEEPOUT.x1` = 168, so a second copy of this triple in
+   * a second module is a seam that turns visible the first time either one is
+   * touched — CONTRACT §9.1's two-descriptions-of-one-thing with a
+   * reflectance, and `ROAD_PAINT` four paragraphs down is the same argument
+   * about the same pair of files.
+   */
+  coreAlbedo: [0.105, 0.102, 0.096],
 };
 
 /**

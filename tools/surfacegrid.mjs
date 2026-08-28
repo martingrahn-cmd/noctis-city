@@ -88,15 +88,23 @@ const lpad = (s, n) => String(s).padStart(n);
 
 /**
  * THE FOUR POSITIONS THE OPERATOR PHOTOGRAPHED AFTER SESSION 50, with what his
- * console printed beside each. This probe's control (CONTRACT §7.1): a run that
- * does not reproduce these is reading something other than what he was standing
- * on, and its areas are not comparable with his frames.
+ * console printed beside each. This probe's control (CONTRACT §7.1).
+ *
+ * IT IS A CONTROL IN TWO DIRECTIONS AND BOTH ARE PRINTED. Before anything was
+ * repaired it verified that this path reads what he was standing on — all four
+ * reproduced to the millimetre, which is what makes the areas below comparable
+ * with his frames. After a repair it verifies that the repair reached the
+ * position he actually stood in, which a hectare total cannot say: a session
+ * can move 1.68 ha and miss both of his feet.
+ *
+ * `want` is what the position should read once the defect named in `note` is
+ * closed. `null` means the reading is correct as it stands and must not move.
  */
 const OPERATOR_POSITIONS = [
-  { x: 109.94, z: -13.60, saw: 'earth', y: -0.020, note: 'ground missing in the core' },
-  { x: 146.89, z: -23.32, saw: 'earth', y: -0.020, note: 'ground missing in the core' },
-  { x: 190.64, z: -11.25, saw: 'walk', y: 0.161, note: 'traffic over a pale surface' },
-  { x: -163.75, z: 129.28, saw: 'road', y: 0.001, note: 'a street ends in the square' },
+  { x: 109.94, z: -13.60, saw: 'earth', y: -0.020, want: 'ground', note: 'ground missing in the core' },
+  { x: 146.89, z: -23.32, saw: 'earth', y: -0.020, want: 'ground', note: 'ground missing in the core' },
+  { x: 190.64, z: -11.25, saw: 'walk', y: 0.161, want: null, note: 'traffic over a pale surface' },
+  { x: -163.75, z: 129.28, saw: 'road', y: 0.001, want: null, note: 'a street ends in the square' },
 ];
 
 /**
@@ -161,9 +169,12 @@ console.log('  THE OPERATOR\'S OWN FOUR POSITIONS — the control');
 for (const p of OPERATOR_POSITIONS) {
   const w = bootCity({ seed: SEED, eye: [p.x, 1.74, p.z] });
   const su = w.cityApi.worldSurfaceAt(p.x, p.z);
-  const ok = su.kind === p.saw && Math.abs(su.y - p.y) < 0.0015;
-  console.log(`  ${ok ? 'OK  ' : 'DIFF'} (${lpad(p.x.toFixed(2), 8)}, ${lpad(p.z.toFixed(2), 8)})  `
-    + `saw ${pad(p.saw, 6)} y ${p.y.toFixed(3)}   now ${pad(su.kind, 6)} y ${su.y.toFixed(3)}   ${p.note}`);
+  const same = su.kind === p.saw && Math.abs(su.y - p.y) < 0.0015;
+  const verdict = p.want === null
+    ? (same ? 'HELD     ' : 'MOVED    ')
+    : (su.kind === p.want ? 'REPAIRED ' : (same ? 'UNREPAIRED' : 'OTHER    '));
+  console.log(`  ${verdict} (${lpad(p.x.toFixed(2), 8)}, ${lpad(p.z.toFixed(2), 8)})  `
+    + `s50 ${pad(p.saw, 6)} y ${lpad(p.y.toFixed(3), 6)}   now ${pad(su.kind, 6)} y ${lpad(su.y.toFixed(3), 6)}   ${p.note}`);
 }
 console.log('');
 

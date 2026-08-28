@@ -527,6 +527,19 @@ export function createBlock(options = {}) {
         GROUND.earthAlbedo[0], GROUND.earthAlbedo[1], GROUND.earthAlbedo[2],
         THREE.LinearSRGBColorSpace,
       );
+      /**
+       * THE BACK OF THIS BLOCK — SESSION 51. `GROUND.coreAlbedo` is the same
+       * triple `city.js` surfaces every other `built` island's core with, and
+       * the two meet at `BLOCK_KEEPOUT.x1`. Roughness is the streamed core's
+       * own 0.9: a service court is laid in the same weathered slab the
+       * pavement is, which is why it is `matPavement`'s number and not
+       * asphalt's.
+       */
+      const matCore = surfaceMaterial(ctx, { color: 0xffffff, roughness: 0.9 });
+      matCore.color.setRGB(
+        GROUND.coreAlbedo[0], GROUND.coreAlbedo[1], GROUND.coreAlbedo[2],
+        THREE.LinearSRGBColorSpace,
+      );
 
       /**
        * ONE facade material, and it is white.
@@ -819,6 +832,96 @@ export function createBlock(options = {}) {
       ground.name = 'block:ground';
       root.add(ground);
 
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * THE BACK OF THE BLOCK, WHICH HAS BEEN THE EARTH PLANE FOR FIFTY-ONE
+       * SESSIONS — SESSION 51. IT IS THE OPERATOR'S FIRST DEFECT.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * Two of the four positions he walked to after session 50 printed
+       * `on earth at y -0.020` — the plane above — INSIDE the city:
+       *
+       *     ?player=1&spawn=109.94,52.24,-13.60&t=0.5904&seed=1337
+       *     ?player=1&spawn=146.89,34.75,-23.32&t=0.6059&seed=1337
+       *
+       * BOTH ARE IN HERE, and `tools/surfacegrid.mjs` says how much of the city
+       * is: **1.68 ha, 58.2% of all the bare ground a person can reach in the
+       * resident ring**, in FOUR patches each 162 x 34 m. It is the largest
+       * single gap in the world and it is at the origin, which is where the
+       * player spawns and where every calibration camera stands.
+       *
+       * THE MECHANISM IS TWO CORRECT DECISIONS MEETING. `city.js` clips every
+       * streamed ground quad out of `BLOCK_KEEPOUT` — 336 x 92 m — *"so that
+       * this one wins"*, which is `blockSurfaceAt`'s own comment and is right:
+       * the block authors its own street. And what this module authored was a
+       * street CROSS: a carriageway, a cross street and four pavement boxes.
+       * The four quadrants BEHIND the kerb were authored by nobody, and the
+       * only thing left under them is the 8 km earth plane.
+       *
+       * SO IT IS NOT A NEW SURFACE, IT IS THE MISSING HALF OF ONE. Every other
+       * `built` island in this city has a core — `citygen.js` emits
+       * `coreGround` over the island inside its perimeter ring and `city.js`
+       * lays it at `GROUND.carriageway` in `GROUND.coreAlbedo`, which is 40.96%
+       * of all the ground the city draws. The origin block is a `built` block.
+       * It gets the same core, at the same height, in the same reflectance,
+       * read from the same constant — so the seam at `BLOCK_KEEPOUT.x1` = 168,
+       * where this surface meets the streamed one, cannot be a seam.
+       *
+       * FOUR QUADS AND ONE DRAW CALL. The extent is DERIVED from the four
+       * numbers the street is built from rather than transcribed: outside the
+       * cross street in x, outside the pavement in z, in to the keep-out's own
+       * edges. `halfCross` and `walkOuter` are the same two the pavement boxes
+       * and `blockSurfaceAt` use, so widening the street moves the core with
+       * it. Nothing is cut around the ten buildings: a surface under a building
+       * is hidden by the building, and the four rectangles are 8 triangles
+       * where a cut would be dozens.
+       *
+       * WHY IT DOES NOT Z-FIGHT WITH ANYTHING. It is at `GROUND.carriageway`,
+       * the datum, and it shares an EDGE with all three surfaces it meets and
+       * an area with none: the main street ends at `halfStreet` and the
+       * pavement carries on to `walkOuter`, where this begins; the cross street
+       * ends at `halfCross`, where this begins. The pavement's top is
+       * `kerbHeight` above it, which is a kerb and is what you step down.
+       */
+      const CORE_QUADS = [];
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const x0 = sx < 0 ? BLOCK_KEEPOUT.x0 : halfCross;
+          const x1 = sx < 0 ? -halfCross : BLOCK_KEEPOUT.x1;
+          const z0 = sz < 0 ? BLOCK_KEEPOUT.z0 : walkOuter;
+          const z1 = sz < 0 ? -walkOuter : BLOCK_KEEPOUT.z1;
+          if (x1 <= x0 || z1 <= z0) continue;
+          CORE_QUADS.push({ x0, x1, z0, z1 });
+        }
+      }
+      {
+        const CY = GROUND.carriageway;
+        const pos = [];
+        for (const q of CORE_QUADS) {
+          /**
+           * WINDING, DERIVED THE SAME WAY THE EARTH PLANE'S IS. For a quad
+           * (x0,z0), (x1,z1), (x1,z0) with x1 > x0 and z1 > z0:
+           * e1 = (dx, 0, dz), e2 = (dx, 0, 0), e1 x e2 = (0, dx*dz, 0) = +Y.
+           * The second triangle (x0,z0), (x0,z1), (x1,z1) gives the same sign.
+           * `windcheck` reads authored normal against triangle facing over
+           * every generated mesh, so this is derived rather than tried.
+           */
+          pos.push(q.x0, CY, q.z0, q.x1, CY, q.z1, q.x1, CY, q.z0);
+          pos.push(q.x0, CY, q.z0, q.x0, CY, q.z1, q.x1, CY, q.z1);
+        }
+        const geo = new THREE.BufferGeometry();
+        const arr = new Float32Array(pos);
+        geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        const nrm = new Float32Array(arr.length);
+        for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
+        geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+        geo.computeBoundingSphere();
+        const core = new THREE.Mesh(track(geo), matCore);
+        core.receiveShadow = true;
+        core.name = 'block:core';
+        root.add(core);
+      }
+
       const roadMain = new THREE.Mesh(
         track(new THREE.PlaneGeometry(cfg.groundExtent * 2, cfg.streetWidth)),
         matAsphalt
@@ -931,6 +1034,24 @@ export function createBlock(options = {}) {
         // the whole 8 km ribbon and not only for the block. THE DATUM.
         if (az <= halfStreet && ax <= cfg.groundExtent) {
           return { y: GROUND.carriageway, kind: 'road', known: true };
+        }
+        /**
+         * THE BACK OF THE BLOCK — session 51, and it is read off `CORE_QUADS`
+         * rather than re-derived from `halfCross` and `walkOuter` a second
+         * time. The comment over this function is emphatic that a second copy
+         * of its branches would be CONTRACT §9.1; that applies to the surface
+         * that was just added as much as to the four that were already here.
+         *
+         * `kind` is `'ground'` and not `'core'`, because that is the word the
+         * streamed core answers with: `city.js` maps `coreGround` through
+         * `CATEGORY_FOR_GROUND` to the `ground` category and `surfaceAt`
+         * returns the category. A walker crossing x = 168 must not see the
+         * name of the surface change under them.
+         */
+        for (const q of CORE_QUADS) {
+          if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1) {
+            return { y: GROUND.carriageway, kind: 'ground', known: true };
+          }
         }
         /**
          * AND WHERE THE EARTH HAS A HOLE IN IT, THIS SAYS SO — SESSION 34.
