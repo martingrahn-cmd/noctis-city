@@ -643,6 +643,30 @@ It is that the street wall is broken.
   IS what it spends, and at `fill = 1.0` this bullet is unreadable by
   construction. That is the whole reason the arm is `d^0.50` and not `d^0.0`.
 
+  **AND A SURFACE THAT IS NOT THERE NO LONGER LOOKS LIKE ANYTHING — SESSION 51,
+  AND IT IS A CONSEQUENCE OF A REPAIR RATHER THAN A DEFECT.** For forty-one
+  sessions the missing-ground failure mode announced itself: `block.js`'s earth
+  plane was `0x4a4640`, half as bright as the city's own ground and a third
+  redder, so a courtyard nobody surfaced read as the operator's *"wide brown
+  fields"* and could be found by looking. Session 42 replaced that guess with
+  the area-weighted mean of every surface the city actually draws —
+  `[0.1229, 0.1211, 0.1168]`, which is correct and is what a far field should
+  be — and the by-product is that **a missing surface is now a surface of about
+  the right colour that is not there**, 0.18 m below where it should be and 15%
+  off on one channel.
+
+  Session 51 measured what that hid: **1.68 ha behind the origin block's own
+  kerb, at the origin, where the player spawns and every calibration camera
+  stands, surviving nine sessions of people looking at frames.** The operator
+  found it with the console rather than with his eyes — `player.js` printing
+  `on earth at y -0.020` — and `s51-core-air-before` and `s51-core-air` are
+  hard to tell apart even knowing which is which.
+
+  **SO THIS BULLET NOW HAS AN INSTRUMENT AND NOT A LOOK.**
+  `tools/surfacegrid.mjs` asks `worldSurfaceAt` on a lattice and
+  `citycheck`'s `maxBareWalkableSamples` is 0. *"The ground looks fine"* stopped
+  being evidence in session 42 and nobody noticed until session 51.
+
 ---
 
 ## 3. Light
