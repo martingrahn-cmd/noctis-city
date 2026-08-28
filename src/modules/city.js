@@ -757,6 +757,21 @@ export function createCity(options = {}) {
     parking: GROUND.carriageway,
     yard: GROUND.carriageway,
     core: GROUND.carriageway,
+    /**
+     * A HARD COURT — session 48, AND IT IS AT THE GRASS DATUM AND NOT THE
+     * CARRIAGEWAY'S, WHICH THE FIRST ARM GOT WRONG AND A FRAME SAID SO.
+     *
+     * The other three laid surfaces (`parking`, `yard`, `core`) sit at
+     * `GROUND.carriageway` because each one covers a WHOLE island and has no
+     * neighbour to be level with. A court is laid INSIDE a lawn — the pad is
+     * the play area plus its run-off and the rest of the island is grass — so
+     * the two share an edge, and `GROUND.grass` is `BLOCK.kerbHeight − 0.02`,
+     * **0.14 m above the carriageway**. At the carriageway datum the macadam
+     * was 0.14 m under the lawn and the delivered frame showed a green island
+     * with court markings floating on it and no court. Level with the grass it
+     * cuts out of, which is also what a court laid in a park is.
+     */
+    sport: GROUND.grass,
     /** The world's earth plane, in `block.js`. Everything not listed above. */
     earth: GROUND.earth,
   };
@@ -1314,6 +1329,16 @@ export function createCity(options = {}) {
     const parkingAlbedo = [0.082, 0.082, 0.086];
     const yardAlbedo = [0.172, 0.169, 0.160];
     const coreAlbedo = [0.105, 0.102, 0.096];
+    /**
+     * A HARD COURT — session 48. Coloured macadam, which is what a municipal
+     * court and a playground safety surface are both laid in. It is the
+     * `parking` asphalt with the red channel lifted to twice the blue: the
+     * binder is the same and the aggregate is a pigmented one, so the
+     * reflectance is the same order and the hue is not. That is also what makes
+     * the 0.62 line paint on it read at the 7.6x ratio the bay paint already
+     * has.
+     */
+    const sportAlbedo = [0.104, 0.070, 0.052];
 
     const albedoFor = (kind) => (
       kind === 'road' ? roadAlbedo
@@ -1324,7 +1349,8 @@ export function createCity(options = {}) {
                 : kind === 'parkingGround' ? parkingAlbedo
                   : kind === 'yardGround' ? yardAlbedo
                     : kind === 'coreGround' ? coreAlbedo
-                      : walkAlbedo);
+                      : kind === 'sportGround' ? sportAlbedo
+                        : walkAlbedo);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1353,6 +1379,8 @@ export function createCity(options = {}) {
       parkingGround: 'ground',
       yardGround: 'ground',
       coreGround: 'ground',
+      /** Session 48. A court is a surface things stand on, like the four above. */
+      sportGround: 'ground',
     };
     const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
@@ -2953,6 +2981,31 @@ export function createCity(options = {}) {
             put(0, f.height * 0.80, 0, f.length * 0.99, 0.07, 0.10, [0.31, 0.316, 0.324], 0.58);
             put(0, f.height * 0.26, 0, f.length * 0.99, 0.07, 0.10, [0.31, 0.316, 0.324], 0.58);
             for (const e of [-0.48, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.11, f.height, 0.11, [0.29, 0.295, 0.302], 0.6);
+          } else if (f.edge === 'mesh') {
+            /**
+             * A BALL-STOP — session 48, AND IT IS AIR AND NOT A SLAB, WHICH THE
+             * FIRST ARM GOT WRONG AND ONE STREET FRAME SETTLED.
+             *
+             * The palisade above is one slab because a palisade IS opaque — you
+             * cannot see through it and that is what it is for. A ball-stop is
+             * the opposite object: it is 4 m tall precisely so it can stand
+             * between a pitch and a street WITHOUT closing it, and drawn as a
+             * slab at 0.34 reflectance it read as **a blank white wall taller
+             * than a person, brighter than the pavement in front of it**, along
+             * the whole frontage of the pitch. Worse than the empty lot it
+             * replaced.
+             *
+             * SO IT IS DRAWN AS WHAT IS ACTUALLY THERE — posts and rails — and
+             * you see the pitch through it because nothing is in the way. It is
+             * LOOK.md §3's own hologram argument one object over: *"the panel is
+             * a raster of emissive bars at 16% light and 84% air, and you see
+             * the wall through it because nothing is there. It is also the
+             * honest form."* Five boxes a segment against three, and no
+             * transparency, no blend mode and no draw call.
+             */
+            const steel = [0.30, 0.305, 0.312];
+            for (const e of [-0.49, 0.49]) put(f.length * e, f.height * 0.5, 0, 0.07, f.height, 0.07, steel, 0.6);
+            for (const h of [0.06, 0.52, 0.98]) put(0, f.height * h, 0, f.length, 0.05, 0.05, steel, 0.62);
           } else if (f.edge === 'hedge') {
             put(0, f.height * 0.5, 0, f.length, f.height, 0.44, [0.062, 0.098, 0.052], 0.95);
             put(0, f.height * 0.88, 0, f.length * 0.94, f.height * 0.3, 0.36, [0.074, 0.112, 0.058], 0.95);
@@ -2967,6 +3020,65 @@ export function createCity(options = {}) {
             put(0, f.height * 0.44, 0, f.length, f.height * 0.88, LOW_WALL.courseDeepM, [0.30, 0.298, 0.288], 0.9);
             put(0, f.height * 0.94, 0, f.length * LOW_WALL.copingLongFactor, f.height * 0.14,
               LOW_WALL.copingDeepM, [0.33, 0.325, 0.31], 0.82);
+          }
+        } else if (f.kind === 'goal') {
+          /**
+           * A FIVE-A-SIDE GOAL — session 48. Two posts, a crossbar and a net
+           * bag: four boxes, and the bag is what makes it read as a goal rather
+           * than as a doorframe. The frame is white and the net is a dark slab
+           * raked back from the crossbar, which is the silhouette a goal has
+           * from anywhere on the pitch.
+           */
+          const white = [0.62, 0.62, 0.61];
+          const net = [0.10, 0.104, 0.108];
+          for (const e of [-0.5, 0.5]) {
+            put(f.width * e, f.height / 2, 0, f.post, f.height, f.post, white, 0.55);
+          }
+          put(0, f.height - f.post / 2, 0, f.width + f.post, f.post, f.post, white, 0.55);
+          put(0, f.height * 0.42, -0.62, f.width, f.height * 0.84, 0.06, net, 0.9);
+          put(0, f.height * 0.86, -0.31, f.width, 0.06, 0.62, net, 0.9);
+        } else if (f.kind === 'hoop') {
+          /**
+           * A BASKETBALL HOOP — session 48. A post, an arm off it, a backboard
+           * and the rim. The rim is a flat plate rather than a ring for the
+           * reason the goal's net is a slab: a torus of boxes at 0.23 m radius
+           * is a dozen instances for something the size of two pixels at the
+           * distance this is read from.
+           */
+          const steel = [0.30, 0.305, 0.312];
+          const board = [0.58, 0.58, 0.57];
+          const post = f.rim + f.boardH * 0.5;
+          put(0, post / 2, 0.35, 0.14, post, 0.14, steel, 0.6);
+          put(0, f.rim + f.boardH * 0.35, 0.35 - f.arm / 2, 0.09, 0.09, f.arm, steel, 0.6);
+          put(0, f.rim + f.boardH * 0.35, 0.35 - f.arm, f.boardW, f.boardH, 0.06, board, 0.5);
+          put(0, f.rim, 0.35 - f.arm - 0.24, 0.46, 0.04, 0.46, [0.42, 0.16, 0.06], 0.7);
+        } else if (f.kind === 'play') {
+          /**
+           * A PLAY FRAME OR A SWING SET — session 48, and they differ in
+           * SILHOUETTE rather than in decoration, which is the same rule §4's
+           * park centres are built on: a frame is a deck on four legs with a
+           * slide off it, a swing is a portal with two seats hanging in it.
+           */
+          const steel = [0.28, 0.30, 0.33];
+          const deckC = [0.36, 0.22, 0.10];
+          if (f.play === 'frame') {
+            for (const ex of [-0.7, 0.7]) for (const ez of [-0.7, 0.7]) {
+              put(f.half * ex, f.height * 0.5, f.half * ez, 0.12, f.height, 0.12, steel, 0.6);
+            }
+            put(0, f.deck, 0, f.half * 1.5, 0.12, f.half * 1.5, deckC, 0.8);
+            put(0, f.deck + 0.55, 0, f.half * 1.5, 0.08, 0.08, steel, 0.6);
+            // The slide: one raked slab off the deck to the ground.
+            put(f.half * 1.4, f.deck * 0.5, 0, 1.7, 0.10, 0.62, [0.14, 0.36, 0.42], 0.5);
+            put(f.half * 1.4, f.deck * 0.5 + 0.2, 0, 1.7, 0.34, 0.06, [0.14, 0.36, 0.42], 0.5);
+          } else {
+            for (const ex of [-0.9, 0.9]) {
+              put(f.half * ex, f.height * 0.5, 0, 0.11, f.height, 0.11, steel, 0.6);
+            }
+            put(0, f.height - 0.06, 0, f.half * 1.9, 0.12, 0.12, steel, 0.6);
+            for (const ex of [-0.35, 0.35]) {
+              put(f.half * ex, f.height * 0.62, 0, 0.05, f.height * 0.7, 0.05, steel, 0.7);
+              put(f.half * ex, f.height * 0.28, 0, 0.44, 0.07, 0.20, [0.10, 0.10, 0.11], 0.8);
+            }
           }
         } else if (f.kind === 'centre') {
           /**

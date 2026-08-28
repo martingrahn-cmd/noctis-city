@@ -2049,7 +2049,117 @@ export const ROAD_MATERIALS = ['asphalt', 'patched', 'concrete'];
 // ---------------------------------------------------------------------------
 // dead zones — docs/authored-city.md §5
 
-export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction'];
+export const LOW_DETAIL_KINDS = ['parking', 'lot', 'yard', 'park', 'construction', 'recreation'];
+
+/**
+ * WHAT A CITY NEEDS THAT IS NOT A HOUSE — SESSION 48, TIER ONE.
+ *
+ * The operator's words: *"density, but not only houses: sports arenas, a
+ * football stadium, parks, playgrounds, basketball courts, multi-storey car
+ * parks. Everything a city needs."* Before this session every block in NOCTIS
+ * was housing-shaped or empty-shaped: five building eras, five kinds of empty,
+ * eight authored landmarks, and **nothing anywhere that is a pitch, a court or
+ * a playground.**
+ *
+ * ONE KIND, THREE VARIANTS, AND THE VARIANT IS DERIVED RATHER THAN ROLLED.
+ * A sixth entry in the die above would put recreation on one low-detail chunk
+ * in six wherever the die fell; what LOOK.md §2's last bullet asks for is that
+ * *"density has causes"*, and these three have the plainest causes in the file:
+ *
+ *   PLAYGROUND  belongs where people live, so it takes the DENSEST end of the
+ *               low-detail band — the blocks with housing on every side.
+ *   COURT       a hard court is a leftover corner: the middle of the band.
+ *   PITCH       needs a whole flat block nobody built on, which is the SPARSE
+ *               end and is also the only end where 60 x 40 m fits.
+ *
+ * THE CUTS ARE THE POPULATION'S TERCILES AND NOT THE BAND'S, AND THE FIRST ARM
+ * WAS THE BAND'S AND DELIVERED SEVEN PLAYGROUNDS OUT OF SEVEN.
+ *
+ * The band is `[0, CITY.lowDetailThreshold)` = [0, 0.34) by construction, and
+ * splitting it in thirds at 0.1133 and 0.2267 is the obvious thing to do. It is
+ * also wrong, because **the band is not uniformly occupied**: a chunk is
+ * low-detail because its density fell under a threshold, and the density field
+ * piles up just under it. Measured over 237 low-detail chunks, twelve regions
+ * of 10 x 10, seeds 1337-1348:
+ *
+ *     min 0.0625   p10 0.1486   p33 0.2082   median 0.2486
+ *     p67 0.2879   p90 0.3197   max 0.3385
+ *     split by the BAND's own thirds:   9 / 92 / 136
+ *
+ * So the band's thirds put 57% of the population in one bucket and 4% in
+ * another, and the first arm of this delivered **seven playgrounds and no pitch
+ * and no court over `citycheck`'s own region.** It is LOOK.md §3's own lesson
+ * one field over — *"a band whose top touches the target delivers the target
+ * never"* — with a floor instead of a ceiling.
+ *
+ * The cuts below are the measured p33 and p67 of the delivered population, so
+ * the three variants arrive in thirds rather than in the proportions the field
+ * happens to have. `recreationVariant` is the one reader.
+ */
+export const RECREATION = {
+  /**
+   * Metres. A five-a-side pitch is 40 x 20 in the laws of the game; this is
+   * the next size up that still fits an island with room for the fence and the
+   * run-off, and it is what a city block actually carries. The island is
+   * 104.6 m, so a 60 m pitch leaves 22.3 m at each end for the ball-stop, the
+   * goal run-off and the way in.
+   */
+  pitchLongM: 60,
+  pitchShortM: 38,
+  /**
+   * Metres. A basketball court is 28 x 15 (FIBA). Unchanged, because unlike a
+   * pitch it fits any island with room to spare and shrinking it would make it
+   * a court that is not one.
+   */
+  courtLongM: 28,
+  courtShortM: 15,
+  /** Metres. The key's arc radius and the free-throw line, both FIBA. */
+  courtArcM: 6.75,
+  /** Metres. Goal: 3.66 x 2.13 for five-a-side, 0.12 m sections. */
+  goalWidthM: 3.66,
+  goalHeightM: 2.13,
+  goalPostM: 0.12,
+  /** Metres. Hoop: 3.05 m rim, a 1.8 x 1.05 backboard, a 1.2 m arm off the post. */
+  rimHeightM: 3.05,
+  boardWidthM: 1.80,
+  boardHeightM: 1.05,
+  boardArmM: 1.20,
+  /**
+   * Metres. The ball-stop fence. 4.0 m behind a goal is what stops a ball
+   * reaching the carriageway 11.7 m beyond it; 2.4 m along the sides is the
+   * same plywood height a hoarding uses, because it is the same panel.
+   */
+  netHighM: 4.0,
+  netLowM: 2.4,
+  fenceSegmentM: 3.0,
+  fenceHalfT: 0.06,
+  /** Metres. Playground: a frame deck at 1.8, a slide off it, a 1.1 m fence. */
+  frameDeckM: 1.8,
+  playFenceM: 1.10,
+  /** Line width. The same paint every marking in this city is drawn with. */
+  lineW: 0.12,
+  /**
+   * The two density cuts, and they are the MEASURED p33 and p67 of the
+   * low-detail population rather than the thirds of the band it lives in. See
+   * the note above this object for the 237-chunk distribution and for the arm
+   * that used the band's thirds and delivered seven playgrounds of seven.
+   */
+  pitchBelow: 0.2082,
+  courtBelow: 0.2879,
+};
+
+/**
+ * WHICH RECREATION A CHUNK GETS, FROM ITS OWN DENSITY. See `RECREATION`.
+ *
+ * The thirds of the low-detail band, and the band's own top is
+ * `CITY.lowDetailThreshold`, so this cannot drift from the test that put the
+ * chunk here.
+ */
+export function recreationVariant(density) {
+  if (density < RECREATION.pitchBelow) return 'pitch';
+  if (density < RECREATION.courtBelow) return 'court';
+  return 'playground';
+}
 
 /**
  * A PARK, AS THE SIX THINGS A PARK HAS — session 21.
@@ -8413,6 +8523,231 @@ export function generateChunk(rootSeed, cx, cz) {
         if (reg.conflict(box)) continue;
         features.push({ kind: 'spoil', x, z, radius: r, height: r * 0.42, yawDeg: yaw() });
         reg.claim(box);
+      }
+    } else if (kind === 'recreation') {
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * A PITCH, A COURT OR A PLAYGROUND — SESSION 48, AND WHICH ONE IS THE
+       * CHUNK'S OWN DENSITY.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * See `RECREATION` for the three causes and `recreationVariant` for the
+       * two cuts. All three are built the way session 40 built the other five —
+       * **a surface, a boundary, and the fixtures that say what it is** — and
+       * that order is the order they are laid in, because a court with no paint
+       * on it is a rectangle of asphalt and a pitch with no goal is a lawn.
+       *
+       * THE PAINT IS `markings`, WHICH CLAIMS NOTHING AND COSTS NOTHING. A line
+       * is a 4 mm box in the mesh the road markings already ride in, so a
+       * touchline and a lane line are the same object at the same price. It is
+       * pushed straight into `markings` rather than through `paint()` for the
+       * reason the car park's bays are: that guard exists to keep a line off
+       * ground a river or a dome took, and none of this is on a carriageway.
+       */
+      const R = RECREATION;
+      const variant = recreationVariant(density);
+      const hard = variant !== 'pitch';
+
+      /** The play area's own long axis, so a pitch does not always run east. */
+      const alongX = featRng.chance(0.5);
+      /**
+       * COURTS COME IN PAIRS AND THE REASON IS WHAT THEY ARE FOR. One 28 x 15 m
+       * court on a 104.6 m island is 3.9% of it, and the first arm delivered
+       * exactly that: an enormous red rectangle with two hoops in the middle of
+       * it. Municipal courts are laid in banks sharing one fence and one gate,
+       * which is also the only arrangement that fills the parcel with COURT
+       * rather than with surfacing.
+       */
+      const courts = variant === 'court' ? 2 : 1;
+      const [pl, ps] = variant === 'pitch' ? [R.pitchLongM, R.pitchShortM]
+        : variant === 'court' ? [R.courtLongM, R.courtShortM]
+          : [34, 26];
+      const halfL = pl / 2;
+      const halfS = ps / 2;
+      /** Metres between two courts in a bank, and round the outside of one. */
+      const runOff = 4.0;
+      /** Centres of each play area, offset across the short axis. */
+      const bank = [];
+      for (let i = 0; i < courts; i++) {
+        const off = (i - (courts - 1) / 2) * (ps + runOff);
+        bank.push({ x: mx + (alongX ? 0 : off), z: mz + (alongX ? off : 0) });
+      }
+      /** Half-extents on the world axes of the WHOLE bank, once the axis is chosen. */
+      const bankS = halfS + ((courts - 1) * (ps + runOff)) / 2;
+      const hxP = alongX ? halfL : bankS;
+      const hzP = alongX ? bankS : halfL;
+
+      /**
+       * THE SURFACE IS THE PLAY AREA AND ITS RUN-OFF, NOT THE ISLAND.
+       *
+       * A pitch is grass and its run-off is grass, so a pitch takes the whole
+       * island and nothing is wasted. A COURT is a piece of macadam the size of
+       * a court — the first arm laid `sportGround` over all 104.6 m of the
+       * island and it read as a red field with two hoops on it, because 96% of
+       * what was surfaced is not a court. The rest of the island is the same
+       * `grass` a park's is, so a court reads as a hard rectangle IN a green
+       * one, which is what a municipal court is.
+       */
+      if (hard) {
+        const pad = { kind: 'sportGround', yKey: 'sport',
+          x0: mx - hxP - runOff, x1: mx + hxP + runOff,
+          z0: mz - hzP - runOff, z1: mz + hzP + runOff };
+        const green = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
+        /**
+         * THE LAWN IS CUT ROUND THE PAD AND NOT DRAWN UNDER IT. They are level
+         * with each other (`GROUND_Y.sport` is the grass datum, and that note
+         * carries the frame that made it so), so two coplanar quads over the
+         * same ground is a z-fight rather than a court. `subtractBoxes` is the
+         * same clipper a park's grass is cut round its own paths with.
+         */
+        for (const g of subtractBoxes([green], [...islandSolids(), pad])) ground.push(g);
+        for (const g of subtractBoxes([pad], islandSolids())) ground.push(g);
+      } else {
+        const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
+        for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+      }
+      /** A line on play area `c`: `t` along its long axis, `u` across it. */
+      const line = (c, t, u, len, wid, across) => markings.push({
+        x: c.x + (alongX ? t : u),
+        z: c.z + (alongX ? u : t),
+        length: len, width: wid,
+        yawDeg: (alongX ? 0 : 90) + (across ? 90 : 0),
+        kind: 'sport',
+      });
+
+      if (variant !== 'playground') for (const c of bank) {
+        /**
+         * THE MARKING SET. A touchline pair, a goal line pair, a halfway line
+         * and a centre circle for both; the court adds nothing else because a
+         * key drawn in 0.12 m paint at this scale is four more boxes for
+         * something you cannot read from the pavement.
+         *
+         * THE CENTRE CIRCLE IS TWELVE CHORDS, which is the same trick the
+         * basin's lathe uses one scale up: a circle made of boxes is a polygon,
+         * and twelve segments at a 9.15 m radius has a 0.31 m sagitta, which is
+         * under the 0.12 m line's own width times three and reads as round.
+         */
+        for (const sgn of [-1, 1]) {
+          line(c, sgn * halfL, 0, ps, R.lineW, true);       // goal lines
+          line(c, 0, sgn * halfS, pl, R.lineW, false);      // touchlines
+        }
+        line(c, 0, 0, ps, R.lineW, true);                   // halfway
+        const cr = variant === 'pitch' ? 9.15 : R.courtArcM;
+        const n = 12;
+        for (let i = 0; i < n; i++) {
+          const a0 = (i / n) * Math.PI * 2;
+          const a1 = ((i + 1) / n) * Math.PI * 2;
+          const t = (Math.cos(a0) + Math.cos(a1)) / 2 * cr;
+          const u = (Math.sin(a0) + Math.sin(a1)) / 2 * cr;
+          const seg = 2 * cr * Math.sin(Math.PI / n);
+          markings.push({
+            x: c.x + (alongX ? t : u), z: c.z + (alongX ? u : t),
+            length: seg, width: R.lineW,
+            yawDeg: ((-(a0 + a1) / 2 * 180) / Math.PI) + 90 + (alongX ? 0 : 90),
+            kind: 'sport',
+          });
+        }
+      }
+
+      /**
+       * THE FIXTURES. Two goals at the ends of a pitch, two hoops at the ends
+       * of a court, a frame and a swing set on a playground. Each is claimed
+       * `feature` — the category the park's own edge and centre use, which
+       * conflicts with a carriageway, a pavement and a prop and not with the
+       * ground it stands on.
+       */
+      if (variant === 'pitch') {
+        for (const c of bank) for (const sgn of [-1, 1]) {
+          const x = c.x + (alongX ? sgn * halfL : 0);
+          const z = c.z + (alongX ? 0 : sgn * halfL);
+          const box = claimAt('feature', x, z,
+            alongX ? R.goalPostM : R.goalWidthM / 2,
+            alongX ? R.goalWidthM / 2 : R.goalPostM,
+            { y0: 0, y1: R.goalHeightM, owner: 'sport:goal' });
+          if (reg.conflict(box)) continue;
+          features.push({
+            kind: 'goal', x, z, width: R.goalWidthM, height: R.goalHeightM,
+            post: R.goalPostM, yawDeg: alongX ? 0 : 90,
+          });
+          reg.claim(box);
+        }
+      } else if (variant === 'court') {
+        for (const c of bank) for (const sgn of [-1, 1]) {
+          const x = c.x + (alongX ? sgn * (halfL + 0.6) : 0);
+          const z = c.z + (alongX ? 0 : sgn * (halfL + 0.6));
+          const box = claimAt('feature', x, z, 0.6, 0.6,
+            { y0: 0, y1: R.rimHeightM + R.boardHeightM, owner: 'sport:hoop' });
+          if (reg.conflict(box)) continue;
+          features.push({
+            kind: 'hoop', x, z, rim: R.rimHeightM, boardW: R.boardWidthM,
+            boardH: R.boardHeightM, arm: R.boardArmM,
+            /** Facing IN, which is the whole of what makes a hoop a hoop. */
+            yawDeg: (alongX ? 0 : 90) + (sgn < 0 ? 180 : 0),
+          });
+          reg.claim(box);
+        }
+      } else {
+        /**
+         * THE PLAY FRAME AND A SWING. Three tries each, because a playground's
+         * island already carries the perimeter fence and the registry decides
+         * where there is room rather than a rule doing it.
+         */
+        for (const [pkind, hw, hh] of [['frame', 3.2, 3.0], ['swing', 2.6, 2.4]]) {
+          for (let t = 0; t < 3; t++) {
+            const x = featRng.range(isl.x0 + 12, isl.x1 - 12);
+            const z = featRng.range(isl.z0 + 12, isl.z1 - 12);
+            const box = claimAt('feature', x, z, hw, hw, { y0: 0, y1: hh, owner: `sport:${pkind}` });
+            if (reg.conflict(box)) continue;
+            features.push({
+              kind: 'play', play: pkind, x, z, half: hw, height: hh,
+              deck: R.frameDeckM, yawDeg: yaw(),
+            });
+            reg.claim(box);
+            break;
+          }
+        }
+      }
+
+      /**
+       * THE BOUNDARY. A ball-stop behind the goals and a lower run along the
+       * sides for a pitch; a single height for a court and a playground,
+       * because a court's fence is uniform and a playground's is a barrier
+       * rather than a net. `boundaryRun` puts the gate in, refuses every
+       * segment the registry has already spoken for, and rides the chunk's own
+       * mesh at no draw call.
+       */
+      const gateSide = featRng.int(0, 3);
+      const gateAt = featRng.range(0.3, 0.7);
+      const netH = variant === 'pitch' ? R.netHighM
+        : variant === 'court' ? R.netLowM : R.playFenceM;
+      boundaryRun({
+        inset: DEAD_ZONE.edgeInset, seg: R.fenceSegmentM, halfT: R.fenceHalfT,
+        height: netH, category: 'feature', owner: `sport:${variant}:fence`,
+        gateSide, gateAt, gateHalf: 3.0,
+        make: (x, z, yawDeg) => ({
+          kind: 'edge', edge: variant === 'playground' ? 'railing' : 'mesh',
+          x, z, length: R.fenceSegmentM, height: netH, yawDeg,
+        }),
+      });
+
+      /**
+       * AND IT IS LIT, because a pitch nobody can use after four o'clock in
+       * winter is a lawn with lines on it. `flood` is the site's own mast,
+       * already modelled, already in the lamp pool and already claiming `site`
+       * — four of them at the corners of the play area, aimed at its centre,
+       * which is what a floodlit pitch looks like from anywhere in the city.
+       */
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const x = mx + sx * (hxP + 3.0);
+          const z = mz + sz * (hzP + 3.0);
+          if (x < isl.x0 + 2 || x > isl.x1 - 2 || z < isl.z0 + 2 || z > isl.z1 - 2) continue;
+          const box = claimAt('site', x, z, 0.7, 0.7,
+            { y0: 0, y1: SITE.floodHeightM, owner: 'sport:flood' });
+          if (reg.conflict(box)) continue;
+          features.push({ kind: 'flood', x, z, height: SITE.floodHeightM, aimX: mx, aimZ: mz });
+          reg.claim(box);
+        }
       }
     }
   }
