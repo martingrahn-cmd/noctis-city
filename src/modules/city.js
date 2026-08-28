@@ -2576,6 +2576,58 @@ export function createCity(options = {}) {
           wx + out[0] * (0.35 + proj / 2) * 0.5, s.y + height / 2 + 0.1, wz + out[1] * (0.35 + proj / 2) * 0.5,
           out[0] ? 0.35 + proj / 2 : 0.1, 0.1, out[0] ? 0.1 : 0.35 + proj / 2, 0
         );
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND A PROJECTING BLADE HANGS OVER A FOOTWAY AND CLAIMED NOTHING —
+         * SESSION 47. IT IS THE FIRST SIGN CLASS IN THIS FILE TO CLAIM
+         * ANYTHING AT ALL.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `occupancy.js` carries a `sign` category and the delivered census
+         * carries 378 sign claims — every one of them a `pylon` or an
+         * `adpillar`, both freestanding. **`pushSign` pushes geometry and a
+         * tint and no claim**, so all five wall mountings — flush, projecting,
+         * roof, rooftop, freestanding-blade — have been invisible to the
+         * registry since signs existed. `emitcensus` measures this row at 466
+         * boxes and 14.02 m2 wholly undeclared.
+         *
+         * THE PROJECTING ONE IS THE ONE THAT MATTERS AND THE COMMENT ABOVE
+         * SAYS WHY: it is the only mounting that reaches OVER the 4.2 m of
+         * pavement a person walks on. A flush fascia is 0.12 m proud of its own
+         * wall and a rooftop cabinet is above every parapet in the block.
+         *
+         * ONE CLAIM FOR THE BLADE AND ITS BRACKET, because they are one object
+         * and two boxes — claiming each separately reports the object colliding
+         * with itself, which is `emitcensus`'s own self-pair note one level in.
+         * From the wall face out to the blade's outer edge, `0.35 + proj`, and
+         * `0.24 m` along the street, which is the two faces at +-0.05 plus the
+         * bracket's own 0.14. The top is the bracket and the bottom is the
+         * blade's lower edge — a blade at 3 m leaves the footway under it clear
+         * and `occupancy` decides that on `[y0, y1]`.
+         *
+         * `sign` AND NOT `canopy`, WHICH COSTS SOMETHING AND IS THE POINT.
+         * Measured both ways: `canopy` is 0 new forbidden pairs and `sign` is
+         * 6 over 3 objects — `sign(adpillar)` 2, `sign(pylon)` 2,
+         * `prop(colonnade:pier)` 2. `canopy` conflicts with solids only, so it
+         * would let a blade pass through an advertising pillar and report
+         * nothing; those three collisions are real, are as old as the
+         * mountings, and the third of them was invisible until the commit
+         * before this one gave the pier a claim.
+         */
+        {
+          const reach = 0.35 + proj;
+          const ox = wx + out[0] * reach;
+          const oz = wz + out[1] * reach;
+          const halfT = 0.12;
+          placed.push({
+            kind: 'sign', owner: 'sign:blade',
+            x0: Math.min(wx, ox) - Math.abs(tan[0]) * halfT,
+            x1: Math.max(wx, ox) + Math.abs(tan[0]) * halfT,
+            z0: Math.min(wz, oz) - Math.abs(tan[1]) * halfT,
+            z1: Math.max(wz, oz) + Math.abs(tan[1]) * halfT,
+            y0: s.y - height / 2, y1: s.y + height / 2 + 0.15,
+          });
+        }
       } else if (mount === 'roof') {
         /**
          * ON THE PARAPET, WHICH IS 1.05 m HIGH AND IS BUILT ABOVE — the same
