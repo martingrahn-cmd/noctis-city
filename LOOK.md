@@ -517,6 +517,57 @@ It is that the street wall is broken.
   never the limit for block-scale program — **authoring time is.** What is still
   missing is an arena, and everything that is not sport: a school, a depot, a
   market hall, a hospital.
+
+  **AND THE OTHER EIGHT WERE BUILT THE NEXT SESSION, WHICH IS THE POINT OF THE
+  SENTENCE ABOVE — SESSION 49.** If authoring time is the limit, then the test
+  of that claim is how many kinds one session can author. Eight: a **school**, a
+  **hospital**, a **fire station**, an **industrial estate**, a **market hall**,
+  a **depot**, a **church** and a **port**. Thirteen kinds of low-detail island
+  where session 47 had five, and the whole of it rides three new feature kinds —
+  `shed`, `canopy`, `tower` — because a school, a transit shed, an appliance
+  bay and a nave are ONE object with four sets of numbers, and a spire, a hose
+  tower and a hospital's stair core are another.
+
+  **THE ONE THAT IS NOT A PRISM IS THE ONE THAT CHANGED THE MOST.** `canopy` is
+  a roof on columns with air under it — a market hall, a depot's parking cover,
+  an ambulance bay — and this city had no span at all before it: every roof in
+  NOCTIS was the lid of a box. It is also the only one of the three that needed
+  the REGISTRY to be right before it could exist, because a market hall claimed
+  as a `building` forbids `prop`, and ten stalls were refused by their own roof.
+  Claimed as `canopy` from the soffit up, the depot went from 11 parked vehicles
+  to 83.
+
+  **WHERE THEY GO IS DERIVED FROM WHAT THE CITY ALREADY KNOWS, AND FOUR OF THE
+  EIGHT READ SOMETHING THIS SECTION'S LAST BULLET HAS ASKED FOR SINCE SESSION
+  32** — *"Land by water and by transit gets built tall and to the line. Land
+  under a viaduct gets sheds and yards."* Until this session nothing in the city
+  read the river or the viaduct as a REASON for anything:
+
+  ```
+    school        the middle of the low-detail band          falls back to recreation
+    market        the dense end — a hall needs a catchment    falls back to park
+    firestation   between those two cuts                      falls back to lot
+    hospital      standing on an ARTERIAL                     falls back to carpark
+    port          a DRY chunk with a WET neighbour            falls back to industrial
+    depot         within 3 chunks of the VIADUCT's AABB       falls back to industrial
+    industrial    the river, the viaduct, or land nobody wants falls back to yard
+    church        no condition — a church is where a church is
+  ```
+
+  **EVERY DERIVATION IS A FALLBACK CHAIN AND THAT IS NOT DECORATION.** A chunk
+  that fails its test becomes a plainer kind rather than nothing, so no
+  condition can empty a district; and `industrial` is deliberately the sink for
+  three of them, which is the honest reading rather than the convenient one —
+  land by the water, land under a viaduct and land nobody wants are the same
+  land.
+
+  **AND THE LESSON THAT COST THREE PLACEMENTS: A CONDITION NARROW ENOUGH TO BE
+  PRECISE IS USUALLY NARROW ENOUGH TO BE EMPTY.** The depot's first band was one
+  chunk of the viaduct's AABB and delivered nothing within twelve chunks of
+  spawn. The port's first rule was *"the river envelope reaches this chunk"*,
+  which leaves about 14 m of dry land on a 128 m island — nine wharves of
+  fourteen got no shed. Neither is visible in the code and both are visible in
+  one delivered count at the shipped seed.
 - **Density has causes.** A river, a viaduct, an elevated railway with stations
   — the city already has all four and nothing reads them. Land by water and by
   transit gets built tall and to the line. Land under a viaduct gets sheds and
