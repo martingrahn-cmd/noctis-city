@@ -61,6 +61,7 @@ import {
   CITY_MATERIALS,
   LANDMARKS,
   ZIGGURAT_STEP_YAW_DEG,
+  LOW_WALL,
   landmarkOccluders,
   landmarkGroundBlockers,
   landmarkGroundClaims,
@@ -2956,8 +2957,16 @@ export function createCity(options = {}) {
             put(0, f.height * 0.5, 0, f.length, f.height, 0.44, [0.062, 0.098, 0.052], 0.95);
             put(0, f.height * 0.88, 0, f.length * 0.94, f.height * 0.3, 0.36, [0.074, 0.112, 0.058], 0.95);
           } else {
-            put(0, f.height * 0.44, 0, f.length, f.height * 0.88, 0.36, [0.30, 0.298, 0.288], 0.9);
-            put(0, f.height * 0.94, 0, f.length * 1.02, f.height * 0.14, 0.44, [0.33, 0.325, 0.31], 0.82);
+            /**
+             * A LOW WALL: a course and a coping. `LOW_WALL` — session 47 — and
+             * the three numbers moved to `citygen.js` because the block core's
+             * boundary claims this box and a claim made from different literals
+             * than the draw is CONTRACT §9.1. The coping laps its neighbours by
+             * 2% so a run reads as one wall; the claim covers that lap.
+             */
+            put(0, f.height * 0.44, 0, f.length, f.height * 0.88, LOW_WALL.courseDeepM, [0.30, 0.298, 0.288], 0.9);
+            put(0, f.height * 0.94, 0, f.length * LOW_WALL.copingLongFactor, f.height * 0.14,
+              LOW_WALL.copingDeepM, [0.33, 0.325, 0.31], 0.82);
           }
         } else if (f.kind === 'centre') {
           /**

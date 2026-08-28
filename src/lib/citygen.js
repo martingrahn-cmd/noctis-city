@@ -2256,6 +2256,26 @@ export const SITE = {
  * both halves is printed in STATE 40 §5, so that nobody has to take on trust
  * that a row of parked cars is a row because a car park is rows.
  */
+/**
+ * THE LOW WALL `city.js` DRAWS FOR AN `edge` FEATURE WITH NO NAMED TREATMENT —
+ * SESSION 47, AND IT IS HERE BECAUSE A CLAIM NOW HAS TO COVER IT.
+ *
+ * The treatment is a course and a coping, and the coping is drawn **2% longer
+ * than the segment** so that consecutive lengths read as one wall rather than
+ * as a row of blocks. That 1.02 was a literal in the drawing module and the
+ * claim was made in this one, which is CONTRACT §9.1 exactly — and it showed
+ * up the moment the block core's boundary started claiming: the delivered
+ * sweep reported a uniform **0.013 m2** of
+ * `feature(edge:wall) x pavement(ground:walk)`, which is `0.03 m x 0.44 m`,
+ * which is one end of one coping. One number, two readers.
+ */
+export const LOW_WALL = {
+  courseDeepM: 0.36,
+  copingDeepM: 0.44,
+  /** The coping laps its neighbours by this factor of the segment length. */
+  copingLongFactor: 1.02,
+};
+
 export const DEAD_ZONE = {
   /**
    * A CAR PARK, AND ITS FIXTURES ARE ITS LIGHTING. A surface lot is lit by
@@ -7752,7 +7772,7 @@ export function generateChunk(rootSeed, cx, cz) {
   // since session 21: a surface of their own, a boundary, and the things that
   // belong to the kind.
   //
-  // NO DRAW ORDER ABOVE THIS LINE MOVES. `featRng` is `chunkRng(..., 'feature')`
+  // NO DRAW ORDER ABOVE THIS LINE MOVES. `featRng` is `chunkRng(rootSeed, cx, cz, 'feature')`
   // and a chunk is exactly one kind, so the three new branches draw from a
   // stream no park and no site has ever reached. The delivered park and
   // construction chunks are bit-identical (STATE 40 §7's determinism digest).
@@ -9005,6 +9025,9 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   let coreAsked = 0;
   let coreGaveUp = 0;
+  let coreVan = null;
+  let coreWallSegments = 0;
+  let coreGateSegments = 0;
   if (!lowDetail) {
     const coreRng = chunkRng(rootSeed, cx, cz, 'core');
     const C = DEAD_ZONE.core;
@@ -9030,6 +9053,9 @@ export function generateChunk(rootSeed, cx, cz) {
       if (!reg.conflict(box, 0, PROP_SETBACKS)) {
         features.push({ kind: 'parked', x, z, yawDeg, vehicle: 'van', chroma: coreRng.int(0, 5) });
         reg.claim(box);
+        // Kept so the loading bay below is painted round the van that is
+        // actually there rather than round the one that was asked for.
+        coreVan = { x, z, yawDeg };
       }
     }
     /**
@@ -9068,6 +9094,168 @@ export function generateChunk(rootSeed, cx, cz) {
         placed = true;
       }
       if (!placed) coreGaveUp++;
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE BOUNDARY, THE WAY IN, AND WHAT IT IS FOR — SESSION 47, AND IT IS THE
+     * OPERATOR'S SIX-SESSION COMPLAINT ANSWERED WITH CONTENT RATHER THAN WITH
+     * A DENSITY KNOB.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Session 46 measured the complaint properly for the first time: bare
+     * ground is **0.00%** of the frame he was standing in, `coreGround` is
+     * **16.19%** and the largest single ground owner in the picture, and a
+     * `built` island already carries **41.8 props per hectare against a yard's
+     * 29**. So the courtyards are not under-scattered — they are UNBOUNDED.
+     * The number that separates them from every other ground kind is the
+     * FIXTURE count: park 278, lot 495, parking 894, construction 518, yard 410
+     * over their whole populations, and **core 55 over 83 chunks**. The other
+     * five read as somebody's because each has a boundary, a way in and a use;
+     * this one had scatter and a surface.
+     *
+     * A YARD IS A YARD BECAUSE IT HAS A WALL ROUND IT, and `DEAD_ZONE.core`'s
+     * own comment already says *"a block interior IS a service yard"*. So the
+     * boundary is the yard's boundary, at the yard's own height, and the only
+     * new decision is where it runs.
+     *
+     * WHERE IT RUNS IS DECIDED BY THE REGISTRY AND NOT BY A RULE. The wall is
+     * laid in `DEAD_ZONE.edgeSegment` lengths along all four island edges and
+     * every segment is offered to `reg.conflict` first — so it appears exactly
+     * where a building does NOT, which is the frontage gap. Session 39
+     * measured those gaps and called them by name: **267 of them at seed 1337,
+     * 15.0 m mean, 4 001 m — 11.5% of the island edge — and 188 fall MID-SIDE,
+     * where the walk goes on afterwards, which are the ones that read as a hole
+     * in a street wall.** This is that hole, closed, at zero draw calls,
+     * without adding one building and without touching the fill law LOOK.md §2
+     * spends four bullets choosing.
+     *
+     * THE OUTER FACE IS FLUSH WITH THE BUILDING LINE. `halfT` is 0.22 m — the
+     * `edge` treatment's own 0.36 m course plus its 0.44 m coping, halved — and
+     * the inset is the same number, so the wall's street face lands on the
+     * island edge where a building's would. A wall set back would read as a
+     * second, poorer building line.
+     *
+     * `feature` IS THE CATEGORY AND IT IS WHAT MAKES THE GAP-FINDING WORK.
+     * `feature x building` is forbidden, which is the refusal that carves the
+     * run; `feature x pavement` and `feature x carriageway` are forbidden,
+     * which keeps it off the footway it stands beside; `feature x feature` is
+     * absent, so consecutive segments abut. The same row the yard's palisade
+     * uses.
+     *
+     * THE WAY IN IS CUT FROM THE LONGEST RUN AND NOT ROLLED. A gate rolled onto
+     * a random side lands inside a building four times in five and is a way in
+     * nobody can see; the widest continuous stretch of wall on the island is
+     * the one place an opening reads as an opening. `DEAD_ZONE.gateHalf` is the
+     * yard's own gate.
+     */
+    {
+      const W = DEAD_ZONE;
+      /** Half the DELIVERED depth, which is the coping's and not the course's. */
+      const halfT = LOW_WALL.copingDeepM / 2;
+      const height = W.palisadeHeight;
+      const seg = W.edgeSegment;
+      const runs = [
+        { axis: 'x', at: island.z0 + halfT, from: island.x0, to: island.x1 },
+        { axis: 'x', at: island.z1 - halfT, from: island.x0, to: island.x1 },
+        { axis: 'z', at: island.x0 + halfT, from: island.z0, to: island.z1 },
+        { axis: 'z', at: island.x1 - halfT, from: island.z0, to: island.z1 },
+      ];
+      /** Every segment the registry will accept, in order along its own run. */
+      const wall = [];
+      runs.forEach((run, ri) => {
+        for (let t = run.from; t + seg <= run.to; t += seg) {
+          const c = t + seg / 2;
+          const x = run.axis === 'x' ? c : run.at;
+          const z = run.axis === 'x' ? run.at : c;
+          /**
+           * ALONG the run it is the COPING's length and not the segment's —
+           * `LOW_WALL.copingLongFactor`, read from the constant `city.js` now
+           * draws it with. The first arm claimed `seg / 2` and the delivered
+           * sweep reported the missing 0.03 m at every end.
+           */
+          const halfAlong = (seg * LOW_WALL.copingLongFactor) / 2;
+          const box = claimAt('feature', x, z,
+            run.axis === 'x' ? halfAlong : halfT,
+            run.axis === 'x' ? halfT : halfAlong,
+            { y0: 0, y1: height, owner: 'core:wall' });
+          if (reg.conflict(box)) continue;
+          wall.push({ ri, c, x, z, box, axis: run.axis });
+        }
+      });
+      /**
+       * THE LONGEST CONTIGUOUS RUN, which is contiguity in the SEGMENT INDEX
+       * and not in the metre: two segments are neighbours when they are on the
+       * same side and their centres are one `seg` apart, so a run broken by a
+       * building is two runs and the gate cannot be cut across a building.
+       */
+      let best = { i0: 0, n: 0 };
+      for (let i = 0; i < wall.length;) {
+        let j = i + 1;
+        while (j < wall.length && wall[j].ri === wall[i].ri
+          && Math.abs(wall[j].c - wall[j - 1].c - seg) < 1e-6) j++;
+        if (j - i > best.n) best = { i0: i, n: j - i };
+        i = j;
+      }
+      const gateC = best.n ? (wall[best.i0].c + wall[best.i0 + best.n - 1].c) / 2 : Infinity;
+      const gateRi = best.n ? wall[best.i0].ri : -1;
+      let gated = 0;
+      for (const w of wall) {
+        if (w.ri === gateRi && Math.abs(w.c - gateC) < W.gateHalf) { gated++; continue; }
+        /**
+         * SQUARE, AND THE FIRST ARM WAS NOT. Every other scattered thing in
+         * this file takes `yaw()`; a wall CONTINUING a street frontage does
+         * not, because the buildings it runs between are on the lot line and a
+         * wall a degree off it is a wall that is not joining them. The first
+         * arm yawed it and the delivered sweep reported **196
+         * `feature(edge:wall) x pavement(ground:walk)` overlaps**, 0.001 to
+         * 0.171 m2 — a few centimetres of coping over the footway, which is
+         * `boundaryRun`'s own `yawBulge` note ("a segment turned a degree
+         * cannot hang over the pavement its centre was set back from") arriving
+         * by the door it was written to close. Square, the claim IS the
+         * delivered box and the count is zero.
+         */
+        features.push({
+          kind: 'edge', edge: 'wall', x: w.x, z: w.z,
+          length: seg, height, yawDeg: w.axis === 'x' ? 0 : 90,
+        });
+        reg.claim(w.box);
+      }
+      coreWallSegments = wall.length - gated;
+      coreGateSegments = gated;
+    }
+
+    /**
+     * AND THE USE, WHICH IS THE THIRD OF THE THREE. The van above stands on
+     * nothing; a serviced block has its loading bay MARKED, the way a car park
+     * has its bays marked, and for the same reason — the paint is what makes
+     * the parcel legible as the thing it is at every density.
+     *
+     * A `marking` claims nothing (it is a 4 mm box, like every line in this
+     * city) so it cannot refuse the van standing on it. It is pushed straight
+     * into `markings` rather than through `paint()`, exactly as the car park's
+     * bays are, because `paint()`'s `onRoad` guard exists to keep a line off
+     * ground a river or a dome took and a loading bay is not on a carriageway
+     * at all.
+     *
+     * 3.0 x 7.0 m is the van's own delivered box (2.70 m half-length, 1.05 m
+     * half-width) plus a working margin on each side, drawn as four edges.
+     */
+    if (coreVan) {
+      const bayL = 7.0;
+      const bayW = 3.0;
+      const a = (coreVan.yawDeg * Math.PI) / 180;
+      const ux = Math.cos(a), uz = -Math.sin(a);
+      for (const sgn of [-1, 1]) {
+        markings.push({
+          x: coreVan.x - uz * sgn * bayW / 2, z: coreVan.z - ux * sgn * bayW / 2,
+          length: bayL, width: 0.12, yawDeg: coreVan.yawDeg, kind: 'bay',
+        });
+        markings.push({
+          x: coreVan.x + ux * sgn * bayL / 2, z: coreVan.z - uz * sgn * bayL / 2,
+          length: bayW, width: 0.12, yawDeg: coreVan.yawDeg + 90, kind: 'bay',
+        });
+      }
     }
 
     /**
@@ -9167,6 +9355,13 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     coreAsked,
     coreGaveUp,
+    /**
+     * The block boundary, so `groundprobe` and `citycheck` can say how much of
+     * the frontage gap this island closed and how wide its way in is without
+     * counting features by name. Session 47.
+     */
+    coreWallSegments,
+    coreGateSegments,
     /** What the keep-out registry refused, by the category that refused it. */
     refused,
     /**
