@@ -1332,6 +1332,239 @@ export function buildingHeightRoll(rng) {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
+ * THE DISTANT CITY — SESSION 53. WHAT STANDS BEYOND THE RESIDENT RING.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * THE DEFECT IT ANSWERS, PHOTOGRAPHED: `tools/shot-out/s53-rim-air-*.png`. From
+ * 300 m up the city fills the bottom quarter of the frame, cuts off along a
+ * straight line, and 3.23 km of flat earth runs to the horizon. That cut is
+ * `CITY.geometryRadius`, 640–768 m from the eye, and it is the operator's *"the
+ * city stops abruptly and becomes desert"* in one number.
+ *
+ * WHY IT CANNOT BE FIXED BY RAISING THE RING. A resident chunk emits its own
+ * meshes, so ring 6 is +44 chunks of draw calls against a `ceilings.drawCalls`
+ * of 440 that `highway_speed` measures 397 of. The ring is bounded by draw
+ * calls and nothing else will change that. What is NOT bounded is instances: one
+ * `InstancedMesh` draws two thousand boxes in one call, and a city seen from
+ * a kilometre away is exactly two thousand boxes.
+ *
+ * SO THIS IS A SILHOUETTE AND IT SAYS SO. It is not the city at low detail; it
+ * is the same FIELD read at the resolution the distance leaves. What makes that
+ * honest rather than a painted backdrop is that it reads `densityAt` and
+ * `buildingHeightRoll` — the generator's own two laws — so a chunk's silhouette
+ * and the chunk you get by walking there are two readings of one field, and
+ * `edgeprobe --distant` measures how far apart they are.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE LAW, MEASURED OVER 619 BUILT CHUNKS OUTSIDE THE RING AT SEED 1337.
+ *
+ *   quantity      mean     p10     p50     p90     max    corr with density
+ *   median h     36.79   25.63   35.20   49.65   90.30      -0.064
+ *   max h        91.01   52.82   86.56  141.22  153.21      +0.064
+ *   cover         0.44    0.33    0.45    0.57    0.73      +0.423
+ *   count         9.62    7.00   10.00   12.00   14.00      +0.310
+ *
+ * READ THE LAST COLUMN. **HEIGHT DOES NOT DEPEND ON DENSITY IN THIS CITY** —
+ * both correlations are 0.06, which is nothing — and that is not a defect, it is
+ * `buildingHeightRoll` being a function of `rng` alone. What density buys is
+ * HOW MUCH GROUND IS COVERED and HOW MANY buildings there are, and both fits are
+ * printed beside their correlation rather than as bare coefficients:
+ *
+ *     cover = 0.267 + 0.362 * d      r = +0.423
+ *     count = 7.179 + 5.020 * d      r = +0.310
+ *
+ * So the silhouette rolls its heights from `buildingHeightRoll` — THE SAME
+ * FUNCTION, not a fit of it — and takes only the count and the coverage from the
+ * two lines above. A fit of the height distribution would have been a second
+ * description of a quantity that already has one (CONTRACT §9.1); a fit of the
+ * coverage is a genuine summary of a placement pass too expensive to run.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TWO BOXES A CHUNK, AND THE NUMBER IS THE TRIANGLE BUDGET'S.
+ *
+ * `perfcheck` measures `highway_speed` at 2.21 M triangles against a
+ * `ceilings.triangles` of 2 360 000 — **150 000 of headroom**. A box is 12
+ * triangles; the silhouette reaches 26 chunks, which is 53² − 11² = 2 688
+ * chunks, so K boxes a chunk costs 32 256·K triangles at full occupancy. K = 2
+ * is 64 512 — under half the headroom, leaving the other half for whatever
+ * comes next. K = 4 would be 129 024 and would leave 21 000, which is not
+ * headroom, it is a coincidence waiting to go red.
+ *
+ * AND TWO IS WHAT A SKYLINE IS MADE OF, WHICH IS WHY IT IS NOT A COMPROMISE.
+ * The table above says a chunk is a mass at the median height with one thing
+ * standing well above it: p50 of the median is 35.2 m and p50 of the max is
+ * 86.6 m, a factor of 2.5. **One box for the block and one for its tower** is
+ * that pair, and it is the whole of what a block contributes to a top line seen
+ * from a kilometre away.
+ *
+ * FULL OCCUPANCY NEVER HAPPENS, AND THE EXTENT IS WHY. A chunk under
+ * `CITY.lowDetailThreshold` has no buildings, so it contributes no boxes at all
+ * — and past `CITY.extentEdgeM` every chunk is under it by construction. The
+ * silhouette therefore thins and stops on its own, reading the same
+ * `cityExtentAt` the field does, and `edgeprobe --distant` prints the delivered
+ * count against the 5 376 ceiling.
+ */
+export const DISTANT = {
+  /** Chebyshev radius in chunks. `ceil(extentEdgeM / chunkSize)` = 26, so a
+   *  camera standing at the world's centre can see the city's own rim. */
+  radiusChunks: 26,
+  /** `cover = a + b * density`, r = +0.423 over 619 built chunks. */
+  coverBase: 0.267,
+  coverSlope: 0.362,
+  /** `count = a + b * density`, r = +0.310 over the same 619. */
+  countBase: 7.179,
+  countSlope: 5.020,
+  /**
+   * ONE BUILDING'S FOOTPRINT, AND IT IS A CONSTANT BECAUSE THE CITY MEASURES AS
+   * ONE. 5 957 buildings outside the ring at seed 1337, binned by height:
+   *
+   *     height band     n     mean footprint    mean w x d
+   *      0- 25 m      1879        505 m2        21.2 x 24.5
+   *     25- 40 m      1759        509 m2        21.2 x 24.7
+   *     40- 60 m      1281        494 m2        20.9 x 24.4
+   *     60- 90 m       673        503 m2        21.1 x 24.6
+   *     90-120 m       229        505 m2        20.9 x 24.8
+   *    120-160 m       136        528 m2        21.1 x 25.4
+   *
+   * **corr(height, footprint) = 0.008.** A 150 m tower in NOCTIS is 21 x 25 m,
+   * exactly like a 20 m shop, because `buildingHeightRoll` and
+   * `buildingDepthRoll` are independent draws. That is a real property of this
+   * city and it is why the distant towers are needles: they are needles up
+   * close too.
+   */
+  frontageM: 21.1,
+  depthM: 24.7,
+  /**
+   * How far the building line stands from the island's own edge. The island is
+   * what `CORRIDOR` leaves of a chunk and a perimeter building meets the lot
+   * line, so this is 0 — written down rather than omitted, because LOOK.md §2's
+   * first bullet is *"buildings meet the lot line"* and a silhouette that
+   * quietly set them back would be drawing a different city's rule.
+   */
+  setbackM: 0,
+  roughness: 0.85,
+  /**
+   * WHICH MATERIAL, AND THE WEIGHTS ARE THE DELIVERED POPULATION'S — measured
+   * over the same 5 957 buildings, not re-derived from the era chain:
+   *
+   *     brick 29.08%   concrete 27.25%   panel 18.90%   stucco 24.78%
+   *
+   * A SILHOUETTE NEEDS FOUR COLOURS AND NOT ONE, and the first arm proved it in
+   * a frame: every box at the mean reflectance made the whole distant city one
+   * flat grey against a near ring of brick, stucco and panel, so the ring
+   * boundary read as a TONE step at a fixed distance from the eye. The four
+   * reflectances span 0.086 to 0.600 — a factor of seven — and that spread is
+   * the last thing about a facade to fall below a pixel.
+   *
+   * It rides in `instanceColor`, so it is 71 kB of buffer and ZERO extra draw
+   * calls: the same arrangement `addInstanced`'s `skin` already uses for every
+   * building in the resident ring.
+   *
+   * The order is `MATERIAL_NAMES`, and it is indexed rather than named so a
+   * material added to `CITY_MATERIALS` is a length mismatch here rather than a
+   * silent renormalisation.
+   */
+  materialWeights: [0.291, 0.272, 0.189, 0.248],
+};
+
+/**
+ * The silhouette's mean reflectance — `DISTANT.materialWeights` against
+ * `CITY_MATERIALS`. Not what any one box is skinned with (each carries its own,
+ * see `distantMasses`); this is what the population averages to, and it is what
+ * a probe compares the near ring's mean against.
+ *
+ * A FUNCTION AND NOT A FIELD OF `DISTANT`, for a boring reason worth writing
+ * down: `CITY_MATERIALS` is declared 800 lines below this one, so an
+ * initialiser here would read it in its temporal dead zone. Derived from that
+ * table rather than copied out of it, so the near ring's facades and the
+ * distant one's masses cannot drift to two different greys.
+ *
+ * POPULATION-WEIGHTED AND NOT EQUAL-WEIGHTED, which is a 5% difference and was
+ * a real error in the first arm: equal weights give [0.4025, 0.3765, 0.3575]
+ * and the delivered population gives [0.3832, 0.3529, 0.3311]. Brick is the
+ * commonest material and the darkest by a factor of four, so averaging the
+ * TABLE instead of the CITY makes the distant half of the world too bright.
+ */
+export function distantAlbedo() {
+  const w = DISTANT.materialWeights;
+  const out = [0, 0, 0];
+  for (let i = 0; i < MATERIAL_NAMES.length; i++) {
+    const a = CITY_MATERIALS[MATERIAL_NAMES[i]].albedo;
+    for (let j = 0; j < 3; j++) out[j] += w[i] * a[j];
+  }
+  return out;
+}
+
+/**
+ * The masses that stand for chunk (cx, cz) when it is too far away to build.
+ * Empty for a chunk with no buildings — which is every chunk under
+ * `CITY.lowDetailThreshold` and therefore every chunk past `CITY.extentEdgeM`.
+ *
+ * PURE, AND ON ITS OWN RNG STREAM. CONTRACT §6: a roll drawn from an existing
+ * stream would re-phase everything downstream of it, and this one is read for
+ * chunks the generator has never been run on — so `'distant'` it is.
+ *
+ * ON THE PERIMETER AND NOT AT THE CENTRE. The first arm of this put ONE box at
+ * the island's centre with the chunk's median height and one thin box for its
+ * tower, and the aerial it produced reads as a field of chips: a 66 m slab per
+ * chunk where the real island is a rind of separate buildings around a hollow
+ * core. LOOK.md §2's own first sentence is what was missing — *"buildings meet
+ * the lot line"* — and once the boxes are on the lot line the STREETS appear
+ * between them, which is most of what a city looks like from a kilometre up.
+ *
+ * `n` OF THEM AND NOT TWO. The count law above gives 7 to 12, and at
+ * `DISTANT.frontageM` x `depthM` = 521 m2 each that is 44% of the island —
+ * which is `coverBase + coverSlope * d` = 0.44 at the mean density, arrived at
+ * from the other direction. The two fits agree to 1%, and that agreement is
+ * the check that the silhouette is the same city rather than a plausible one.
+ * Cost, measured over seven camera chunks: **6 148 boxes worst case = 73 776
+ * triangles**, against 150 000 of headroom under `ceilings.triangles`. One
+ * draw call.
+ */
+export function distantMasses(rootSeed, cx, cz) {
+  const b = chunkBounds(cx, cz);
+  const mx = (b.x0 + b.x1) / 2;
+  const mz = (b.z0 + b.z1) / 2;
+  const d = densityAt(rootSeed, mx, mz);
+  if (d < CITY.lowDetailThreshold) return [];
+
+  const rng = chunkRng(rootSeed, cx, cz, 'distant');
+  const n = Math.max(1, Math.round(DISTANT.countBase + DISTANT.countSlope * d));
+
+  /** The island, which is what a chunk's buildings stand on. See `lotDepthM`. */
+  const island = CITY.chunkSize - 2 * CORRIDOR;
+  const half = island / 2 - DISTANT.setbackM;
+  const perim = 8 * half;
+  const step = perim / n;
+
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    /**
+     * Evenly spaced round the perimeter with a rolled offset inside the gap.
+     * Evenly spaced ALONE would put every chunk's buildings at the same
+     * fraction of its own side and the whole distant city on one phase — the
+     * lattice tell `docs/authored-city.md` §1 refuses for the density field, one
+     * scale up. The jitter is bounded by the gap so two neighbours cannot swap.
+     */
+    const slack = Math.max(0, step - DISTANT.frontageM);
+    const t = (i * step + rng.range(0, slack)) % perim;
+    const h = buildingHeightRoll(rng);
+    const material = MATERIAL_NAMES[weightedIndex(rng.next, DISTANT.materialWeights)];
+
+    // Which side of the square, and how far along it. Sides are 2*half long.
+    const side = Math.floor(t / (2 * half));
+    const u = t - side * 2 * half - half;
+    const inset = DISTANT.depthM / 2;
+    if (side === 0) out.push({ x: mx + u, z: mz - half + inset, w: DISTANT.frontageM, d: DISTANT.depthM, h, material });
+    else if (side === 1) out.push({ x: mx + half - inset, z: mz + u, w: DISTANT.depthM, d: DISTANT.frontageM, h, material });
+    else if (side === 2) out.push({ x: mx - u, z: mz + half - inset, w: DISTANT.frontageM, d: DISTANT.depthM, h, material });
+    else out.push({ x: mx - half + inset, z: mz - u, w: DISTANT.depthM, d: DISTANT.frontageM, h, material });
+  }
+  return out;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
  * HOW DEEP A BUILDING GOES — SESSION 35, AND THE CORE IS DERIVED RATHER THAN
  * CHOSEN.
  * ═══════════════════════════════════════════════════════════════════════════

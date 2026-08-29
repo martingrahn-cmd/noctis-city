@@ -48,6 +48,7 @@
 import {
   CITY, CORRIDOR, densityAt, cityExtentAt, generateChunk, chunkBounds,
   LANDMARKS, landmarkAABB, riverEnvelope, BLOCK_KEEPOUT, LOW_DETAIL_KINDS,
+  DISTANT, distantMasses, distantAlbedo,
 } from '../src/lib/citygen.js';
 import { GROUND, BLOCK } from '../src/core/constants.js';
 
@@ -64,7 +65,8 @@ const R = Number(args.get('radius') || 5);
 const FAR = Number(args.get('far') || 32);
 
 const ALL = !args.has('rings') && !args.has('field') && !args.has('grid')
-  && !args.has('beyond') && !args.has('walk') && !args.has('extent');
+  && !args.has('beyond') && !args.has('walk') && !args.has('extent')
+  && !args.has('distant');
 
 const f = (n, d = 2) => n.toFixed(d);
 const pad = (s, n) => String(s).padEnd(n);
@@ -519,6 +521,129 @@ function extent() {
   the gradient, expressed in the vocabulary the city already has.`);
 }
 
+
+// ---------------------------------------------------------------------------
+// 7. THE DISTANT SILHOUETTE AGAINST THE CITY IT STANDS FOR.
+
+/**
+ * The silhouette is a MODEL of a chunk, and the only thing that makes a model
+ * honest is a printed disagreement with the thing it models. So: run BOTH over
+ * the same chunks — `distantMasses`, which costs a hash and a few rolls, and
+ * `generateChunk`, which costs 0.21 ms — and compare the two quantities a
+ * silhouette actually delivers, its TOP LINE and its MASS.
+ */
+function distant() {
+  console.log('\n=== 7. THE DISTANT SILHOUETTE AGAINST THE CITY IT STANDS FOR ===\n');
+  const s = CITY.chunkSize;
+  const G = CITY.geometryRadius;
+  const D = DISTANT.radiusChunks;
+
+  console.log(`  radiusChunks ${D} = ${D * s} m,  which is ceil(extentEdgeM ${CITY.extentEdgeM} / ${s}) = ${Math.ceil(CITY.extentEdgeM / s)}`);
+  const alb = distantAlbedo();
+  console.log(`  albedo [${alb.map((v) => f(v, 4)).join(', ')}]  roughness ${DISTANT.roughness}\n`);
+
+  // --- (a) the delivered instance count, at the origin -----------------------
+  let chunks = 0; let built = 0; let boxes = 0;
+  for (let dz = -D; dz <= D; dz++) {
+    for (let dx = -D; dx <= D; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) <= G) continue;
+      chunks++;
+      const ms = distantMasses(SEED, dx, dz);
+      if (ms.length) { built++; boxes += ms.length; }
+    }
+  }
+  const ceilingBoxes = chunks * Math.round(DISTANT.countBase + DISTANT.countSlope);
+  console.log('  (a) WHAT IT COSTS, WITH THE CAMERA AT THE WORLD CENTRE\n');
+  console.log(`      chunks in the shell (ring ${G + 1} to ${D})   ${rpad(chunks, 8)}`);
+  console.log(`      of those, chunks with buildings          ${rpad(built, 8)}   ${f((100 * built) / chunks, 1)}%`);
+  console.log(`      boxes DELIVERED                          ${rpad(boxes, 8)}   against ${ceilingBoxes} if every chunk were built at d = 1`);
+  console.log(`      triangles at 12 a box                    ${rpad(boxes * 12, 8)}   against 150 000 of headroom`);
+  console.log(`      ONE draw call, one InstancedMesh.`);
+
+  // --- (b) the same, standing at the rim ------------------------------------
+  {
+    const ccx = Math.round(CITY.extentEdgeM / s);
+    let c2 = 0; let b2 = 0; let x2 = 0;
+    for (let dz = -D; dz <= D; dz++) {
+      for (let dx = -D; dx <= D; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) <= G) continue;
+        c2++;
+        const ms = distantMasses(SEED, ccx + dx, dz);
+        if (ms.length) { b2++; x2 += ms.length; }
+      }
+    }
+    console.log(`\n      the same shell with the camera at the RIM (cx ${ccx}, x = ${ccx * s} m):`);
+    console.log(`      chunks with buildings ${b2} of ${c2} = ${f((100 * b2) / c2, 1)}%, boxes ${x2}, triangles ${x2 * 12}`);
+    console.log('      Fewer, because half the shell is outside the city. That is the point.');
+  }
+
+  // --- (c) the model against the generator ---------------------------------
+  console.log('\n  (b) THE MODEL AGAINST THE GENERATOR, over the chunks both agree exist\n');
+  const rows = [];
+  for (let cx = -20; cx <= 20; cx++) {
+    for (let cz = -20; cz <= 20; cz++) {
+      if (Math.max(Math.abs(cx), Math.abs(cz)) <= G) continue;
+      const ms = distantMasses(SEED, cx, cz);
+      const c = generateChunk(SEED, cx, cz);
+      const real = c.buildings;
+      if (!ms.length && !real.length) continue;
+      if (!ms.length || !real.length) { rows.push({ mismatch: true, ms: ms.length, real: real.length }); continue; }
+      let rTop = 0; let rVol = 0;
+      for (const bl of real) { if (bl.height > rTop) rTop = bl.height; rVol += bl.width * bl.depth * bl.height; }
+      const mTop = Math.max(...ms.map((m) => m.h));
+      const mVol = ms.reduce((a, m) => a + m.w * m.d * m.h, 0);
+      rows.push({ mTop, rTop, mVol, rVol });
+    }
+  }
+  const bad = rows.filter((r) => r.mismatch);
+  const ok = rows.filter((r) => !r.mismatch);
+  const q = (a, p) => { const t = [...a].sort((x, y) => x - y); return t[Math.min(t.length - 1, Math.floor(p * t.length))]; };
+  const topRatio = ok.map((r) => r.mTop / r.rTop);
+  const volRatio = ok.map((r) => r.mVol / r.rVol);
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  console.log(`      ${ok.length} chunks compared, ${bad.length} where one had buildings and the other did not.`);
+  console.log(`      ${pad('', 22)}${rpad('p10', 9)}${rpad('p50', 9)}${rpad('p90', 9)}${rpad('mean', 9)}`);
+  console.log(`      ${pad('TOP LINE model/real', 22)}${rpad(f(q(topRatio, 0.1), 3), 9)}${rpad(f(q(topRatio, 0.5), 3), 9)}${rpad(f(q(topRatio, 0.9), 3), 9)}${rpad(f(mean(topRatio), 3), 9)}`);
+  console.log(`      ${pad('MASS model/real', 22)}${rpad(f(q(volRatio, 0.1), 3), 9)}${rpad(f(q(volRatio, 0.5), 3), 9)}${rpad(f(q(volRatio, 0.9), 3), 9)}${rpad(f(mean(volRatio), 3), 9)}`);
+  console.log(`
+      A RATIO OF 1.000 WOULD MEAN THE MODEL IS THE GENERATOR, WHICH IT IS NOT
+      AND MUST NOT CLAIM TO BE. What it has to be is unbiased — a median near 1
+      with the spread of one chunk's own luck — because a silhouette 20% short
+      everywhere is a visible step at the ring boundary and a silhouette 20%
+      tall everywhere is a wall. The p10/p90 band is the honest error bar and it
+      is the number to quote, not the median alone.`);
+
+  // --- (d) the boundary step ------------------------------------------------
+  console.log('\n  (c) THE STEP AT THE RING BOUNDARY, which is the one place both are visible\n');
+  let realTop = 0; let realN = 0; let modTop = 0; let modN = 0;
+  for (let cx = -(G + 1); cx <= G + 1; cx++) {
+    for (let cz = -(G + 1); cz <= G + 1; cz++) {
+      const r = Math.max(Math.abs(cx), Math.abs(cz));
+      if (r === G) {
+        const c = generateChunk(SEED, cx, cz);
+        for (const bl of c.buildings) { realTop += bl.height; realN++; }
+      } else if (r === G + 1) {
+        const ms = distantMasses(SEED, cx, cz);
+        for (const m of ms) { modTop += m.h; modN++; }
+      }
+    }
+  }
+  console.log(`      ring ${G}     ${realN} real buildings, mean height ${f(realTop / Math.max(1, realN), 2)} m`);
+  console.log(`      ring ${G + 1}     ${modN} silhouette boxes, mean height ${f(modTop / Math.max(1, modN), 2)} m`);
+  console.log(`      ratio     ${f((modTop / Math.max(1, modN)) / (realTop / Math.max(1, realN)), 3)}`);
+  console.log(`
+      THIS IS THE ONE NUMBER A SILHOUETTE CANNOT ARGUE ITS WAY OUT OF. Ring 5 is
+      drawn as real buildings and ring 6 as boxes, they are 128 m apart, and any
+      camera that sees one sees the other. A ratio away from 1 is a STEP in the
+      skyline at a fixed distance from the eye, which is exactly the artefact
+      the whole silhouette exists to remove.
+
+      THE FIRST ARM OF THIS READ 1.548, and that was the finding that rewrote
+      it: one box for the block and one for its tower gives a mean of two that
+      is halfway to the tallest, where a real chunk's mean is over ten. Placing
+      the chunk's own count on its own perimeter is what brought it to 1.018.`);
+}
+
 console.log(`edgeprobe — seed ${SEED}, region radius ${R} chunks, transect ${FAR} chunks. NOT A GATE.`);
 if (ALL || args.has('rings')) rings();
 if (ALL || args.has('field')) field();
@@ -526,4 +651,5 @@ if (ALL || args.has('grid')) grid();
 if (ALL || args.has('beyond')) beyond();
 if (ALL || args.has('walk')) walk();
 if (ALL || args.has('extent')) extent();
+if (ALL || args.has('distant')) distant();
 console.log('');

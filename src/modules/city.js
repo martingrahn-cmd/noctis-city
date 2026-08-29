@@ -105,6 +105,9 @@ import {
   BUS_STOP,
   busStopAt,
   DEAD_ZONE,
+  DISTANT,
+  distantMasses,
+  distantAlbedo,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -360,6 +363,19 @@ export function createCity(options = {}) {
   let bowlMesh = null;
   let lampsDirty = false;
 
+  /**
+   * The city beyond the resident ring — session 53. One `InstancedMesh` for
+   * every chunk from ring `geometryRadius + 1` out to `DISTANT.radiusChunks`,
+   * and the chunk coordinate it was built for.
+   *
+   * REBUILT ON A CHUNK CROSSING AND NOT PER FRAME, which is the same cadence
+   * `rebuildGroundMesh` runs at and for the same reason: the shell is a function
+   * of the camera's CHUNK, so it changes a few times a minute at walking pace
+   * and once every 5.3 s at `highway_speed`'s 24 m/s.
+   */
+  let distantMesh = null;
+  let distantAt = null;
+
   const tmpMatrix = new THREE.Matrix4();
   const tmpQuat = new THREE.Quaternion();
   const tmpPos = new THREE.Vector3();
@@ -464,6 +480,32 @@ export function createCity(options = {}) {
        * are two instances rather than two materials or two draw calls.
        */
       beacon: emissive({ chroma: EMITTER_CHROMA.neonRed, nits: LIGHT.aviationRedNits, color: 0x0e0a0a, roughness: 0.2 }),
+      /**
+       * THE CITY BEYOND THE RESIDENT RING — session 53. See `DISTANT` in
+       * `citygen.js` for what it is and why two boxes a chunk.
+       *
+       * ONE MATERIAL AND NOT `facade`, for two reasons that are both about what
+       * a kilometre does. `facade` is linear white with the reflectance riding
+       * in `instanceColor`, because a near building's material, era and soiling
+       * all read; at 2 km none of them do, and 2 500 instance colours to encode
+       * one grey is 30 kB of buffer saying nothing. And `facade` carries the
+       * window shader's own uniforms.
+       *
+       * It IS `lights.patch()`ed, and that is the half that matters: the patch
+       * is what puts `uNoctisHaze` on a material, and the haze is the entire
+       * reason this reads as distance rather than as a row of boxes. At
+       * `ATM.hazeDensity` 4.5e-4 /m the transmittance is 0.71 at the ring
+       * boundary and 0.23 at the rim, so the silhouette fades into the sky
+       * across its own depth without a single line of code about fog.
+       *
+       * LINEAR WHITE, WITH THE REFLECTANCE IN `instanceColor` — the same
+       * decision `facade` above makes and for the same reason. The first arm
+       * put `distantAlbedo()` in the material and gave the whole distant city
+       * one grey; the four materials span 0.086 to 0.600, a factor of seven,
+       * and the ring boundary read as a tone step because of it. Four colours
+       * cost 71 kB of buffer and no draw call.
+       */
+      distant: surface({ color: [1, 1, 1], roughness: DISTANT.roughness, linear: true }),
     };
   }
 
@@ -1551,6 +1593,100 @@ export function createCity(options = {}) {
       root.add(groundMesh);
     }
     groundDirty = false;
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE CITY BEYOND THE RING — SESSION 53.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * `tools/shot-out/s53-rim-air-before-*.png` is what this is for: from 300 m up
+   * the city fills the bottom quarter of the frame and then stops along a
+   * straight line, with 3.23 km of flat earth behind it. The line is
+   * `CITY.geometryRadius`, 640–768 m from the eye, and it is in every frame from
+   * every camera because the ring is fixed to the camera and not to the world.
+   *
+   * WHY IT IS ONE MESH AND NOT MORE RESIDENT CHUNKS. A resident chunk emits its
+   * own meshes, so ring 6 is +44 chunks against a `ceilings.drawCalls` of 440
+   * that `highway_speed` measures 397 of. **The ring is bounded by draw calls.**
+   * An `InstancedMesh` is bounded by triangles, and triangles is the budget with
+   * room in it — 2.21 M of 2 360 000. So the same content costs one draw here
+   * and forty-four there, and that asymmetry is the whole design.
+   *
+   * WHAT IT CONTAINS is `citygen.js`'s `distantMasses`, which reads the same
+   * `densityAt` and the same `buildingHeightRoll` the real chunks do — see
+   * `DISTANT` for the measured law and for the two-boxes-a-chunk derivation.
+   * `edgeprobe --distant` prints the model against the generator over 619
+   * chunks: **top line model/real p50 1.002, p10 0.553, p90 1.819**, i.e.
+   * unbiased at the median with the spread of one chunk's own luck.
+   *
+   * NO SHADOWS, AND IT IS NOT A SAVING — IT IS CORRECT. `LIGHTING.shadowExtent`
+   * is 170 m; every box here is at least 768 m away, so all of them are outside
+   * the sun's depth pass by a factor of four and `castShadow` would submit them
+   * to a frustum that cannot contain them.
+   */
+  function rebuildDistantMesh(ctx) {
+    const s = CITY.chunkSize;
+    const ccx = Math.floor(ctx.camera.position.x / s);
+    const ccz = Math.floor(ctx.camera.position.z / s);
+    if (distantAt && distantAt.cx === ccx && distantAt.cz === ccz) return;
+    distantAt = { cx: ccx, cz: ccz };
+
+    const boxes = [];
+    const D = DISTANT.radiusChunks;
+    for (let dz = -D; dz <= D; dz++) {
+      for (let dx = -D; dx <= D; dx++) {
+        // Strictly outside the geometry ring: a chunk drawn for real must never
+        // also carry a silhouette, or the two stand in the same cubic metre.
+        if (Math.max(Math.abs(dx), Math.abs(dz)) <= CITY.geometryRadius) continue;
+        // `rootSeed`, which is the same string `describe` hands `generateChunk`.
+        // `ctx.config.seed` is a NUMBER and `chunkRng` hashes its argument into
+        // a template string, so the two would seed different cities and the
+        // silhouette would be of a world nobody can walk to.
+        const ms = distantMasses(rootSeed, ccx + dx, ccz + dz);
+        for (const m of ms) if (m.h > 0 && m.w > 0) boxes.push(m);
+      }
+    }
+
+    if (distantMesh) {
+      root.remove(distantMesh);
+      distantMesh.dispose();
+      distantMesh = null;
+    }
+    if (!boxes.length) return;
+
+    const im = new THREE.InstancedMesh(geometries.box, materials.distant, boxes.length);
+    for (let i = 0; i < boxes.length; i++) {
+      const m = boxes[i];
+      /**
+       * `GROUND.earth` and not 0: the box stands ON the world's earth plane,
+       * which is the datum every other ground object in this project is stated
+       * against (constants.js -> GROUND). Half the height up, because
+       * `geometries.box` is a UNIT box centred on its own origin.
+       */
+      // Composed in place rather than through `setMatrix`, which clones: this
+      // runs 1 240 times on a chunk crossing and every clone would be garbage
+      // one line later.
+      tmpPos.set(m.x, GROUND.earth + m.h / 2, m.z);
+      tmpScale.set(m.w, m.h, m.d);
+      tmpQuat.identity();
+      tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
+      im.setMatrixAt(i, tmpMatrix);
+      // setRGB in linear: measured reflectances, never sRGB. CONTRACT §5.2.
+      const a = CITY_MATERIALS[m.material].albedo;
+      tmpColor.setRGB(a[0], a[1], a[2], THREE.LinearSRGBColorSpace);
+      im.setColorAt(i, tmpColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    im.instanceColor.needsUpdate = true;
+    im.castShadow = false;
+    im.receiveShadow = false;
+    im.name = 'city:distant';
+    im.userData.noctisCensus = [{ kind: 'distant', n: boxes.length }];
+    im.frustumCulled = true;
+    im.computeBoundingSphere();
+    root.add(im);
+    distantMesh = im;
   }
 
   /**
@@ -8222,6 +8358,13 @@ export function createCity(options = {}) {
       if (groundDirty) rebuildGroundMesh();
       if (signsDirty) rebuildSignMesh();
       if (lampsDirty) rebuildLampMesh();
+      /**
+       * SESSION 53. Its own dirty test rather than a flag, because what it
+       * depends on is the camera's CHUNK and nothing else — no residency change
+       * can invalidate it and no chunk build can. It returns in one comparison
+       * on every frame that is not a chunk crossing.
+       */
+      rebuildDistantMesh(ctx);
       reportRoofSigns(ctx);
 
       // --- the canyon field ring ---
@@ -8257,19 +8400,24 @@ export function createCity(options = {}) {
       for (const key of [...resident.keys()]) unbuild(key);
       // The two merged meshes are owned by the module rather than by a chunk,
       // so `unbuild` above cannot reach them.
-      for (const m of [groundMesh, signMesh, lampMesh, bowlMesh]) {
+      for (const m of [groundMesh, signMesh, lampMesh, bowlMesh, distantMesh]) {
         if (!m) continue;
         root.remove(m);
         // The lamp pair shares `geometries.lamp` and `geometries.bowl` with
         // nothing else, but those are module-owned and disposed below with
         // every other shared geometry — disposing here would double-free.
-        if (m !== lampMesh && m !== bowlMesh) m.geometry.dispose();
+        // `distantMesh` shares `geometries.box` with every building in the
+        // city, so disposing it here would delete the geometry the whole
+        // streamed world is drawn from. Same exemption, same reason.
+        if (m !== lampMesh && m !== bowlMesh && m !== distantMesh) m.geometry.dispose();
         if (m.dispose) m.dispose();
       }
       groundMesh = null;
       signMesh = null;
       lampMesh = null;
       bowlMesh = null;
+      distantMesh = null;
+      distantAt = null;
       ctx.scene.remove(root);
       for (const d of disposables) if (d && d.dispose) d.dispose();
       disposables.length = 0;
