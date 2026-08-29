@@ -11615,6 +11615,31 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         const R = landmarkClaimHalf(l);
         if (Math.abs(x - l.x) > R - half - edge || Math.abs(z - l.z) > R - half - edge) continue;
+        /**
+         * AND NOT IN THE STREET CORRIDOR — SESSION 52, AND `citycheck` FOUND
+         * IT IN THE FIRST ARM OF THE BIGGER CLAIM.
+         *
+         * `prop(weir:apron) x prop(tree)`, 0.12 m² at (−390, 246), and it is a
+         * CHUNK SEAM rather than a placement bug: chunk (−4,1)'s apron and
+         * chunk (−3,1)'s kerbside scatter both furnished the SAME corridor
+         * strip and neither registry can see the other. **A chunk owns the
+         * corridors on its west and north edges**, so its scatter reaches up
+         * to `CORRIDOR` = 11.7 m into the neighbour — the tree stood 8.0 m
+         * outside its own chunk, exactly as designed — and the apron clips to
+         * its own `chunkBounds` and tested against a registry that had never
+         * heard of it. Session 23's lamp gap, one generator over.
+         *
+         * The guard is the sentence rather than the seam: **a forecourt does
+         * not furnish the street.** `latticeCorridor` is the pure function
+         * that already answers "is this the carriageway or its two footways",
+         * it is what the kerbside scatter's own bands are made of, and it is
+         * the same answer in every chunk — so the two can no longer choose the
+         * same square metre whatever order they run in. What it costs is
+         * measured rather than assumed: the apron loses 11.7 m either side of
+         * every lattice line that crosses a precinct, and the delivered count
+         * is in STATE 52 §1.
+         */
+        if (latticeCorridor(x, z, half)) continue;
         const spot = claimAt('prop', x, z, half, half, { owner: `${l.name}:apron` });
         if (reg.conflict(spot, 0, APRON_SETBACKS)) continue;
         reg.claim(spot);
