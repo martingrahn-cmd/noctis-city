@@ -555,6 +555,10 @@ LOOK.md §7 with its date. §7 item 2 is the repair.
   alignment 73.6% off-axis, largest deviation 2.27° against 3° — GREEN
   bright reserve 6.66% against 6.00 — GREEN, three runs [6.66 6.34 6.66]
   saturation 3.68% pooled peak against 12, three runs [3.68 4.19 3.68]
+  RE-RUN AFTER §3.6 LIT THE DISTANT CITY: the identical four violations again,
+    with every count identical. bright reserve 6.50% [7.12 6.39 6.50] — GREEN,
+    saturation 3.46% [3.37 3.46 3.65]. So a night city with 5 936 more emitting
+    boxes in it spent 0.16 points of bright reserve and no saturation at all.
   walkability 54 786 of 54 920 — seven sessions
   scene walk 342 instanced meshes, 342 labelled, 0 not. `distantMasses 5936`.
   city arrived over 2954 frames / 15 862.5 ms at load1 4.80 — inside the wall-clock bound
