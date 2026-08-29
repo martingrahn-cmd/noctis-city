@@ -1633,6 +1633,7 @@ export function createCity(options = {}) {
     distantAt = { cx: ccx, cz: ccz };
 
     const boxes = [];
+    let built = 0;
     const D = DISTANT.radiusChunks;
     for (let dz = -D; dz <= D; dz++) {
       for (let dx = -D; dx <= D; dx++) {
@@ -1644,6 +1645,7 @@ export function createCity(options = {}) {
         // a template string, so the two would seed different cities and the
         // silhouette would be of a world nobody can walk to.
         const ms = distantMasses(rootSeed, ccx + dx, ccz + dz);
+        if (ms.length) built++;
         for (const m of ms) if (m.h > 0 && m.w > 0) boxes.push(m);
       }
     }
@@ -1682,7 +1684,32 @@ export function createCity(options = {}) {
     im.castShadow = false;
     im.receiveShadow = false;
     im.name = 'city:distant';
-    im.userData.noctisCensus = [{ kind: 'distant', n: boxes.length }];
+    /**
+     * AN OBJECT WHOSE NUMERIC FIELDS SUM TO `instanceMatrix.count`, and the
+     * first arm of this was an ARRAY. `harness.sceneCensus` walks the label
+     * with `Object.entries` and adds every value that is a number; on
+     * `[{ kind, n }]` the one entry's value is an object, so it summed to ZERO
+     * and `citycheck` said so in one line: *"'city:distant' labels 0 and
+     * allocated 5936"*.
+     *
+     * THAT IS THE SCENE WALK DOING EXACTLY WHAT IT WAS BUILT FOR. Its own
+     * comment (see `addInstanced`) records that the merge which saved four draw
+     * calls a chunk also erased four categories, and that a mesh whose label
+     * does not sum to its allocation is a mesh the scene cannot describe. A new
+     * mesh added in a session that never ran the gate would have shipped
+     * undescribed; this one was caught by the gate on its first full run in
+     * eight sessions, which is §4's own argument arriving as a fact.
+     *
+     * The chunk-count rides beside it as a STRING, which `sceneCensus` skips —
+     * the same arrangement `massCensus`'s `$props` uses, and for the same
+     * reason: a count of CHUNKS reported under a key that sums as BOXES is
+     * CONTRACT §9's failure mode with the right units and a plausible
+     * magnitude.
+     */
+    im.userData.noctisCensus = {
+      distantMasses: boxes.length,
+      $shell: `${built} built chunks over rings ${CITY.geometryRadius + 1}-${D}`,
+    };
     im.frustumCulled = true;
     im.computeBoundingSphere();
     root.add(im);
