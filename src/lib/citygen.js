@@ -1465,7 +1465,114 @@ export const DISTANT = {
    * silent renormalisation.
    */
   materialWeights: [0.291, 0.272, 0.189, 0.248],
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE DISTANT CITY AT NIGHT — cd/m², AND A GATE ASKED FOR THIS NUMBER.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * The silhouette shipped with no emission at all, and `lookcheck`'s
+   * `distinct:midnight|dusk` measured the consequence: 0.03004 -> 0.02959 over
+   * six runs on two arms with a spread of 0.00001 an arm. STATE 53 §6.1.1 has
+   * the mechanism, measured off the frames rather than argued: the silhouette
+   * changes 8.97% of the pixels, those pixels were the frame's HIGHEST-contrast
+   * region (the sky at the far end of a street — 0.051 against 0.028 for
+   * everything else), and an unlit grey mass standing in front of sky swings
+   * less between midnight and dusk than the sky it replaced.
+   *
+   * LOOK.md §1 is a NIGHT city. At midnight a distant city is a field of lights
+   * against a black sky, and STATE 53 §7 predicted in writing that lighting it
+   * would move the band back.
+   *
+   * ══ THAT PREDICTION WAS FALSIFIED IN THE SAME SESSION THAT MADE IT. ══
+   *
+   * Delivered: **0.02958 unlit -> 0.02953 lit**, five times the instrument's own
+   * 0.00001 resolution and in the WRONG DIRECTION. The mechanism is one
+   * sentence and it should have been obvious: **midnight is DARKER than dusk,
+   * so ANY light added at midnight moves midnight TOWARDS dusk.** The other
+   * pairs agree — `midnight<->dawn` 0.12835 -> 0.12825 and `midnight<->noon`
+   * 0.20458 -> 0.20458, i.e. midnight moved slightly toward the two dim frames
+   * and not at all against the bright one.
+   *
+   * So `distinct:midnight|dusk` rewards a DARK night city, and LOOK.md §1 asks
+   * for a lit one. **THE LIGHT STAYS AND THE THRESHOLD DOES NOT MOVE** —
+   * LOOK.md §7: *"a look threshold is evidence, not a verdict … the correct
+   * response is to ask what that band was derived from, not to abandon the
+   * change."* What is owed is a derivation of that band against a city that has
+   * its lights on, and it is written up there with its date.
+   *
+   * IT IS AN AREA MEAN AND THAT IS WHY IT IS ONE NUMBER RATHER THAN GEOMETRY.
+   * A window at 2 km is a hundredth of a pixel. What reaches the eye is the
+   * facade's mean radiance, and the mean is the honest primitive.
+   *
+   * ─────────────────────────────────────────────────────────────────────────
+   * THE ARITHMETIC, AND ITS FIRST ARM WAS WRONG BY 1.71x IN ONE STEP.
+   *
+   * The first arm read `era.windowWall` — 0.3083 population-weighted — as the
+   * glazed fraction of a facade. **IT IS NOT.** It is a descriptive era
+   * attribute, and `city.js` builds the actual openings from the RHYTHM:
+   * `winW = colW * (band 0.9 | panel 0.95 | else 0.55)` and
+   * `winH = era.floor * (windowWall > 0.4 ? 0.62 : 0.44)`. Over the 5 957
+   * buildings outside the ring at seed 1337:
+   *
+   *     era           share   rhythm      winW/colW  winH/floor  glazed
+   *     prewar       21.19%   grid            0.55       0.44     0.2420
+   *     postwar      27.14%   band            0.90       0.62     0.5580
+   *     corporate    21.55%   vertical        0.55       0.44     0.2420
+   *     infill       20.72%   irregular       0.55       0.44     0.2420
+   *     contemporary  9.40%   panel           0.95       0.62     0.5890
+   *                                                     weighted   0.3604
+   *
+   * **AND ONLY TWO OF FOUR FACES CARRY ANY.** `city.js`'s window loop skips a
+   * face that is neither `front` nor `rear`, and its own comment says why:
+   * *"buildings in a run touch, so a window on a side face is a window inside
+   * the neighbour"*. A distant box is seen from every side, so the mean has to
+   * be over all four:
+   *
+   *     0.3604 x 0.5 (faces)  x  0.6280 (lit gain)  x  220 (windowNits)
+   *   = 0.1802               x  0.6280             x  220   =  24.90 cd/m²
+   *
+   * The lit gain is `city.js`'s own per-window roll,
+   * `lit > 0.42 ? 1 : lit > 0.3 ? 0.35 : 0.02` on a uniform hash:
+   * 0.58·1 + 0.12·0.35 + 0.30·0.02.
+   *
+   * ─────────────────────────────────────────────────────────────────────────
+   * AND THEN A MEASURED FACTOR, BECAUSE THE FRAME REFUSED THE DERIVATION.
+   *
+   * At 42.59 (the first arm) the night aerial delivered a **mean of 42.27 code
+   * values over the distant band against 8.00 over the near city's** —
+   * `s53-rim-night-*.png`, rows 373-535 against 567-794 —  and the far half of
+   * the world was brighter than the near half. 24.90 is 1.71x better and still
+   * 3.1x over.
+   *
+   * `DISTANT.nightToneFactor` is that residual, MEASURED and named for what it
+   * absorbs rather than tuned until it looked right:
+   *
+   *   1. THE TONE CURVE IS CONCAVE. A uniform surface at radiance L and a
+   *      mixture of {30% at 220, 70% at ~0} with the same mean L are the same
+   *      radiance and NOT the same code value: the mixture's highlights are
+   *      compressed and its darks are not, so the uniform one comes out
+   *      brighter. This is the dominant term and it is a real property of the
+   *      renderer, not an error in either number.
+   *   2. THE NEAR BAND CONTAINS STREETS. The comparison is two bands of one
+   *      frame; the near band has carriageway between its buildings and the
+   *      distant band is nearly solid city.
+   *
+   * SO IT IS A CALIBRATION AND IT SAYS SO, INCLUDING WHAT IT WAS CALIBRATED TO.
+   * The target was not equality — the near band contains streets and the far
+   * band is nearly solid city, so they cannot be equal — it was **the same
+   * order**, and the delivered ratio is 1.58 where the first arm's was 5.28.
+   * What it is calibrated against is printed above and reproducible in one
+   * command. What would retire it is a
+   * probe that reads the near city's own facade pixels rather than a band of
+   * frame — `bareprobe --why` already attributes ground pixels to owners and is
+   * the shape of it. §7 of STATE 53.
+   */
+  nightNits: 0.3604 * 0.5 * 0.6280 * 220 * 0.32,
+  /** See above: the measured residual between 24.90 cd/m² and the frame. */
+  nightToneFactor: 0.32,
+  nightMix: { tungsten: 0.652, fluorescentCold: 0.348 * 0.65, mercuryBlue: 0.348 * 0.35 },
 };
+
 
 /**
  * The silhouette's mean reflectance — `DISTANT.materialWeights` against

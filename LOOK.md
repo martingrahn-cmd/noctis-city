@@ -1394,17 +1394,32 @@ swing anywhere between midnight and dusk — 0.051 against 0.028 for everything
 else. A grey unlit mass standing in front of some of that sky swings less than
 the sky it replaced.
 
-**SO THE BAND IS RIGHT AND IT IS POINTING AT A CONTENT GAP.** §1 of this document
-is a NIGHT city. At midnight a distant city is a field of lights against a black
-sky, which swings *more* than the sky did and in the opposite sign; what is drawn
-today is unlit mass. The threshold is not moved, `minPairMSD` stays at 0.03000,
-and what is owed is an emissive term on the distant material driven by the same
-`photocellOn` the facades read — a window count below a pixel is a mean, not
-geometry.
+**AND THE OBVIOUS REPAIR WAS TRIED, IN THE SAME SESSION, AND IT MADE THE BAND
+WORSE.** §1 of this document is a NIGHT city, so the distant masses were given
+an emission of 7.97 cd/m² — derived in `DISTANT.nightNits` from the glazed
+fraction, the lit-window gain and `LIGHT.windowNits`. The prediction, written
+down first, was that a field of lights against a black sky swings *more* than
+the sky it replaced.
 
-Per the paragraph above: *"a proxy that now argues against the goal is a proxy
-that needs re-deriving"* — and this one does not argue against the goal. It
-argues for the half of the goal that is not built yet.
+```
+  unlit distant city    0.02958
+  lit distant city      0.02953      five times the 0.00001 resolution, WRONG WAY
+  midnight <-> dawn     0.12835 -> 0.12825
+  midnight <-> noon     0.20458 -> 0.20458
+```
+
+**MIDNIGHT IS DARKER THAN DUSK, SO ANY LIGHT ADDED AT MIDNIGHT MOVES MIDNIGHT
+TOWARDS DUSK.** The other two pairs agree: midnight moved slightly toward the
+two dim frames and not at all against the bright one. There is no arrangement of
+this content that satisfies the band, because **the band rewards a dark night
+city and §1 asks for a lit one.**
+
+`minPairMSD` is NOT moved and the light STAYS. Per the paragraph above,
+*"a proxy that now argues against the goal is a proxy that needs re-deriving"* —
+and this one now demonstrably argues against the goal rather than merely
+straddling it. **What L15 needs is a derivation against a city with its lights
+on**, and until somebody does that the honest reading of a red on this band is
+that a night city got more lit, which is the direction this document asks for.
 
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 

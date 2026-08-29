@@ -50,7 +50,7 @@ import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, W
  * instance.
  */
 import { mayOverlap } from '../lib/occupancy.js';
-import { EMITTER_CHROMA, luminance } from '../lib/color.js';
+import { EMITTER_CHROMA, luminance, normaliseLuminance } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
   CITY,
@@ -505,7 +505,37 @@ export function createCity(options = {}) {
        * and the ring boundary read as a tone step because of it. Four colours
        * cost 71 kB of buffer and no draw call.
        */
-      distant: surface({ color: [1, 1, 1], roughness: DISTANT.roughness, linear: true }),
+      distant: (() => {
+        const m = surface({ color: [1, 1, 1], roughness: DISTANT.roughness, linear: true });
+        /**
+         * AND IT EMITS AT NIGHT — see `DISTANT.nightNits`, which derives
+         * 42.60 cd/m² as `windowWall` 0.3083 x this file's own lit gain 0.6280
+         * x `LIGHT.windowNits` 220. A window at 2 km is a hundredth of a pixel,
+         * so what reaches the eye is the facade's mean radiance and the mean is
+         * the honest primitive.
+         *
+         * THE CHROMA IS MIXED HERE AND WEIGHTED THERE. `citygen.js` has never
+         * imported `color.js` — only modules do — so `DISTANT.nightMix` carries
+         * the three shares (0.652 tungsten, 0.2262 fluorescentCold, 0.1218
+         * mercuryBlue, which is `COLD_BUILDING_SHARE` XOR
+         * `COLD_FLOOR_EXCEPTION` and then `MERCURY_SHARE_OF_COLD`) and this
+         * mixes them. Re-normalised to unit luminance so the nits carry the
+         * whole of the level and the colour carries none of it — CONTRACT §5,
+         * and it is what `emissive()` three lines up already assumes.
+         *
+         * NO PHOTOCELL. `materials.window` above is emissive at all hours for
+         * the same reason: an office light is not switched off at noon, it is
+         * swamped, and 42.6 cd/m² against a sunlit facade is three orders down.
+         */
+        const mix = [0, 0, 0];
+        for (const [k, w] of Object.entries(DISTANT.nightMix)) {
+          for (let i = 0; i < 3; i++) mix[i] += w * EMITTER_CHROMA[k][i];
+        }
+        const chroma = normaliseLuminance(mix);
+        m.emissive.setRGB(chroma[0], chroma[1], chroma[2], THREE.LinearSRGBColorSpace);
+        m.emissiveIntensity = DISTANT.nightNits;
+        return m;
+      })(),
     };
   }
 
