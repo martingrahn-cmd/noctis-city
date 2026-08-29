@@ -311,6 +311,46 @@ half the shell is outside the city, which is the point. Rebuilt on a chunk cross
 `windcheck` measures it: **568 meshes where session 52 had 567, 564 of 564 cull-eligible decided,
 0 wound backwards.** The +1 is `city:distant` and it is named, measured and correct.
 
+### 3.6 AND IT HAS ITS LIGHTS ON — WITH A PREDICTION THIS SESSION MADE AND FALSIFIED
+
+§6.1 measured that the unlit silhouette moved `distinct:midnight|dusk` the wrong way, and this
+document's §7 item 2 originally said, in writing, that lighting it would move the band back. **It
+does the opposite, and the measurement is in the same session as the prediction:**
+
+```
+  unlit distant city   0.02958        midnight <-> dawn   0.12835 -> 0.12825
+  lit   distant city   0.02953        midnight <-> noon   0.20458 -> 0.20458
+```
+
+Five times the instrument's own 0.00001 resolution and in the wrong direction. **MIDNIGHT IS
+DARKER THAN DUSK, SO ANY LIGHT ADDED AT MIDNIGHT MOVES MIDNIGHT TOWARDS DUSK.** The other two
+pairs agree — midnight moved slightly toward the two dim frames and not at all against the bright
+one. **There is no arrangement of this content that satisfies the band, because the band rewards a
+DARK night city and LOOK.md §1 asks for a lit one.** `minPairMSD` is not moved, the light stays,
+and LOOK.md §7 carries the re-derivation with its date.
+
+**THE LEVEL, AND ITS FIRST ARM WAS WRONG BY 1.71× IN ONE STEP.** `era.windowWall` is a DESCRIPTIVE
+attribute and not the delivered glazed fraction — `city.js` builds the openings from the RHYTHM,
+`winW = colW × (band 0.9 | panel 0.95 | else 0.55)` and
+`winH = era.floor × (windowWall > 0.4 ? 0.62 : 0.44)`, which is **0.3604** population-weighted.
+**And only two of four faces carry any**, because `city.js` skips a face that is neither front nor
+rear: *"a window on a side face is a window inside the neighbour"*. A distant box is seen from
+every side, so:
+
+```
+  0.3604 x 0.5 (faces) x 0.6280 (lit gain) x 220 (LIGHT.windowNits) = 24.90 cd/m²
+```
+
+and then **a MEASURED residual of 0.32**, named for what it absorbs rather than tuned until it
+looked right. At the first arm's 42.59 the night aerial delivered a distant band mean of
+**42.27 code values against the near city's 8.00** — the far half of the world brighter than the
+near half. At 7.97 it is **14.18 against 8.96**, a ratio of 1.58 where the two bands cannot be
+equal anyway because the near one contains streets. The dominant term in that 0.32 is that **the
+tone curve is concave**: a uniform surface at radiance L and a mixture of {30% at 220, 70% at 0}
+with the same mean L are the same radiance and not the same code value.
+
+`tools/shot-out/s53-rim-night-t0-wet.png` is the frame, and `--wet=0.85` at `t=0`.
+
 ---
 
 ## 4. `npm run gates` RUNS EIGHT GATES AGAIN, NOT THREE — FOUR SESSIONS' ITEM 1
@@ -426,9 +466,13 @@ of 1.6.**
 
 ```
   parsecheck   GREEN   115 files, contract-clean. 113 -> 115: edgeprobe.mjs and rungates.mjs.
+                       It went RED once during the session on an ELLIPSIS CHARACTER in a
+                       citygen.js comment — "probable elision" — and the runner is what
+                       surfaced it, because it ran the three gates after it anyway. §4.
   faultcheck   GREEN
   lookcheck    RED at 3 — ONE MORE THAN SESSION 52, AND THIS SESSION CAUSED IT. §6.1.
-                       distinct:midnight|dusk 0.02958 against 0.03000  <- §3 moved this, measured
+                       distinct:midnight|dusk 0.02958 unlit, 0.02953 lit — §3 moved BOTH,
+                       measured, and §3.6 is the prediction that was falsified
                        facadeAlbedo:dusk 3 clusters of 5 walls against 4
                        facadeNeighbours:dusk 2 of 3 adjacent pairs
   windcheck    GREEN   568 mesh names over 568 meshes (floor 400), 564 of 564 cull-eligible
@@ -573,15 +617,14 @@ readable:
    `generateChunk` emit no lattice past `extentEdgeM` is the precondition for the brief's item 3
    (*roads that leave*), because a road cannot leave a grid that has no boundary — and it is where
    the filling station, the yard, the motel and the depot go.
-2. **THE DISTANT CITY IS DARK AT NIGHT, AND A GATE SAID SO IN A NUMBER.** §6.1 and §6.1.1.
-   `s53-rim-air-after-t0_78-wet.png` reads well because the low sun catches the masses; at
-   midnight the distant half of the world is unlit mass while the near half is full of windows
-   and lamps, and it now stands in front of the sky that used to carry the frame's largest
-   luminance swing. **This is the one item on this list a measurement is already demanding.**
-   The cheapest honest answer is an emissive term on `materials.distant` driven by the same
-   `photocellOn` the facades read — a window count below a pixel is a MEAN, not geometry — and it
-   should move L15 the right way for the right reason. Predict the delta before running it:
-   §6.1.1 gives 8.97% of the frame and the two per-pixel msds it has to move between.
+2. **L15 NEEDS A DERIVATION AGAINST A CITY WITH ITS LIGHTS ON.** §3.6 and LOOK.md §7. This item
+   used to read *"the distant city is dark at night, and a gate said so"*; it was acted on inside
+   the session, the prediction was falsified, and what is left is the band itself. **A night city
+   that is lit is more like dusk than a night city that is black**, so `distinct:midnight|dusk`
+   structurally penalises the direction LOOK.md §1 asks for. Nine sessions owed, and it is now
+   owed a DIFFERENT derivation from the one sessions 45–52 were asking for: not *why is the
+   margin small*, but *why is this the right pair of times*. `msd dawn <-> dusk` reads 0.05812 and
+   `msd noon <-> dusk` 0.13898 — either might be the band this one was meant to be.
 3. **THE ATMOSPHERE AT 1500 m IS BROWN SOUP.** `s53-city-high-t0_5-wet.png`. `ATM.hazeScaleHeight`
    is 550 m and the camera was at 1500; the frame is a uniform brown wash with the sky gone. Not
    this session's item and not looked into, but it is the first frame this project has taken from

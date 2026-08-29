@@ -1495,9 +1495,9 @@ export const DISTANT = {
    *
    * So `distinct:midnight|dusk` rewards a DARK night city, and LOOK.md §1 asks
    * for a lit one. **THE LIGHT STAYS AND THE THRESHOLD DOES NOT MOVE** —
-   * LOOK.md §7: *"a look threshold is evidence, not a verdict … the correct
-   * response is to ask what that band was derived from, not to abandon the
-   * change."* What is owed is a derivation of that band against a city that has
+   * LOOK.md §7: *"a look threshold is evidence, not a verdict"*, and *"the
+   * correct response is to ask what that band was derived from, not to abandon
+   * the change."* What is owed is a derivation of that band against a city that has
    * its lights on, and it is written up there with its date.
    *
    * IT IS AN AREA MEAN AND THAT IS WHY IT IS ONE NUMBER RATHER THAN GEOMETRY.
