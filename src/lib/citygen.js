@@ -7266,6 +7266,21 @@ const PROP_SETBACKS = { landmark: 3, precinct: 3 };
 const APRON_SETBACKS = { landmark: 3, feature: 0.25 };
 
 /**
+ * Metres a NEW SESSION-54 LIGHT stands clear of a building, and it is a
+ * DELIVERED-EXTENT MARGIN in the shape `APRON_SETBACKS.feature` already has.
+ *
+ * A building's registry claim is its mass; `city.js` draws that mass WITH a
+ * cornice and a crown, and those reach past it. A flood placed hard against a
+ * facade was refused by nothing and the DELIVERED sweep reported
+ * `site(flood:) x building(bld)` at 0.038 m2 — a fifth overlap earned by a
+ * tolerance rather than by a mistake, which is the sentence `APRON_SETBACKS`
+ * is already written under. 0.35 m is `MIN_GROUND_PIECE_M`, which this file
+ * already calls the smallest gap worth having.
+ */
+const LIGHT_SETBACKS = { building: 0.35 };
+
+
+/**
  * Metres. The smallest ground rectangle worth emitting after a clip.
  *
  * A road clipped around a portal leg or a dome leaves slivers, and a 4 cm strip
@@ -10270,9 +10285,10 @@ export function generateChunk(rootSeed, cx, cz) {
       {
         const x = mx + featRng.range(-24, 24);
         const z = mz + featRng.range(-24, 24);
-        const box = claimAt('feature', x, z, 0.34, 0.34,
+        /** 0.70, the flood's own pedestal. See the apron light. */
+        const box = claimAt('feature', x, z, 0.7, 0.7,
           { y0: 0, y1: DEAD_ZONE.yardLightHeightM, owner: 'lot:light' });
-        if (!reg.conflict(box)) {
+        if (!reg.conflict(box, 0, LIGHT_SETBACKS)) {
           features.push({
             kind: 'flood', x, z,
             height: DEAD_ZONE.yardLightHeightM, aimX: mx, aimZ: mz,
@@ -11066,6 +11082,7 @@ export function generateChunk(rootSeed, cx, cz) {
           markings.push({ x: a.x, z: a.z, length: alongX ? 0.12 : 26, width: alongX ? 26 : 0.12,
             yawDeg: 0, kind: 'sport' });
         }
+        layPath('school:path');
         /**
          * A PLAY FRAME AND A SWING ON THE GRASS — SESSION 54, and it is
          * `recreation`'s own pair moved one branch over.
@@ -11101,7 +11118,6 @@ export function generateChunk(rootSeed, cx, cz) {
             break;
           }
         }
-        layPath('school:path');
         fence('railing', 1.6, 'school:fence');
         floods(2);
       } else if (kind === 'hospital') {
@@ -11357,7 +11373,12 @@ export function generateChunk(rootSeed, cx, cz) {
               const hAcross = G.baseD / 2 + 0.1;
               const box = claimAt('feature', c.x, c.z,
                 alongX ? hAlong : hAcross, alongX ? hAcross : hAlong,
-                { y0: 0, y1: G.stoneMaxM, owner: 'church:graves' });
+                /**
+                 * THE STONE STANDS ON THE BASE, so the claim's top is the SUM
+                 * and not the taller of the two. `stoneMaxM` alone under-claims
+                 * by `baseH`.
+                 */
+                { y0: 0, y1: G.baseH + G.stoneMaxM, owner: 'church:graves' });
               if (reg.conflict(box)) continue;
               features.push({
                 kind: 'graves', x: c.x, z: c.z, yawDeg: alongX ? 0 : 90,
@@ -12343,7 +12364,7 @@ export function generateChunk(rootSeed, cx, cz) {
       const z = coreGate.z + coreGate.inZ * 1.4;
       const box = claimAt('feature', x, z, 0.34, 0.34,
         { y0: 0, y1: PARK.lampHeight, owner: 'core:gateLamp' });
-      if (!reg.conflict(box)) {
+      if (!reg.conflict(box, 0, LIGHT_SETBACKS)) {
         features.push({ kind: 'lamp', x, z, height: PARK.lampHeight });
         reg.claim(box);
       }
@@ -12365,9 +12386,11 @@ export function generateChunk(rootSeed, cx, cz) {
         const x = coreVan.x + uz * sgn * 8.0;
         const z = coreVan.z + ux * sgn * 8.0;
         if (x < island.x0 + 1 || x > island.x1 - 1 || z < island.z0 + 1 || z > island.z1 - 1) continue;
-        const box = claimAt('feature', x, z, 0.34, 0.34,
+        /** 0.70, which contains the 0.9 m pedestal `city.js` draws under every
+         *  `flood`. See the apron light for the arithmetic. */
+        const box = claimAt('feature', x, z, 0.7, 0.7,
           { y0: 0, y1: DEAD_ZONE.yardLightHeightM, owner: 'core:bayLight' });
-        if (reg.conflict(box)) continue;
+        if (reg.conflict(box, 0, LIGHT_SETBACKS)) continue;
         features.push({
           kind: 'flood', x, z,
           height: DEAD_ZONE.yardLightHeightM, aimX: coreVan.x, aimZ: coreVan.z,
@@ -12583,9 +12606,18 @@ export function generateChunk(rootSeed, cx, cz) {
            * which is what every other `edge` and `lamp` on this apron claims.
            * The column's own footprint, and the head is over it.
            */
-          const box = claimAt('feature', x, z, 0.34, 0.34,
+          /**
+           * A FLOOD'S CLAIM IS 0.70 AND A POST-TOP'S IS 0.34, BECAUSE THE TWO
+           * DRAW DIFFERENT BASES. `city.js` puts a 0.9 m square pedestal under
+           * a `flood` (half 0.45) and a 0.42 m one under a `lamp` (half 0.21),
+           * so one number for both under-claims the flood on every side —
+           * CONTRACT §9.1 with a pedestal. 0.70 is what every existing flood in
+           * this file already claims.
+           */
+          const lightHalf = spec.light === 'flood' ? 0.7 : 0.34;
+          const box = claimAt('feature', x, z, lightHalf, lightHalf,
             { y0: 0, y1: spec.lightHeightM, owner: `${l.name}:light` });
-          if (reg.conflict(box)) continue;
+          if (reg.conflict(box, 0, LIGHT_SETBACKS)) continue;
           if (spec.light === 'flood') {
             features.push({ kind: 'flood', x, z, height: spec.lightHeightM, aimX: l.x, aimZ: l.z });
           } else {
