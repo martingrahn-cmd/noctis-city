@@ -32,11 +32,20 @@ One camera, one pose, one seed. `tools/shot-out/`, and they are the whole sessio
   s53-city-high-t0_5-wet.png          from 1500 m, where the whole city is one shape. Also
                                       the finding that the atmosphere at 1500 m is brown soup;
                                       not this session's item, recorded in §7.
+  s53-rim-night-t0-wet.png            THE SHIPPED NIGHT, t = 0, wet 0.85. §3.6 — the distant
+                                      city has its lights on, at a level that is derived and
+                                      then measured, and the first arm of that level made the
+                                      far half of the world brighter than the near half.
 ```
 
 **BEFORE:** the city fills the bottom quarter of the frame, stops along a straight line, and
 3.23 km of flat earth runs to a knife-edge horizon.
 **AFTER:** the city runs to the rim, thins as it goes, and ends.
+
+**AND THE SESSION IN ONE SENTENCE:** the city had no edge to measure — it had a 1408 m streaming
+square that travels with the eye — so the session gave the world an extent (§2), drew the part of
+it that is past the square (§3), and left the road lattice unbounded, which is §7 item 1 and the
+precondition for the brief's *roads that leave*.
 
 ---
 
