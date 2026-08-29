@@ -11078,6 +11078,15 @@ export function generateChunk(rootSeed, cx, cz) {
          * `recreation` has had a `play` feature with a frame and a swing since
          * session 48. Placed on the GRASS rather than the yard, because that
          * is where it goes and because the yard already carries the court.
+         *
+         * AFTER `layPath` AND NOT BEFORE, WHICH IS THE WHOLE OF WHY THE FIRST
+         * ARM WAS WRONG. `layPath` CLAIMS its two spines unconditionally — a
+         * path is a surface and a surface is laid, not negotiated — so a
+         * feature claimed before it is a feature the path is then drawn over.
+         * `citycheck` reported it on the first run:
+         * `feature(school:frame) x path(school:path)` at 12.152 m2, in the
+         * GENERATOR's own claims, which is the one list that is supposed to be
+         * impossible to break. The order is the fix, not a test.
          */
         for (const [pkind, hw, hh] of [['frame', 3.2, 3.0], ['swing', 2.6, 2.4]]) {
           for (let t = 0; t < 3; t++) {

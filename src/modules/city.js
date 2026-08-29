@@ -4633,6 +4633,64 @@ export function createCity(options = {}) {
       }
     }
 
+    /**
+     * THE POST UNDER EVERY POST-TOP HEAD — session 45, MOVED ABOVE THE CENSUS
+     * IN SESSION 54 BECAUSE IT WAS NOT IN IT.
+     *
+     * The block below used to sit AFTER `addInstanced`'s argument list was
+     * assembled and pushed straight into `bodies`, so every post was an
+     * instance the census did not describe. `harness.sceneCensus` sums the
+     * numeric fields and `citycheck` asserts the sum equals
+     * `instanceMatrix.count`, and the moment session 54 put a lamp and a work
+     * light in every `built` courtyard the gate said so:
+     * **24 mesh(es) hold a different number of instances from the number they
+     * describe — e.g. '-1,-1:masses' labels 837 and allocated 839**, which is
+     * exactly the two lights this session adds per block.
+     *
+     * IT WAS LATENT AND NOT NEW. A park lamp and a site flood have pushed a
+     * post here since session 45; what changed is that `lamp` and `flood`
+     * features now land on `built` chunks, which are 77% of the city and the
+     * ones `citycheck`'s near ring is made of. An undescribed instance is
+     * CONTRACT §9.1's own subject — the census is the DELIVERED side of the
+     * two-sided check, and a side that does not count what it draws passes
+     * exactly as long as nobody looks.
+     *
+     * Its own array and its own census line, which is the arrangement `crowns`,
+     * `propBoxes`, `adPillarBoxes` and `busStopBoxes` all already have.
+     *
+     * A street lamp pushes TWO matrices, a column into `lampBodies` and a bowl
+     * into `bowls`. The `chunk.features` loop pushes a bowl AND NOTHING ELSE,
+     * so before session 45 every park lamp and every site flood in this city
+     * was a lamp head hanging in the air with no post under it. Delivered over
+     * the resident ring at seed 1337: **`city:bowls` 497 instances against
+     * `city:lamps` 444 — 53 bowls with nothing holding them up**.
+     *
+     * IT IS A BOX IN `masses` AND NOT AN INSTANCE OF `geometries.lamp`, for a
+     * reason that is about the shape rather than the budget: that geometry is a
+     * pole MERGED WITH ITS ARM, built for a lantern that overhangs a
+     * carriageway from the kerb. A park lamp and a car-park column are
+     * POST-TOP — the bowl is directly over the base, `dir: [0, -1, 0]`, and the
+     * feature loop says so — so instancing the street lantern here would stand
+     * a 2.1 m bracket beside every one of them reaching out at nothing.
+     *
+     * The taper is the street column's own — `CylinderGeometry(0.11, 0.15)`
+     * in `buildGeometries` — read as a mean 0.26 m across, and the head sits
+     * `LAMP_BOWL.radiusM` down from the mounting height so the post meets the
+     * bowl rather than passing through it. Gated on the same `near` the feature
+     * loop is gated on, or a post would stand on chunks whose bowl was never
+     * built.
+     */
+    const postBoxes = [];
+    if (near) {
+      for (const f of (chunk.features || [])) {
+        if (f.kind !== 'lamp' && f.kind !== 'flood') continue;
+        const fy = worldSurface(ctx, f.x, f.z).y;
+        const top = f.height - LAMP_BOWL.radiusM;
+        if (!(top > 0.3)) continue;
+        postBoxes.push(setMatrix(f.x, fy + top / 2, f.z, 0.26, top, 0.26, 0));
+      }
+    }
+
     // Counted BEFORE the merge, because after it there is one mesh and no
     // categories. See the `census` parameter on addInstanced.
     const massCensus = {
@@ -4651,6 +4709,8 @@ export function createCity(options = {}) {
       propBoxes: props.length,
       $props: `${detail ? chunk.props.length : 0} props`,
       patches: patches.length,
+      /** Session 54. One box under each post-top head — see `postBoxes`. */
+      lampPostBoxes: postBoxes.length,
       /** Session 28. Boxes, not pillars — three boxes a pillar, and the census's
        *  numeric fields must sum to the mesh's instance count. */
       adPillarBoxes: pillarBoxes.length,
@@ -4677,6 +4737,10 @@ export function createCity(options = {}) {
     for (let i = 0; i < patches.length; i++) {
       bodies.push(patches[i]);
       bodySkin.push({ albedo: [0.055, 0.055, 0.058], roughness: 0.88 });
+    }
+    for (let i = 0; i < postBoxes.length; i++) {
+      bodies.push(postBoxes[i]);
+      bodySkin.push({ albedo: [0.13, 0.132, 0.138], roughness: 0.5 });
     }
     /**
      * Shadow casters, bounded to the NEAREST ring, and the bound is arithmetic.
@@ -4766,17 +4830,6 @@ export function createCity(options = {}) {
      * `LAMP_BOWL.radiusM` down from the mounting height so the post meets the
      * bowl rather than passing through it.
      */
-    if (near) {
-      for (const f of (chunk.features || [])) {
-        if (f.kind !== 'lamp' && f.kind !== 'flood') continue;
-        const fy = worldSurface(ctx, f.x, f.z).y;
-        const top = f.height - LAMP_BOWL.radiusM;
-        if (!(top > 0.3)) continue;
-        bodies.push(setMatrix(f.x, fy + top / 2, f.z, 0.26, top, 0.26, 0));
-        bodySkin.push({ albedo: [0.13, 0.132, 0.138], roughness: 0.5 });
-      }
-    }
-
     bytes += addInstanced(
       group, geometries.box, materials.facade, bodies, `${rngKey}:masses`, bodySkin, casts, massCensus
     );

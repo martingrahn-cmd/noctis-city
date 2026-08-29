@@ -64,7 +64,7 @@ import { RENDER } from '../core/constants.js';
  */
 const INTERNAL_LINES = Math.round(Math.sqrt(RENDER.pixels / (16 / 9)));
 import {
-  LANDMARKS, viaductArc, viaductSoffitY, SITE,
+  LANDMARKS, viaductArc, viaductSoffitY, SITE, viaductStations,
   VIADUCT_RAIL_RISE_M, VIADUCT_LOADING_GAUGE_M,
 } from '../lib/citygen.js';
 
@@ -193,6 +193,68 @@ const TRAIN = {
    */
   shoulderChamferRise: 2,
   shoulderChamferThickM: 0.1,
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * ARRIVE, DWELL, DEPART — SESSION 54, AND IT REPLACES A ONE-FRAME REVERSAL
+   * THAT ALSO CHANGED TRACK.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The operator: *"THE TRAIN JUMPS. It stops at the end of its run and
+   * reappears on the other track."* Both halves are the code and neither was a
+   * frame artefact:
+   *
+   *   `if (tr.s > halfArc - tr.len/2) { tr.s = ...; tr.dir = -1; }` — the
+   *   train ran at a constant 12 m/s until the clamp fired and was travelling
+   *   12 m/s the other way on the next frame. No deceleration, no stop, no
+   *   start.
+   *
+   *   `const lat = tr.dir * viaduct.deck * 0.235` — THE TRACK WAS A FUNCTION
+   *   OF THE DIRECTION, so flipping `dir` moved the whole 78 m train sideways
+   *   by `2 x 0.235 x deck` in that same frame. That is the *"reappears on the
+   *   other track"* half, exactly, and it is CONTRACT §9.1's shape: one field
+   *   standing in for two independent facts. A train's track is a fact about
+   *   the train; its direction is a fact about the journey.
+   *
+   * IT IS THE SAME RECYCLER PATTERN SESSION 25 FOUND IN `traffic.seed()` ON A
+   * LARGER BODY — a placement routine putting a body somewhere it could only
+   * have reached by teleporting — and `carry()` was hiding it from §5.12's
+   * motion field, which is why no gate ever saw it.
+   *
+   * EVERY NUMBER BELOW IS A METRO'S OWN.
+   *
+   *   `brakeMps2` 1.0    service braking. EN 13452-1 puts emergency braking at
+   *                      1.2 m/s2 and service braking below it; 1.0 from
+   *                      `speedMps` 12.0 is a 72.0 m stopping distance, which
+   *                      is 15% of the 480 m deck and 0.36x the 201 m from the
+   *                      station to either end. It fits, with room.
+   *   `accelMps2` 1.0    symmetric, which is what a metro's traction and its
+   *                      service brake actually are within a few percent.
+   *   `dwellS` 22        a through station's dwell: doors open, alight, board,
+   *                      doors close. Metro dwells run 20-30 s.
+   *   `turnroundS` 40    a TERMINUS is longer because the driver changes ends,
+   *                      and it is what makes the deck read as a line with two
+   *                      ends rather than a loop.
+   *
+   * AND THE ROUND TRIP IS 239 s, OF WHICH THE TRAIN IS STANDING FOR HALF —
+   * arithmetic, because a dwell nobody adds up is a dwell that turns out to be
+   * the whole timetable. A 201.05 m leg is 12 s of acceleration over 72 m, 4.75 s
+   * of cruise over 57 m and 12 s of braking over 72 m = 28.75 s; four legs is
+   * 115 s; two station dwells is 44 s; two turnrounds is 80 s. **239 s, 52% of
+   * it stationary.**
+   *
+   * THAT IS NOT A NUMBER TO TUNE AWAY, IT IS THE DECK BEING 480 m LONG. A
+   * shuttle whose whole line is forty seconds of running each way stands for
+   * about half its cycle whatever the dwells are, and the two trains start half
+   * an arc apart on opposite tracks, so what the deck shows is one train moving
+   * while the other stands — which is a service. What it must not show is a
+   * train at 12 m/s that becomes a train at 12 m/s the other way, on the other
+   * track, in one frame, which is what it showed for twenty-three sessions.
+   */
+  brakeMps2: 1.0,
+  accelMps2: 1.0,
+  dwellS: 22,
+  turnroundS: 40,
 };
 
 /**
@@ -259,6 +321,12 @@ export function createMoving() {
   let lastNow;
 
   const trains = [];
+  /**
+   * The arc coordinates a train stops at: both termini and every station.
+   * Filled at init from `viaductStations`, which is the same list `city.js`
+   * builds the platform from.
+   */
+  let stopsAt = [];
   const stats = {
     trains: 0,
     cranes: 0,
@@ -466,6 +534,23 @@ export function createMoving() {
        */
       const trainLen = TRAIN.cars * TRAIN.carLengthM + (TRAIN.cars - 1) * TRAIN.gapM
         + 2 * TRAIN.noseOverhangM;
+      /**
+       * THE STOPS, IN ARC COORDINATES, AND THE STATION IS ONE OF THEM.
+       *
+       * `viaductStations` is the same function `city.js` builds the platform,
+       * the stairs and the lift cores from — ONE description of where the
+       * station is, read by the thing that draws it and by the thing that stops
+       * at it (CONTRACT §9.1). Session 31 built a platform at 22.72 m and
+       * nothing has ever stopped at it: the train ran past at 12 m/s for
+       * twenty-three sessions.
+       *
+       * The two ends are where the clamp already put them — `halfArc - len/2`,
+       * the nose tip against the portal, session 23's derivation unchanged.
+       */
+      const stationStops = viaductStations(arc, viaduct).map((st) => st.atS);
+      const endStop = arc.arcLength / 2 - trainLen / 2;
+      stopsAt = [-endStop, ...stationStops, endStop].sort((a, b) => a - b);
+
       for (let t = 0; t < TRAIN.trains; t++) {
         trains.push({
           /**
@@ -473,8 +558,29 @@ export function createMoving() {
            * never empty at both ends and never full in the middle.
            */
           dir: t % 2 === 0 ? 1 : -1,
-          s: -arc.arcLength / 2 + (t / TRAIN.trains) * arc.arcLength,
+          /**
+           * AND THE TRACK IS THE TRAIN'S, NOT THE JOURNEY'S — session 54. See
+           * `TRAIN.turnroundS` for the defect this closes. A shuttle keeps to
+           * its own track and reverses on it; the two trains are on opposite
+           * tracks, so they still pass each other rather than running through
+           * each other, which is what the `lat` expression was for.
+           */
+          track: t % 2 === 0 ? 1 : -1,
+          /**
+           * SEEDED INSIDE ITS OWN LINE. Half an arc apart is session 21's
+           * spacing and it is kept, clamped to the terminus stops — the old
+           * code seeded at `-arcLength/2` and let the CLAMP pull it in on the
+           * first frame, which is a teleport on frame one and exactly the
+           * class of thing this change is removing.
+           */
+          s: Math.max(-endStop, Math.min(endStop,
+            -arc.arcLength / 2 + (t / TRAIN.trains) * arc.arcLength)),
           len: trainLen,
+          /** Current speed, always non-negative; `dir` carries the sense. */
+          v: TRAIN.speedMps,
+          /** Seconds left standing, and whether this stand ends in a reversal. */
+          hold: 0,
+          reversing: false,
         });
       }
       stats.trains = TRAIN.trains;
@@ -525,7 +631,9 @@ export function createMoving() {
       return {
         stats: () => stats,
         /** Where the trains are, for a probe. No verdict. */
-        trainPositions: () => trains.map((t) => ({ s: t.s, dir: t.dir })),
+        trainPositions: () => trains.map((t) => ({
+          s: t.s, dir: t.dir, track: t.track, v: t.v, hold: t.hold,
+        })),
       };
     },
 
@@ -546,17 +654,71 @@ export function createMoving() {
 
       // --- the trains --------------------------------------------------------
       for (const tr of trains) {
-        tr.s += tr.dir * TRAIN.speedMps * step;
         /**
-         * A TRAIN THAT RUNS OFF THE END TURNS ROUND, and the reversal is a
-         * TELEPORT for §5.12's purposes: the far end of the deck is 430 m from
-         * the near one and the vector across that gap is bookkeeping rather
-         * than motion. `carry()` is the same mechanism a recycled vehicle uses.
+         * ═══════════════════════════════════════════════════════════════════
+         * ARRIVE, DWELL, DEPART — SESSION 54. See `TRAIN.brakeMps2` for the
+         * defect this replaces and for where each number comes from.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * A SERVICE, NOT A CLAMP. The train runs at `speedMps` toward the next
+         * stop ahead of it, brakes at `brakeMps2` from exactly the distance
+         * that arithmetic requires, stands for its dwell, and accelerates away
+         * at `accelMps2`. At a terminus the stand is longer and ends in a
+         * reversal; at the station it does not.
+         *
+         * THE BRAKING POINT IS DERIVED, NOT TRIGGERED. `v²/(2a)` is the
+         * distance a speed needs, so the test is *"is what is left less than
+         * what I need"* — which brakes at the right place from any speed,
+         * including one it is still accelerating through. A trigger at a fixed
+         * distance would be a second description of the same physics and would
+         * be wrong for every speed but one (CONTRACT §9.1).
+         *
+         * NOTHING IS RECYCLED ANY MORE AND THAT IS THE POINT. `carry()` exists
+         * for a transform that changed by more than motion can explain; a train
+         * that decelerates to a stand and accelerates away never has one, so
+         * §5.12's motion field now carries the train's real velocity through
+         * the whole manoeuvre instead of being told to ignore it.
          */
         let recycled = false;
-        const halfArc = arc.arcLength / 2;
-        if (tr.s > halfArc - tr.len / 2) { tr.s = halfArc - tr.len / 2; tr.dir = -1; recycled = true; }
-        if (tr.s < -halfArc + tr.len / 2) { tr.s = -halfArc + tr.len / 2; tr.dir = 1; recycled = true; }
+        if (tr.hold > 0) {
+          tr.hold -= step;
+          tr.v = 0;
+          if (tr.hold <= 0) {
+            tr.hold = 0;
+            if (tr.reversing) { tr.dir = -tr.dir; tr.reversing = false; }
+          }
+        } else {
+          /** The next stop ahead, in this direction. */
+          let target = null;
+          for (const st of stopsAt) {
+            const ahead = (st - tr.s) * tr.dir;
+            if (ahead > 0.02 && (target === null || ahead < (target - tr.s) * tr.dir)) target = st;
+          }
+          if (target === null) {
+            /**
+             * Standing at the far end with nothing ahead: turn round now. It
+             * is reachable only on the first frame of a boot that seeded a
+             * train exactly on the end stop, and a state machine with an
+             * unhandled case is how a train ends up stationary for ever.
+             */
+            tr.dir = -tr.dir;
+          } else {
+            const left = (target - tr.s) * tr.dir;
+            const need = (tr.v * tr.v) / (2 * TRAIN.brakeMps2);
+            if (left <= need) tr.v = Math.max(0, tr.v - TRAIN.brakeMps2 * step);
+            else tr.v = Math.min(TRAIN.speedMps, tr.v + TRAIN.accelMps2 * step);
+            tr.s += tr.dir * tr.v * step;
+            const arrived = (target - tr.s) * tr.dir <= 0.05
+              || (tr.v <= 0.02 && (target - tr.s) * tr.dir < 1.0);
+            if (arrived) {
+              tr.s = target;
+              tr.v = 0;
+              /** A terminus is a stop at either end of the line, and only there. */
+              tr.reversing = Math.abs(Math.abs(target) - (arc.arcLength / 2 - tr.len / 2)) < 0.01;
+              tr.hold = tr.reversing ? TRAIN.turnroundS : TRAIN.dwellS;
+            }
+          }
+        }
 
         for (let c = 0; c < TRAIN.cars; c++) {
           const offset = (c - (TRAIN.cars - 1) / 2) * (TRAIN.carLengthM + TRAIN.gapM);
@@ -566,7 +728,7 @@ export function createMoving() {
            * `±deck·0.235`; a train keeps to the track its direction belongs to,
            * so the two pass each other rather than running through each other.
            */
-          const lat = tr.dir * viaduct.deck * 0.235;
+          const lat = tr.track * viaduct.deck * 0.235;
           const yaw = st.yaw;
           const nx = -Math.sin(yaw);
           const nz = -Math.cos(yaw);
