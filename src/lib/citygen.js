@@ -10669,6 +10669,62 @@ export function generateChunk(rootSeed, cx, cz) {
       const alongX = featRng.chance(0.5);
 
       /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * SESSION 54, ITEM 5 — THE TWO SPREADS THAT MEASURED EXACTLY ZERO.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * The brief's item 5 asked for the spread of three quantities to be
+       * MEASURED before anything was changed. `tools/placeprobe.mjs --program`,
+       * seed 1337 over the 17 x 17:
+       *
+       *   HEIGHT   residential mass  n 2058  sd 26.77 m  max 152.03
+       *            all program mass  n   37  sd  6.10 m  max  34.00
+       *            and WITHIN a kind the sd is EXACTLY 0.00 for school,
+       *            industrial, market, port and carpark, because every
+       *            dimension in `PROGRAM` is a constant with no roll behind it.
+       *
+       *   TONE     residential facade luminance: 4 distinct values, sd 0.175,
+       *            range 0.101-0.571 — a factor of 5.7, through four materials
+       *            and five eras.
+       *            program: 1 or 2 distinct values WITHIN a kind, sd 0.000 for
+       *            six of the nine, and the five eras and five window rhythms
+       *            reach ZERO program masses.
+       *
+       * SO THE OPERATOR'S TWO OBSERVATIONS ARE BOTH TRUE AND BOTH UNDERSTATED:
+       * it is not that the program is low and samey, it is that within a kind
+       * it has no variance at all.
+       *
+       * THE MATERIAL IS THE CITY'S OWN AND THE KIND'S COLOUR BECOMES THE TRIM,
+       * which is the honest architecture as well as the bigger move. A school
+       * does not read as a school by being 0.40 grey — it reads by its long low
+       * block, its ribbon windows, its court and its railing, every one of
+       * which is unchanged. What a school built in this city IS made of is what
+       * everything else here is made of, so the body takes a `CITY_MATERIALS`
+       * albedo at `DISTANT.materialWeights` — the DELIVERED population weights
+       * STATE 53 §3.4 measured, not the table's equal ones, because brick is
+       * the commonest and the darkest by a factor of four.
+       *
+       * ITS OWN NAMED STREAM. CONTRACT §6: a roll taken from `featRng` would
+       * re-phase every mass position, every fence gate and every flood on every
+       * program island in the city, and the diff would read as "the tone change
+       * moved the buildings". `program` is new, so nothing above it moves.
+       */
+      const progRng = chunkRng(rootSeed, cx, cz, 'program');
+      /** The body material, from the city's own four at the delivered weights. */
+      const bodyAlbedo = () =>
+        CITY_MATERIALS[MATERIAL_NAMES[weightedIndex(progRng.next, DISTANT.materialWeights)]].albedo;
+      /**
+       * A DIMENSION'S ROLL, AND `PROGRAM`'S CONSTANT IS ITS MEDIAN RATHER THAN
+       * ITS VALUE. Multiplicative and not additive: a 6 m depot roof and a 34 m
+       * hospital tower cannot share an additive spread, and every one of these
+       * numbers is a height, which is the quantity `HEIGHT_DISTRIBUTION` is
+       * log-normal in for the same reason.
+       */
+      const sz = (base, lo, hi) => base * (lo + progRng.next() * (hi - lo));
+      /** A storey count, which is what a floored mass's height is made of. */
+      const floorsRoll = (lo, hi) => lo + Math.floor(progRng.next() * (hi - lo + 1));
+
+      /**
        * ONE HELPER, AND IT COMPUTES THE CLAIM FROM THE SAME `alongX` THE DRAW
        * USES — which is session 48's stadium defect fixed before it can happen
        * again. That stand's claim was thin on the axis it stood off (correct)
@@ -10958,10 +11014,13 @@ export function generateChunk(rootSeed, cx, cz) {
           z0: mz - (alongX ? 22 : 34), z1: mz + (alongX ? 22 : 34) };
         for (const g of subtractBoxes([yard], islandSolids())) ground.push(g);
         const p = at(0, -34);
+        /** Two to four storeys. `G.schoolFloors` 2 is the bottom of the band. */
+        const schoolFloors = floorsRoll(G.schoolFloors, G.schoolFloors + 2);
+        const schoolH = G.schoolStoreyM * schoolFloors;
         placeMass('shed', p.x, p.z, G.schoolLongM, G.schoolDeepM,
-          G.schoolStoreyM * G.schoolFloors + 1.1, 'school:block',
-          { height: G.schoolStoreyM * G.schoolFloors, floors: G.schoolFloors, style: 'window',
-            albedo: [0.40, 0.375, 0.335] });
+          schoolH + 1.1, 'school:block',
+          { height: schoolH, floors: schoolFloors, style: 'window',
+            albedo: bodyAlbedo(), trim: [0.40, 0.375, 0.335] });
         /** A court on the hard yard, so the playground is a playground. */
         for (const sgn of [-1, 1]) {
           const a = at(sgn * 14, 0);
@@ -11006,15 +11065,23 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('parkingGround', 'parking');
         const p = at(0, -20);
+        const hospFloors = floorsRoll(G.hospFloors - 1, G.hospFloors + 3);
+        const hospH = G.hospStoreyM * hospFloors;
+        const hospBody = bodyAlbedo();
         const slab = placeMass('shed', p.x, p.z, G.hospLongM, G.hospDeepM,
-          G.hospStoreyM * G.hospFloors + 1.1, 'hospital:slab',
-          { height: G.hospStoreyM * G.hospFloors, floors: G.hospFloors, style: 'window',
-            albedo: [0.46, 0.452, 0.435] });
+          hospH + 1.1, 'hospital:slab',
+          { height: hospH, floors: hospFloors, style: 'window',
+            albedo: hospBody, trim: [0.46, 0.452, 0.435] });
         const t = at(-G.hospLongM * 0.28, -20 + G.hospDeepM / 2 + G.hospTowerHalfM + 1.5);
         /** Same rule: the tower is what the slab is tall for. */
         if (slab) {
-          placeTower(t.x, t.z, G.hospTowerHalfM, G.hospTowerM, 'flat',
-            [0.46, 0.452, 0.435], 'hospital:tower');
+          /**
+           * THE TOWER IS WHERE A PROGRAM BUILDING IS ALLOWED TO BE TALL, and
+           * it is the one mass in this whole branch that can reach the band the
+           * residential city lives in. 0.7 to 1.65 of 34 m is 24 to 56 m.
+           */
+          placeTower(t.x, t.z, G.hospTowerHalfM, sz(G.hospTowerM, 0.7, 1.65), 'flat',
+            hospBody, 'hospital:tower');
         }
         const c = at(G.hospLongM * 0.22, 4);
         placeMass('canopy', c.x, c.z, G.hospBayLongM, G.hospBayDeepM, G.hospBayHighM + 1.6,
@@ -11037,9 +11104,11 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('siteGround', 'site');
         const p = at(0, -26);
-        const house = placeMass('shed', p.x, p.z, G.fireLongM, G.fireDeepM, G.fireHighM + 1.1, 'fire:house',
-          { height: G.fireHighM, floors: 2, style: 'bay', bays: G.fireBays,
-            albedo: [0.38, 0.30, 0.28] });
+        const fireH = sz(G.fireHighM, 0.9, 1.35);
+        const fireBody = bodyAlbedo();
+        const house = placeMass('shed', p.x, p.z, G.fireLongM, G.fireDeepM, fireH + 1.1, 'fire:house',
+          { height: fireH, floors: 2, style: 'bay', bays: G.fireBays,
+            albedo: fireBody, trim: [0.38, 0.30, 0.28] });
         const t = at(G.fireLongM * 0.5 + G.fireTowerHalfM + 1.0, -26);
         /**
          * A VERTICAL ONLY IF ITS OWN BUILDING STOOD — session 49. `placeMass`
@@ -11054,8 +11123,8 @@ export function generateChunk(rootSeed, cx, cz) {
          * that was not carried through.
          */
         if (house) {
-          placeTower(t.x, t.z, G.fireTowerHalfM, G.fireTowerM, 'flat',
-            [0.38, 0.30, 0.28], 'fire:tower');
+          placeTower(t.x, t.z, G.fireTowerHalfM, sz(G.fireTowerM, 0.8, 1.8), 'flat',
+            fireBody, 'fire:tower');
         }
         const v = at(-10, 10);
         parkVehicle(v.x, v.z, alongX ? 0 : 90, 'van');
@@ -11080,9 +11149,12 @@ export function generateChunk(rootSeed, cx, cz) {
         lay('yardGround', 'yard');
         for (let i = 0; i < G.sheds; i++) {
           const p = at(0, -30 + i * 34);
-          placeMass('shed', p.x, p.z, G.shedLongM, G.shedDeepM, G.shedHighM + 1.1,
+          /** Rolled PER SHED, so the two on one estate are not twins. */
+          const sh = sz(G.shedHighM, 0.75, 1.7);
+          placeMass('shed', p.x, p.z, G.shedLongM, G.shedDeepM, sh + 1.1,
             `industrial:shed${i}`,
-            { height: G.shedHighM, floors: 1, style: 'dock', albedo: [0.30, 0.298, 0.286] });
+            { height: sh, floors: 1, style: 'dock',
+              albedo: bodyAlbedo(), trim: [0.30, 0.298, 0.286] });
         }
         stack(6);
         for (let i = 0; i < 2; i++) {
@@ -11099,9 +11171,10 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('parkingGround', 'parking');
         const p = at(0, -8);
-        placeMass('canopy', p.x, p.z, G.marketLongM, G.marketDeepM, G.marketHighM + 2.0,
-          'market:hall', { height: G.marketHighM, albedo: [0.30, 0.22, 0.16] },
-          { category: 'canopy', base: G.marketHighM });
+        const marketH = sz(G.marketHighM, 0.85, 1.5);
+        placeMass('canopy', p.x, p.z, G.marketLongM, G.marketDeepM, marketH + 2.0,
+          'market:hall', { height: marketH, albedo: [0.30, 0.22, 0.16] },
+          { category: 'canopy', base: marketH });
         /** The stalls under it: crates and cabinets in two rows, not a scatter. */
         for (let i = 0; i < 10; i++) {
           const a = at(-26 + i * 5.8, -8 + (i % 2 ? 7 : -7));
@@ -11121,9 +11194,10 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('parkingGround', 'parking');
         const p = at(0, -14);
-        placeMass('canopy', p.x, p.z, G.depotLongM, G.depotDeepM, G.depotHighM + 2.0,
-          'depot:cover', { height: G.depotHighM, albedo: [0.32, 0.318, 0.308] },
-          { category: 'canopy', base: G.depotHighM });
+        const depotH = sz(G.depotHighM, 0.9, 1.5);
+        placeMass('canopy', p.x, p.z, G.depotLongM, G.depotDeepM, depotH + 2.0,
+          'depot:cover', { height: depotH, albedo: [0.32, 0.318, 0.308] },
+          { category: 'canopy', base: depotH });
         for (let i = 0; i < 12; i++) {
           const a = at(-26 + (i % 6) * 10.4, -22 + Math.floor(i / 6) * 15);
           parkVehicle(a.x, a.z, alongX ? 90 : 0, 'van');
@@ -11144,9 +11218,10 @@ export function generateChunk(rootSeed, cx, cz) {
         /** Session 50: rows the island's width, not ten marks at a constant. */
         bayRows([halfV * 0.30, halfV * 0.44, halfV * 0.58], 'depot:bays');
         const w = at(0, 30);
-        placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, G.depotShopHighM + 1.1,
-          'depot:shop', { height: G.depotShopHighM, floors: 1, style: 'dock',
-            albedo: [0.30, 0.298, 0.286] });
+        const shopH = sz(G.depotShopHighM, 0.85, 1.5);
+        placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, shopH + 1.1,
+          'depot:shop', { height: shopH, floors: 1, style: 'dock',
+            albedo: bodyAlbedo(), trim: [0.30, 0.298, 0.286] });
         fence('rail', D.railHeight, 'depot:rail');
         floods(3);
       } else if (kind === 'church') {
@@ -11162,14 +11237,19 @@ export function generateChunk(rootSeed, cx, cz) {
           z0: mz - (alongX ? 16 : 26), z1: mz + (alongX ? 16 : 26) };
         for (const g of subtractBoxes([sq], islandSolids())) ground.push(g);
         const p = at(6, -26);
-        const nave = placeMass('shed', p.x, p.z, G.naveLongM, G.naveDeepM, G.naveHighM + 1.1,
+        const naveH = sz(G.naveHighM, 0.85, 1.45);
+        const churchBody = bodyAlbedo();
+        const nave = placeMass('shed', p.x, p.z, G.naveLongM, G.naveDeepM, naveH + 1.1,
           'church:nave',
-          { height: G.naveHighM, floors: 1, style: 'window', albedo: [0.34, 0.30, 0.25] });
+          { height: naveH, floors: 1, style: 'window',
+            albedo: churchBody, trim: [0.34, 0.30, 0.25] });
         const t = at(6 - G.naveLongM * 0.5 - G.spireHalfM - 1.0, -26);
         /** A spire without its nave is the same misread as a hose tower without its bays. */
         if (nave) {
-          placeTower(t.x, t.z, G.spireHalfM, G.spireM, 'spire',
-            [0.34, 0.30, 0.25], 'church:spire');
+          /** 0.75 to 2.0 of 21 m is 16 to 42 m, which is a parish church and a
+           *  cathedral, and both belong in a city of this size. */
+          placeTower(t.x, t.z, G.spireHalfM, sz(G.spireM, 0.75, 2.0), 'spire',
+            churchBody, 'church:spire');
         }
         /**
          * A PATH TO THE DOOR, AND IT IS THE WHOLE OF SESSION 50'S ITEM ON THIS
@@ -11258,8 +11338,10 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         lay('yardGround', 'yard');
         const p = at(0, -24);
-        placeMass('shed', p.x, p.z, G.wharfLongM, G.wharfDeepM, G.wharfHighM + 1.1, 'port:shed',
-          { height: G.wharfHighM, floors: 1, style: 'dock', albedo: [0.28, 0.286, 0.296] });
+        const wharfH = sz(G.wharfHighM, 0.85, 1.7);
+        placeMass('shed', p.x, p.z, G.wharfLongM, G.wharfDeepM, wharfH + 1.1, 'port:shed',
+          { height: wharfH, floors: 1, style: 'dock',
+            albedo: bodyAlbedo(), trim: [0.28, 0.286, 0.296] });
         stack(10);
         {
           const c = at(14, 22);

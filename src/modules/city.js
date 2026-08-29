@@ -3568,7 +3568,20 @@ export function createCity(options = {}) {
           const d = f.depth;
           const h = f.height;
           const body = f.albedo || [0.36, 0.352, 0.334];
-          const trim = [body[0] * 0.72, body[1] * 0.72, body[2] * 0.70];
+          /**
+           * SESSION 54. THE TRIM IS THE PLACE'S OWN COLOUR AND THE BODY IS THE
+           * CITY'S — see `citygen.js`'s program branch for the measurement that
+           * swapped them. Before this the body was the kind's single constant
+           * and the trim was 0.72 of it, so a school was one grey everywhere in
+           * the world and its parapet was the same grey darker. Now the mass
+           * takes a `CITY_MATERIALS` albedo at the delivered population weights
+           * and the kind's colour survives on the parapet and the roof plant,
+           * which is where a building's identity actually lives.
+           *
+           * The 0.72 fall-back is unchanged, so every `shed` written before
+           * this session draws exactly what it drew.
+           */
+          const trim = f.trim || [body[0] * 0.72, body[1] * 0.72, body[2] * 0.70];
           const glass = [0.055, 0.075, 0.095];
           const dark = [0.13, 0.128, 0.124];
           put(0, h / 2, 0, w, h, d, body, 0.86);
@@ -3641,7 +3654,8 @@ export function createCity(options = {}) {
           const hw = f.half;
           const h = f.height;
           const body = f.albedo || [0.34, 0.33, 0.31];
-          const trim = [body[0] * 0.7, body[1] * 0.7, body[2] * 0.68];
+          /** The `shed`'s own rule one branch up: the place's colour is the trim. */
+          const trim = f.trim || [body[0] * 0.7, body[1] * 0.7, body[2] * 0.68];
           put(0, h / 2, 0, hw * 2, h, hw * 2, body, 0.88);
           put(0, h + 0.4, 0, hw * 2.16, 0.8, hw * 2.16, trim, 0.82);
           if (f.cap === 'spire') {
