@@ -1,664 +1,628 @@
 # NOCTIS — STATE
 
-*End of session 53. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+*End of session 54. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
 **Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`. The machine has
-**NOT** rebooted since session 40 — 10 d 18 h of uptime at the first command, the same boot as
-sessions 47–52. Every gate that reads a pixel printed
+**NOT** rebooted since session 40 — 11 d 1 h of uptime at the first command, the same boot as
+sessions 47–53. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` READ 2.24 AT THE FIRST COMMAND AND NEVER ONCE CAME INSIDE CONTRACT §0.2's BAR OF 1.6.***
-The session opened a six-agent source audit and then spent its middle in a browser, and one
-headless Chromium measures 130% CPU. **NO ABSOLUTE MILLISECOND IN THIS DOCUMENT IS A VERDICT**
-unless it is green, and each one says the load it was drawn at. Everything else quoted is COUNTS,
-areas, code values, draw calls, triangles and populations out of the pure generator or off a
-delivered frame.
+***`load1` READ 1.62 AT THE FIRST COMMAND — 0.02 OVER CONTRACT §0.2's BAR OF 1.6 — AND NEVER CAME
+INSIDE IT AGAIN.*** The session spent its middle in a browser and one headless Chromium measures
+130% CPU. **NO ABSOLUTE MILLISECOND IN THIS DOCUMENT IS A VERDICT** unless it is green, and each one
+says the load it was drawn at. Everything else quoted is COUNTS, areas, code values, metres,
+reflectances and populations out of the pure generator or off a delivered frame.
 
 ---
 
-## 0. THE AERIAL OVER THE RIM, BEFORE AND AFTER
+## 0. THE MIDNIGHT FRAMES, BEFORE AND AFTER — THE ONE THE BRIEF SAID TO OPEN WITH
 
-One camera, one pose, one seed. `tools/shot-out/`, and they are the whole session in two frames:
+The brief: *"Frames are the verdict, at his own spawns, before and after, and at MIDNIGHT for
+item 1 — that is where he found it."* `tools/shot-out/`, and the `-before` arm is a **paired git
+worktree pinned to `1f2a3a2`** rather than a stash, so the two frames are two builds and not one
+build twice (the arrangement STATE 53 §0 used).
 
 ```
-  s53-rim-air-before-t0_5-wet.png     [0, 300, 0] -> [2400, 0, 0], fov 62, noon
-  s53-rim-air-after-t0_5-wet.png      the same, and the -before arm is a paired git worktree
-                                      pinned to fe920c9 rather than a stash, so the two frames
-                                      are two builds and not one build twice.
-  s53-rim-air-{before,after}-t0_78-wet.png   the same pair at dusk, wet pinned to 1.0.
-  s53-rim-street-t0_5-wet.png         THE ONE THAT EXPLAINS FIFTY-TWO SESSIONS. Standing on a
-                                      street at (256, 1.74, -40) looking 900 m up it: a dense
-                                      canyon, walled both sides, and NO EDGE VISIBLE AT ALL.
-                                      The defect is only in the air, which is why nobody hit it.
-  s53-city-high-t0_5-wet.png          from 1500 m, where the whole city is one shape. Also
-                                      the finding that the atmosphere at 1500 m is brown soup;
-                                      not this session's item, recorded in §7.
-  s53-rim-night-t0-wet.png            THE SHIPPED NIGHT, t = 0, wet 0.85. §3.6 — the distant
-                                      city has its lights on, at a level that is derived and
-                                      then measured, and the first arm of that level made the
-                                      far half of the world brighter than the near half.
+  s54-court-nadir-{before,after}-t0-wet.png   MIDNIGHT, straight down over the block interior at
+                                              (172, 192) from 120 m. THE ITEM 1 FRAME.
+  s54-weir-air-{before,after}-t0-wet.png      MIDNIGHT over the weir's basin from 300 m — the
+                                              apron, its railing and its staircase, from high
+                                              enough to clear the 90 m blocks that stand round it.
+  s54-rim-{before,after}-t0_5-wet.png         At x = 3560, 140 m up, looking BACK at the city from
+                                              328 m OUTSIDE its own edge. THE ITEM 6b FRAME, and
+                                              the one that reads at a glance.
+  s54-church-{before,after}-t0_5886-wet.png   HIS OWN SPAWN, item 4. Dusk and midnight.
+  s54-district-{before,after}-t0_6117-wet.png HIS OWN SPAWN, item 5. Dusk and midnight.
+  s54-station-{before,after}-t0_5297-wet.png  The viaduct station from the main street, item 2.
+  s54-dome-{before,after}-t0_5904-wet.png     HIS OWN SPAWN, item 3 — and the two arms are the
+                                              SAME PICTURE, because item 3 was NOT BUILT. §8.
+  s54-yard-air, s54-yard-gate, s54-court-air  three cameras that did NOT show their subject and
+                                              are kept as the record of that: a block interior is
+                                              walled on four sides by 40 m buildings, which is
+                                              what LOOK.md §2 asks for, so it is legible from the
+                                              street through its own GATE and from directly above
+                                              and from nowhere else.
 ```
 
-**BEFORE:** the city fills the bottom quarter of the frame, stops along a straight line, and
-3.23 km of flat earth runs to a knife-edge horizon.
-**AFTER:** the city runs to the rim, thins as it goes, and ends.
+**AND THE MIDNIGHT PAIRS MEASURED, BECAUSE A FRAME MEAN IS THE WRONG STATISTIC FOR A LOCAL LIGHT.**
+`decodePNG` checked for THREE bytes per pixel first, per STATE 52 §2.2:
 
-**AND THE SESSION IN ONE SENTENCE:** the city had no edge to measure — it had a 1408 m streaming
-square that travels with the eye — so the session gave the world an extent (§2), drew the part of
-it that is past the square (§3), and left the road lattice unbounded, which is §7 item 1 and the
-precondition for the brief's *roads that leave*.
+```
+  frame               whole-frame mean      pixels changed    THEIR mean change
+  court-nadir       0.12028 -> 0.11983            0.85%           +0.0308
+  weir-air          0.06634 -> 0.06615            0.72%           +0.0202
+  district (t0)     0.07400 -> 0.07375            9.21%           +0.0074
+  church (t0)       0.12324 -> 0.12208            5.26%           -0.0317
+```
+
+**The pixels a courtyard light changed got 0.031 BRIGHTER and there are 0.85% of them.** That is
+what lighting a block interior looks like as a number, and it is why the whole-frame mean moves by
+−0.0005 and says nothing: session 53 §6.1.1 made the same arithmetic argument in the other
+direction. The church frame is the only one that goes DARKER, and the cause is §4.3 rather than
+§1 — its nave rolled BRICK, which is 0.101 luminance against the 0.305 constant it replaced.
+
+**AND THE SESSION IN ONE SENTENCE:** the city had built places and not made them inhabitable, so
+the session lit every one of the fifteen island kinds and all four landmark aprons (§1), gave the
+churchyard the content it is named after (§3), measured item 5's three spreads and found two of
+them **exactly zero** (§4), stopped the road lattice at the city's own edge (§5), and made the
+train arrive, dwell and depart on its own track (§6) — and left items 2a and 3 unbuilt, which §8
+says in as many words.
 
 ---
 
-## 1. ITEM 1 — THE MEASUREMENT, AND IT KILLED THE BRIEF'S PREMISE IN THREE PLACES
+## 1. ITEM 1 — LIGHT THE GROUND, AND THE BRIEF'S PREMISE WAS FALSE FOR ELEVEN OF FIFTEEN KINDS
 
-The brief asked for the edge to be measured before anything was built at it, and said *"I have
-written a false premise into twenty-nine consecutive briefs."* This one had three. `tools/edgeprobe.mjs`,
-seven sections, everything out of the pure generator:
+The brief: *"Since session 47 the city has gained 10 668 m of courtyard wall, fifteen island kinds
+of fixtures, eight kinds of place, landmark aprons and steps. NONE OF IT IS LIT."*
 
-```
-  node tools/edgeprobe.mjs --rings --field --grid --beyond --walk --extent --distant
-```
-
-### 1.1 THERE IS NO EDGE. THERE IS A WINDOW, AND IT TRAVELS WITH THE EYE.
-
-`city.js` → `wantedChunks` floors the camera into a chunk and takes a **Chebyshev ring around that
-chunk**. There is no world coordinate in it, no bound on `cx` or `cz`, and — before this session —
-no term anywhere in `generateChunk` that read distance from the origin.
+**MEASURED FIRST.** `tools/placeprobe.mjs --light`, the pure generator, seed 1337 over the 17 × 17.
+`city.js` turns a `lamp` or a `flood` feature into a lamp-pool candidate and an emissive bowl and
+turns nothing else into either, so *"is this kind of place lit"* has exactly one delivered answer
+and it is a count of two feature kinds.
 
 ```
-  radius           chunks  near edge  far edge    span  chunks   what it gates
-  fieldRadius           2      256 m     384 m   640 m      25   a baked canyon field
-  nearRadius            2      256 m     384 m   640 m      25   street lamps
-  detailRadius          4      512 m     640 m  1152 m      81   facades, signage, furniture
-  groundRadius          5      640 m     768 m  1408 m     121   carriageway, pavement, courtyards
-  geometryRadius        5      640 m     768 m  1408 m     121   building masses — the last thing drawn
+  kind          chunks   lit/chunk BEFORE   lit/chunk AFTER
+  built            223        0.00               1.96      <- 77% of the city, and it was ALL of it
+  lot                4        0.00               1.00
+  carpark            2        0.00               8.00
+  church             5        0.00              12.00
+  parking            7        6.86               6.86      already lit since session 40
+  yard              13        2.00               2.00      "
+  park               6       24.00              24.00      "
+  construction       3        3.00               3.00      "
+  recreation         7        4.00               4.00      "
+  school             3        2.00               2.00      already lit since session 49
+  hospital           1        2.00               2.00      "
+  firestation        2        1.50               1.50      "
+  industrial         6        1.67               1.67      "
+  market             3        2.00               2.00      "
+  depot              2        3.00               3.00      "
+  port               2        2.50               2.50      "
+
+  4 of 16 kinds delivered no light at all       ->  0 of 16
 ```
 
-**The near/far columns are ONE RANGE.** The distance from the eye to the outermost drawn thing is
-**640–768 m** depending only on where in its own 128 m square the camera is standing, and the two
-opposite edges always sum to 1408 m. **You cannot stand at the rim. Wherever you stand, it is
-640–768 m away in every direction.**
+**ELEVEN OF THE FIFTEEN ISLAND KINDS HAVE BEEN LIT SINCE SESSIONS 40 AND 49.** A yard has two flood
+masts, a car park has 10 m columns, a park has twenty-four post-tops, and every program place
+except the church has floods. *"None of it is lit"* is not what the code says, and it is the
+premise the brief itself asked to have checked.
 
-### 1.2 THE FIELD DOES NOT FALL TOWARD ANY RIM — 7 OF 12 SEEDS, WHICH IS A COIN
+**WHAT WAS ACTUALLY UNLIT IS LARGER AND MORE IMPORTANT THAN THE ISLANDS.** `built` chunks —
+**223 of 289, seventeen times the next population** — carried a van, a service scatter, 10 668 m of
+courtyard wall and a marked loading bay with **not one light on any of it**. Sessions 40, 47 and 50
+lit the 23% of the ground that is dead zone and left the 77% that is block interior dark. Plus
+`lot`, `carpark`, `church` and **all four `LANDMARK_APRON` rows** — so the weir's rim, railed in
+session 51 and given a staircase in session 52, is a nine-metre drop with no light near it.
 
-The brief: *"the density field already falls toward the rim … what does that curve look like at the
-rim specifically?"* At seed 1337 over the 11 × 11 it does fall, 0.640 at ring 0 to 0.442 at ring 5,
-and that fall is one toss of a coin. Two measurements, both in the probe:
+### 1.1 WHAT WAS BUILT, AND EVERY FIXTURE IS ONE THIS CITY ALREADY HAD
+
+- **THE BLOCK INTERIOR GETS TWO.** A `PARK.lampHeight` post-top at the courtyard wall's own gate —
+  the registry's choice of opening, hoisted out of the wall's block so the lamp and the gap are ONE
+  expression — and a 6.0 m work light aimed at the loading bay the van stands on. That is the
+  brief's own two sentences: *"A worked yard has a work light. A loading dock has a lamp over the
+  door."*
+
+  **TWO PER BLOCK AND NOT TWENTY, AND THE BOUND IS THE POOL.** `updateLampPool` cuts candidates at
+  128 m and hands the nearest `poolLamps` a slot, so every light added anywhere competes with the
+  street lamps for the same ~98. A ring of courtyard lamps would win that competition near the
+  camera and put the STREET into the dark to light a yard — which is this item's own defect,
+  inverted.
+
+- **`LIGHT.yardFloodCandela` = 3 600 cd at `yardFloodRadiusM` = 40 m**, the fourth entry in the
+  family `parkLampCandela` started. **20 lx** — EN 12464-2's loading zone, 1.25× `streetAverageLux`
+  and 0.40× a construction site's — off a 6.0 m column, **window sized first and the intensity
+  derived through it** (`siteFloodRadiusM`'s own rule, written out because this project has got it
+  wrong three times). `I = E·d²/window = 20 × 100 / 0.5625 = 3 556 → 3 600`. **0.06× a site mast's
+  peak and 0.53× a street lamp's.** `city.js` picks it off the feature's own height, which is the
+  `lamp` branch's rule since session 40.
+
+- **`LANDMARK_APRON` GAINS A `light` COLUMN**, on the boundary circle the railing runs on. One
+  decision doing three jobs: it is where the drop is, it is where a person arrives, and a large
+  paved area lit from its perimeter is one you can read the extent of. condenser = a 6.0 m yard mast
+  every 30 m; the two forecourts = a 10 m car-park column every 30 m; the weir = `PARK.lampHeight`
+  every `PARK.lampEvery`, the 4.20 m post-top and 16 m pitch every park in this city already has.
+
+- **`church` takes the park's own path lamps**, one side per spine and staggered — the first arm put
+  them on both sides of both spines and delivered 26 on one island, more than a PARK's 24 and every
+  one a pool candidate. **`lot`** takes one security light on its hoarding (one and not three: a
+  yard is WORKED and a lot is not, which is the same sentence `DEAD_ZONE.lot`'s floor of 9 is
+  derived from). **`carpark`** takes the surface lot's own 30 m column grid, which its `DEAD_ZONE`
+  row was already derived from and which nothing had ever emitted.
+
+- **`city.js` stats gains `lampCandidates`** — the number `lampsActive` cannot report once the pool
+  saturates, because `min(candidates, pool)` pins at `pool`. The sign pool beside it has carried
+  `signCandidates` for exactly that reason since session 45.
+
+### 1.2 AND FOUR CLAIM DEFECTS, EVERY ONE A CLAIM SMALLER THAN THE THING DRAWN
+
+`citycheck` caught all four on the first run of this session's content, which is the two-sided check
+working:
 
 ```
-  27 345 samples on rings at 8 m arc spacing out to 4.10 km, seed 1337
-    inner third of rings, mean     0.5066
-    outer third of rings, mean     0.4927
-    inner - outer                  0.0140
-    sd of the ring means           0.0597   <- the scatter it must be read against
-
-  the same core-against-rim comparison over the twelve seeds citycheck pools over
-    1337 +0.133   1338 -0.116   1339 +0.240   1340 +0.003   1341 -0.212   1342 -0.045
-    1343 -0.032   1344 -0.096   1345 +0.062   1346 +0.053   1347 +0.090   1348 +0.001
-    7 OF 12 FALL. Mean delta 0.0067, largest single delta 0.240.
+  site(flood:) x building(bld)         0.038 m2   a flood's pedestal is 0.9 m square (half 0.45)
+                                                  and the new lights claimed 0.34 for both
+                                                  fixtures. 0.70 now, which is what every
+                                                  existing flood in citygen already claims.
+  feature(school:frame) x path(...)   12.152 m2   the play frame was claimed BEFORE `layPath`,
+                                                  which claims its spines unconditionally. In the
+                                                  GENERATOR's own claims, which is the one list
+                                                  that is supposed to be impossible to break.
+  the headstone's claim                           the stone stands ON its base, so the top is the
+                                                  SUM and `stoneMaxM` alone under-claims by 0.11.
+  LIGHT_SETBACKS = { building: 0.35 }             a building's claim is its MASS and `city.js`
+                                                  draws it with a cornice and a crown, so a light
+                                                  hard against a facade is refused by nothing. The
+                                                  shape `APRON_SETBACKS.feature` already has.
 ```
 
-At seed 1341 the world is 0.251 in the core and 0.463 at the rim — a city that gets **denser**
-outward. `densityAt` was two octaves of value noise and nothing else.
-
-### 1.3 THE STREET GRID DOES NOT THIN. IT RUNS **WIDER** AT THE RIM.
-
-The pure generator over every chunk of the 11 × 11, per-ring means, seed 1337:
-
-```
-    ring  chunks  density   bldgs  road ha  walk ha   props   mark  lowDet
-       0       1    0.640     4.0   0.1342   0.0708    45.0     41      0%
-       1       8    0.611     6.1   0.3043   0.1558    43.1    123      0%
-       2      16    0.553     8.3   0.3884   0.1745    39.0    169      0%
-       3      24    0.515     7.2   0.3456   0.1551    34.7    150     17%
-       4      32    0.471     5.0   0.3990   0.1759    33.2    188     31%
-       5      40    0.442     6.5   0.4272   0.1876    32.2    192     33%
-
-  ring 0-2 against ring 5:  road 1.216x   walk 1.142x   markings 1.286x
-```
-
-**The carriageway at the rim is 1.216× the core's and the paint is 1.286×**, which is the exact
-opposite of a city thinning out. The cause is stated rather than discovered: the road is emitted
-from the LATTICE at `2 × roadHalfWidth` = 15.0 m in every chunk in the world, and the only three
-things that ever remove carriageway — a landmark, the river, `BLOCK_KEEPOUT` — are all at the
-ORIGIN. The rim has more road because it has fewer obstacles.
-
-And the transect out to 4.10 km says it never stops: **from `cx` 3 outward every chunk on
-`cz = 0` delivers 0.4542 ha of carriageway and 0.1989 ha of pavement, identically, for ever.**
-
-### 1.4 WHERE THE TWO EDGES SIT RELATIVE TO EACH OTHER, WHICH NOBODY HAD PRINTED
+**AND ONE LATENT DEFECT THIS SESSION'S CONTENT MADE VISIBLE, WHICH IS THE MOST USEFUL OF THE FIVE.**
+`city.js` has pushed a POST under every post-top head since session 45, straight into `bodies`
+**after `massCensus` was assembled** — an instance the census did not describe. It was invisible for
+nine sessions because `lamp` and `flood` features had never landed on a `built` chunk. The moment
+they did, `citycheck` said so:
 
 ```
-  thing                                 extent  fixed to
-  earth plane (block.js)                4000 m     WORLD    a plane 8 km square at y -0.020
-  building masses                    640-768 m    CAMERA
-  road + pavement + courtyard        640-768 m    CAMERA
-  facades, signage, furniture        512-640 m    CAMERA
-  street lamps                       256-384 m    CAMERA
+  24 mesh(es) hold a different number of instances from the number they describe
+  — e.g. '-1,-1:masses' labels 837 and allocated 839
 ```
 
-**One thing in this world is fixed to the world and everything else is fixed to the camera.** From
-the origin: the last building at 640–768 m, the plane's own edge at 4000 m, and **3232 m of bare
-earth between them — 4.2× the distance from the eye to the last building**, or 2.30× the drawn
-city's full 1408 m width. The drawn city is **3.10%** of the ground a camera stands on
-(1408² against 8000²).
-
-**AND THE TWO MOVE INDEPENDENTLY, WHICH IS A LATENT DEFECT AND NOT A CURIOSITY.** Walk to
-x = 4000 and the plane's edge arrives while the city keeps generating; at x = 4768 the whole
-resident ring stands over nothing at all. The transect confirms it at `cx` 32 — the generator
-delivers a full chunk 160 m past the edge of the ground it would stand on. §2's `extentEdgeM` is
-derived from exactly this and closes it.
-
-Every authored thing in this world is inside **560 m** of the origin — the condenser, ring 4 of 5.
-Past that it is the procedural lattice and nothing else, in every direction, for ever.
+which is exactly the two lights this session adds per block. Hoisted above the census with its own
+array and its own line, the arrangement `crowns`, `propBoxes`, `adPillarBoxes` and `busStopBoxes`
+already have. **An undescribed instance is CONTRACT §9.1's own subject: a delivered-side census that
+does not count what it draws passes exactly as long as nobody looks.**
 
 ---
 
-## 2. THE CITY GETS AN EXTENT — `densityAt` READS A WORLD COORDINATE FOR THE FIRST TIME
+## 2. L15 — RE-DERIVED IN THE OPEN FOR THE SECOND TIME, AND THE QUESTION IS DIFFERENT NOW
 
-`cityExtentAt(x, z)` is 1 inside `CITY.extentCoreM`, 0 past `CITY.extentEdgeM`, smoothstep between,
-and `densityAt` multiplies by it. **Both radii are forced and neither is free:**
+The brief: *"Light the city and re-derive the band in the open per §7, with reason and date. Do not
+dim content to keep it green."* **LOOK.md §7 carries it, dated 2026-08-29.**
 
-```
-  extentCoreM  1792 m   THE FURTHEST ANY CHUNK THIS PROJECT MEASURES REACHES FROM THE ORIGIN,
-                        rounded up to a whole chunk. edgeprobe --extent recomputes it:
-                          citycheck's own chunks, cx,cz in [-5,4]        905.1 m  (+CORRIDOR 916.8)
-                          downtown_dense's resident ring at x = 330     1280.0 m
-                          night_rain's at x = -400                      1384.5 m
-                          highway_speed's at x = -820                   1717.3 m   <- the floor
-                        1717.3 / 128 = 13.42 -> 14 chunks = 1792 m. INSIDE IT NOTHING MOVES.
-
-  extentEdgeM  3232 m   BLOCK.groundExtent 4000 - (geometryRadius+1)*128 = 768. A camera standing
-                        at the city's own rim must have its WHOLE RESIDENT RING on the earth plane
-                        or the city is drawn over a void — §1.4's latent defect, closed by
-                        construction. This number cannot be nudged without moving the plane.
-
-  the band they leave   1440 m = 2.00 x densityPeriodLong. An observation, not a derivation, and
-                        a checkable one: the transition is two of the field's own largest features
-                        wide, so the edge carries the field's structure instead of being one ramp.
-```
-
-**PROVABLY ADDITIVE, MEASURED AND NOT ASSERTED.** The 10 × 10 region `citycheck` runs its
-assertions over hashes **identically** before and after —
-`sha256 fbc9faa23ba22a2a0eb6a8451b598bb5` both ways, `buildings 665`, `road 37.8402 ha`,
-`walk 16.9691 ha`, which are STATE 52 §4.2's own figures. `cityExtentAt` returns exactly 1 there
-and `d * 1 === d` in float.
-
-**PRODUCT AND NOT MINIMUM.** A suburb is the same field at a lower amplitude, not a downtown with
-its peaks clipped: `Math.min` would flatten the outer band to a constant and delete the field's
-structure exactly where the eye has nothing else to read.
-
-**AND THE THRESHOLD DOES THE REST, WITH NOTHING NEW WRITTEN.** `generateChunk` already turns a
-chunk under `CITY.lowDetailThreshold` = 0.34 into one of the fifteen island kinds — a yard, a lot,
-a depot, allotments — the vocabulary session 40 spent itself giving content to. So the gradient is
-not a new system; it is the existing one finally being asked a question that varies:
+**THERE IS NO `distinct:midnight|dusk` THRESHOLD. THERE IS ONE FLOOR OVER SIX PAIRS, AND THAT IS THE
+DEFECT.** `look-budget.json` → `distinctness.minPairMSD` is 0.03000 and its own comment says *"all
+six pairs must clear it"*. The six are not six samples of one quantity:
 
 ```
-  radius   extent   mean d      sd   share of the world BELOW lowDetailThreshold
-   1792 m   1.000   0.4307  0.1564    28.9%
-   2048 m   0.916   0.3661  0.1441    42.5%
-   2304 m   0.711   0.3100  0.1081    58.5%
-   2560 m   0.450   0.2006  0.0642    97.3%
-   2816 m   0.202   0.0978  0.0324   100.0%
-   3072 m   0.034   0.0167  0.0057   100.0%
-   3328 m   0.000   0.0000  0.0000   100.0%
+  midnight <-> noon     0.20458    the two ENDS of the cycle           6.8x clear
+  noon     <-> dusk     0.13898
+  midnight <-> dawn     0.12835
+  dawn     <-> dusk     0.05812    same elevation, opposite azimuth
+  midnight <-> dusk     0.02958    ADJACENT — dusk is the transition INTO midnight   0.98x
 ```
 
-**WHAT IT DOES NOT DO, STATED PLAINLY: THE LATTICE STILL DOES NOT STOP.** Past 2816 m every chunk
-is low-detail and every chunk still has its 15.0 m carriageway and its 0.4542 ha of it. The city
-thins to a landscape of yards and depots and then continues as that, for ever. **§1.3 is repaired
-for the BUILDINGS and untouched for the ROAD.** That is §7 item 1 and it is the precondition for
-the brief's item 3.
+**A 7× SPREAD ASSERTED AGAINST ONE NUMBER, and the pair that most nearly fails is the pair whose two
+members are ADJACENT IN THE CYCLE** — the one relation for which similarity is CORRECT rather than a
+defect. Session 53 proved the band is inverted rather than tight: lighting the distant city moved it
+the WRONG way by five times the instrument's resolution, because midnight is darker than dusk so any
+light added at midnight moves midnight towards dusk. **Every session that satisfies LOOK.md §1 makes
+this band worse.**
+
+LOOK.md §7 now carries the shape a derived gate would have — `minCycleMSD` on the spanning pair and
+`minAdjacentMSD` on the neighbours, with the falsifying cases each owes — and **does not build it**,
+because splitting one floor into two where a branch is looser is indistinguishable from a loosening
+and CONTRACT §0.1 says so in as many words. **`minPairMSD` is NOT moved and stays at 0.03000, for
+the second session running.**
 
 ---
 
-## 3. THE CITY BEYOND THE RING — ONE DRAW CALL, 5 936 BOXES
+## 3. ITEM 4 — THE CHURCHYARD IS HEADSTONES, AND THE PALETTE AUDIT IS TWO ROWS
 
-### 3.1 WHY THE RING CANNOT SIMPLY BE RAISED
+Item 4's question asked of each of the fifteen kinds — *"does its vocabulary contain the thing that
+MAKES it that place?"* — and thirteen answer yes. `tools/placeprobe.mjs --light` prints all fifteen
+palettes so the audit can be re-read rather than retaken. The two that answer no:
 
-A resident chunk emits its own meshes, so ring 6 is **+44 chunks of draw calls** against a
-`ceilings.drawCalls` of 440 that `highway_speed` measures 397 of. **The ring is bounded by draw
-calls and nothing else will change that.** An `InstancedMesh` is bounded by TRIANGLES, which is the
-budget with room in it — 2.21 M of 2 360 000. The same content costs **one draw here and
-forty-four there**, and that asymmetry is the whole design.
+**CHURCH.** Session 49 built the nave and spire, session 50 gave it a path and planting, and
+`s54-church-before-t0_5886-wet.png` is a **104.6 m lawn with a church on it**. `GRAVEYARD` is the
+missing content, and every length is a plot's: 1.2 m along a row, 3.6 m between rows (2.4 m of plot
+plus a 1.2 m walk). Laid in **6.0 m segments** so the run breaks round the nave, the spire and the
+two path spines and closes up on the other side — the same argument the core wall's segments make.
 
-### 3.2 THE LAW, MEASURED, AND TWO OF ITS THREE TERMS ARE FLAT
-
-619 built chunks and 5 957 buildings outside the ring at seed 1337:
-
-```
-  quantity      mean     p10     p50     p90     max    corr with density
-  median h     36.79   25.63   35.20   49.65   90.30      -0.064
-  max h        91.01   52.82   86.56  141.22  153.21      +0.064
-  cover         0.44    0.33    0.45    0.57    0.73      +0.423
-  count         9.62    7.00   10.00   12.00   14.00      +0.310
-
-  cover = 0.267 + 0.362 * d     r = +0.423
-  count = 7.179 + 5.020 * d     r = +0.310
-```
-
-**HEIGHT DOES NOT DEPEND ON DENSITY IN THIS CITY** — both correlations are 0.06, which is nothing,
-because `buildingHeightRoll` is a function of `rng` alone. What density buys is how much ground is
-covered and how many buildings there are.
-
-**AND A BUILDING'S FOOTPRINT DOES NOT DEPEND ON ITS HEIGHT EITHER**, which is the more surprising
-one and it is why the distant towers are needles:
+**A `feature` AND NOT A PROP, AND THAT DECIDES A GATE.** `LOW_DETAIL_PROPS`' own rule is *"a thing is
+a `prop` if its placement is a SCATTER and a `feature` if it is a RUN, a ROW or a GRID"*, and
+`objectCount` — which `citycheck`'s clumping CV is computed from — counts props and not features.
+Graves are rows by definition. **Measured: `clumping` reads 0.389 against session 53's 0.388/0.389.**
 
 ```
-  height band     n     mean footprint    mean w x d
-   0- 25 m      1879        505 m2        21.2 x 24.5
-  25- 40 m      1759        509 m2        21.2 x 24.7
-  40- 60 m      1281        494 m2        20.9 x 24.4
-  60- 90 m       673        503 m2        21.1 x 24.6
-  90-120 m       229        505 m2        20.9 x 24.8
- 120-160 m       136        528 m2        21.1 x 25.4      corr(height, footprint) = 0.008
+  first arm, rows over the whole island   234 segments   1170 stones   2574 boxes   30 900 tris
+  shipped, the NAVE's half of the island  126 segments    630 stones    945 boxes   11 340 tris
 ```
 
-**A 150 m tower in NOCTIS is 21 × 25 m, exactly like a 20 m shop.** The distant needles are
-needles up close too.
+against the **80 000 triangles** STATE 53 §6.3 says is all that is left in the budget. One box a
+stone, with a base earned at the top third and a crosspiece at the top fifth.
 
-So `distantMasses` rolls its heights from `buildingHeightRoll` — **the same function, not a fit of
-it** — and takes only the count and the coverage from the two lines above. A fit of the height
-distribution would have been a second description of a quantity that already has one (§9.1); a fit
-of the coverage is a genuine summary of a placement pass too expensive to run (0.21 ms a chunk
-against 0.49 µs).
-
-### 3.3 TWO ARMS WERE BUILT AND THE FIRST ONE IS WHY THE SECOND IS RIGHT
-
-Arm one: one box for the block at the chunk's median height, one thin box for its tower. It gave a
-**ring-boundary height ratio of 1.548** and an aerial that reads as a field of chips — a 66 m slab
-per chunk where the real island is a rind of separate buildings round a hollow core.
-
-Arm two puts the chunk's own COUNT on its own PERIMETER, which is LOOK.md §2's first sentence
-(*"buildings meet the lot line"*), and **the streets appear between the blocks** — which is most of
-what a city looks like from a kilometre up.
-
-```
-  edgeprobe --distant, 619 chunks where both the model and the generator have buildings
-                          p10      p50      p90     mean
-  TOP LINE model/real    0.515    1.026    1.777    1.114
-  MASS     model/real    0.656    1.023    1.789    1.236
-
-  the step at the ring boundary — the one number a silhouette cannot argue its way out of
-  ring 5   258 real buildings,    mean height 40.38 m
-  ring 6   306 silhouette boxes,  mean height 41.12 m      ratio 1.018   (arm one: 1.548)
-```
-
-A ratio of 1.000 would mean the model IS the generator, which it is not and must not claim to be.
-What it has to be is **unbiased** — a median near 1 with the spread of one chunk's own luck —
-because a silhouette 20% short everywhere is a step in the skyline at a fixed distance from the eye
-and a silhouette 20% tall everywhere is a wall.
-
-### 3.4 AND ONE GREY WAS A TONE STEP AT A FIXED DISTANCE FROM THE EYE
-
-The first material was `distantAlbedo()` on every box. The four `CITY_MATERIALS` span **0.086 to
-0.600 — a factor of seven** — and that spread is the last thing about a facade to fall below a
-pixel, so the ring boundary read as a tone step. The reflectance now rides in `instanceColor` at
-the **delivered population's** weights (brick 29.08%, concrete 27.25%, panel 18.90%, stucco 24.78%)
-for 71 kB of buffer and zero draw calls.
-
-`distantAlbedo()` is population-weighted **[0.3832, 0.3529, 0.3311]** where equal weights gave
-[0.4025, 0.3765, 0.3575] — a 5% error, because brick is the commonest material and the darkest by
-a factor of four. Averaging the TABLE instead of the CITY makes the distant half of the world too
-bright.
-
-### 3.5 WHAT IT COSTS
-
-```
-  DISTANT.radiusChunks 26 = 3328 m = ceil(extentEdgeM 3232 / 128), so a camera at the world's
-  centre can see the city's own rim.
-
-  camera at the world centre   620 of 2688 shell chunks built (23.1%)   5936 boxes   71 232 tris
-  camera at the RIM, cx 25     411 of 2688 (15.3%)                      3963 boxes   47 556 tris
-  worst over seven camera chunks                                        6148 boxes   73 776 tris
-```
-
-**73 776 is 49% of the 150 000 of triangle headroom, in ONE draw call.** Fewer at the rim because
-half the shell is outside the city, which is the point. Rebuilt on a chunk crossing — once every
-5.3 s at `highway_speed`'s 24 m/s — and it returns in one comparison on every other frame.
-
-`windcheck` measures it: **568 meshes where session 52 had 567, 564 of 564 cull-eligible decided,
-0 wound backwards.** The +1 is `city:distant` and it is named, measured and correct.
-
-### 3.6 AND IT HAS ITS LIGHTS ON — WITH A PREDICTION THIS SESSION MADE AND FALSIFIED
-
-§6.1 measured that the unlit silhouette moved `distinct:midnight|dusk` the wrong way, and this
-document's §7 item 2 originally said, in writing, that lighting it would move the band back. **It
-does the opposite, and the measurement is in the same session as the prediction:**
-
-```
-  unlit distant city   0.02958        midnight <-> dawn   0.12835 -> 0.12825
-  lit   distant city   0.02953        midnight <-> noon   0.20458 -> 0.20458
-```
-
-Five times the instrument's own 0.00001 resolution and in the wrong direction. **MIDNIGHT IS
-DARKER THAN DUSK, SO ANY LIGHT ADDED AT MIDNIGHT MOVES MIDNIGHT TOWARDS DUSK.** The other two
-pairs agree — midnight moved slightly toward the two dim frames and not at all against the bright
-one. **There is no arrangement of this content that satisfies the band, because the band rewards a
-DARK night city and LOOK.md §1 asks for a lit one.** `minPairMSD` is not moved, the light stays,
-and LOOK.md §7 carries the re-derivation with its date.
-
-**THE LEVEL, AND ITS FIRST ARM WAS WRONG BY 1.71× IN ONE STEP.** `era.windowWall` is a DESCRIPTIVE
-attribute and not the delivered glazed fraction — `city.js` builds the openings from the RHYTHM,
-`winW = colW × (band 0.9 | panel 0.95 | else 0.55)` and
-`winH = era.floor × (windowWall > 0.4 ? 0.62 : 0.44)`, which is **0.3604** population-weighted.
-**And only two of four faces carry any**, because `city.js` skips a face that is neither front nor
-rear: *"a window on a side face is a window inside the neighbour"*. A distant box is seen from
-every side, so:
-
-```
-  0.3604 x 0.5 (faces) x 0.6280 (lit gain) x 220 (LIGHT.windowNits) = 24.90 cd/m²
-```
-
-and then **a MEASURED residual of 0.32**, named for what it absorbs rather than tuned until it
-looked right. At the first arm's 42.59 the night aerial delivered a distant band mean of
-**42.27 code values against the near city's 8.00** — the far half of the world brighter than the
-near half. At 7.97 it is **14.18 against 8.96**, a ratio of 1.58 where the two bands cannot be
-equal anyway because the near one contains streets. The dominant term in that 0.32 is that **the
-tone curve is concave**: a uniform surface at radiance L and a mixture of {30% at 220, 70% at 0}
-with the same mean L are the same radiance and not the same code value.
-
-`tools/shot-out/s53-rim-night-t0-wet.png` is the frame, and `--wet=0.85` at `t=0`.
+**SCHOOL.** A long low block, a marked court, a railing, two floods and a scatter of trees is what
+an office with a car park also has. `recreation` has had a `play` frame and swing since session 48;
+the school now puts them on its grass. 2 per school chunk delivered at seed 1337.
 
 ---
 
-## 4. `npm run gates` RUNS EIGHT GATES AGAIN, NOT THREE — FOUR SESSIONS' ITEM 1
+## 4. ITEM 5 — THE THREE SPREADS, MEASURED BEFORE ANYTHING WAS CHANGED, AND TWO WERE **ZERO**
 
-The script was eight commands chained with `&&`. `lookcheck` has been red since session 45, so the
-chain stopped there and **`gateaudit`, `citycheck` and `perfcheck` never ran at all**. Eight
-sessions of running the last five by hand and writing a note asking the next session to.
+The brief was explicit that this item is a measurement. `tools/placeprobe.mjs --program --grid`,
+pure generator, seed 1337 over the 17 × 17. **All three of the operator's observations are true and
+two of them are understated.**
 
-**IT IS NOT A LOOSENING AND THE DISTINCTION IS THE WHOLE OF IT.** `&&` and `tools/rungates.mjs`
-agree exactly on the verdict — the suite exits non-zero if any gate does. What differs is how much
-you know when it fails: `&&` reports the FIRST failure and nothing about the seven other gates.
-A suite that hides seven results behind one is not stricter, it is the same strictness with less
-evidence — CONTRACT §9's own subject one level up, a signal that looks like a verdict and is a
-truncation. The runner prints all eight and says in one line how many `&&` would have hidden.
+### 4.1 (a) HEIGHT — and within a kind the spread is EXACTLY 0.00
 
-Sequential by design (two headless Chromiums at once is what made session 43 read `cpu p95
-19.60 ms` on a route that measures 11.30 alone); `gateaudit` still after `lookcheck` because it
-reads the frames `lookcheck` writes; `load1` printed beside every gate and browser gates that
-started above §0.2's bar named at the end; `LC_ALL=C` exported by the runner rather than required
-of the caller, which is §0.2's instrument defect 1.
+```
+  population                     n     mean      sd      min      p50      max
+  residential                 2058    41.00   26.77     8.94    34.21   152.03
+  ALL non-built mass, BEFORE    37    11.76    6.10     4.60     9.50    34.00
+  ALL non-built mass, AFTER     37    16.39   10.66     4.60    13.80    50.70
+
+  within-kind sd, BEFORE -> AFTER
+    school        0.00 -> 4.00       industrial    0.00 -> 2.52
+    market        0.00 -> 1.11       port          0.00 -> 0.29
+    carpark       0.00 -> 0.00  (still flat, and said so below)
+```
+
+**The tallest thing on any of the sixty-six non-built islands was a 34 m hospital tower — 4.5×
+shorter than the tallest residential building — and every `PROGRAM` dimension was a constant with no
+roll behind it.**
+
+### 4.2 (b) TONE — the four materials and five eras reached ZERO program masses
+
+```
+  population                     n   distinct      sd      min      max
+  residential                 2058          4   0.175    0.101    0.571
+  non-built mass, BEFORE        35          9   0.050    0.233    0.452
+  non-built mass, AFTER         35          7   0.164    0.101    0.571
+```
+
+Rec.709 luminance of the delivered facade reflectance. Before: **1 or 2 distinct values within a
+kind, sd 0.000 for six of the nine.** After, the range IS the residential range.
+
+### 4.3 THE REPAIR, WHICH FOLLOWS FROM THE MEASUREMENT AND IS TWO LINES OF PRINCIPLE
+
+**The body material is the CITY'S and the kind's colour becomes the TRIM.** A school does not read
+as a school by being 0.40 grey — it reads by its long low block, its ribbon windows, its court and
+its railing, every one of which is unchanged. The body takes a `CITY_MATERIALS` albedo at
+`DISTANT.materialWeights`, the DELIVERED population weights STATE 53 §3.4 measured rather than the
+table's equal ones, because brick is the commonest and the darkest by a factor of four.
+
+**Every height is a roll about `PROGRAM`'s constant, which becomes the median rather than the
+value.** Multiplicative, because a 6 m depot roof and a 34 m hospital tower cannot share an additive
+spread. Storey counts roll as counts. The hospital tower and the church spire get the widest bands —
+**24–56 m and 16–42 m** — because a tower is where a program building is allowed to be tall.
+
+**Its own named stream `program`**, so nothing above it re-phases (CONTRACT §6).
+
+**WHAT IS STILL FLAT AND SAYS SO:** the market hall's canopy keeps its own warm brown (a canopy has
+no parapet to carry a trim) and the deck park's 15.60 m is still `P.levels × P.storeyM` with no roll.
+
+### 4.4 (c) BLOCK DIMENSION — THE OPERATOR IS RIGHT AND IT IS NOT REPAIRED
+
+`latticeCarriageway(x, z)` walked at 0.25 m along four 4 km transects, and the run length of every
+stretch that is NOT carriageway is what a block is, measured off the same function the generator
+clips its ground with:
+
+```
+  x at z = 300     32 blocks   mean 110.72 m   sd 9.960   min 72.75   max 113.25   2 DISTINCT
+  x at z = -700    32 blocks   mean 110.72 m   sd 9.960   min 72.75   max 113.25   2 DISTINCT
+  z at x = 300     32 blocks   ... identical
+  z at x = -700    32 blocks   ... identical
+  POOLED: 128 blocks, 2 distinct lengths, and the sd of 9.84 is ONE OUTLIER.
+
+  the buildable island: 289 chunks, ONE distinct area, sd 0.000
+```
+
+**`island = CITY.chunkSize − 2 × CORRIDOR` and both terms are constants, so every block in this
+world is the same size by construction, everywhere, for ever.** That is the finding item 5(c) asked
+for and it is the largest of the three. **The repair is NOT in this session** — moving the lattice
+pitch is foundational (traffic's whole simulation is `line × chunkSize`, streetlife's footfall
+weight, every claim, the canyon bake), and the cheap version — subdividing an island with a service
+lane so two parcels read where one does — is a change to the perimeter frontage walk that wants a
+session of its own. §8 item 2.
 
 ---
 
-## 5. WHAT TERRAIN WOULD COST — THE NUMBER THE BRIEF ASKED FOR, AND IT IS 176
+## 5. ITEM 6b — THE LATTICE STOPS. STATE 53 §7 ITEM 1, CLOSED
 
-Six independent lenses over `src/` and `tools/`, every site re-read at its own line by a second
-pass that dropped what did not survive. **203 reports → 176 distinct sites over 41 files.**
+STATE 53 measured it on the transect to 4.10 km: *"from `cx` 3 outward every chunk on `cz = 0`
+delivers 0.4542 ha of carriageway and 0.1989 ha of pavement, identically, for ever."* The brief:
+*"If you build nothing else here, build that."*
 
-```
-  severity     sites   share
-  foundation      35     20%     the data model itself cannot express terrain
-  mechanical     117     66%     a call site that needs a height lookup threaded through it
-  cosmetic        24     14%     a constant or a comment
-
-  files: 19 under src/, 22 under tools/
-  city.js 24 · citygen.js 20 · traffic.js 12 · lights.js 12 · streetlife.js 11 · block.js 9
-  player.js 8 · lib/canyon.js 8 · river.js 7 · weather.js 7 · occupancy.js 5 · constants.js 4
-```
-
-`src/modules/river.js` is the only file where **every** site is foundation.
-
-**THE 35 FOUNDATION SITES GROUP INTO NINE MECHANISMS**, and each is one change with everything
-else at that site following from it:
+**`cityExtentAt` was already the answer and nothing was reading it here.** `densityAt` multiplies by
+it, so past `CITY.extentEdgeM` the field is exactly 0 and every chunk is low-detail — but a
+low-detail chunk still emits a full road lattice and a `DEAD_ZONE` floor of props, and **both are
+independent of density by construction**: the floor is what session 50 added so that a yard at
+d = 0.1 is still a yard, and the lattice never read the field at all. So the two things that made
+the outer world go on for ever are exactly the two the extent term cannot reach through `densityAt`,
+and they now read it directly.
 
 ```
-  the streamed ground record and emitter      city.js 981, 1179, 1186, 1195, 722, 724, and the
-                                              generator's wire format at citygen.js
-     rects.push({ x0, z0, x1, z1, y, kind })  ONE SCALAR y PER RECTANGLE
-     normals.push(0, 1, 0)                    a literal, not a computed normal
-     GROUND_Y                                 SIXTEEN entries, each a constant
-  the two 8 km planes                         block.js 728, 822, 937 — the earth strip walks
-                                              x-stations with whole z-intervals and would need
-                                              subdivision on BOTH axes before a height can land
-  water and its edges                         river.js 213, 223, 260, 324, 580, 662, 676
-  the datum                                   constants.js 575 `carriageway: 0`, whose own line
-                                              568 already concedes "a datum is what a query is
-                                              measured FROM"
-  the claim band                              occupancy.js 344 SURFACE_TOP_M
-  motion                                      traffic.js 73, 2807 · player.js 258
-  the canyon sky-visibility field              lib/canyon.js 89, 222, 280, 445, 498 ·
-                                              modules/canyon.js 557 · canyon-worker.js 42 ·
-                                              lights.js 753, 861 — and 89 is shared by the CPU
-                                              and the GLSL, so it is one change in two languages
-                                              that must agree
-  the sky's ground                            sky.js 287, 295 — the lower hemisphere is one flat
-                                              lit plane and, through PMREM, the only thing lighting
-                                              every downward-facing surface in the world
-  the gate that defines "no floor"            citycheck.mjs 534 — failure is `su.kind === 'earth'`,
-                                              and with terrain `earth` is the legitimate ground
-                                              everywhere, so the gate fires on the whole city
+  cx    dist m   extent   density   road ha   walk ha   props   kind
+  22      2881    0.149    0.0648    0.4542    0.1989       9   recreation
+  24      3137    0.013    0.0056    0.4542    0.1989      12   parking
+  25      3265    0.000    0.0000    0.0000    0.0000       0   recreation
+  32      4160    0.000    0.0000    0.0000    0.0000       0   park
 ```
 
-### 5.1 THE CHEAPEST HONEST SUBSET, WHICH IS THE ANSWER TO THE QUESTION UNDER ALL FOUR ITEMS
+**AND THE FLEET IS BOUNDED BY THE SAME PREDICATE.** `traffic.js`'s lattice is ARITHMETIC — `line ×
+chunkSize` — and the road under it is `generateChunk`'s. Those two agreed for fifty-three sessions
+only because the drawn road never stopped. `seed()` and the recycle pass both gain
+`cityExtentAt(x, z) <= 0`, in the same shape as the river, landmark and block tests already there.
+Without it this change would have delivered the operator's own session-46 report — *"vehicles,
+buses, pedestrians, lamp posts and market stalls arranged in neat lanes on BARE GROUND"* — at the
+rim instead of at the weir.
 
-§2 gave the world a boundary, so this variant does not have to invent one. *"Terrain only outside
-the built grid"* is **the band from `extentEdgeM` 3232 m to the plane's rim at 4000 m**, and no
-gate camera, no route and no census sample reaches it.
+**AND THE STREET LAMPS DID NOT STOP EITHER, WHICH THE FRAME FOUND AND NO GATE COULD.**
+`s54-rim-after` at its first take showed **a grid of lamp columns standing on bare earth with no
+street under them** — the operator's own session-46 report at the weir, arriving 328 m past the
+city's edge. `lampStationsFor` is arithmetic on the chunk lattice and emits twenty stations a chunk
+wherever the resident ring reaches; it agreed with the drawn road for fifty-three sessions only
+because the drawn road never stopped. It now takes the same `cityExtentAt(x, z) <= 0` guard, beside
+the `riverBlocks` and `landmarkOccupies` guards already on that loop.
 
-```
-  touched — must change to ship it                       21 sites    8 foundation
-  conditional — only if a camera or the player goes out   22 sites    3 foundation
-  untouched                                              133 sites   24 foundation
-```
+**WHAT IS STILL OUT THERE, AND IT IS A FINDING RATHER THAN A LEFTOVER.** `block.js` draws its MAIN
+STREET as one `groundExtent * 2` plane, so **a single 8 km arterial runs past the city's edge to
+the world's rim** and is visible in `s54-rim-after` as the pale strip crossing the bare ground. It
+is authored, it is **the only road in this world that leaves the grid**, and it is now unlit from
+the edge outward. That is either the beginning of the brief's *"roads that leave"* or a plane that
+wants an end; it is not a defect and it is not decided. §8.
 
-What it does **not** touch: **every claim** (all 20 `citygen.js` and all 5 `occupancy.js` sites —
-density is 0 out there so nothing is ever claimed); **every gate** (`citycheck`'s surface census is
-a 1280 m square entirely inside `extentCoreM`, and 33 of the 35 `tools/` sites); **everything that
-moves** (all 12 `traffic.js`, all 11 `streetlife.js`); **all eight `lib/canyon.js` sites**.
-
-**AND IT BUYS 8 OF 35 FOUNDATION SITES AND NO PROGRESS ON THE EXPENSIVE HALF.** It buys a horizon.
-27 of the 35 — including the entire `city.js` ground record and emitter, every claim and the whole
-canyon field — are exactly as expensive afterwards as before. **That is the number, and the
-decision it supports is that a horizon is cheap and a walkable hill is not.**
-
-### 5.2 AND THE AUDIT FOUND A LIVE DEFECT ON FLAT GROUND, WHICH IS THE HONEST BONUS
-
-`occupancy.js`'s `SURFACE_TOP_M` is **0.05 m**, and its own justification says *"0.05 m is above
-every value in `city.js`'s `GROUND_Y` table (0.020–0.033)"*. `GROUND.pavement` is
-`BLOCK.kerbHeight` = **0.16** — **3.2× the constant, and above it, not below.** So the sentence
-that derives the number has been false since the kerb got its height.
-
-**THE VERDICT IS UNCHANGED AND THIS IS NOT A REPAIR TO MAKE IN PASSING.** The band exists so a
-ground surface overlaps a building (whose `y0` is 0) and does not overlap a deck (soffit 18.2 m),
-and `[0, 0.05]` still does both. What is stale is the derivation, not the outcome. §7 item 6.
+**`streetlife.js` NEEDED NOTHING, AND THAT IS A FACT RATHER THAN AN OMISSION.** `footfallWeight` is
+`cov × densityAt^p × dest` and `densityAt` is exactly 0 out there, so the per-chunk allocation is
+already 0. Session 53's extent term paid for this one in advance.
 
 ---
 
-## 6. GATE STATE
+## 6. ITEM 2b — THE TRAIN ARRIVES, DWELLS AND DEPARTS, AND STAYS ON ITS OWN TRACK
 
-Run through `tools/rungates.mjs`, which is the first time in eight sessions the suite itself ran
-all eight, in 22 minutes. **`load1` ran 2.85 to 5.48 across it and was never inside §0.2's bar
-of 1.6.**
-
-```
-  parsecheck   GREEN   115 files, contract-clean. 113 -> 115: edgeprobe.mjs and rungates.mjs.
-                       It went RED once during the session on an ELLIPSIS CHARACTER in a
-                       citygen.js comment — "probable elision" — and the runner is what
-                       surfaced it, because it ran the three gates after it anyway. §4.
-  faultcheck   GREEN
-  lookcheck    RED at 3 — ONE MORE THAN SESSION 52, AND THIS SESSION CAUSED IT. §6.1.
-                       distinct:midnight|dusk 0.02958 unlit, 0.02953 lit — §3 moved BOTH,
-                       measured, and §3.6 is the prediction that was falsified
-                       facadeAlbedo:dusk 3 clusters of 5 walls against 4
-                       facadeNeighbours:dusk 2 of 3 adjacent pairs
-  windcheck    GREEN   568 mesh names over 568 meshes (floor 400), 564 of 564 cull-eligible
-                       decided, 0 wound backwards. 567 -> 568 is `city:distant`, §3.5.
-  inputcheck   GREEN
-  gateaudit    RED at 1, the carried control, naming lookcheck's reds.
-  citycheck    RED at 4 — THE IDENTICAL FOUR SESSION 52 SHIPPED. §6.2.
-  perfcheck    RED at 13 over FOUR routes, where session 52 ran one. §6.3.
-```
+The operator: *"THE TRAIN JUMPS. It stops at the end of its run and reappears on the other track."*
+**Both halves were the code and neither was a frame artefact.**
 
 ```
-  gate          exit   verdict   seconds   load1 in    out
-  parsecheck       0     GREEN       3.2       2.85   2.86
-  faultcheck       0     GREEN       9.6       2.86   3.52
-  lookcheck        1       RED      33.7       3.52   3.44
-  windcheck        0     GREEN      35.4       3.44   3.85
-  inputcheck       0     GREEN      14.3       3.85   4.47
-  gateaudit        1       RED      69.5       4.47   4.80
-  citycheck        1       RED     115.1       4.80   5.48
-  perfcheck        1       RED    1065.4       5.48   4.36
-                                 -------
-                                  22 min for the whole suite
+  if (tr.s > halfArc - tr.len/2) { tr.s = ...; tr.dir = -1 }
+      12 m/s one way became 12 m/s the other way in one frame. No deceleration, no stop.
+
+  const lat = tr.dir * viaduct.deck * 0.235
+      THE TRACK WAS A FUNCTION OF THE DIRECTION, so flipping `dir` moved the whole 77.90 m train
+      sideways by the full track gauge in that same frame. That is "reappears on the other track",
+      exactly.
 ```
 
-### 6.1 L15 MOVED, THIS SESSION MOVED IT, AND HERE ARE THE SIX RUNS THAT SAY SO
+**It is CONTRACT §9.1's shape with a vehicle: one field standing in for two independent facts.** A
+train's track is a fact about the train; its direction is a fact about the journey. And it is the
+recycler pattern session 25 found in `traffic.seed()` on a larger body — **`carry()` was hiding it
+from §5.12's motion field, which is why no gate ever saw it.**
 
-`distinct:midnight|dusk` reads **0.02958**, against session 52's 0.03005 and sessions 50–51's
-0.02993 / 0.02992. STATE 52 §6.1 wrote in advance that *"a future session that finds it red again
-has not regressed anything"* — **and this session must not lean on that sentence, because it has a
-candidate cause and it ran the A/B rather than guessing.**
+**NOW: `track` is fixed per train and `dir` reverses on it.** The train runs at `speedMps` toward
+the next stop, brakes at `brakeMps2` from the distance `v²/2a` requires — **derived, not triggered
+at a constant, so it brakes at the right place from any speed** — stands for its dwell, and
+accelerates away. Nothing is recycled any more, so §5.12 now carries the train's real velocity
+through the whole manoeuvre instead of being told to ignore it.
 
-A paired git worktree pinned to `fe920c9`, arms interleaved, three runs each
-(STATE 49's note: a control on ONE arm measures that arm's disposition, not the statistic's):
+**AND THE STATION IS ONE OF THE STOPS.** `viaductStations` is the same function `city.js` builds the
+platform and the stair cores from — one description, two readers. **Session 31 built a platform at
+22.72 m and nothing has ever stopped at it; the train ran past at 12 m/s for twenty-three
+sessions.**
 
-```
-  fe920c9 (before)   0.03004   0.03004   0.03005 (session 52)
-  HEAD    (after)    0.02958   0.02958   0.02959
-
-  spread 0.00001 on each arm. Difference -0.00045 = 45x the instrument's own resolution.
-```
-
-**THIS STATISTIC IS DETERMINISTIC FOR A FIXED BUILD.** LOOK.md §7's recorded 0.0001 spread over
-three runs belongs to `band:noon`; **this band's own spread had never been measured** and it is
-0.00001. So the move is attributable, and it is attributable to §3.
-
-### 6.1.1 AND THE MECHANISM IS NOT DILUTION, WHICH IS WHAT IT LOOKS LIKE
-
-Measured off the four delivered frames at 3200 × 1800 — `decodePNG` checked for THREE bytes per
-pixel first, per STATE 52 §2.2:
+The state machine simulated offline at 1/60 s for 900 s, one train, the shipped constants:
 
 ```
-  pixels the silhouette changed              516 956 of 5 760 000 = 8.97%
-  their own midnight<->dusk msd, BEFORE      0.05148
-  their own midnight<->dusk msd, AFTER       0.04645
-  every other pixel in the frame             0.02812
-  0.0897 x (0.05148 - 0.04645) = 0.00045     the whole-frame delta, to the digit
+  stops on the line          -201.05   0.00   201.05      braking distance 72.0 m, shortest leg 201.1
+  station calls in 900 s     15
+  LARGEST ONE-FRAME MOVE     0.2000 m, which is speedMps/60 EXACTLY — there is no teleport left
+  standing                   456.1 s of 900 = 50.7%
+  round trip                 230.8 s
 ```
 
-**Those pixels were the frame's HIGHEST-contrast region and the silhouette covered them.** The far
-end of a street is SKY, and sky is the largest luminance swing anywhere between midnight and dusk —
-0.051 against 0.028 for everything else. A grey unlit mass standing in front of some of that sky
-swings less than the sky it replaced.
-
-**SO THE BAND IS RIGHT AND IT IS POINTING AT A CONTENT GAP, WHICH IS EXACTLY WHAT LOOK.md §7 SAYS
-TO DO WITH ONE.** NOCTIS is a night city; at midnight a distant city is a field of lights against a
-black sky, which swings MORE than the sky did and in the opposite sign. What is drawn today is
-unlit mass. **`minPairMSD` is not moved and stays at 0.03000.** The re-derivation is written into
-LOOK.md §7 with its date. §7 item 2 is the repair.
-
-### 6.2 CITYCHECK — THE IDENTICAL FOUR SESSION 52 SHIPPED, AFTER ONE THIS SESSION EARNED
-
-```
-  clumping CV 0.388 against 0.60 — IDENTICAL to session 52's 0.388. 12 of 12 seeds below
-    the floor, median 0.382, spread 0.272. NO THRESHOLD MOVED. §7 item 10 is why it did not move.
-  2 of 2666 sign quads inside a building, the same two
-  4 delivered overlaps — the identical four
-  1004 of 284 382 walkable samples on bare earth (0.40 ha) — IDENTICAL to session 52's 1004
-  generator claims 17 046, delivered 17 646 — both identical to session 52
-  0 of 4 generator overlaps · 0 of 3554 props inside a building
-  alignment 73.6% off-axis, largest deviation 2.27° against 3° — GREEN
-  bright reserve 6.66% against 6.00 — GREEN, three runs [6.66 6.34 6.66]
-  saturation 3.68% pooled peak against 12, three runs [3.68 4.19 3.68]
-  RE-RUN AFTER §3.6 LIT THE DISTANT CITY: the identical four violations again,
-    with every count identical. bright reserve 6.50% [7.12 6.39 6.50] — GREEN,
-    saturation 3.46% [3.37 3.46 3.65]. So a night city with 5 936 more emitting
-    boxes in it spent 0.16 points of bright reserve and no saturation at all.
-  walkability 54 786 of 54 920 — seven sessions
-  scene walk 342 instanced meshes, 342 labelled, 0 not. `distantMasses 5936`.
-  city arrived over 2954 frames / 15 862.5 ms at load1 4.80 — inside the wall-clock bound
-```
-
-**EVERY PLACEMENT NUMBER IS SESSION 52's TO THE DIGIT**, which is §2's additivity claim measured
-from the delivered side rather than from the generator's hash.
-
-**AND CITYCHECK CAUGHT A DEFECT THIS SESSION INTRODUCED, ON THE FIRST FULL SUITE RUN IN EIGHT
-SESSIONS.** `city:distant`'s census label was written as an ARRAY, and `harness.sceneCensus` sums
-numeric values with `Object.entries` — so it summed to zero and the gate said
-*"'city:distant' labels 0 and allocated 5936"*. That is §4's own argument arriving as a fact: a
-mesh added in a session that never reaches `citycheck` ships undescribed. Fixed, re-run, gone.
-
-### 6.3 PERFCHECK — ALL FOUR ROUTES, AND ONLY THE GREENS ARE VERDICTS
-
-**`load1` was 5.48 at the start of this gate.** CONTRACT §0.2: a GREEN absolute under load is a
-verdict because drift here is one-sided; a RED one is not. Session 52 ran ONE route.
-
-```
-                    draws  s52    tris   tris s52   instances  wall p95   cpu p95
-  highway_speed       398  397   2.28M     2.21M     323 841   12.20 ms  10.80 ms   GREEN
-  downtown_dense      320    —   2.01M         —     248 335   25.20     23.70
-  night_rain          319    —   1.97M         —     303 650   26.10     24.60
-  player                —    —       —         —           —   25.10     23.80
-```
-
-**THE TWO NUMBERS THE DISTANT CITY COST ARE +1 DRAW AND +0.07 M TRIANGLES**, which is
-`edgeprobe --distant`'s prediction of 71 232 to within 1%. 2.28 M against a `ceilings.triangles`
-of 2 360 000 leaves **80 000**, so the silhouette spent 47% of the headroom it was budgeted half
-of — and the next session should read that as the real remaining figure, not 150 000.
-
-`highway_speed` wall p95 **12.20 against 12.5, three runs [12.2 12.3 12.0], spread 0.3** — green
-at `load1` 5.48, which is the sixth consecutive session that route has come in clear. Session 52
-read 12.10 at `load1` 4.04; the two are not comparable and neither is a regression on the other.
-
-**THE THREE ROUTES SESSION 52 DID NOT RUN ARE NOW MEASURED AND THEIR REDS ARE NEWLY KNOWN RATHER
-THAN NEW.** `downtown_dense`, `night_rain` and `player` all breach frame time by roughly 2× at
-`load1` 5.48, which under §0.2 says nothing. Two of their reds are NOT frame time and are therefore
-readable:
-
-- **`downtown_dense` frame entropy 4.880 < 5** — three runs [4.853 4.88 5.273], and the gate
-  asserts on the LAST rather than pooling (`budget.json` → `$screenshotEntropy_s17`). The spread
-  is 0.42 and the margin is 0.12. **Not resolvable by this instrument as configured**, and that
-  is a statement about the estimator rather than about the city.
-- **`player` worst froxel 57 of 96, margin 39 < 40.** A count, so §0.2's load caveat does not
-  apply. One away from the floor.
-- **`highway_speed` 60% of 68 vehicles carry a non-monotone tone profile against a 75% floor.**
-  Session 52 read 65% of 62, session 49 read the population moving 55–74 across four runs of one
-  session. **FIVE SESSIONS UNACTED**, and `budget.json` → `silhouettes.$estimator` already derives
-  why a single reading is not a verdict: the sample is whichever subjects are in frame at the pose.
+**50.7% standing is not a number to tune away, it is the deck being 480 m long.** A shuttle whose
+whole line is forty seconds of running each way stands for about half its cycle whatever the dwells
+are, and the two trains start half an arc apart on opposite tracks, so what the deck shows is one
+train moving while the other stands — which is a service.
 
 ---
 
-## 7. WHAT TO DO FIRST NEXT TIME
+## 7. GATE STATE
 
-1. **THE LATTICE STILL DOES NOT STOP.** §2's last paragraph. The buildings thin to nothing past
-   2816 m and every chunk out there still delivers **0.4542 ha of 15.0 m carriageway**, for ever.
-   The city now fades into a landscape of yards with a full street grid under it. Making
-   `generateChunk` emit no lattice past `extentEdgeM` is the precondition for the brief's item 3
-   (*roads that leave*), because a road cannot leave a grid that has no boundary — and it is where
-   the filling station, the yard, the motel and the depot go.
-2. **L15 NEEDS A DERIVATION AGAINST A CITY WITH ITS LIGHTS ON.** §3.6 and LOOK.md §7. This item
-   used to read *"the distant city is dark at night, and a gate said so"*; it was acted on inside
-   the session, the prediction was falsified, and what is left is the band itself. **A night city
-   that is lit is more like dusk than a night city that is black**, so `distinct:midnight|dusk`
-   structurally penalises the direction LOOK.md §1 asks for. Nine sessions owed, and it is now
-   owed a DIFFERENT derivation from the one sessions 45–52 were asking for: not *why is the
-   margin small*, but *why is this the right pair of times*. `msd dawn <-> dusk` reads 0.05812 and
-   `msd noon <-> dusk` 0.13898 — either might be the band this one was meant to be.
-3. **THE ATMOSPHERE AT 1500 m IS BROWN SOUP.** `s53-city-high-t0_5-wet.png`. `ATM.hazeScaleHeight`
-   is 550 m and the camera was at 1500; the frame is a uniform brown wash with the sky gone. Not
-   this session's item and not looked into, but it is the first frame this project has taken from
-   that altitude and it is now cheap to take more, because §3 put something out there to look at.
-4. **THE TURNING HEAD**, STATE 52 §7 item 1, untouched. And **THE 47 m OF LANE ON PAVEMENT**,
-   item 2, untouched.
-5. **`SURFACE_TOP_M`'s DERIVATION IS FALSE BY 3.2×.** §5.2. The verdict is unchanged, which is why
-   it is item 6 and not item 1, but the comment states a range that the code contradicts and that
-   is CONTRACT §9's shape exactly.
-6. **THE VEHICLE SILHOUETTE BAR, FIVE SESSIONS UNACTED** — 60% of 68 against a 75% floor, §6.3.
-   STATE 52 §7 item 5, *the three routes perfcheck did not run*, is DONE: all four ran and §6.3 is
-   what they say. `player`'s froxel margin of 39 against 40 is the other count worth reading.
-7. **LIGHT THE FILL**, STATE 50 §6 item 1, untouched three times.
-8. **THE APRON STAIRCASE'S RESIDUE**, STATE 52 §7 item 8. Still 0.40 ha of bare walkable ground.
-9. **CLUMPING IS UNMOVED AT ~0.39 AGAINST 0.60** for sixteen sessions. **AND SESSION 53 IS THE
-    FIRST THAT SHOULD MOVE IT THE RIGHT WAY** — `city-budget.json`'s own `$s37` derivation says
-    the statistic correlates 0.92 with how many chunks in the window are EMPTY, and §2 makes the
-    outer band emptier. It was NOT measured this session because `citycheck`'s window is the
-    10 × 10 at the origin, which §2 leaves byte-identical. **A window at 2300 m would move it, and
-    that is the experiment.**
-10. **HOIST THE BUILDING CLAIMS IN `buildChunkBody`** — session 47's item 1, still what blocks
-    facade clutter. **THE ARENA** (STATE 49 §4). Both still unspent.
-11. **`decodePNG` RETURNS THREE BYTES PER PIXEL.** STATE 52 §2.2, and it cost that session a whole
+Run through `tools/rungates.mjs`, all eight, in **24 minutes**. **`load1` ran 4.95 to 6.06 across it
+and was never inside §0.2's bar of 1.6** — the session had a browser open for most of its length.
+
+```
+  gate            exit   verdict   seconds  load1 in     out
+  parsecheck         0     GREEN       3.4      5.78    5.56     116 files, contract-clean
+  faultcheck         0     GREEN       9.8      5.56    5.54
+  lookcheck          1       RED      34.6      5.54    5.26     THE IDENTICAL THREE
+  windcheck          0     GREEN      39.3      5.26    5.42     568 names / 568 meshes
+  inputcheck         0     GREEN      14.4      5.42    6.06
+  gateaudit          1       RED      72.7      6.06    5.40     the carried control
+  citycheck          1       RED     115.1      5.40    5.44     THE IDENTICAL FOUR
+  perfcheck          1       RED    1141.7      5.44    4.95     15 over four routes
+                                  -------
+                                    24 min for the whole suite
+
+  4 of 8 RED — lookcheck, gateaudit, citycheck, perfcheck. The same four as session 53.
+```
+
+**TWO EDITS WERE MADE AFTER THIS RUN AND BOTH ARE NAMED, because a suite run that describes a tree
+that no longer exists is worse than no run at all.**
+
+1. A COMMENT in `moving.js` replacing hand arithmetic with the measured timetable (§6). No
+   behaviour moves.
+2. **THE STREET-LAMP GUARD** in `city.js` (§5), which is behaviour — and it is admissible without a
+   re-run for the reason STATE 53 §5.1 admits the terrain variant: **it fires only where
+   `cityExtentAt` is 0, which is past 3232 m, and no gate reaches there.** `citycheck`'s surface
+   census is a 1280 m square at the origin, `lookcheck` stands in the origin block, and all four
+   `perfcheck` routes run within 900 m of it. The predicate is `continue` inside a loop whose other
+   two guards are the same shape, so inside the gates' region it is provably a no-op.
+
+`parsecheck` was re-run on both.
+
+### 7.1 CITYCHECK — THE IDENTICAL FOUR, AND EVERY NEW THING THIS SESSION BUILT IS CLEAN
+
+```
+  clumping CV 0.389 against 0.60 — session 53 read 0.388/0.389. THE GRAVES ARE A `feature`
+    AND NOT A PROP, which is why. 100 chunks, 100% populated, objects/chunk 12 to 92.
+  2 of 2666 sign quads inside a building — the same two, six sessions
+  4 delivered overlaps — THE IDENTICAL FOUR (planter x lamp:column, colonnade:pier x
+    sign:blade, adpillar x planter, sign:blade x pylon)
+  1004 of 284 382 walkable samples on bare earth (0.40 ha) — IDENTICAL to sessions 52 and 53
+  0 forbidden overlaps among the GENERATOR's own claims
+  342 instanced meshes, 342 labelled, 0 not; 0 whose label does not sum to their instance count
+  generator claims 17 655, delivered 18 082 — session 53 read 17 046 / 17 646, so this session
+    added 609 claims and 436 delivered boxes and broke none of them
+  negative space 17.0% of chunks low-detail, 9 kinds
+  bright reserve 6.67% against 6.00 — GREEN. saturation 3.42% pooled peak against 12
+  city arrived over 3484 frames / 19 894.7 ms at load1 5.40 — inside the wall-clock bound
+```
+
+**THAT IS THE HEADLINE OF THE SESSION'S HYGIENE:** ~500 new lights, 630 headstones a churchyard,
+rolled heights and materials on every program mass, a stopped lattice and a rebuilt train, and the
+occupancy registry reports **exactly what session 52 and 53 shipped**. Four claim defects were
+introduced and all four were caught by `citycheck` on the first run of the content — §1.2 lists
+them, because a gate that catches something is worth more written down than a session that never
+broke anything.
+
+### 7.2 LOOKCHECK — THE IDENTICAL THREE
+
+```
+  distinct:midnight|dusk   0.02953 against 0.03000, 0.98x the floor — §2, re-derived in LOOK.md §7
+  facadeAlbedo:dusk        3 clusters over 5 walls against 4
+  facadeNeighbours:dusk    2 of 3 adjacent pairs
+```
+
+**AND THE FIRST OF THOSE DID NOT MOVE AT ALL.** Session 53's lit reading was 0.02953 and this
+session's is 0.02953, on an instrument whose own run-to-run spread on this band is **0.00001**. So
+~500 new near-city lights are worth **nothing** to it. What moved it in session 53 was a kilometre
+of silhouette standing in front of sky, which is the mechanism §6.1.1 of that document measured.
+All six pair distances are in LOOK.md §7.
+
+### 7.3 PERFCHECK — FOUR ROUTES, AND THE TWO NUMBERS THIS SESSION COST
+
+**`load1` was 5.44 at the start of this gate.** CONTRACT §0.2: a GREEN absolute under load is a
+verdict because drift here is one-sided; a RED one is not.
+
+```
+                    draws  s53    tris   tris s53   instances  wall p95   cpu p95
+  highway_speed       398  398   2.29M     2.28M     327 387   13.40 ms  12.00 ms
+  downtown_dense      320  320   2.01M     2.01M     250 759   27.40     26.00
+  night_rain          319  319   1.98M     1.97M     307 149   28.70     27.20
+  player              309    —   1.96M         —     250 759   27.10     25.80
+```
+
+**THE TWO NUMBERS THE WHOLE SESSION COST ARE +0 DRAW CALLS AND +0.01 M TRIANGLES.** Every fixture
+this session added rides in a mesh that already existed — the lights and the graves are boxes in
+the chunk's own `masses`, the program rolls change dimensions and not counts, and the lattice stop
+REMOVES geometry. 2.29 M against a `ceilings.triangles` of 2 360 000 leaves **70 000**, and the
+next session should read that as the real remaining figure.
+
+**FIFTEEN VIOLATIONS, AND ONLY THE COUNTS ARE READABLE.** Every frame-time red is at `load1` 5.44
+and says nothing under §0.2. The four that are not frame times:
+
+- **`downtown_dense` frame entropy is GREEN at 5.215**, where session 53 read 4.880 against a floor
+  of 5 and called it *"not resolvable by this instrument as configured"*. Three runs
+  [5.215 5.201 5.224], spread 0.023 against session 53's 0.42. **Do not read that as a repair** —
+  nothing in this session touched the histogram of that route, and the honest reading is that the
+  estimator's spread is what session 53 said it was.
+- **`night_rain` mean luminance 0.0797 against a floor of 0.08 — NEW, AND IT IS CONTRACT §0.1's OWN
+  INCIDENT.** Per-run means [0.0797 0.0949 0.0786], **spread 0.0163 against a margin of 0.0003**.
+  The margin is **1.8% of the spread**, and the assertion is made on ONE run rather than pooled.
+  That is a straddle, not a finding, and it is the same shape as the `downtown_dense` wall p95 that
+  produced rule 6. **It is not attributable to this session without a paired run and none was run.**
+- **`player` worst froxel 61 of 96, margin 35 < 40**, where session 53 read 57 and a margin of 39.
+  A count, so §0.2's load caveat does not apply. **This session put two more lights in every block
+  and the player route stands in one**, so this IS attributable and the direction is expected. It is
+  4 slots further from the floor than session 53's and the next session should treat the froxel
+  margin as a cost this session spent.
+- **`highway_speed` silhouettes: 55% of 65 vehicles non-monotone (min 75%) and 69% with a dark
+  ground gap (min 75%).** Session 53 read 60% of 68 on the first; session 49 measured the population
+  moving 55–74 across four runs of one session. `budget.json` → `silhouettes.$estimator` already
+  derives why a single reading is not a verdict: the sample is whichever subjects are in frame at
+  the pose. **SIX SESSIONS UNACTED.**
+
+---
+
+## 8. WHAT TO DO FIRST NEXT TIME
+
+1. **ITEM 2a — PEDESTRIANS CANNOT LEAVE THE GROUND PLANE, AND IT IS THE OPERATOR'S OLDEST UNBUILT
+   WISH.** NOT BUILT this session and the reason is scope, not doubt. What was established before
+   deciding, which is what the brief asked for:
+
+   - **`city.walkableAt(x, z, pad)` HAS NO `y` IN IT AT ALL.** It is a 2-D predicate over four
+     blocker lists — buildings, landmark ground blockers, the origin block, the water — and it
+     answers *"is this column free"*. There is nothing in it to extend; a level is a concept it does
+     not have.
+   - **`streetlife.js` IS ALLOCATED PER CHUNK BY `footfallWeight`** and every agent's `y` comes off
+     the ground. `PED_RING` is 1 and `SIM_RADIUS_M` is 120.
+   - So the change is a **DECK**: a walkable surface with a height, a footprint and a way on. An
+     agent gains a `deck` field (null = ground), its `y` comes off the deck's top, its destinations
+     are on the deck, and its movement stays 2-D within the deck's footprint. The station's platform
+     at 22.72 m is the first one and the stair cores are the ways on. **Estimate: streetlife's
+     allocator, its destination table and its instance write, plus one new record in `city.js`.**
+   - The train now STOPS at that platform (§6), so the thing people would be riding is there.
+
+2. **ITEM 5(c) — EVERY BLOCK IN THE WORLD IS THE SAME SIZE, MEASURED.** §4.4. 128 blocks, 2 distinct
+   lengths, and one of the two is a single outlier. The cheap repair is NOT the lattice: it is
+   splitting an island into two parcels with a service lane, so the grid reads as two block sizes
+   without moving one road. That is a change to the perimeter frontage walk and to `DEAD_ZONE`'s
+   core, and it is the largest single thing left that the operator has named.
+
+3. **ITEM 3 — THE DOME HAS NO WAY IN.** NOT BUILT. The design is specified and costed rather than
+   half-built, because the brief said to finish fewer completely:
+
+   - **`LANDMARK_APRON` gains `approach`, `dropOff` and `portico`.**
+   - **The approach is radial `path` rectangles on the four CARDINAL bearings** — a geometric
+     constraint and not a choice, because every ground rectangle in this project is axis-aligned and
+     a radial at 37° would be a diagonal drawn as a comb.
+   - **Claimed BEFORE the boundary run**, which makes the gates free: `feature × path` is forbidden,
+     so every boundary bay a path crosses is refused and the railing has an opening exactly where an
+     approach arrives, without either routine knowing about the other.
+   - **The drop-off is a row of `DEAD_ZONE` bays** at the outer end of the first approach, probed as
+     `ground` exactly as `bayRows` probes a hospital's.
+   - **The front is a porte-cochère**: a `canopy` feature (a roof on columns, session 49's own
+     vocabulary), 16.0 × 13.0 m at 5.4 m — three car lengths long, one bay plus a footway deep, and
+     high enough for a van. `canopy` and NOT `building`, which is `placeMass`'s own lesson.
+   - `condenser` takes ONE approach and no portico: a works compound has a gate, not a forecourt.
+
+4. **THE 8 km MAIN STREET IS THE ONLY ROAD THAT LEAVES THE GRID, AND NOBODY DECIDED THAT.** §5.
+   `block.js` draws it as one `groundExtent * 2` plane, so now that the lattice stops it is the one
+   thing running from the city out to the world's rim. Either give it an end, or make it the first
+   road that leaves — which is the brief's own item 6 and is now, for the first time, a change with
+   a boundary to leave FROM.
+
+5. **THE ATMOSPHERE AT 1500 m IS BROWN SOUP.** STATE 53 §7 item 3, untouched.
+
+6. **THE TURNING HEAD** (STATE 52 §7 item 1) and **THE 47 m OF LANE ON PAVEMENT** (item 2), both
+   still untouched.
+
+7. **`SURFACE_TOP_M`'s DERIVATION IS FALSE BY 3.2×.** STATE 53 §5.2, untouched. The verdict is
+   unchanged; the comment states a range the code contradicts.
+
+8. **THE VEHICLE SILHOUETTE BAR, SIX SESSIONS UNACTED** — 60% of 68 against a 75% floor at session
+   53. `budget.json` → `silhouettes.$estimator` already derives why a single reading is not a
+   verdict.
+
+9. **THE APRON STAIRCASE'S RESIDUE.** Still 0.40 ha of bare walkable ground, 1004 of 284 382
+   samples, **identical to sessions 52 and 53 to the sample**.
+
+10. **CLUMPING IS UNMOVED AT 0.389 AGAINST 0.60 FOR SEVENTEEN SESSIONS.** STATE 53 §7 item 9's
+   experiment — *"a window at 2300 m would move it"* — is STILL NOT RUN, and this session made it
+   more interesting rather than less: §5 empties everything past 3232 m completely, so a window out
+   there is now a window over a genuine edge rather than over a thinning field.
+
+11. **HOIST THE BUILDING CLAIMS IN `buildChunkBody`** — session 47's item 1, still what blocks facade
+    clutter. **THE ARENA** (STATE 49 §4). Both still unspent.
+
+12. **`decodePNG` RETURNS THREE BYTES PER PIXEL.** STATE 52 §2.2, and it cost that session a whole
     plausible and entirely wrong table.

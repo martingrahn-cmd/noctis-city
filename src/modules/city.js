@@ -54,6 +54,7 @@ import { EMITTER_CHROMA, luminance, normaliseLuminance } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
   CITY,
+  cityExtentAt,
   generateChunk,
   chunkBounds,
   chunkKey,
@@ -4906,6 +4907,32 @@ export function createCity(options = {}) {
            * river test, same list the registry claims from.
            */
           if (landmarkOccupies(spot.x, spot.z, 0.6)) continue;
+          /**
+           * AND A LAMP PAST THE CITY'S OWN EDGE IS A LAMP ON BARE EARTH —
+           * SESSION 54, AND IT IS THE SAME SENTENCE AS THE TWO ABOVE IT.
+           *
+           * `lampStationsFor` is arithmetic on the chunk lattice and emits
+           * twenty stations a chunk wherever the ring reaches. That agreed
+           * with the drawn road for fifty-three sessions only because the
+           * drawn road never stopped; this session made `generateChunk` emit
+           * no lattice past `CITY.extentEdgeM`, so from x = 3232 outward the
+           * stations are correct arithmetic over ground that has no street on
+           * it. Seen in `s54-rim-after-t0_5-wet.png` before this line existed:
+           * a grid of columns standing in the open with nothing under them,
+           * which is the operator's own session-46 report at the weir.
+           *
+           * Same predicate as `traffic.js`'s `seed` and recycle pass, and the
+           * same predicate `generateChunk` gates the lattice on — one
+           * statement about where the city is, in every place that asks.
+           *
+           * WHAT IS LEFT OUT THERE, AND IT IS A FINDING RATHER THAN A
+           * LEFTOVER: `block.js` draws its MAIN STREET as a single
+           * `groundExtent * 2` plane, so one 8 km arterial runs past the
+           * city's edge to the world's rim. It is authored, it is the only
+           * road in this world that leaves the grid, and it is unlit from here
+           * out. STATE 54 §8 says what to do with it.
+           */
+          if (cityExtentAt(spot.x, spot.z) <= 0) continue;
           const yawJitter = (((spot.x * 31 + spot.z * 17) % 100) / 100 - 0.5) * 1.6;
           /**
            * THE FAR KERB'S POLE IS TURNED ROUND — session 45. The column mesh
