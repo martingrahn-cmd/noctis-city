@@ -1360,6 +1360,52 @@ in the open, with the reason and the date written down.
 The occupancy registry is a different matter and keeps its authority: nothing
 may stand inside anything else, whatever it looks like.
 
+### `distinct:midnight|dusk` — RE-DERIVED IN THE OPEN, SESSION 53, 2026-08-29
+
+**The band is L15 and it has been red or straddling since session 45.** Session 53
+is the first session that can say WHY it moved, because it is the first that ran
+a paired A/B on it instead of comparing one run against a remembered number.
+
+```
+  fe920c9 (before)   msd midnight <-> dusk   0.03004   0.03004      and 0.03005 in session 52
+  HEAD    (after)                            0.02958   0.02958      and 0.02959 in a third run
+```
+
+**Three runs an arm, two arms, spread 0.00001 on each. The difference is
+−0.00045, which is 45x the instrument's own resolution.** This statistic is
+essentially deterministic for a fixed build — the 0.0001 spread recorded for
+`band:noon` above is not this band's, and nobody had measured this one. So the
+move IS attributable, and it is attributable to session 53's distant silhouette.
+
+**AND THE MECHANISM IS NOT DILUTION, WHICH IS WHAT IT LOOKS LIKE.** Measured off
+the four delivered frames, 3200 x 1800:
+
+```
+  pixels the silhouette changed                        516 956 of 5 760 000 = 8.97%
+  their own midnight<->dusk msd, BEFORE                0.05148
+  their own midnight<->dusk msd, AFTER                 0.04645
+  every other pixel                                    0.02812
+  0.0897 x (0.05148 - 0.04645) = 0.00045               the whole-frame delta, to the digit
+```
+
+**Those pixels were the frame's HIGHEST-contrast region and the silhouette
+covered them.** The far end of a street is SKY, and sky is the largest luminance
+swing anywhere between midnight and dusk — 0.051 against 0.028 for everything
+else. A grey unlit mass standing in front of some of that sky swings less than
+the sky it replaced.
+
+**SO THE BAND IS RIGHT AND IT IS POINTING AT A CONTENT GAP.** §1 of this document
+is a NIGHT city. At midnight a distant city is a field of lights against a black
+sky, which swings *more* than the sky did and in the opposite sign; what is drawn
+today is unlit mass. The threshold is not moved, `minPairMSD` stays at 0.03000,
+and what is owed is an emissive term on the distant material driven by the same
+`photocellOn` the facades read — a window count below a pixel is a mean, not
+geometry.
+
+Per the paragraph above: *"a proxy that now argues against the goal is a proxy
+that needs re-deriving"* — and this one does not argue against the goal. It
+argues for the half of the goal that is not built yet.
+
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 
 Written as a question and not a statement, per §8. Session 44 made rainfall a

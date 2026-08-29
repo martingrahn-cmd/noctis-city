@@ -357,7 +357,10 @@ function beyond() {
     ${rpad('0', 8)} m   the camera
     ${rpad(f(geoNear, 0) + '-' + f(geoFar, 0), 8)} m   THE LAST BUILDING AND THE LAST SQUARE METRE OF ROAD.
     ${rpad(f(E, 0), 8)} m   the earth plane's own edge
-    ${rpad(f(E - geoFar, 0), 8)} m   OF BARE EARTH BETWEEN THEM — ${f((E - geoFar) / geoFar, 1)}x the whole width of the drawn city.
+    ${rpad(f(E - geoFar, 0), 8)} m   OF BARE EARTH BETWEEN THEM — ${f((E - geoFar) / geoFar, 1)}x the distance from
+                the eye to the last building. (Against the city's full WIDTH of
+                ${f((2 * CITY.geometryRadius + 1) * s, 0)} m it is ${f((E - geoFar) / ((2 * CITY.geometryRadius + 1) * s), 2)}x — both are printed because a half-width
+                and a width are the two lengths CONTRACT §9 is a list of.)
 
   THAT ${f((E - geoFar) / 1000, 2)} km IS THE DEFECT, and it is a ratio rather
   than a distance: the drawn city is ${f((2 * CITY.geometryRadius + 1) * s / 1000, 2)} km
