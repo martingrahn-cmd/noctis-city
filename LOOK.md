@@ -1058,6 +1058,66 @@ is judged from about 1.7 m.
   Five of the six pairs clear that floor by 0.02 to 0.17 and this one has never
   cleared it by more than **0.00007**, against an instrument that resolves
   0.00001. It is §7's case exactly, and STATE 45's list carries it.
+
+  **RE-MEASURED IN SESSION 52 BECAUSE THE OPERATOR SAID IT AGAIN, AND SESSION
+  45's REPAIR HOLDS.** The brief supposed the carriageway had lifted to the tone
+  of the courtyard beside it, and offered wet asphalt as the mechanism. Measured
+  on a NADIR frame over a street section — so a scanline IS the section, every
+  surface at one distance, one incidence and one sun — 240 rows averaged against
+  the ±10 cv procedural grain, at noon:
+
+  ```
+                          dry        wet      authored albedo
+    courtyard  core     122.3      96.1       [0.105,   0.102,   0.096]
+    carriageway concrete 138.1     116.6      [0.11714, 0.11714, 0.11405]
+    pavement   walk     174.0      152.3      [0.260,   0.257,   0.248]
+
+    pavement − carriageway   +35.9      +35.7     albedo ratio 2.198×
+    carriageway − courtyard  +15.8      +20.5     albedo ratio 1.144×
+  ```
+
+  Session 45 predicted 47 and delivers **35.9**, against the 14 it called *"not
+  a road"*. **The wet arm is 0.2 cv different on the pavement step and 4.7 cv
+  WIDER on the other**, so wetness is not the mechanism: `SURFACE.wetDarkening`
+  multiplies every diffuse by the same 0.5 and preserves the ratio. The strip he
+  photographed also carries **fifteen markings** — a centre line, two lane lines
+  and two edge lines — and a kerb riser on both sides. **What is wrong at that
+  pose is not the material and not the furniture; it is that the street is
+  26.8 m long.** The next bullet.
+- **A STREET ENDS LIKE A STREET ENDS — SESSION 52, AND UNTIL THEN THERE WAS NO
+  CONCEPT OF ONE.** Session 51 counted **63 cut ends over 202 delivered
+  carriageway pieces** and a repo-wide search for `cul-de-sac | dead end |
+  turning head | turning circle | roundabout | terminat` returned two incidental
+  lines, neither about a road. A road ended because a rectangle got guillotined:
+  it stopped at grade against whatever refused it, with no kerb, no footway and
+  no transition, and became a courtyard at 0.105 or a landmark's apron at 0.26.
+  Standing in one of those, the 15 m of carriageway reads as a bay in a plaza —
+  which is what the bullet above is really about, one level in.
+
+  **THE 63 SHARE A SHAPE, so the general rule was owed and not the roundabout**:
+  by the width of the carriageway across the cut, **49 of 63 are the full
+  15.0 m** and the rest are 12.0, 10.0, 4.3 and 3.0. So the footway that runs
+  along both sides now turns the corner and closes across the end — the same
+  surface, the same 4.2 m, the same datum, taken out of the carriageway's own
+  last 4.2 m so that nothing is added to the world (road 38.0723 → 37.8402 ha,
+  pavement 16.7370 → 16.9691 ha, the sum identical to four decimals). It brings
+  a 0.16 m kerb riser across the end, which at the step measured above is the
+  second most contrasty line in the street after the paint. 40 built, 4 declined
+  because the street would have been left shorter than it is wide.
+  `tools/shot-out/s52-strip-{before,after}-t0_6628-wet.png`.
+
+  **WHAT IS STILL MISSING IS THE TURNING HEAD.** A vehicle cannot turn round at
+  one of these, and the question *"what does a street that goes nowhere look
+  like from a car"* is unanswered.
+- **A RAILING IS POSTS AND A TOP RAIL, AND FOR 479 BAYS IT WAS POSTS —
+  SESSION 52.** The two horizontals sat at 0.50 and 0.62 of a standard that
+  reaches 1.00, so the weir's 1.10 m railing had **0.42 m of bare post above its
+  top rail** and the school's 1.60 m fence had 0.61 m. The eye reads a railing by
+  its top line. Every sibling in the same vocabulary caps its own standards —
+  `rail` at 0.86 of 0.90, `mesh` at 0.98 of 1.00, `palisade` at 0.80 with pales
+  to 0.96 — and this one stopped two thirds of the way up. 93 of the 479 are the
+  ring round the weir's nine-metre drop.
+  `tools/shot-out/s52-rail-close-{before,after}-t0_5.png`.
 - **Parks and planting.** Green in a dense city is punctuation — small squares,
   a strip of trees, a fenced garden between two blocks. Parks exist as a block
   type; they read as dark empty ground at night.
