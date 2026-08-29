@@ -8,7 +8,7 @@
     "dev": "vite --port 5173",
     "build": "vite build",
     "preview": "vite preview --port 5173",
-    "gates": "npm run parsecheck && npm run faultcheck && npm run lookcheck && npm run windcheck && npm run inputcheck && npm run gateaudit && npm run citycheck && npm run perfcheck",
+    "gates": "node tools/rungates.mjs",
     "parsecheck": "node tools/parsecheck.mjs",
     "faultcheck": "node tools/faultcheck.mjs",
     "lookcheck": "node tools/lookcheck.mjs",
