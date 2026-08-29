@@ -7473,6 +7473,14 @@ export function generateChunk(rootSeed, cx, cz) {
    * instead of two.
    */
   const ground = [];
+  /**
+   * SESSION 52. Street ends this chunk DREW, and ends it declined because the
+   * street would have been left shorter than it is wide. Counted for the
+   * reason `propsGaveUp` is: a bounded treatment nobody prints reads as
+   * "every end was finished". `own` strips only — the two a chunk draws —
+   * so summing over a region counts each end once.
+   */
+  const streetEnds = { built: 0, tooShort: 0 };
   {
     const r = CITY.roadHalfWidth;
     const w = CORRIDOR;
@@ -7530,6 +7538,144 @@ export function generateChunk(rootSeed, cx, cz) {
       { own: false, kind: 'walk', yKey: 'walkEW', x0: b.x0, z0: b.z1 - w, x1: b.x1, z1: b.z1 - r, axis: 'EW' },
     ];
     const blockers = solid();
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE STREET END — SESSION 52, AND UNTIL NOW THERE WAS NO CONCEPT OF ONE
+     * ANYWHERE IN THIS CODEBASE.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * STATE 51 §4 measured it and handed it over: **63 cut ends over 202
+     * delivered carriageway pieces**, and a repo-wide search for
+     * `cul-de-sac | dead end | turning head | turning circle | roundabout |
+     * terminat` over `src/`, `tools/` and `docs/` returned two incidental
+     * lines, neither about a road. **A road ends because a rectangle got
+     * guillotined and nothing in the project knows it happened.** The
+     * carriageway simply stops, at grade, against whatever refused it — a
+     * courtyard at 0.105, a precinct at 0.26, the origin block's core — with
+     * no kerb, no footway and no transition. That is the operator's *"no kerb
+     * reads"* and it is why a 15 m street reads as a bay in a plaza.
+     *
+     * ITEM 4a ASKED WHETHER THE 55 SHARE A SHAPE BEFORE ANYTHING WAS BUILT,
+     * AND THEY DO. Re-measured this session over `citycheck`'s 10 x 10 at seed
+     * 1337, by the width of the carriageway across the cut:
+     *
+     *     15.0 m   49        the full lattice carriageway, 2 x roadHalfWidth
+     *     12.0 m    4
+     *     10.0 m    4
+     *      3.0 m    4
+     *      4.3 m    2
+     *
+     * **49 of 63 — 77.8% — are a full-width carriageway stopping dead**, and
+     * what is one metre beyond them is 24 nothing (the river's dry margin),
+     * 22 a landmark precinct, 8 the origin block, 7 a landmark's own solid and
+     * 2 the water. So the GENERAL RULE is what is owed, not the roundabout,
+     * and this is it.
+     *
+     * WHAT A STREET END IS, AND EVERY LENGTH IN IT IS ALREADY IN THIS FILE.
+     * The footway that runs along both sides of the street TURNS THE CORNER
+     * and closes across its end. It is the same surface, the same
+     * `CITY.sidewalkWidth` = 4.2 m, the same datum and the same reflectance as
+     * the two it joins — it is not a new object, it is the one that is already
+     * there, finished. Nothing is added to the world: the band is taken out of
+     * the carriageway's own last 4.2 m, so the ground area is unchanged to the
+     * square metre and the only thing that moves is which of two existing
+     * kinds a rectangle is.
+     *
+     * AND IT BRINGS A KERB, WHICH IS THE HALF THAT READS. `city.js` emits a
+     * 0.16 m riser for every `walk` rectangle, so an end footway puts a
+     * VERTICAL FACE across the end of the street — STATE 50's own rule that a
+     * `walk` rect has HEIGHT and therefore reads — with the pavement's 0.26
+     * albedo behind it against the carriageway's 0.117. Measured this session
+     * on a nadir frame at noon, 240 rows: **the pavement delivers 35.9 code
+     * values above the carriageway dry and 35.7 wet.** A street end is now the
+     * second most contrasty line in the street after the paint.
+     *
+     * THE KERB EDGE IS DECLARED AND NOT DERIVED, AND IT HAS TO BE. `city.js`
+     * infers which edge of a `walk` rect carries the riser from the nearest
+     * LATTICE LINE, which is right for a footway running beside a road and
+     * meaningless for one lying across it: a street end is not on a lattice
+     * line, so the inference would pick whichever edge happened to be nearer
+     * an arbitrary multiple of 128. So the rectangle says. See `buildGround`.
+     *
+     * THE ONE GUARD, AND IT IS A LENGTH FROM THIS FILE TOO. A street that
+     * would be left shorter than it is wide is not a street with an end, it is
+     * a bay — so the treatment is skipped where the remainder would fall under
+     * `2 * CITY.roadHalfWidth` = 15.0 m. The shortest piece at a cut end in
+     * the region is **0.7 m**; the median is 69.5 m. What is skipped is
+     * counted rather than assumed — `chunk.streetEnds` carries `built` and
+     * `tooShort`, for the reason `propsGaveUp` exists: a bounded treatment
+     * nobody prints reads as "every end was finished".
+     *
+     * WHAT THIS IS NOT: a turning head. A vehicle still cannot turn round at
+     * one of these, and widening the carriageway into a T bar is a second
+     * change that takes ground the registry has already given to something
+     * else — at the weir the head has to go where the claim is not, and item 1
+     * of this session made that claim one footway BIGGER. It is STATE 52 §6.
+     */
+    const END_EPS = 0.05;
+    const streetEnd = (piece, s) => {
+      if (piece.kind !== 'road') return [piece];
+      const ns = s.axis === 'NS';
+      const s0 = ns ? s.z0 : s.x0;
+      const s1 = ns ? s.z1 : s.x1;
+      let p0 = ns ? piece.z0 : piece.x0;
+      let p1 = ns ? piece.z1 : piece.x1;
+      /**
+       * AN END AT A JUNCTION IS A T, AND A T NEEDS NO TREATMENT — AND THE
+       * FIRST ARM BUILT ONE ANYWAY AND THE LANE PROBE PRINTED IT.
+       *
+       * An end footway is `CITY.sidewalkWidth` deep along its street and the
+       * FULL carriageway wide across it, so one built inside a crossing
+       * street's corridor lies ACROSS that street's driving lanes. Measured on
+       * the driving lanes off `worldSurfaceAt`, ±512 m at 1 m, against exactly
+       * the three tests `traffic.js`'s recycle pass makes: session 51's city
+       * had **0 m** of lane on something that is not a carriageway and this
+       * put **156 m** there — 20 stretches, the largest of them **15.0 m**,
+       * which is the crossing carriageway's own full width and is the
+       * signature. Every metre of it was this.
+       *
+       * `CORRIDOR` = `roadHalfWidth + sidewalkWidth` is the half-width of the
+       * street a junction is made of, so an end inside it is an end AT the
+       * junction — which is a road meeting a road, and a road meeting a road
+       * already ends the way a street ends. The treatment is for a road
+       * meeting something impassable.
+       */
+      const atJunction = (t) => {
+        const n = Math.abs(t - Math.round(t / CITY.chunkSize) * CITY.chunkSize);
+        return n < CORRIDOR + CITY.sidewalkWidth;
+      };
+      const cuts = [];
+      if (p0 > s0 + END_EPS && !atJunction(p0)) cuts.push(-1);
+      if (p1 < s1 - END_EPS && !atJunction(p1)) cuts.push(+1);
+      if (!cuts.length) return [piece];
+      const wf = CITY.sidewalkWidth;
+      if ((p1 - p0) - cuts.length * wf < 2 * CITY.roadHalfWidth) {
+        return [{ ...piece, endTooShort: cuts.length }];
+      }
+      const out = [];
+      for (const dir of cuts) {
+        const a = dir < 0 ? p0 : p1 - wf;
+        const bEnd = dir < 0 ? p0 + wf : p1;
+        out.push({
+          ...piece,
+          kind: 'walk',
+          // The datum of the two footways this one joins, so the whole footway
+          // round a street end is one surface at one height.
+          yKey: ns ? 'walkNS' : 'walkEW',
+          [ns ? 'z0' : 'x0']: a,
+          [ns ? 'z1' : 'x1']: bEnd,
+          // The riser stands on the edge that faces the carriageway.
+          kerbAxis: ns ? 'z' : 'x',
+          kerbAt: dir < 0 ? bEnd : a,
+          kerbDir: -dir,
+          owner: 'road:end',
+          endLine: true,
+        });
+        if (dir < 0) p0 += wf; else p1 -= wf;
+      }
+      out.push({ ...piece, [ns ? 'z0' : 'x0']: p0, [ns ? 'z1' : 'x1']: p1 });
+      return out;
+    };
     for (const s of strips) {
       /**
        * THE RIVER'S TWO ANSWERS, KEPT — they are not a clip against a box and
@@ -7580,9 +7726,13 @@ export function generateChunk(rootSeed, cx, cz) {
         }
       }
       for (const piece of subtractBoxes(pieces, blockers)) {
-        if (s.own) ground.push(piece);
-        reg.claim(claimBox(piece.kind === 'road' ? 'carriageway' : 'pavement',
-          piece.x0, piece.z0, piece.x1, piece.z1, { owner: `road:${piece.yKey}` }));
+        for (const part of streetEnd(piece, s)) {
+          if (s.own) ground.push(part);
+          reg.claim(claimBox(part.kind === 'road' ? 'carriageway' : 'pavement',
+            part.x0, part.z0, part.x1, part.z1, { owner: part.owner || `road:${part.yKey}` }));
+          if (part.endLine && s.own) streetEnds.built++;
+          if (part.endTooShort && s.own) streetEnds.tooShort += part.endTooShort;
+        }
       }
     }
   }
@@ -11582,6 +11732,8 @@ export function generateChunk(rootSeed, cx, cz) {
     coreGateSegments,
     /** What the keep-out registry refused, by the category that refused it. */
     refused,
+    /** Session 52. Street ends drawn, and ends declined as too short. */
+    streetEnds,
     /**
      * SESSION 38. Every stage of the frontage chain, counted in the walk that
      * performs it — see `frontage` above for what each field is and for the

@@ -1917,8 +1917,40 @@ const BODY_TYPES = LOFT.map(loftBody);
  * `half·cos θ` along instead of `half`. The recycler exempts turning vehicles
  * anyway (`if (veh.turn) continue`), so nothing is lost that was there.
  */
+/**
+ * ONE FOOTWAY BEYOND THE NOSE — SESSION 52, AND IT IS THE TRAFFIC HALF OF THE
+ * STREET END.
+ *
+ * `citygen.js`'s `streetEnd` turns the last `CITY.sidewalkWidth` of a cut
+ * carriageway into a footway with a kerb across it, which is what a street
+ * end is. The road therefore now STOPS one footway short of whatever refused
+ * it — and these three points did not know that, so a vehicle drove the last
+ * 4.2 m of every dead end **on the pavement** before its nose reached the
+ * claim and recycled it. Measured off `worldSurfaceAt` on the driving lanes
+ * themselves, ±512 m, 1 m steps, against exactly the three tests the recycle
+ * pass makes: **28 stretches, 202 m, 0.55% of the driven lane length, and
+ * every one of them `walk`.**
+ *
+ * SO THE REACH IS `half + CITY.sidewalkWidth` AND NOT A PAD, for the reason
+ * the paragraph above already gives: a pad applies to BOTH axes and would
+ * refuse 4.2 m of road across every lane as well as along it. This extends the
+ * two probe points ALONG the body's own axis and touches nothing across it.
+ * The blocker and the footway coincide by construction — the road is clipped
+ * against the same claim `landmarkOccupies` tests, and the footway is the
+ * 4.2 m immediately inside that clip — so a nose stopped here is a nose
+ * stopped at the kerb.
+ *
+ * SYMMETRIC, WHICH IS CONSERVATIVE AND NOT EXACT. The pair is ±, so a vehicle
+ * is refused one footway early on approach and one footway late on departure.
+ * Nothing departs a dead end it was never allowed into, and the recycler's
+ * whole job is refusing a body that has stopped being somewhere a vehicle can
+ * be — so the lenient half of the symmetry is unreachable and the strict half
+ * is the one that was owed.
+ */
+const BODY_REACH_M = CITY.sidewalkWidth;
+
 function landmarkUnderBody(x, z, axis, type) {
-  const half = BODY_TYPES[type].len * 0.5;
+  const half = BODY_TYPES[type].len * 0.5 + BODY_REACH_M;
   const ax = axis === 0 ? half : 0;
   const az = axis === 0 ? 0 : half;
   return landmarkOccupies(x, z)
@@ -1940,7 +1972,8 @@ function landmarkUnderBody(x, z, axis, type) {
  * boundary has five metres of itself inside it.
  */
 function blockUnderBody(x, z, axis, type) {
-  const half = BODY_TYPES[type].len * 0.5;
+  // `BODY_REACH_M` — session 52, the street end. See `landmarkUnderBody`.
+  const half = BODY_TYPES[type].len * 0.5 + BODY_REACH_M;
   const ax = axis === 0 ? half : 0;
   const az = axis === 0 ? 0 : half;
   return blockNoRoad(x, z)

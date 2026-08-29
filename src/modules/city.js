@@ -1436,6 +1436,25 @@ export function createCity(options = {}) {
       quad(g.x0, g.z0, g.x1, g.z1, y, albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
       // The kerb upstand. See `riser` above for why only this one edge.
       if (g.kind !== 'walk') continue;
+      /**
+       * A DECLARED KERB EDGE — SESSION 52, AND IT IS THE STREET END.
+       *
+       * The derivation below reads the nearest LATTICE LINE, which is exactly
+       * right for a footway running BESIDE a road — every one of them is on a
+       * chunk boundary — and meaningless for one lying ACROSS the end of one.
+       * A street end is wherever a guillotine put it, so the inference would
+       * pick whichever edge happened to be nearer an arbitrary multiple of
+       * 128 m and would be right half the time. `citygen.js`'s `streetEnd`
+       * therefore says which edge, and this is the one place that reads it.
+       * Every footway written before session 52 carries no `kerbAxis` and
+       * takes the branch below byte-identically.
+       */
+      if (g.kerbAxis) {
+        riser(g.kerbAxis, g.kerbAt,
+          g.kerbAxis === 'x' ? g.z0 : g.x0, g.kerbAxis === 'x' ? g.z1 : g.x1,
+          Y.roadNS, y, g.kerbDir, kerbAlbedo);
+        continue;
+      }
       const ns = g.yKey === 'walkNS';
       const [e0, e1] = ns ? [g.x0, g.x1] : [g.z0, g.z1];
       const centre = Math.round(((e0 + e1) / 2) / CITY.chunkSize) * CITY.chunkSize;
