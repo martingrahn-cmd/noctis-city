@@ -415,6 +415,65 @@ export const CITY = {
   lowDetailThreshold: 0.34,
 
   /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE CITY'S OWN EXTENT — SESSION 53, AND IT IS THE FIRST WORLD COORDINATE
+   * THIS GENERATOR HAS EVER READ.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * `tools/edgeprobe.mjs` measured what was here before these two numbers: over
+   * 27 345 samples on rings out to 4.10 km, the density field's inner third of
+   * rings reads **0.5066** and its outer third **0.4927**, a difference of
+   * 0.0140 against a ring-to-ring scatter of 0.0597. The same core-against-rim
+   * comparison over twelve seeds falls **7 of 12** with a mean delta of 0.0067.
+   * That is a coin, and it is what a field with no radial term looks like:
+   * `densityAt` was a function of the noise alone, so the city was uniform in
+   * every direction for ever and what ended it was `city.js`'s streaming square,
+   * which is 1408 m wide and travels with the eye.
+   *
+   * SO THE CITY HAD NO EDGE. It had a window. Session 53's brief asked how the
+   * density behaves "over the last third of the ring"; the answer is that there
+   * is no last third, because the ring is not a place.
+   *
+   * `extentCoreM` — inside this radius NOTHING MOVES, and that is the whole
+   * point of the number. It is a floor computed from what this project actually
+   * measures, not a preference:
+   *
+   *     chunks `citycheck` generates      cx, cz in [-5, 4]   corner  905.1 m
+   *     chunks resident at any waypoint   `highway_speed` at x = -820  1717.3 m
+   *
+   * — the worst is 1717.3 m, and 1717.3 / 128 = 13.42 chunks, so **14 chunks =
+   * 1792 m**. Every gate camera, every route and every chunk any of them
+   * generates is inside it, so this change is provably an ADDITION beyond the
+   * measured city and not an edit to it. `edgeprobe --extent` recomputes the
+   * floor and fails loudly if a new route ever puts a camera outside it.
+   *
+   * `extentEdgeM` — where the city is gone. Forced, not chosen:
+   *
+   *     BLOCK.groundExtent - (geometryRadius + 1) * chunkSize
+   *   = 4000 - 768 = 3232
+   *
+   * The earth plane is 4000 m of half-extent and it is fixed to the WORLD; the
+   * resident ring is 768 m of half-extent and it is fixed to the CAMERA. A
+   * camera standing at the city's own rim must have its whole ring on the plane
+   * or the city is drawn over a void — so the rim is exactly as far out as the
+   * plane's edge less the ring's own reach. 3232 m is where those two meet, and
+   * it is why this number cannot be nudged without moving the plane.
+   *
+   * THE BAND BETWEEN THEM IS WHAT THEY LEAVE: 3232 - 1792 = **1440 m**, which is
+   * exactly 2 x `densityPeriodLong`. That is an observation and not a
+   * derivation — but it is a checkable one, and it says the transition is two of
+   * the field's own largest features wide, so the edge carries the field's
+   * structure rather than being one smooth ramp.
+   *
+   * EUCLIDEAN AND NOT CHEBYSHEV. The rings in `city.js` are Chebyshev because a
+   * streaming square is one; a city is not. A Chebyshev extent would give the
+   * world four straight rims and four corners at 1.41x the radius, and the
+   * corner is exactly where an aerial looks.
+   */
+  extentCoreM: 14 * 128,
+  extentEdgeM: 4000 - 6 * 128,
+
+  /**
    * Maximum yaw deviation from the lot line, degrees. §3: the amounts are small.
    * A degree here, ten centimetres there. Large randomness looks broken.
    */
@@ -474,15 +533,61 @@ function smoothNoise(rootSeed, x, z, period, salt) {
 }
 
 /**
+ * HOW MUCH CITY THERE IS AT A WORLD POINT, in [0,1]. 1 inside the core, 0 past
+ * the rim, smoothstep between — see `CITY.extentCoreM` / `extentEdgeM` for where
+ * both radii come from and why neither is free.
+ *
+ * SMOOTHSTEP AND NOT A LINEAR RAMP, and it is the same `t*t*(3-2*t)` that
+ * `smoothNoise` twenty lines up is built from. A linear ramp has a corner at
+ * each end: the derivative jumps from 0 to its full value at exactly the radius
+ * where the core stops, so the first chunk outside the core is measurably
+ * thinner than the last one inside it and the core reads as a disc drawn on the
+ * map. Smoothstep leaves both ends flat, so the thinning begins as gently as it
+ * ends and no radius in the world is the one where it starts.
+ *
+ * IT IS A SEPARATE EXPORTED FUNCTION AND NOT AN EXPRESSION INSIDE `densityAt`
+ * because two things read it — the field below, and `city.js`'s distant
+ * silhouette, which must stop exactly where the field does or the two disagree
+ * about where the city is. CONTRACT §9.1: one description of one quantity.
+ */
+export function cityExtentAt(x, z) {
+  const r = Math.hypot(x, z);
+  if (r <= CITY.extentCoreM) return 1;
+  if (r >= CITY.extentEdgeM) return 0;
+  const t = (r - CITY.extentCoreM) / (CITY.extentEdgeM - CITY.extentCoreM);
+  return 1 - t * t * (3 - 2 * t);
+}
+
+/**
  * Density in [0,1] at a world point. The long octave carries two thirds of the
  * amplitude, so the structure a player reads while walking is the 720 m one and
  * the 190 m octave only breaks up its contours — a single octave gives density
  * bands with smooth curved edges, which is its own kind of tell.
+ *
+ * AND SINCE SESSION 53 IT IS MULTIPLIED BY THE CITY'S OWN EXTENT. The product
+ * and not the minimum: a suburb is not a downtown with its peaks clipped off,
+ * it is the same field at a lower amplitude, so a locally dense patch at 2.5 km
+ * is still denser than its neighbours and simply has less in it. `Math.min`
+ * would flatten the outer band to a constant and delete the field's structure
+ * exactly where the eye has nothing else to read.
+ *
+ * THE THRESHOLD DOES THE REST AND NOTHING NEW HAD TO BE WRITTEN. `generateChunk`
+ * already turns a chunk with `density < CITY.lowDetailThreshold` into one of the
+ * fifteen island kinds — a yard, a lot, a depot, allotments — so a field that
+ * falls toward a rim turns the outer band into exactly the low-detail landscape
+ * LOOK.md §2 spent session 40 giving content to. The gradient is not a new
+ * system; it is the existing one finally being asked a question that varies.
+ *
+ * WHY IT IS INSIDE THIS FUNCTION AND NOT AT THE THREE CALL SITES. There are
+ * three (`busStopAt`, `generateChunk`, `streetlife.js`), and a term applied at
+ * two of three is CONTRACT §9.1's own subject — one quantity with two
+ * descriptions, agreeing until they do not.
  */
 export function densityAt(rootSeed, x, z) {
   const a = smoothNoise(rootSeed, x, z, CITY.densityPeriodLong, 0);
   const b = smoothNoise(rootSeed, x, z, CITY.densityPeriodShort, 1);
-  return Math.max(0, Math.min(1, a * 0.68 + b * 0.32));
+  const d = a * 0.68 + b * 0.32;
+  return Math.max(0, Math.min(1, d * cityExtentAt(x, z)));
 }
 
 // ---------------------------------------------------------------------------

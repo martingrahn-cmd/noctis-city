@@ -46,7 +46,7 @@
  */
 
 import {
-  CITY, CORRIDOR, densityAt, generateChunk, chunkBounds,
+  CITY, CORRIDOR, densityAt, cityExtentAt, generateChunk, chunkBounds,
   LANDMARKS, landmarkAABB, riverEnvelope, BLOCK_KEEPOUT, LOW_DETAIL_KINDS,
 } from '../src/lib/citygen.js';
 import { GROUND, BLOCK } from '../src/core/constants.js';
@@ -64,7 +64,7 @@ const R = Number(args.get('radius') || 5);
 const FAR = Number(args.get('far') || 32);
 
 const ALL = !args.has('rings') && !args.has('field') && !args.has('grid')
-  && !args.has('beyond') && !args.has('walk');
+  && !args.has('beyond') && !args.has('walk') && !args.has('extent');
 
 const f = (n, d = 2) => n.toFixed(d);
 const pad = (s, n) => String(s).padEnd(n);
@@ -423,10 +423,107 @@ function walk() {
   console.log('  A transect that ran off the edge of a city would show these falling. Read them and see.');
 }
 
+
+// ---------------------------------------------------------------------------
+// 6. THE CITY'S EXTENT — THE FLOOR UNDER `extentCoreM`, RECOMPUTED.
+
+/**
+ * Every camera this project measures from, and the chunks each one makes
+ * resident. `extentCoreM` has to contain all of them or the extent is an EDIT
+ * to the measured city rather than an addition beyond it, and the two are not
+ * the same claim. Written here rather than asserted in a comment so that a new
+ * route with a waypoint further out is caught by running this.
+ *
+ * The waypoints are copied from `camera.js` -> ROUTES. THAT IS A SECOND COPY
+ * AND IT IS DECLARED AS ONE: `camera.js` is a module and this is a probe, and
+ * CONTRACT §2 forbids the import. What protects it is that the probe prints the
+ * copy, so a reader comparing the two is comparing numbers rather than trusting
+ * that they match.
+ */
+const MEASURED_CAMERAS = [
+  ['downtown_dense', [[330, 2.5], [150, 1.0], [40, -1.5], [-60, 1.5], [-170, -2.0], [-300, 0.5]]],
+  ['highway_speed', [[640, 3.0], [340, 0.0], [60, 2.0], [-220, -1.0], [-520, 2.0], [-820, 0.0]]],
+  ['night_rain', [[300, -2.0], [140, 1.5], [10, -1.0], [-120, 2.0], [-260, -1.5], [-400, 1.0]]],
+  ['SHOTS.street (lookcheck, citycheck)', [[70, 0.9]]],
+];
+/** The chunk square `citycheck` runs its placement assertions over. */
+const CITYCHECK_REGION = { cx: [-5, 4], cz: [-5, 4] };
+
+function extent() {
+  console.log('\n=== 6. THE CITY EXTENT, AND THE FLOOR UNDER IT ===\n');
+  const s = CITY.chunkSize;
+  const G = CITY.geometryRadius;
+
+  console.log('  (a) THE CHUNKS `citycheck` GENERATES\n');
+  const rc = Math.max(
+    Math.hypot(CITYCHECK_REGION.cx[0] * s, CITYCHECK_REGION.cz[0] * s),
+    Math.hypot((CITYCHECK_REGION.cx[1] + 1) * s, (CITYCHECK_REGION.cz[1] + 1) * s),
+  );
+  console.log(`      cx, cz in [${CITYCHECK_REGION.cx[0]}, ${CITYCHECK_REGION.cx[1]}] -> world corner at ${f(rc, 1)} m`);
+  console.log(`      plus CORRIDOR ${f(CORRIDOR, 1)} m of road reach            ${f(rc + CORRIDOR, 1)} m\n`);
+
+  console.log('  (b) THE CHUNKS RESIDENT AT EVERY MEASURED CAMERA POSITION\n');
+  console.log(`      ${pad('route', 38)}${rpad('x', 7)}${rpad('ring corner from origin', 26)}`);
+  let worst = rc + CORRIDOR;
+  let who = 'citycheck region';
+  for (const [name, wps] of MEASURED_CAMERAS) {
+    let best = 0; let bx = 0;
+    for (const [x, z] of wps) {
+      const ccx = Math.floor(x / s);
+      const ccz = Math.floor(z / s);
+      for (const a of [(ccx - G) * s, (ccx + G + 1) * s]) {
+        for (const b2 of [(ccz - G) * s, (ccz + G + 1) * s]) {
+          const m = Math.hypot(a, b2);
+          if (m > best) { best = m; bx = x; }
+        }
+      }
+    }
+    console.log(`      ${pad(name, 38)}${rpad(bx, 7)}${rpad(f(best, 1) + ' m', 26)}`);
+    if (best > worst) { worst = best; who = name; }
+  }
+
+  const floorChunks = Math.ceil(worst / s);
+  console.log(`
+  THE FLOOR IS ${f(worst, 1)} m (${who}), which is ${f(worst / s, 2)} chunks.
+  Rounded up to a whole chunk: ${floorChunks} chunks = ${floorChunks * s} m.
+
+  ${pad('CITY.extentCoreM', 22)}${rpad(CITY.extentCoreM + ' m', 10)}   ${CITY.extentCoreM >= worst ? 'CONTAINS THE FLOOR' : '*** BELOW THE FLOOR — a measured camera is outside the core ***'}
+  ${pad('CITY.extentEdgeM', 22)}${rpad(CITY.extentEdgeM + ' m', 10)}   = groundExtent ${BLOCK.groundExtent} - ring reach ${(G + 1) * s}
+  ${pad('the band between', 22)}${rpad((CITY.extentEdgeM - CITY.extentCoreM) + ' m', 10)}   = ${f((CITY.extentEdgeM - CITY.extentCoreM) / CITY.densityPeriodLong, 2)} x densityPeriodLong`);
+
+  if (CITY.extentCoreM < worst) {
+    console.log('\n  *** A CAMERA THIS PROJECT MEASURES FROM STANDS OUTSIDE THE CORE. Either the');
+    console.log('      core is too small or a route moved; the extent is no longer provably');
+    console.log('      additive and every gate number is a different city. ***');
+  }
+
+  console.log('\n  THE FALLOFF, SAMPLED:\n');
+  console.log(`  ${rpad('radius', 9)}${rpad('extent', 9)}${rpad('mean d', 9)}${rpad('sd', 8)}${rpad('< 0.34', 9)}${rpad('samples', 9)}`);
+  const STEP_M = 8;
+  for (let r = 0; r <= 4096; r += 256) {
+    const n = r === 0 ? 1 : Math.max(16, Math.round((2 * Math.PI * r) / STEP_M));
+    let sum = 0; let sq = 0; let low = 0;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const d = densityAt(SEED, Math.cos(a) * r, Math.sin(a) * r);
+      sum += d; sq += d * d;
+      if (d < CITY.lowDetailThreshold) low++;
+    }
+    const mean = sum / n;
+    const sd = Math.sqrt(Math.max(0, sq / n - mean * mean));
+    console.log(`  ${rpad(f(r, 0) + ' m', 9)}${rpad(f(cityExtentAt(r, 0), 3), 9)}${rpad(f(mean, 4), 9)}${rpad(f(sd, 4), 8)}${rpad(f((100 * low) / n, 1) + '%', 9)}${rpad(n, 9)}`);
+  }
+  console.log(`
+  READ THE LAST COLUMN BUT ONE. It is the share of the world at that radius that
+  is BELOW \`lowDetailThreshold\` — a yard, a lot, a depot, allotments — and it is
+  the gradient, expressed in the vocabulary the city already has.`);
+}
+
 console.log(`edgeprobe — seed ${SEED}, region radius ${R} chunks, transect ${FAR} chunks. NOT A GATE.`);
 if (ALL || args.has('rings')) rings();
 if (ALL || args.has('field')) field();
 if (ALL || args.has('grid')) grid();
 if (ALL || args.has('beyond')) beyond();
 if (ALL || args.has('walk')) walk();
+if (ALL || args.has('extent')) extent();
 console.log('');
