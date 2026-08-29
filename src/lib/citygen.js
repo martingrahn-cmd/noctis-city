@@ -4551,13 +4551,20 @@ export function landmarkGroundClaims(l) {
   const hit = landmarkGroundClaimCache.get(l);
   if (hit) return hit;
   const out = [];
+  /**
+   * ONE FOOTWAY, AND ONLY ROUND — SESSION 52. `landmarkClaimMargin` is 4.2 m
+   * for the four round landmarks and 0 for the other four, so every box below
+   * is the same box it was for a ziggurat, an arch, a viaduct leg and a mast.
+   * See `LANDMARK_SETBACK_M` for the whole derivation.
+   */
+  const m = landmarkClaimMargin(l);
   for (const o of landmarkOccluders(l)) {
     // A deck flies over the street rather than standing in it, and a viaduct's
     // ground contact is its legs — both handled below.
     if (o.deck || l.kind === 'viaduct') continue;
     // The GROUND extent — the plan silhouette. Session 42; see the header of
     // `landmarkOccluders` for the three landmarks this moved and by how much.
-    out.push({ x0: o.gx0, x1: o.gx1, z0: o.gz0, z1: o.gz1, y0: 0, y1: o.top, owner: l.name });
+    out.push({ x0: o.gx0 - m, x1: o.gx1 + m, z0: o.gz0 - m, z1: o.gz1 + m, y0: 0, y1: o.top, owner: l.name });
   }
   if (l.kind === 'viaduct') {
     for (const g of landmarkGroundBlockers(l)) {
@@ -4597,6 +4604,8 @@ export function landmarkGroundClaims(l) {
      * wrong-place this comment was written against.
      */
     const y0 = Math.min(...basinProfile(l).map((p) => p[1]));
+    // `landmarkAABB` already carries the session-52 margin for a round
+    // landmark, and a basin is round, so `a` is the grown claim.
     out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: a.z1, y0, y1: l.height, owner: l.name });
   }
   landmarkGroundClaimCache.set(l, out);
@@ -4701,6 +4710,65 @@ export function landmarkGroundClaims(l) {
  */
 export const APRON_STEP_M = CITY.sidewalkWidth / 2;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ONE FOOTWAY OF SETBACK ROUND A ROUND LANDMARK — SESSION 52, AND IT IS THE
+ * REPAIR STATE 51 §3.2 NAMED AND DID NOT REACH.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 51 DELIVERED THE FORECOURT AND NOT THE BOUNDARY AGAINST THE STREET,
+ * AND THE GEOMETRY SAYS WHY IN ONE SENTENCE: **a circle inscribed in its own
+ * square claim TOUCHES that square at the midpoint of each side.** So the
+ * precinct — the claim minus the silhouette — is 21.5% of the claim at 45°
+ * and **exactly zero at 0° and 90°, which is where the streets are.** The
+ * corners got a plaza; the four places a street actually arrives got nothing.
+ * Measured then: the nearest carriageway comes within **0.02 m** of the
+ * exchange's 33 m drum, at (121, −143). Not because the dome exceeds its claim
+ * — `landmarkcensus` reads del/claim 1.000 — but because **the claim IS the
+ * plan silhouette exactly, with no setback in it.** Every other object in this
+ * city stands behind a kerb; a landmark stood with its wall in the gutter.
+ *
+ * SO THE CLAIM GROWS BY ONE FOOTWAY ALL THE WAY ROUND, and the precinct
+ * becomes the claim minus the SILHOUETTE rather than the corners of it.
+ * `CITY.sidewalkWidth` = 4.2 m, and it is not a new number: it is the width of
+ * every pavement in this city, it is what `BUILDING_SETBACKS` already gives a
+ * landmark, and it is what `CORRIDOR` is made of. A landmark now stands the
+ * same distance behind the kerb line as a building does.
+ *
+ * WHAT IT IS WORTH, per landmark, as the precinct area a surface can be laid
+ * on — the claim square minus the circle, at r and at r + 4.2:
+ *
+ *     landmark    r      21.5% of claim    claim minus circle    ratio
+ *     condenser   62      3 300 m2           5 454 m2            1.65x
+ *     exchange    33        935 m2           2 114 m2            2.26x
+ *     weir       105      9 464 m2          13 062 m2            1.38x
+ *     dish        44      1 662 m2           3 211 m2            1.93x
+ *
+ * AND THE PART THAT IS NOT AN AREA: at 0° the precinct goes from **0.00 m to
+ * 4.20 m wide**. That is the whole item. A forecourt that is 21.5% of the
+ * claim at the corners and nothing at all where the street meets it is not a
+ * forecourt, it is four triangles of leftover.
+ *
+ * ONLY THE ROUND FOUR. The ziggurat's claim is its own turned plan silhouette,
+ * the arch's and the viaduct's are their legs, the mast's is a lattice bound —
+ * all boxes, all filling their claims. A margin round those would take
+ * carriageway and give nothing back, because there is no corner to stand in:
+ * a box claim already meets its street at a straight line. `landmarkPrecinct`
+ * returns `[]` for them and so does this.
+ *
+ * IT IS THE SAFE DIRECTION AND THAT IS WHY IT NEEDS NO NEW PERMISSION. A claim
+ * that grows can only refuse more; the registry keeps absolute authority and
+ * every refusal is a road or a building that does not get built. What it costs
+ * is counted rather than assumed — see STATE 52 §1.
+ *
+ * NOT GROWN: `landmarkGroundBlockers`, which is what stops a PERSON, and
+ * `landmarkBlocks`, which is what a prop tests against. Both answer "does the
+ * structure stand here" and the structure has not moved. Growing them would
+ * wall off the very apron this exists to make walkable — CONTRACT §9 row 13's
+ * one-list-two-questions, which this file has paid for twice.
+ */
+export const LANDMARK_SETBACK_M = CITY.sidewalkWidth;
+
 /** The radius of a landmark's plan silhouette at grade, or 0 if it is not round. */
 export function landmarkGroundRadius(l) {
   switch (l.kind) {
@@ -4729,6 +4797,22 @@ export function landmarkGroundRadius(l) {
   }
 }
 
+/**
+ * The half-width of a landmark's GROUND CLAIM: its plan silhouette plus
+ * `LANDMARK_SETBACK_M` for a round one, and 0 for everything else — a box
+ * landmark's claim is its own boxes and this function has nothing to say
+ * about it.
+ */
+export function landmarkClaimHalf(l) {
+  const r = landmarkGroundRadius(l);
+  return r > 0 ? r + LANDMARK_SETBACK_M : 0;
+}
+
+/** Metres a round landmark's ground claim is dilated by. 0 for the other four. */
+export function landmarkClaimMargin(l) {
+  return landmarkGroundRadius(l) > 0 ? LANDMARK_SETBACK_M : 0;
+}
+
 const landmarkPrecinctCache = new Map();
 
 export function landmarkPrecinct(l) {
@@ -4736,21 +4820,31 @@ export function landmarkPrecinct(l) {
   if (hit) return hit;
   const out = [];
   const r = landmarkGroundRadius(l);
+  /**
+   * `R` IS THE CLAIM AND `r` IS THE SILHOUETTE, AND UNTIL SESSION 52 THEY WERE
+   * ONE NUMBER. The staircase runs out to R and its inner edge takes the
+   * circle's half-width at radius `r`; past `a0 = r` that half-width is zero
+   * and the step is the full depth of the claim, which is the 4.2 m band at 0°
+   * and 90° that the whole item is about. `Math.max(0, ...)` under the square
+   * root was already there for the rounding at a0 = r and now carries the
+   * band as well.
+   */
+  const R = landmarkClaimHalf(l);
   if (r > 0) {
-    const n = Math.max(2, Math.ceil(r / APRON_STEP_M));
+    const n = Math.max(2, Math.ceil(R / APRON_STEP_M));
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         for (let k = 0; k < n; k++) {
           // The step spans [a0, a1] in |x|; the circle's half-height over that
           // span is largest at a0, so a0 is what keeps the box outside it.
-          const a0 = (r * k) / n;
-          const a1 = (r * (k + 1)) / n;
+          const a0 = (R * k) / n;
+          const a1 = (R * (k + 1)) / n;
           const c = Math.sqrt(Math.max(0, r * r - a0 * a0));
-          if (r - c < MIN_GROUND_PIECE_M || a1 - a0 < MIN_GROUND_PIECE_M) continue;
+          if (R - c < MIN_GROUND_PIECE_M || a1 - a0 < MIN_GROUND_PIECE_M) continue;
           const x0 = l.x + (sx < 0 ? -a1 : a0);
           const x1 = l.x + (sx < 0 ? -a0 : a1);
-          const z0 = l.z + (sz < 0 ? -r : c);
-          const z1 = l.z + (sz < 0 ? -c : r);
+          const z0 = l.z + (sz < 0 ? -R : c);
+          const z1 = l.z + (sz < 0 ? -c : R);
           out.push({ x0, x1, z0, z1, owner: `${l.name}:precinct` });
         }
       }
@@ -5579,11 +5673,21 @@ export function landmarkAABB(l) {
   const hit = landmarkAABBCache.get(l);
   if (hit) return hit;
   const boxes = landmarkOccluders(l);
+  /**
+   * THE SESSION-52 SETBACK IS IN HERE TOO, AND IT HAS TO BE. This box is the
+   * fast reject for `landmarkOccupies`, which then tests
+   * `landmarkGroundClaims` — so a bound that did not carry the margin would
+   * reject points the claims accept, which is the same shape of defect session
+   * 42 fixed by moving this off the inscribed bake boxes. It is also what
+   * `landmarksTouching` reads, and a chunk 4.2 m outside a landmark now has an
+   * apron in it.
+   */
+  const m = landmarkClaimMargin(l);
   let box;
   if (!boxes.length) {
     // A basin occludes nothing above grade, but it is still 210 m of ground you
     // cannot build on.
-    const r = landmarkFootprint(l) / 2;
+    const r = landmarkFootprint(l) / 2 + m;
     box = { x0: l.x - r, x1: l.x + r, z0: l.z - r, z1: l.z + r };
   } else {
     // The GROUND extents: this AABB is the fast reject for `landmarkOccupies`,
@@ -5594,7 +5698,7 @@ export function landmarkAABB(l) {
       x0 = Math.min(x0, b.gx0); x1 = Math.max(x1, b.gx1);
       z0 = Math.min(z0, b.gz0); z1 = Math.max(z1, b.gz1);
     }
-    box = { x0, x1, z0, z1 };
+    box = { x0: x0 - m, x1: x1 + m, z0: z0 - m, z1: z1 + m };
   }
   landmarkAABBCache.set(l, box);
   return box;
@@ -11352,7 +11456,15 @@ export function generateChunk(rootSeed, cx, cz) {
          * overlap against the three this project has carried since session 24.
          */
         const edge = 1.0;
-        if (Math.abs(x - l.x) > r - half - edge || Math.abs(z - l.z) > r - half - edge) continue;
+        /**
+         * AGAINST THE CLAIM'S HALF-WIDTH AND NOT THE SILHOUETTE'S — SESSION
+         * 52. This line read `r`, which was the claim's half-width until the
+         * setback separated the two; left alone it would have confined every
+         * apron prop to the old square and left the new 4.2 m band round the
+         * outside — the band the whole item exists to open — unfurnished.
+         */
+        const R = landmarkClaimHalf(l);
+        if (Math.abs(x - l.x) > R - half - edge || Math.abs(z - l.z) > R - half - edge) continue;
         const spot = claimAt('prop', x, z, half, half, { owner: `${l.name}:apron` });
         if (reg.conflict(spot, 0, APRON_SETBACKS)) continue;
         reg.claim(spot);
