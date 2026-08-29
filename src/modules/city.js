@@ -63,6 +63,7 @@ import {
   ZIGGURAT_STEP_YAW_DEG,
   LOW_WALL,
   SHED,
+  GRAVEYARD,
   landmarkOccluders,
   landmarkGroundBlockers,
   landmarkGroundClaims,
@@ -3476,6 +3477,42 @@ export function createCity(options = {}) {
            */
           put(0, 0.09, 0, 0.42, 0.18, 0.42, [0.30, 0.298, 0.288], 0.9);
           put(0, f.height * 0.5, 0, 0.13, f.height, 0.13, [0.22, 0.222, 0.228], 0.5);
+        } else if (f.kind === 'graves') {
+          /**
+           * A ROW OF HEADSTONES — SESSION 54. `citygen.GRAVEYARD` owns every
+           * length; this owns the arithmetic that turns one record into `n`
+           * stones, and nothing else.
+           *
+           * THE HEIGHTS COME OUT OF THE RECORD'S OWN SEED, which is the same
+           * arrangement `lampStationsFor`'s phase has: a deterministic hash of
+           * something the record already carries, rather than five floats a
+           * segment crossing the worker boundary. A churchyard where every
+           * stone is the same height is a fence.
+           */
+          const G = GRAVEYARD;
+          let h = (f.seed | 0) + 1;
+          const roll = () => {
+            h = (h * 1103515245 + 12345) & 0x7fffffff;
+            return (h >>> 8) / 0x7fffff;
+          };
+          for (let i = 0; i < f.n; i++) {
+            const dx = (i - (f.n - 1) / 2) * f.pitch;
+            const r = roll();
+            const sh = G.stoneMinM + r * (G.stoneMaxM - G.stoneMinM);
+            /**
+             * ONE BOX A STONE, AND THE SECOND ONE IS EARNED RATHER THAN
+             * DEFAULT. Two boxes on every stone is 2 574 boxes on a church
+             * chunk (measured, first arm) against 80 000 triangles of headroom
+             * in the whole project. A base slab reads at three metres and
+             * nowhere else, and a crosspiece reads at thirty — so the taller
+             * third get a base and the tallest fifth get a crosspiece, which
+             * is 1.5 boxes a stone and a row that is not a run of identical
+             * slabs.
+             */
+            put(dx, G.baseH + sh / 2, 0, G.stoneW, sh, G.stoneD, G.stoneAlbedo, 0.86);
+            if (r > 0.66) put(dx, G.baseH / 2, 0, G.baseW, G.baseH, G.baseD, G.baseAlbedo, 0.92);
+            if (r > 0.86) put(dx, G.baseH + sh * 0.78, 0, G.stoneW * 1.6, G.stoneW * 0.30, G.stoneD, G.stoneAlbedo, 0.86);
+          }
         } else if (f.kind === 'hoarding') {
           put(0, f.height * 0.5, 0, f.length, f.height, 0.06,
             f.printed ? [0.30, 0.26, 0.20] : [0.24, 0.245, 0.235], 0.82);

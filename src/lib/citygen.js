@@ -2971,6 +2971,65 @@ export const SITE = {
 };
 
 /**
+ * THE THING THAT MAKES A CHURCHYARD A CHURCHYARD — SESSION 54.
+ * ===========================================================
+ *
+ * Session 49 built the nave and the spire, session 50 gave the ground a path
+ * to the door and planting in clumps, and what was delivered was a 104.6 m
+ * LAWN WITH A CHURCH ON IT — `tools/shot-out/s54-church-before-t0_5886-wet.png`
+ * is the frame, and it is the operator's own word for it.
+ *
+ * A CHURCHYARD IS GRAVES. Everything else in the brief's list for this kind —
+ * benches, lamps, gravel paths, a gate — either exists already (`bench`,
+ * `planter` in the palette; `layPath`; `pathLamps` this session) or is a
+ * treatment of something that does. The one thing with no representation at
+ * all was the content the place is named after.
+ *
+ * A ROW AND NOT A SCATTER, AND THAT DECIDES WHAT IT IS. `LOW_DETAIL_PROPS`'
+ * own rule: *"a thing is a `prop` if its placement is a SCATTER and a
+ * `feature` if it is a RUN, a ROW or a GRID"*, and `objectCount` — which
+ * `citycheck`'s clumping CV is computed from — counts props and not features.
+ * Graves are laid out in rows by definition; a scatter of headstones is a
+ * battlefield. So this is a `feature`, one record per ROW SEGMENT, and the
+ * clumping statistic does not move.
+ *
+ * EVERY LENGTH IS A PLOT'S. A burial plot is 2.4 m long and about 1.2 m wide,
+ * so a row of stones at the head of consecutive plots is `plotPitchM` = 1.2 m
+ * along and consecutive ROWS are back to back at `rowPitchM` = 2.4 m plus a
+ * 1.2 m walk between them = 3.6 m. Nothing here is chosen for the look of it.
+ *
+ * TWO BOXES A STONE AND THE SECOND ONE IS THE BASE, which is what makes a slab
+ * read as standing rather than as painted on the grass. `city.js` draws a whole
+ * segment from one record, so the geometry cost is `perSegment * 2` boxes and
+ * the CLAIM cost is one.
+ */
+export const GRAVEYARD = {
+  /** Metres. Along a row, head-to-head; and between rows, back to back plus a walk. */
+  plotPitchM: 1.2,
+  rowPitchM: 3.6,
+  /** How many plots one claimed segment covers. A segment is 6.0 m of row. */
+  perSegment: 5,
+  /** Metres. The stone: width across the plot, depth, and the height band. */
+  stoneW: 0.62,
+  stoneD: 0.14,
+  stoneMinM: 0.55,
+  stoneMaxM: 1.30,
+  /** Metres. The base slab under it. */
+  baseW: 0.78,
+  baseD: 0.36,
+  baseH: 0.11,
+  /**
+   * Weathered limestone, and it is the PALEST reflectance on any ground
+   * furniture in this city — `CITY_MATERIALS.panel` is 0.556/0.573/0.600 and
+   * that is a curtain wall. A headstone reads at all because it is a light
+   * object against grass at 0.085: the contrast is 5.6x, which is why the
+   * operator called this *"the cheapest instanced content in the project"*.
+   */
+  stoneAlbedo: [0.52, 0.508, 0.472],
+  baseAlbedo: [0.40, 0.392, 0.368],
+};
+
+/**
  * THE GROUND THAT IS NOT A BUILDING — SESSION 40.
  * ==============================================
  *
@@ -10909,6 +10968,32 @@ export function generateChunk(rootSeed, cx, cz) {
           markings.push({ x: a.x, z: a.z, length: alongX ? 0.12 : 26, width: alongX ? 26 : 0.12,
             yawDeg: 0, kind: 'sport' });
         }
+        /**
+         * A PLAY FRAME AND A SWING ON THE GRASS — SESSION 54, and it is
+         * `recreation`'s own pair moved one branch over.
+         *
+         * ITEM 4's QUESTION, ASKED OF THIS KIND: *"does its vocabulary contain
+         * the thing that MAKES it that place?"* A school delivered a long low
+         * block, a hard yard with a court marked on it, a railing, two floods
+         * and a scatter of trees and bins — every one of which an office with a
+         * car park also has. What only a school has is the equipment, and
+         * `recreation` has had a `play` feature with a frame and a swing since
+         * session 48. Placed on the GRASS rather than the yard, because that
+         * is where it goes and because the yard already carries the court.
+         */
+        for (const [pkind, hw, hh] of [['frame', 3.2, 3.0], ['swing', 2.6, 2.4]]) {
+          for (let t = 0; t < 3; t++) {
+            const p2 = at(featRng.range(-halfU + 12, halfU - 12), featRng.range(6, halfV - 12));
+            const box = claimAt('feature', p2.x, p2.z, hw, hw, { y0: 0, y1: hh, owner: `school:${pkind}` });
+            if (reg.conflict(box)) continue;
+            features.push({
+              kind: 'play', play: pkind, x: p2.x, z: p2.z, half: hw, height: hh,
+              deck: RECREATION.frameDeckM, yawDeg: yaw(),
+            });
+            reg.claim(box);
+            break;
+          }
+        }
         layPath('school:path');
         fence('railing', 1.6, 'school:fence');
         floods(2);
@@ -11096,6 +11181,72 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         layPath('church:path');
         pathLamps('church:lamp');
+        /**
+         * THE GRAVES — SESSION 54. See `GRAVEYARD` for what a plot is and why
+         * this is a `feature` rather than a prop.
+         *
+         * ROWS ACROSS THE ISLAND, OFFERED TO THE REGISTRY IN SEGMENTS. A whole
+         * 104.6 m row would be refused by the first thing it met and the
+         * churchyard would have graves only where the nave is not; in 6.0 m
+         * segments the run BREAKS around the nave, the spire and the two path
+         * spines and closes up again on the other side, which is what a
+         * churchyard laid out round a church actually looks like. It is the
+         * same argument the core wall's segments make one branch over.
+         *
+         * `feature x building` and `feature x path` are both forbidden, so
+         * nothing is tested for here that the table does not already answer.
+         * THE ONE THING THE TABLE CANNOT ANSWER is the paved square in front
+         * of the door: it is `ground` and `feature x ground` is allowed, which
+         * is correct in general — a bench stands on paving — and wrong for
+         * this. A forecourt with graves on it is not a forecourt. That is a
+         * decision about content and it is made here in one line rather than
+         * by giving the square a claim it does not otherwise need.
+         */
+        {
+          const G = GRAVEYARD;
+          const segLen = G.perSegment * G.plotPitchM;
+          /**
+           * THE BURIAL GROUND IS THE NAVE'S OWN HALF OF THE ISLAND AND NOT
+           * ALL OF IT, AND THE FIRST ARM WAS ALL OF IT.
+           *
+           * Measured at seed 1337: rows over the whole 104.6 m island deliver
+           * **234 segments and 1 170 stones on every church chunk** — 2 574
+           * boxes and 30 900 triangles for ONE chunk, against the 80 000 of
+           * headroom STATE 53 §6.3 says is left in the whole budget. A city
+           * block entirely full of graves is also not what a churchyard is:
+           * the stones are round the church, and the far side of the ground
+           * from the door is where the hedge, the trees and the benches are.
+           *
+           * `at(6, -26)` is where the nave stands, so the ground it stands in
+           * runs from the island's far edge to a little past its own centre
+           * line — which is 15 rows of the 27 the island would hold.
+           */
+          for (let v = -halfV + 6; v <= 8; v += G.rowPitchM) {
+            for (let u = -halfU + 6; u <= halfU - 6 - segLen; u += segLen + G.plotPitchM) {
+              const c = at(u + segLen / 2, v);
+              if (c.x > sq.x0 && c.x < sq.x1 && c.z > sq.z0 && c.z < sq.z1) continue;
+              const hAlong = segLen / 2 + G.baseW / 2;
+              const hAcross = G.baseD / 2 + 0.1;
+              const box = claimAt('feature', c.x, c.z,
+                alongX ? hAlong : hAcross, alongX ? hAcross : hAlong,
+                { y0: 0, y1: G.stoneMaxM, owner: 'church:graves' });
+              if (reg.conflict(box)) continue;
+              features.push({
+                kind: 'graves', x: c.x, z: c.z, yawDeg: alongX ? 0 : 90,
+                n: G.perSegment, pitch: G.plotPitchM,
+                /**
+                 * ONE SEED PER SEGMENT AND THE HEIGHTS COME OUT OF IT IN
+                 * `city.js`. The stone heights are a distribution, not a
+                 * constant, and drawing `perSegment` numbers HERE would put
+                 * five floats a segment across the worker boundary for
+                 * something the draw can reproduce exactly from one integer.
+                 */
+                seed: featRng.int(0, 65535),
+              });
+              reg.claim(box);
+            }
+          }
+        }
         fence('hedge', 1.4, 'church:hedge');
       } else if (kind === 'port') {
         /**
