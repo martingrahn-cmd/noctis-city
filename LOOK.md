@@ -1421,6 +1421,96 @@ straddling it. **What L15 needs is a derivation against a city with its lights
 on**, and until somebody does that the honest reading of a red on this band is
 that a night city got more lit, which is the direction this document asks for.
 
+### `distinct:midnight|dusk` — THE SECOND RE-DERIVATION, SESSION 54, 2026-08-29
+
+**The brief asked for this one by name**: *"Light the city and re-derive the band
+in the open per §7, with reason and date. Do not dim content to keep it green."*
+Session 54 lit the ground — every one of the fifteen island kinds, the block
+interiors and all four landmark aprons — so it is the session that owes it.
+
+**THE PREVIOUS RE-DERIVATION ANSWERED THE WRONG QUESTION, AND SAID SO.** Session
+53's entry above is a mechanism: WHY the number moved, measured, twice, in both
+directions. STATE 53 §7 item 2 then wrote down what was still owed and it is a
+different question — *"not why is the margin small, but WHY IS THIS THE RIGHT
+PAIR OF TIMES"*. This is that.
+
+**THERE IS NO `distinct:midnight|dusk` THRESHOLD. THERE IS ONE FLOOR OVER SIX
+PAIRS, AND THAT IS THE DEFECT.** `look-budget.json` → `distinctness` is a single
+`minPairMSD` of 0.03000, and its own comment says *"all six pairs must clear
+it"*. The four times are midnight (t 0), dawn (0.25), noon (0.5) and dusk (0.78),
+and the six pairwise distances they produce are not six samples of one quantity:
+
+```
+  pair                    msd      what the two members are
+  midnight <-> noon     0.20458    the two ENDS of the cycle
+  noon     <-> dusk     0.13898    an end and the transition into the other
+  midnight <-> dawn     0.12825    an end and the transition out of it
+  dawn     <-> noon     0.11400    ADJACENT
+  dawn     <-> dusk     0.05812    the two TRANSITIONS, same elevation, opposite azimuth
+  midnight <-> dusk     0.02953    ADJACENT — dusk is the transition INTO midnight
+```
+
+All six read off ONE `lookcheck` run at session 54's HEAD, which prints every pair whether it
+passes or not. **The two ADJACENT pairs are the two smallest**, and `dawn <-> noon` clears the floor
+by 3.8x while `midnight <-> dusk` misses it — the difference between them is that the sun is
+BELOW the horizon at both ends of the second one.
+
+**AND LIGHTING THE WHOLE GROUND DID NOT MOVE IT AT ALL.** Session 54 put a lamp and a work light in
+every courtyard in the city, lit `lot`, `carpark`, `church` and all four landmark aprons, and
+`midnight <-> dusk` reads **0.02953 against session 53's lit 0.02953** — unmoved to five decimal
+places, against an instrument whose own spread on this band is 0.00001. So the band is not
+sensitive to street-level light in the near city either; what moved it in session 53 was a
+kilometre of silhouette standing in front of the sky.
+
+**A 7x SPREAD, ASSERTED AGAINST ONE NUMBER.** The pair that most nearly fails is
+the pair whose two members are ADJACENT IN THE CYCLE, and adjacency is the one
+relation for which similarity is CORRECT rather than a defect: a day/night cycle
+that has resolution near its ends is a cycle in which dusk and midnight are
+neighbours. The floor was derived — like most of the 76 in the list above — from
+one reading of one city, and the reading it happened to be derived from is the
+narrowest of the six by a factor of seven.
+
+**AND SESSION 53 PROVED IT ARGUES AGAINST §1 RATHER THAN MERELY STRADDLING.**
+Lighting the distant city moved it 0.02958 → 0.02953, five times the
+instrument's own 0.00001 resolution, the WRONG WAY, and the entry above gives
+the reason in one sentence: *midnight is darker than dusk, so any light added at
+midnight moves midnight towards dusk*. **Every session that satisfies §1 makes
+this band worse. That is a proxy inverted, not a proxy that is tight.**
+
+**THE SHAPE A DERIVED GATE WOULD HAVE, AND IT IS TWO FLOORS AND NOT ONE**,
+because there are two properties here and one number cannot be a statement about
+both:
+
+```
+  minCycleMSD      on the pair that SPANS the cycle (midnight <-> noon). The
+                   property: the time of day changes the picture at all. It is
+                   the assertion the current floor is actually protecting, it
+                   reads 0.20458, and it is 6.8x clear of 0.03000. Adding night
+                   light does not move it — measured, 0.20458 -> 0.20458.
+
+  minAdjacentMSD   on the pairs that are NEIGHBOURS in the cycle. The property:
+                   the transition has resolution — dusk is not merely night.
+                   This one cannot take the cycle floor's number and its own
+                   derivation does not exist yet. What it must NOT be is a
+                   number that falls whenever the night city gains a light.
+```
+
+**AND IT IS NOT DONE HERE, DELIBERATELY.** Splitting one floor into two where one
+branch is looser than the number it replaced is indistinguishable from a
+loosening, and CONTRACT §0.1 says it in as many words: *"Rule 5 is not suspended
+by rule 6; an estimator change that also moved a number would be
+indistinguishable from a loosening."* **`minPairMSD` is NOT moved and stays at
+0.03000, for the second session running.** What this entry adds is the thing the
+split needs and did not have: the six numbers side by side, the statement of
+which property each pair measures, and the falsifying cases the split owes —
+a city with no cycle at all must fail `minCycleMSD`, and a dusk frame that is a
+copy of the midnight frame must fail `minAdjacentMSD`, or the pair of gates is
+one gate wearing two names.
+
+**THE HONEST READING OF A RED ON THIS BAND, UNTIL THEN**, is session 53's and it
+is unchanged: a night city got more lit, which is the direction this document
+asks for.
+
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 
 Written as a question and not a statement, per §8. Session 44 made rainfall a

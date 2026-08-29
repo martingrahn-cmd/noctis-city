@@ -236,12 +236,20 @@ const TRAIN = {
    *                      and it is what makes the deck read as a line with two
    *                      ends rather than a loop.
    *
-   * AND THE ROUND TRIP IS 239 s, OF WHICH THE TRAIN IS STANDING FOR HALF —
-   * arithmetic, because a dwell nobody adds up is a dwell that turns out to be
-   * the whole timetable. A 201.05 m leg is 12 s of acceleration over 72 m, 4.75 s
-   * of cruise over 57 m and 12 s of braking over 72 m = 28.75 s; four legs is
-   * 115 s; two station dwells is 44 s; two turnrounds is 80 s. **239 s, 52% of
-   * it stationary.**
+   * AND THE ROUND TRIP IS 230.8 s, OF WHICH THE TRAIN IS STANDING FOR HALF —
+   * MEASURED by running this state machine at 1/60 s for 900 s against the
+   * shipped constants, not derived, because a dwell nobody adds up is a dwell
+   * that turns out to be the whole timetable:
+   *
+   *     stops on the line        -201.05   0.00   201.05
+   *     station calls in 900 s   15
+   *     LARGEST ONE-FRAME MOVE   0.2000 m, which is `speedMps / 60` EXACTLY
+   *     standing                 456.1 s of 900 = 50.7%
+   *     round trip               230.8 s
+   *
+   * **The largest one-frame move being exactly one frame of running speed is
+   * the whole claim of this change, as a number**: there is no teleport left
+   * anywhere in the cycle.
    *
    * THAT IS NOT A NUMBER TO TUNE AWAY, IT IS THE DECK BEING 480 m LONG. A
    * shuttle whose whole line is forty seconds of running each way stands for
