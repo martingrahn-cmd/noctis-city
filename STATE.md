@@ -35,12 +35,13 @@ build twice (the arrangement STATE 53 §0 used).
   s54-station-{before,after}-t0_5297-wet.png  The viaduct station from the main street, item 2.
   s54-dome-{before,after}-t0_5904-wet.png     HIS OWN SPAWN, item 3 — and the two arms are the
                                               SAME PICTURE, because item 3 was NOT BUILT. §8.
-  s54-yard-air, s54-yard-gate, s54-court-air  three cameras that did NOT show their subject and
-                                              are kept as the record of that: a block interior is
+  s54-yard-{air,gate,nadir}, s54-court-air     FOUR cameras that did NOT show their subject and
+                                              are kept as the record of it: a block interior is
                                               walled on four sides by 40 m buildings, which is
-                                              what LOOK.md §2 asks for, so it is legible from the
-                                              street through its own GATE and from directly above
-                                              and from nowhere else.
+                                              exactly what LOOK.md §2 asks for, so it is legible
+                                              from directly above and from nowhere else. Four
+                                              attempts is what that cost, and the fifth is the
+                                              nadir shot at the top of this list.
 ```
 
 **AND THE MIDNIGHT PAIRS MEASURED, BECAUSE A FRAME MEAN IS THE WRONG STATISTIC FOR A LOCAL LIGHT.**
