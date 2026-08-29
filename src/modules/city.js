@@ -3038,9 +3038,50 @@ export function createCity(options = {}) {
            * railing is the same iron as a bollard.
            */
           if (f.edge === 'railing') {
-            put(0, f.height * 0.5, 0, f.length * 0.96, 0.05, 0.05, [0.055, 0.055, 0.058], 0.7);
-            put(0, f.height * 0.62, 0, f.length * 0.96, 0.04, 0.04, [0.055, 0.055, 0.058], 0.7);
-            for (const e of [-0.48, 0, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.06, f.height, 0.06, [0.055, 0.055, 0.058], 0.7);
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * THE TOP RAIL WAS AT 0.62 OF A POST THAT REACHES 1.00 — SESSION
+             * 52, AND IT IS THE OPERATOR'S *"posts and no rails"*.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * The two horizontals sat at `height * 0.50` and `height * 0.62`
+             * while the standards spanned `[0, height]`. On the weir's 1.10 m
+             * railing that is a top rail at **0.68 m with 0.42 m of bare post
+             * above it — 38% of the railing's height with nothing in it** —
+             * and on the school's 1.60 m fence it is 0.61 m of bare post. The
+             * eye reads a railing by its TOP LINE, so a run whose top line is
+             * a row of disconnected post heads reads as posts and no rails
+             * from any distance at which the two low rails merge.
+             *
+             * IT IS SESSION 46'S SHAPE ONE OBJECT OVER — *"half the city's
+             * lamps had a head that did not meet its own column, because two
+             * expressions for one point disagreed"*. Here the post's extent
+             * says `height` and the top rail's position says `0.62 * height`,
+             * and nothing made them agree.
+             *
+             * AND IT IS THE ONLY ONE OF THE FOUR THAT HAD IT. Measured across
+             * this whole `edge` vocabulary: `rail` puts its top horizontal at
+             * 0.86 of a post that reaches 0.90, `mesh` at 0.98 of a post that
+             * reaches 1.00, `palisade` at 0.80 with the pales themselves
+             * reaching 0.96 — every sibling caps its own standards, and this
+             * one stopped two thirds of the way up. **479 railing bays over
+             * `citycheck`'s 10 x 10 at seed 1337 — 227 at 1.10 m and 252 at
+             * 1.60 m — and 93 of them are the ring session 51 put round the
+             * weir's nine-metre drop**, which is the one place in this city
+             * where a railing is not decoration.
+             *
+             * 0.95, NOT 1.00. A guard rail's top rail is the height of the
+             * railing and the standard caps it: at 0.95 the 0.05 m rail's top
+             * face is at `0.95h + 0.025` = 1.0725 m on a 1.10 m post, so
+             * **27.5 mm of post stands proud** and the run reads as a rail
+             * held up by posts rather than as a rail floating past them. The
+             * mid rail stays at 0.50 — that one was always right, and it is
+             * where a mid rail goes.
+             */
+            const iron = [0.055, 0.055, 0.058];
+            put(0, f.height * 0.95, 0, f.length * 0.96, 0.05, 0.05, iron, 0.7);
+            put(0, f.height * 0.50, 0, f.length * 0.96, 0.04, 0.04, iron, 0.7);
+            for (const e of [-0.48, 0, 0.48]) put(f.length * e, f.height * 0.5, 0, 0.06, f.height, 0.06, iron, 0.7);
           } else if (f.edge === 'rail') {
             /**
              * A CAR PARK'S KNEE RAIL — session 40. Two horizontals on stubby
