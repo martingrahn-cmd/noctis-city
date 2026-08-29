@@ -3233,6 +3233,14 @@ export const DEAD_ZONE = {
   /** Metres. A car-park lighting column and the square it covers. */
   columnHeight: 10.0,
   columnEvery: 30.0,
+  /**
+   * Metres. A SERVICE YARD'S WORK LIGHT — session 54. Between a park lamp's
+   * 4.20 m (a path) and a car park column's 10.0 m (a 30 m square), because
+   * what it covers is a loading bay and a way in and not either of those.
+   * `LIGHT.yardFloodCandela` is derived at this height and through its own
+   * window; the two must move together and the derivation says so.
+   */
+  yardLightHeightM: 6.0,
 };
 
 /**
@@ -3280,27 +3288,62 @@ export const APRON_BAY_M = 4.0;
  * weir's 18 m is `church`'s *"a crown's spread plus a path's width"*, the two
  * forecourts' 12 m is a bollard line's own pitch, and the condenser's 21 m is
  * `industrial`'s *"`yard`'s own van apron"*.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * AND `light` IS SESSION 54's COLUMN, BECAUSE THE ROW HAD EVERY OTHER ONE.
+ *
+ * Session 51 gave each apron a ground, a boundary, a prop palette and a
+ * furnishing density. It gave none of them a light, and nothing since has:
+ * measured at seed 1337, `tools/placeprobe.mjs --light` prints all four rows
+ * as `<- unlit`. So the weir's rim — *"a NINE METRE DROP and fifty sessions
+ * have left it open"*, then railed in session 51 and given a staircase in
+ * session 52 — is a railing, a flight of steps and a nine-metre fall with no
+ * light anywhere near any of them.
+ *
+ * IT GOES ON THE BOUNDARY CIRCLE AND NOT IN THE MIDDLE, which is one decision
+ * doing three jobs: it is where the drop is, it is where a person walking on
+ * to the apron arrives, and a large paved area lit from its perimeter is one
+ * you can read the extent of — lit from the centre it is a bright disc with a
+ * dark rim, which is the opposite of what a forecourt is for.
+ *
+ * EVERY FIXTURE IS ONE THIS CITY ALREADY HAS, at its own derived pitch:
+ *
+ *   condenser  a works compound, so `yard`'s own work light — a 6.0 m mast at
+ *              `LIGHT.yardFloodCandela`, on the 30 m module `DEAD_ZONE`
+ *              derives for an open surface (`columnEvery`).
+ *   exchange   a civic forecourt is a large open paved area, which is the
+ *              class `carParkColumnCandela` is derived for: a 10.0 m column
+ *              (`DEAD_ZONE.columnHeight`) on the same 30 m square.
+ *   dish       the same forecourt, and its plaza is the one you can stand
+ *              UNDER, so the columns are what light the soffit from below.
+ *   weir       *"a stormwater basin and SUNKEN PARK"* — a park path, so
+ *              `PARK.lampHeight` at `PARK.lampEvery`, the 4.20 m post-top and
+ *              the 16 m pitch every park in this city is already lit by.
  */
 export const LANDMARK_APRON = {
   condenser: {
     ground: 'apronYard', yKey: 'apronYard',
     edge: 'palisade', edgeHeight: 2.20,
     props: ['cabinet', 'stack', 'bollard'], spacingM: 21,
+    light: 'flood', lightHeightM: 6.0, lightEveryM: 30,
   },
   exchange: {
     ground: 'apron', yKey: 'apron',
     edge: null, edgeHeight: 0,
     props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
+    light: 'lamp', lightHeightM: 10.0, lightEveryM: 30,
   },
   weir: {
     ground: 'apronGrass', yKey: 'apronGrass',
     edge: 'railing', edgeHeight: 1.10,
     props: ['tree', 'tree', 'bench', 'bin'], spacingM: 18,
+    light: 'lamp', lightHeightM: 4.2, lightEveryM: 16,
   },
   dish: {
     ground: 'apron', yKey: 'apron',
     edge: null, edgeHeight: 0,
     props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
+    light: 'lamp', lightHeightM: 10.0, lightEveryM: 30,
   },
 };
 
@@ -10112,6 +10155,33 @@ export function generateChunk(rootSeed, cx, cz) {
         features.push({ kind: 'spoil', x, z, radius: r, height: r * 0.42, yawDeg: yaw() });
         reg.claim(box);
       }
+
+      /**
+       * ONE SECURITY LIGHT ON THE HOARDING — SESSION 54. A cleared lot was one
+       * of the four kinds `placeprobe --light` printed with no lamp and no
+       * flood on any chunk, and a hoarded lot in a city is not dark: what is
+       * behind the plywood is worth nothing and what is ON the plywood is a
+       * light, because an unlit hoarding is where people go.
+       *
+       * IT IS ONE AND NOT THREE, and that is the difference between a lot and
+       * a yard. `yard` takes two masts because it is WORKED and `construction`
+       * takes three because people are on it; nothing operates here, which is
+       * the same sentence `DEAD_ZONE.lot`'s floor of 9 is derived from — *"the
+       * smallest number that is a placement rather than a scatter"*.
+       */
+      {
+        const x = mx + featRng.range(-24, 24);
+        const z = mz + featRng.range(-24, 24);
+        const box = claimAt('feature', x, z, 0.34, 0.34,
+          { y0: 0, y1: DEAD_ZONE.yardLightHeightM, owner: 'lot:light' });
+        if (!reg.conflict(box)) {
+          features.push({
+            kind: 'flood', x, z,
+            height: DEAD_ZONE.yardLightHeightM, aimX: mx, aimZ: mz,
+          });
+          reg.claim(box);
+        }
+      }
     } else if (kind === 'recreation') {
       /**
        * ═══════════════════════════════════════════════════════════════════════
@@ -10484,6 +10554,34 @@ export function generateChunk(rootSeed, cx, cz) {
       }
       for (const g of subtractBoxes([surf], [...islandSolids(), ...(built ? [box] : [])])) ground.push(g);
 
+      /**
+       * AND THE APRON'S LIGHTING, WHICH IS THE SURFACE LOT'S OWN — SESSION 54.
+       *
+       * `LOW_DETAIL_PROPS.carpark` already says *"a deck park's apron is a car
+       * park's apron"* and `DEAD_ZONE.carpark` takes `parking`'s own 30 m
+       * lighting square, so the one thing left that did not follow was the
+       * fixture that square is derived FROM. `placeprobe --light` printed this
+       * kind at 0.00 lamps and 0.00 floods a chunk. The loop is `parking`'s,
+       * unchanged; the deck itself is a `building` claim, so `reg.conflict`
+       * refuses the columns that would stand inside it and what is left is
+       * exactly the apron.
+       */
+      {
+        const nCol = Math.max(1, Math.floor((isl.x1 - isl.x0) / D.columnEvery));
+        const colStep = (isl.x1 - isl.x0) / nCol;
+        for (let a = 0; a < nCol; a++) {
+          for (let bcol = 0; bcol < nCol; bcol++) {
+            const x = isl.x0 + (a + 0.5) * colStep;
+            const z = isl.z0 + (bcol + 0.5) * colStep;
+            const cbox = claimAt('feature', x, z, 0.42, 0.42,
+              { y0: 0, y1: D.columnHeight, owner: 'carpark:column' });
+            if (reg.conflict(cbox)) continue;
+            features.push({ kind: 'lamp', x, z, height: D.columnHeight });
+            reg.claim(cbox);
+          }
+        }
+      }
+
       /** The same knee rail the surface lot has, and one gate. */
       const gateSide = featRng.int(0, 3);
       boundaryRun({
@@ -10669,6 +10767,55 @@ export function generateChunk(rootSeed, cx, cz) {
           ground.push(q);
           reg.claim(claimBox('path', q.x0, q.z0, q.x1, q.z1, { owner }));
           n++;
+        }
+        return n;
+      };
+
+      /**
+       * LAMPS ALONG THE PATHS THAT WERE JUST LAID — SESSION 54, and it is
+       * `park`'s own arrangement moved one branch over rather than a second
+       * one written.
+       *
+       * A park has had post-tops on its loop since session 19: `PARK.lampEvery`
+       * = 16 m along the run, `PARK.pathHalf + 0.9` off the edge of the paving,
+       * 4.20 m tall, `LIGHT.parkLampCandela` behind them. Session 50 gave the
+       * churchyard the PATH and left it in the dark; `placeprobe --light`
+       * printed `church` at 0.00 lamps and 0.00 floods a chunk, which is one
+       * of the four kinds in the city with no light of any kind. A churchyard
+       * is a park with graves in it, so it is lit like a park.
+       *
+       * OFF THE PATH AND NOT ON IT. The spines are claimed `path`, which
+       * forbids `feature`, so a lamp on the centre line would be refused by
+       * the paving it is there to light — the offset is what makes the run
+       * possible at all, and it is the same 0.9 m a park's is.
+       *
+       * ONE SIDE PER SPINE AND STAGGERED, WHICH IS HALF WHAT THE FIRST ARM
+       * DREW. Both sides of both spines is 26 lamps on a 104.6 m island —
+       * more than the PARK's own 24, on a place that is quieter than a park —
+       * and every one of them is a candidate competing for the same 98 pool
+       * slots the street lamps use (`updateLampPool` cuts at 128 m). A path
+       * lit from alternating sides is what `LUMINAIRE`'s stagger already
+       * argues for on a carriageway: consecutive pools overlap ALONG the walk
+       * and stop short of each other ACROSS it, so one side is not a dimmer
+       * arrangement, it is the same arrangement without the second row.
+       */
+      const pathLamps = (owner) => {
+        const off = PARK.pathHalf + 0.9;
+        let n = 0;
+        for (const [axis, at0, from, to, side, phase] of [
+          ['x', mz, isl.x0, isl.x1, -1, 0.5],
+          ['z', mx, isl.z0, isl.z1, +1, 1.0],
+        ]) {
+          for (let t = from + PARK.lampEvery * phase; t < to; t += PARK.lampEvery) {
+            const x = axis === 'x' ? t : at0 + side * off;
+            const z = axis === 'x' ? at0 + side * off : t;
+            const box = claimAt('feature', x, z, 0.34, 0.34,
+              { y0: 0, y1: PARK.lampHeight, owner });
+            if (reg.conflict(box)) continue;
+            features.push({ kind: 'lamp', x, z, height: PARK.lampHeight });
+            reg.claim(box);
+            n++;
+          }
         }
         return n;
       };
@@ -10948,6 +11095,7 @@ export function generateChunk(rootSeed, cx, cz) {
          * what it crosses.
          */
         layPath('church:path');
+        pathLamps('church:lamp');
         fence('hedge', 1.4, 'church:hedge');
       } else if (kind === 'port') {
         /**
@@ -11613,6 +11761,14 @@ export function generateChunk(rootSeed, cx, cz) {
   let coreVan = null;
   let coreWallSegments = 0;
   let coreGateSegments = 0;
+  /**
+   * WHERE THE WAY IN IS, HOISTED OUT OF THE WALL'S OWN BLOCK — session 54.
+   * The gate is chosen by the registry (the longest continuous run of wall) and
+   * the lamp that lights it must stand at the SAME place, not at a second
+   * opinion about where a gate would look right. One expression, two readers,
+   * which is the rule `lampStationsFor` and the bus stop already share.
+   */
+  let coreGate = null;
   if (!lowDetail) {
     const coreRng = chunkRng(rootSeed, cx, cz, 'core');
     const C = DEAD_ZONE.core;
@@ -11784,6 +11940,16 @@ export function generateChunk(rootSeed, cx, cz) {
       }
       const gateC = best.n ? (wall[best.i0].c + wall[best.i0 + best.n - 1].c) / 2 : Infinity;
       const gateRi = best.n ? wall[best.i0].ri : -1;
+      if (best.n) {
+        const run = runs[gateRi];
+        coreGate = {
+          x: run.axis === 'x' ? gateC : run.at,
+          z: run.axis === 'x' ? run.at : gateC,
+          /** Which way is INTO the courtyard from this run. */
+          inX: run.axis === 'x' ? 0 : (run.at < (island.x0 + island.x1) / 2 ? 1 : -1),
+          inZ: run.axis === 'x' ? (run.at < (island.z0 + island.z1) / 2 ? 1 : -1) : 0,
+        };
+      }
       let gated = 0;
       for (const w of wall) {
         if (w.ri === gateRi && Math.abs(w.c - gateC) < W.gateHalf) { gated++; continue; }
@@ -11840,6 +12006,93 @@ export function generateChunk(rootSeed, cx, cz) {
           x: coreVan.x + ux * sgn * bayL / 2, z: coreVan.z - uz * sgn * bayL / 2,
           length: bayW, width: 0.12, yawDeg: coreVan.yawDeg + 90, kind: 'bay',
         });
+      }
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE FOURTH THING, WHICH IS THE LIGHT — SESSION 54, AND IT IS THE
+     * LARGEST UNLIT POPULATION IN THIS CITY BY A FACTOR OF SEVENTEEN.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `tools/placeprobe.mjs --light`, seed 1337 over the 17 x 17: **223 of 289
+     * chunks deliver no `lamp` and no `flood` feature at all**, and those 223
+     * are every `built` chunk in the city. Eleven of the fifteen ISLAND kinds
+     * have been lit since sessions 40 and 49 — a yard has masts, a car park
+     * has columns, a park has post-tops — and the surface those sessions were
+     * lighting is 23% of the ground. The block interior is the other 77%, and
+     * sessions 40, 47 and 50 filled it with a van, a service scatter, 10 668 m
+     * of courtyard wall and a marked loading bay without one light landing on
+     * any of it. STATE 50 wrote the diagnosis itself: *"the fill is hundreds
+     * of unlit dark objects; the fix is to light them, which is what a worked
+     * yard is."* Three sessions carried it.
+     *
+     * TWO FIXTURES, AND EACH IS A SENTENCE ABOUT WHAT IS ALREADY THERE:
+     *
+     *   THE GATE LAMP.  A yard with a wall round it has a light at its way in.
+     *                   It stands at `coreGate` — the registry's own choice of
+     *                   opening, not a second guess — one metre inside the
+     *                   wall, and it is the `PARK.lampHeight` post-top with
+     *                   `LIGHT.parkLampCandela` behind it, which is the
+     *                   fixture this city already lights every footpath with.
+     *                   It is also the one that MATTERS from the street: the
+     *                   gate is a hole in the frontage, and session 39
+     *                   measured 188 of 267 such gaps as falling mid-side
+     *                   where the walk goes past them.
+     *
+     *   THE BAY LIGHT.  *"A loading dock has a lamp over the door"* — the
+     *                   brief's own sentence. A 6.0 m column
+     *                   (`DEAD_ZONE.yardLightHeightM`) aimed at the van's own
+     *                   bay, carrying `LIGHT.yardFloodCandela`: 20 lx, which
+     *                   is EN 12464-2's loading zone and 0.06x a construction
+     *                   mast. It is emitted as a `flood` because that is the
+     *                   record for a luminaire that AIMS; `city.js` picks the
+     *                   yard luminaire off its height.
+     *
+     * TWO PER BLOCK AND NOT TWENTY. `updateLampPool` cuts candidates at 128 m
+     * and hands the nearest `poolLamps` of them a slot, so every light added
+     * anywhere competes with the street lamps for the same 98. A ring of
+     * courtyard lamps would win that competition near the camera and put the
+     * STREET into the dark to light a yard, which is the defect this item is
+     * repairing, inverted. Two is one light at the way in and one over the
+     * thing being serviced, which is what the place actually has.
+     */
+    if (coreGate) {
+      const x = coreGate.x + coreGate.inX * 1.4;
+      const z = coreGate.z + coreGate.inZ * 1.4;
+      const box = claimAt('feature', x, z, 0.34, 0.34,
+        { y0: 0, y1: PARK.lampHeight, owner: 'core:gateLamp' });
+      if (!reg.conflict(box)) {
+        features.push({ kind: 'lamp', x, z, height: PARK.lampHeight });
+        reg.claim(box);
+      }
+    }
+    if (coreVan) {
+      /**
+       * BESIDE THE BAY AND NOT OVER IT. The column stands one van-length off
+       * the bay's own centre, on the axis the van is turned to, so the throw
+       * is the `hypot(6, 8)` = 10.0 m slant range `LIGHT.yardFloodCandela` is
+       * derived at — and so the column is not standing in the bay it lights,
+       * which is what `claimAt('prop', ..., 'parked:van')` would refuse
+       * anyway. Two tries, either side, and then it stops: a courtyard with
+       * no room for a column is a courtyard, not a failure.
+       */
+      const a = (coreVan.yawDeg * Math.PI) / 180;
+      const ux = Math.cos(a);
+      const uz = -Math.sin(a);
+      for (const sgn of [1, -1]) {
+        const x = coreVan.x + uz * sgn * 8.0;
+        const z = coreVan.z + ux * sgn * 8.0;
+        if (x < island.x0 + 1 || x > island.x1 - 1 || z < island.z0 + 1 || z > island.z1 - 1) continue;
+        const box = claimAt('feature', x, z, 0.34, 0.34,
+          { y0: 0, y1: DEAD_ZONE.yardLightHeightM, owner: 'core:bayLight' });
+        if (reg.conflict(box)) continue;
+        features.push({
+          kind: 'flood', x, z,
+          height: DEAD_ZONE.yardLightHeightM, aimX: coreVan.x, aimZ: coreVan.z,
+        });
+        reg.claim(box);
+        break;
       }
     }
 
@@ -12006,6 +12259,57 @@ export function generateChunk(rootSeed, cx, cz) {
              */
             yawDeg: yawDeg + 90, refDeg: yawDeg + 90,
           });
+          reg.claim(box);
+        }
+      }
+
+      /**
+       * THE LIGHT, ON THE SAME CIRCLE THE BOUNDARY RUNS ON — SESSION 54.
+       *
+       * See `LANDMARK_APRON` for which fixture each landmark gets and why.
+       * The PITCH is the fixture's own (`lightEveryM`) and the ring is the
+       * boundary's own (`r + APRON_STEP_M`), so a column stands beside the
+       * railing rather than a metre inside or outside it — which at the weir
+       * is the whole point: the thing being lit is the top of a nine-metre
+       * drop and its staircase, and a light set back from a fall lights the
+       * ground you are safe on.
+       *
+       * `n` IS ROUNDED FROM THE CIRCUMFERENCE AND NOT CHOSEN, the same
+       * arithmetic the boundary's own bay count uses one block up, so the two
+       * cannot go out of step: a lamp every `lightEveryM` of arc.
+       *
+       * AIMED AT THE LANDMARK FOR A FLOOD AND STRAIGHT DOWN FOR A POST-TOP,
+       * which is what the two fixtures are. `city.js`'s `chunk.features` loop
+       * already turns both kinds into a pool candidate. WHICH LUMINAIRE EACH
+       * ONE CARRIES IS DECIDED BY ITS HEIGHT THERE, exactly as a `lamp`'s
+       * already is (`f.height >= DEAD_ZONE.columnHeight` picks the car-park
+       * column over the park lamp): this file is pure and holds no photometry,
+       * so a candela written here would be a second copy of a number
+       * `constants.js` owns — CONTRACT §9.1 with a luminaire.
+       */
+      if (spec.light) {
+        const rr = r + APRON_STEP_M;
+        const n = Math.max(4, Math.round((2 * Math.PI * rr) / spec.lightEveryM));
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          const x = l.x + Math.cos(a) * rr;
+          const z = l.z + Math.sin(a) * rr;
+          if (x < b.x0 || x >= b.x1 || z < b.z0 || z >= b.z1) continue;
+          /**
+           * `feature` AND NOT `site`. A yard's flood mast claims `site`
+           * because what it stands in is an excavation nothing else may
+           * enter; an apron column stands on a forecourt beside a railing,
+           * which is what every other `edge` and `lamp` on this apron claims.
+           * The column's own footprint, and the head is over it.
+           */
+          const box = claimAt('feature', x, z, 0.34, 0.34,
+            { y0: 0, y1: spec.lightHeightM, owner: `${l.name}:light` });
+          if (reg.conflict(box)) continue;
+          if (spec.light === 'flood') {
+            features.push({ kind: 'flood', x, z, height: spec.lightHeightM, aimX: l.x, aimZ: l.z });
+          } else {
+            features.push({ kind: 'lamp', x, z, height: spec.lightHeightM });
+          }
           reg.claim(box);
         }
       }

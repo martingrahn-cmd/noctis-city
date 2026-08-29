@@ -5002,10 +5002,34 @@ export function createCity(options = {}) {
           const dy = -f.height;
           const len = Math.hypot(dx, dy, dz) || 1;
           bowls.push(setMatrix(px, py, pz, 0.66, 0.42, 0.66, 0));
+          /**
+           * SESSION 54 — TWO FLOODS NOW, AND THE HEIGHT DECIDES WHICH, which
+           * is the arrangement the `lamp` branch above has carried since
+           * session 40 for exactly the same reason.
+           *
+           * A CONSTRUCTION MAST AND A YARD'S WORK LIGHT ARE NOT THE SAME
+           * FIXTURE AND THE FACTOR IS 17. `siteFloodCandela` is 50 lx of task
+           * lighting off a 9.0 m mast aimed into an excavation;
+           * `yardFloodCandela` is 20 lx over a loading bay off a 6.0 m column
+           * (`DEAD_ZONE.yardLightHeightM`), and its derivation in
+           * `constants.js` is stated against that height and through its own
+           * window. Lighting a courtyard with a site mast would make the block
+           * interior the brightest surface in the frame — which is STATE 53
+           * §3.6's failure, one scale down.
+           *
+           * THE DISCRIMINATOR IS `DEAD_ZONE.yardLightHeightM` AND NOT A NEW
+           * FLAG ON THE FEATURE, which is the `lamp` branch's own rule: the
+           * mounting height is what the two luminaires differ in, it is what
+           * each candela is derived AT, and a record carrying both a height
+           * and a fixture name could disagree with itself. A site mast is
+           * `SITE.floodHeightM` = 9.0 m and a yard column is 6.0; anything at
+           * or under the yard column's height is a yard light.
+           */
+          const site = f.height > DEAD_ZONE.yardLightHeightM;
           lamps.push({
             x: px, y: py, z: pz, axis: 'x', side: 1,
-            candela: LIGHT.siteFloodCandela,
-            radius: LIGHT.siteFloodRadiusM,
+            candela: site ? LIGHT.siteFloodCandela : LIGHT.yardFloodCandela,
+            radius: site ? LIGHT.siteFloodRadiusM : LIGHT.yardFloodRadiusM,
             dir: [dx / len, dy / len, dz / len],
           });
         }
@@ -7855,6 +7879,18 @@ export function createCity(options = {}) {
           bytesMB: +(bytesResident / 1048576).toFixed(2),
           peakMB: +(peakBytes / 1048576).toFixed(2),
           lampsActive: Math.min(lampCandidates.length, lampPool.length),
+          /**
+           * SESSION 54. HOW MANY LAMPS WERE IN RANGE, which `lampsActive`
+           * cannot say once the pool saturates: `min(candidates, pool)` pins
+           * at `pool` and every further candidate is invisible. The sign pool
+           * beside this one has carried `signCandidates` for exactly that
+           * reason since session 45 — *"candidates BELOW the pool size means
+           * every sign that could light something is lighting it"* — and this
+           * session put a light in every courtyard in the city, so the number
+           * that says whether the STREET lost a slot to a YARD is this one and
+           * not the one above it.
+           */
+          lampCandidates: lampCandidates.length,
           lampPool: lampPool.length,
           /**
            * Session 45. The sign pool, reported exactly as the lamp pool above

@@ -119,14 +119,15 @@ function lightCensus() {
   console.log(`  ${unlitKinds} of ${order.length} kinds deliver no lamp and no flood on any chunk.`);
 
   console.log('');
-  console.log('  THE LANDMARK APRONS. `LANDMARK_APRON` is the whole table and it has a');
-  console.log('  ground, an edge treatment and a prop list. It has no light of any kind:');
+  console.log('  THE LANDMARK APRONS. `LANDMARK_APRON` is the whole table: a ground, an edge');
+  console.log('  treatment, a prop list, a furnishing pitch and — since session 54 — a light.');
   for (const [name, a] of Object.entries(LANDMARK_APRON)) {
-    const hasLight = a.props.some((p) => p === 'lamp' || p === 'flood');
     console.log(
       `    ${name.padEnd(11)} ground ${String(a.ground).padEnd(11)} edge ${String(a.edge).padEnd(9)} ` +
-      `spacing ${String(a.spacingM).padStart(3)} m  props [${a.props.join(', ')}]` +
-      (hasLight ? '' : '   <- unlit')
+      `spacing ${String(a.spacingM).padStart(3)} m  props [${a.props.join(', ')}]`
+    );
+    console.log(
+      `    ${' '.repeat(11)} light  ${a.light ? `${a.light} at ${a.lightHeightM} m every ${a.lightEveryM} m of arc` : 'NONE   <- unlit'}`
     );
   }
   const lm = LANDMARKS.map((l) => l.name).join(', ');

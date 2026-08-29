@@ -320,6 +320,47 @@ export const LIGHT = {
   siteFloodRadiusM: 130,
 
   /**
+   * cd, PEAK. A SERVICE YARD'S WORK LIGHT — SESSION 54, and it is the fourth
+   * entry in the family `parkLampCandela` started: the same two relations
+   * evaluated for a different height and a different class of surface.
+   *
+   * WHAT IT IS FOR. `DEAD_ZONE.core`'s own comment says *"a block interior IS
+   * a service yard"*, and a serviced block has a loading bay, a van standing
+   * on it and a way in. What it did not have was a light — measured, 223 of
+   * 289 chunks at seed 1337 delivered no `lamp` and no `flood` feature at all
+   * (`tools/placeprobe.mjs --light`), which is the largest unlit population in
+   * this city by a factor of seventeen.
+   *
+   * IT IS NOT A SITE FLOOD AND THE DIFFERENCE IS 30x. `siteFloodCandela` is
+   * 50 lx of CONSTRUCTION TASK lighting off a 9 m mast, because people are
+   * working in an excavation. A courtyard where a van is unloaded at night is
+   * EN 12464-2's *"loading zone / traffic zone for pedestrians and vehicles"*
+   * — **20 lx**, which is 1.25x `streetAverageLux` and 0.40x a site's. Put a
+   * site mast in a courtyard and the block interior becomes the brightest
+   * surface in the frame, which is the failure STATE 53 §3.6 records in the
+   * other direction.
+   *
+   * SIZE THE WINDOW FIRST, THEN DERIVE THROUGH IT — `siteFloodRadiusM`'s own
+   * rule, and it is written here rather than assumed because assuming it is
+   * CONTRACT §9 rows 6b and 20 and this project has done it three times. The
+   * column is `DEAD_ZONE.yardLightHeightM` = 6.0 m and it aims at a bay about
+   * 8 m away, so the slant range is `hypot(6, 8)` = **10.0 m**. A window that
+   * still passes half at 10 m needs `R >= 10/0.293` = 34.1 m -> **40 m**, at
+   * which the throw passes `(1 - 10/40)²` = **0.5625**.
+   *
+   *     I = E·d²/window = 20 x 100 / 0.5625 = 3 556 cd  ->  3 600
+   *
+   * Both numbers and the ratio (§9 rule 4): **3 600 / 60 000 = 0.06x a site
+   * flood's peak from a mast 0.67x the height**, and **0.53x a street lamp's
+   * peak**. So a courtyard at night is a dimmer, lower, closer pool than the
+   * street outside its gate — which is what a yard light is, and what keeps
+   * lighting the fill from making the fill the subject.
+   */
+  yardFloodCandela: 3600,
+  /** m. The window above, sized before the intensity was derived through it. */
+  yardFloodRadiusM: 40,
+
+  /**
    * lux, below which the photocell closes and the street lights up.
    *
    * Calibrated, not picked: this is the horizontal illuminance this atmosphere
