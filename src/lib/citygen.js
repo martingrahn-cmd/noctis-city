@@ -7500,6 +7500,44 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const nearLandmarks = landmarksTouching(cx, cz, CORRIDOR);
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * PAST THE CITY'S OWN EXTENT, NOTHING — SESSION 54, AND IT IS STATE 53 §7
+   * ITEM 1, THE ONE THE BRIEF SAID TO BUILD IF NOTHING ELSE.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * Session 53 gave the world an extent and STATE 53 §2's last paragraph wrote
+   * down exactly what it did not do: *"THE LATTICE STILL DOES NOT STOP. Past
+   * 2816 m every chunk is low-detail and every chunk still has its 15.0 m
+   * carriageway and its 0.4542 ha of it. The city thins to a landscape of
+   * yards and depots and then continues as that, for ever."* Measured in §1.3
+   * on the transect out to 4.10 km: from `cx` 3 outward every chunk on
+   * `cz = 0` delivers 0.4542 ha of carriageway and 0.1989 ha of pavement,
+   * identically, for ever.
+   *
+   * `cityExtentAt` IS ALREADY THE ANSWER AND NOTHING WAS READING IT HERE.
+   * `densityAt` multiplies by it, so past `CITY.extentEdgeM` the field is
+   * exactly 0 and every chunk is low-detail — but a low-detail chunk still
+   * emits a full road lattice and a `DEAD_ZONE` floor of props, and BOTH of
+   * those are independent of density by construction: the floor is what
+   * session 50 added so that a yard at d = 0.1 is still a yard, and the
+   * lattice never read the field at all. So the two things that make the outer
+   * world go on for ever are exactly the two the extent term cannot reach
+   * through `densityAt`, and they have to read it directly.
+   *
+   * WHAT IS PAST IT: the earth plane, and nothing else. `DISTANT`'s silhouette
+   * shell is already empty out here because IT reads density. That is a city
+   * that ends, which is what the operator asked for, and it is the
+   * precondition for a road that LEAVES the grid — a road cannot leave a grid
+   * that has no boundary.
+   *
+   * THE TEST IS THE CHUNK'S CENTRE, SO THE BOUNDARY IS 128 m RAGGED, and that
+   * is right rather than tolerated: `cityExtentAt` is a smoothstep over a
+   * 1440 m band and every chunk that fails it has `density` under 0.01
+   * already, so what stops being drawn is a yard the field had all but emptied.
+   */
+  const beyondCity = cityExtentAt(cxWorld, czWorld) <= 0;
+
   const lowDetail = !hasLandmark && density < CITY.lowDetailThreshold;
   /**
    * `carpark` IS THE ONE KIND WITH A CONDITION ON IT, AND THE CONDITION IS THE
@@ -8028,7 +8066,8 @@ export function generateChunk(rootSeed, cx, cz) {
    * so summing over a region counts each end once.
    */
   const streetEnds = { built: 0, tooShort: 0 };
-  {
+  /** `beyondCity` — see its derivation above. Past the extent there is no road. */
+  if (!beyondCity) {
     const r = CITY.roadHalfWidth;
     const w = CORRIDOR;
     /**
@@ -9561,7 +9600,7 @@ export function generateChunk(rootSeed, cx, cz) {
   // construction chunks are bit-identical (STATE 40 §7's determinism digest).
   const features = [];
 
-  if (lowDetail) {
+  if (lowDetail && !beyondCity) {
     const featRng = chunkRng(rootSeed, cx, cz, 'feature');
     const isl = island;
     const mx = (isl.x0 + isl.x1) / 2;
@@ -11410,8 +11449,8 @@ export function generateChunk(rootSeed, cx, cz) {
   // is a verdict and not a coin. The sweep is here so the next session can see
   // what it is spending before it plants anything else.
   /** `parking`, `yard` and `lot` — a floor and a slope each. `built` is absent. */
-  const deadZoneLaw = DEAD_ZONE[kind];
-  const propCount = kind === 'park'
+  const deadZoneLaw = beyondCity ? null : DEAD_ZONE[kind];
+  const propCount = beyondCity ? 0 : kind === 'park'
     ? Math.round(22 + 26 * density)
     : kind === 'construction'
       /**

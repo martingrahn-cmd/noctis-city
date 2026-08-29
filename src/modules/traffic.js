@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY, riverNoRoad, landmarkOccupies, blockNoRoad, busStopAt, BUS_STOP } from '../lib/citygen.js';
+import { CITY, riverNoRoad, landmarkOccupies, blockNoRoad, busStopAt, BUS_STOP, cityExtentAt } from '../lib/citygen.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { CLUSTER, LIGHT, GROUND } from '../core/constants.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
@@ -2922,6 +2922,28 @@ export function createTraffic(options = {}) {
            */
           if (riverNoRoad(rootSeed, pos.x, pos.z, axis === 0)) continue;
           /**
+           * NOR ONTO A ROAD THAT IS PAST THE CITY'S OWN EDGE — SESSION 54, AND
+           * IT IS THE SAME SENTENCE AS THE THREE EITHER SIDE OF IT.
+           *
+           * The lattice this module drives on is ARITHMETIC — `line *
+           * chunkSize` — and the road actually drawn under it is
+           * `generateChunk`'s. Those two agreed everywhere for fifty-three
+           * sessions because the drawn road never stopped. This session made
+           * `generateChunk` emit no lattice past `CITY.extentEdgeM` (STATE 53
+           * §7 item 1), so from now on the arithmetic lattice reaches 800 m
+           * further than the road does, and a fleet whose lattice is arithmetic
+           * and whose road is not is exactly what the operator reported from
+           * the air at the weir: *"vehicles, buses, pedestrians, lamp posts and
+           * market stalls arranged in neat lanes on BARE GROUND."*
+           *
+           * HARD rather than scored, for the reason the three around it are.
+           * The same term is in the recycle pass below, so a vehicle cannot be
+           * SEEDED past the edge and cannot DRIVE past it either — one
+           * statement about the delivered road network, in the two places that
+           * ask the question.
+           */
+          if (cityExtentAt(pos.x, pos.z) <= 0) continue;
+          /**
            * NOR ONTO A ROAD A LANDMARK TOOK — SESSION 34, AND IT IS THE SAME
            * SENTENCE AS THE LINE ABOVE, NINETEEN SESSIONS LATE.
            *
@@ -4183,7 +4205,9 @@ export function createTraffic(options = {}) {
           const dz = pos.z - cam.position.z;
           const offRoad = riverNoRoad(rootSeed, pos.x, pos.z, veh.axis === 0)
             || landmarkUnderBody(pos.x, pos.z, veh.axis, veh.type)
-            || blockUnderBody(pos.x, pos.z, veh.axis, veh.type);
+            || blockUnderBody(pos.x, pos.z, veh.axis, veh.type)
+            /** Session 54 — past the city's edge there is no lattice. See `seed`. */
+            || cityExtentAt(pos.x, pos.z) <= 0;
           if (dx * dx + dz * dz > SIM_RADIUS * SIM_RADIUS || offRoad) {
             /**
              * Out of the ring, OR driven onto a road the river took, OR onto
