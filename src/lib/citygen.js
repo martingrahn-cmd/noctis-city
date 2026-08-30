@@ -12870,7 +12870,58 @@ export function generateChunk(rootSeed, cx, cz) {
     const coreSolids = reg.all().filter((c) => c.kind === 'building' || c.kind === 'landmark' || c.kind === 'precinct'
       || c.kind === 'block' || c.kind === 'water');
     const yardRect = { x0: island.x0, z0: island.z0, x1: island.x1, z1: island.z1, kind: 'coreGround', yKey: 'core' };
-    for (const g of subtractBoxes([yardRect], coreSolids)) ground.push(g);
+    const coreRects = [];
+    for (const g of subtractBoxes([yardRect], coreSolids)) {
+      ground.push(g);
+      if (g.kind === 'coreGround') coreRects.push(g);
+    }
+
+    /**
+     * THE SERVICE ROWS — SESSION 56, ITEM 6, AND THE MEASUREMENT CAME FIRST.
+     * Over the 5×5 chunks at the origin, the NINE largest empty surfaces
+     * among the towers are all coreGround SLIVERS — the 8–17 m strips
+     * `subtractBoxes` leaves along the building backs, up to 845 m² with
+     * zero objects — while every furnished core patch runs 19–41 objects/ha.
+     * The uniform island scatter above cannot reach them: its 8 tries land
+     * mostly on buildings and are refused, and a thin strip is a small
+     * target. A strip along a building's back is where a block's servicing
+     * actually stands, so the largest empty strips each get a ROW along
+     * their own long axis, from the same palette and the same named stream —
+     * appended draws only, so nothing already delivered moves. The row pitch
+     * of 9 m puts a 12 m strip at ~30 objects/ha, the middle of the band the
+     * furnished patches measure.
+     */
+    for (const g of coreRects
+      .map((r) => ({ r, area: (r.x1 - r.x0) * (r.z1 - r.z0) }))
+      .filter((e) => e.area > 300)
+      .sort((a, b) => b.area - a.area)
+      .slice(0, 5)
+      .map((e) => e.r)) {
+      const rowAlongX = (g.x1 - g.x0) >= (g.z1 - g.z0);
+      const len = rowAlongX ? g.x1 - g.x0 : g.z1 - g.z0;
+      const rowN = Math.max(2, Math.floor(len / 9));
+      for (let i = 0; i < rowN; i++) {
+        const u = (i + 0.5) / rowN;
+        const propKind = CORE_KINDS[coreRng.int(0, CORE_KINDS.length - 1)];
+        const scale = coreRng.range(PROP_SCALE.min, PROP_SCALE.max);
+        const variants = propVariantCount(propKind);
+        const variant = variants > 0 ? coreRng.int(0, variants - 1) : 0;
+        const half = propHalfWidth(propKind, variant) * scale;
+        const x = rowAlongX ? g.x0 + u * len : (g.x0 + g.x1) / 2 + coreRng.range(-1.5, 1.5);
+        const z = rowAlongX ? (g.z0 + g.z1) / 2 + coreRng.range(-1.5, 1.5) : g.z0 + u * len;
+        if (inLandmarkApproach(x, z, half)) continue;
+        const spot = claimAt('prop', x, z, half, half, { owner: propKind });
+        if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+        reg.claim(spot);
+        props.push({
+          x, z, yawDeg: coreYaw(), refDeg: 0, kerb: false, kind: propKind, scale, variant,
+          soil: coreRng.range(0.52, 0.94),
+          lean: coreRng.range(-1, 1),
+          leanAzDeg: coreRng.range(0, 360),
+          core: true,
+        });
+      }
+    }
   }
 
   /**
