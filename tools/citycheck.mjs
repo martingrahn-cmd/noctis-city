@@ -542,6 +542,35 @@ function judgeCity(M, BUDGET) {
           `in four positions after session 50. \`node tools/surfacegrid.mjs --patches\` says where.`]);
       }
     }
+    /**
+     * SESSION 56 — A DELIVERED ROTATION AGAINST ITS OWN CLAIM'S AXIS.
+     *
+     * Three occurrences bought this check: session 46's lamp heads (two
+     * expressions for one point), session 49's stadium stands (claim right,
+     * draw transposed, seen only from the air), and session 56's football
+     * goals — `alongX ? 0 : 90` under a claim that says the opposite, for
+     * eight sessions. The budget's `$featureFacings` carries the derivation,
+     * the admission rules and what this check CANNOT see (a mirror).
+     */
+    if (M.featureFacings == null) {
+      out.push(['occupancy',
+        'feature facings unmeasured — UNRUN, not passed: the generator returned no features to pair']);
+    } else {
+      if (M.featureFacings.measured < OC.minFeatureFacingsMeasured) {
+        out.push(['occupancy',
+          `only ${M.featureFacings.measured} feature facings measured (min ${OC.minFeatureFacingsMeasured}) — ` +
+          `a transposition sweep over an empty population passes for free, which is CONTRACT §7.1's quiet gate`]);
+      }
+      if (M.featureFacings.mismatches.length > OC.maxFeatureClaimTranspositions) {
+        out.push(['occupancy',
+          `${M.featureFacings.mismatches.length} feature(s) delivered rotated 90 deg against their own ` +
+          `claim's axis (max ${OC.maxFeatureClaimTranspositions}). The claim said which way the thing is ` +
+          `long and the yaw said the other way — session 46's lamp defect, the third time. Worst: ` +
+          M.featureFacings.mismatches.slice(0, 4)
+            .map((f) => `${f.kind}(${f.owner}) at (${f.x}, ${f.z}) yaw ${f.yawDeg} against implied ${f.impliedDeg}`)
+            .join('; ')]);
+      }
+    }
     if (M.viaductLegsOnCarriageway == null) {
       out.push(['occupancy', 'the viaduct reported no legs — `viaductPiers` did not return them']);
     } else if (M.viaductLegsOnCarriageway > OC.maxViaductLegsOnCarriageway) {
@@ -805,6 +834,12 @@ function goodCityFixture() {
     viaductLegsOnCarriageway: 0,
     viaductPiersBlocked: 0,
     viaductLegMaxInBlockM: BUDGET.occupancy.viaductLegsInsideBlockClearBandM - 0.1,
+    /** Session 56 — the facing sweep, inside every bound. */
+    featureFacings: {
+      measured: BUDGET.occupancy.minFeatureFacingsMeasured * 2,
+      declined: 100,
+      mismatches: [],
+    },
     softwareRenderer: false,
 
     hasCensus: true,
@@ -934,6 +969,17 @@ const FALSIFY_CITY = [
   ['occupancy.noSurfaceCensus', (m) => { m.surfaceCensus = null; }],
   ['occupancy.emptySurfaceLattice', (m) => { m.surfaceCensus = { ...m.surfaceCensus, walkable: 10, sampled: 10 }; }],
   ['occupancy.emptyCensus', (m) => { m.deliveredClaims = 12; }],
+  /**
+   * SESSION 56 — the facing sweep's three sites, each the shape of the real
+   * defect: the four goals delivered `alongX ? 0 : 90` under a claim that
+   * says the opposite.
+   */
+  ['occupancy.facingTransposed', (m) => {
+    m.featureFacings = { ...m.featureFacings,
+      mismatches: [{ kind: 'goal', owner: 'sport:goal', x: 64, z: -734, yawDeg: 90, impliedDeg: 0 }] };
+  }],
+  ['occupancy.facingsUnmeasured', (m) => { m.featureFacings = null; }],
+  ['occupancy.facingsEmptySweep', (m) => { m.featureFacings = { ...m.featureFacings, measured: 10 }; }],
   ['occupancy.legOnCarriageway', (m) => { m.viaductLegsOnCarriageway = 8; }],
   ['occupancy.noLegs', (m) => { m.viaductLegsOnCarriageway = null; }],
   ['occupancy.pierBlocked', (m) => { m.viaductPiersBlocked = 2; }],
@@ -1614,14 +1660,48 @@ const M = {};
   const R = BUDGET.region;
   const genClaims = [];
   let refusedTotal = {};
+  /**
+   * SESSION 56 — pair every yawed feature with the claim made at its own
+   * centre and ask whether the delivered rotation and the claim's long axis
+   * agree. Admission rules and the floor's derivation: the budget's
+   * `$featureFacings`. Confirmed RED before the goal fix landed: 4 goals of
+   * 21 051 measured over 17x17, exactly the four the operator reported.
+   */
+  const facings = { measured: 0, declined: 0, mismatches: [] };
   for (let cz = R.cz[0]; cz <= R.cz[1]; cz++) {
     for (let cx = R.cx[0]; cx <= R.cx[1]; cx++) {
       const c = generateChunk(Number(SEED), cx, cz);
       if (!c.registry) { M.genConflicts = null; break; }
-      for (const q of c.registry.all()) genClaims.push(q);
+      const byCentre = new Map();
+      for (const q of c.registry.all()) {
+        genClaims.push(q);
+        const key = `${((q.x0 + q.x1) / 2).toFixed(2)},${((q.z0 + q.z1) / 2).toFixed(2)}`;
+        if (!byCentre.has(key)) byCentre.set(key, q);
+      }
+      for (const f of (c.features || [])) {
+        if (f.yawDeg === undefined) continue;
+        const q = byCentre.get(`${f.x.toFixed(2)},${f.z.toFixed(2)}`);
+        if (!q) continue; // claim centred elsewhere (a shifted claim, a scatter) — unpairable, not evidence
+        const hx = (q.x1 - q.x0) / 2;
+        const hz = (q.z1 - q.z0) / 2;
+        if (Math.max(hx, hz) < 2 * Math.max(0.01, Math.min(hx, hz))) continue; // near-square claim implies no axis
+        const fold = ((f.yawDeg % 180) + 180) % 180;
+        const nearest = fold < 45 || fold >= 135 ? 0 : 90;
+        const dist = Math.min(Math.abs(fold - nearest), 180 - Math.abs(fold - nearest));
+        if (dist > 3) { facings.declined++; continue; } // non-cardinal (ring chords) — its claim is trig-bulged, not axed
+        facings.measured++;
+        const impliedDeg = hz > hx ? 90 : 0;
+        if (nearest !== impliedDeg) {
+          facings.mismatches.push({
+            kind: f.kind, owner: q.owner, x: +f.x.toFixed(1), z: +f.z.toFixed(1),
+            yawDeg: f.yawDeg, impliedDeg,
+          });
+        }
+      }
       for (const [k, v] of Object.entries(c.refused || {})) refusedTotal[k] = (refusedTotal[k] || 0) + v;
     }
   }
+  M.featureFacings = M.genConflicts === null ? null : facings;
   if (M.genConflicts !== null) M.genConflicts = findConflicts(genClaims, 60);
   M.genClaims = genClaims.length;
   M.refused = refusedTotal;
@@ -1677,6 +1757,13 @@ notes.push(
     + `                 by surface: `
     + Object.entries(M.surfaceCensus.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
     : 'harness.surfaceCensus() returned nothing'}`);
+
+notes.push(
+  `facings          ${M.featureFacings
+    ? `${M.featureFacings.measured} cardinal yawed features paired with an oblong claim, `
+    + `${M.featureFacings.mismatches.length} transposed against it (max `
+    + `${BUDGET.occupancy.maxFeatureClaimTranspositions}), ${M.featureFacings.declined} non-cardinal declined`
+    : 'unmeasured'}`);
 
 notes.push(
   `occupancy        ${M.genClaims} generator claims over the region, ` +
