@@ -98,6 +98,61 @@ const RATES = [
   { label: 'paused', daySeconds: 0 },
 ];
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE WEATHER ROW — SESSION 55, AND A PRESET IS A PAIR OF §6 PARAMETERS.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator: *"the only way to see the city clear, wet or raining is to edit
+ * the URL and reload"*. `wet` and `rainfall` are both CONTRACT §6 parameters
+ * and both have live setters, so a preset is two numbers and one button — the
+ * same shape the time row already has.
+ *
+ * **THREE OF THE FOUR PIN, AND THE FOURTH IS THE WAY BACK.** Session 44 made
+ * `rainfall = -1` defer to a derived shower cycle and `>= 0` pin it, and
+ * `weather.js`'s own note says the pin is *"not 'writes the same value': does
+ * not write"*. A row that only pinned would take the weather away from anybody
+ * who pressed it once — the city would sit in whatever state the last button
+ * left it in, for ever, and the shower cycle would be a thing that used to
+ * happen. So `cycle` hands BOTH states back (`releaseRainfall`, `release`) and
+ * the panel prints `pinned` beside the rainfall until somebody presses it.
+ *
+ * **AND "CLOUDY" IS NOT HERE, DELIBERATELY.** The brief asked for clear,
+ * cloudy, wet and rain and said to establish what a cloud fraction would touch
+ * before building one. It touches: the sky LUT's own integral (`sky.js` marches
+ * a Rayleigh/Mie atmosphere with a sun disc and has no cloud term at all), the
+ * CPU-side `skyIlluminance` that has to agree with it or the photocell and the
+ * shader disagree about how many lux are on the street, the sun's own
+ * `intensity` and `castShadow` (overcast is a sun you cannot see and a shadow
+ * that is not there), the PMREM environment the whole city's specular reads,
+ * and `ATM.hazeDensity`. **Every one of the four luminance bands in
+ * `look-budget.json` was derived in clear air**, so it is not an hour's work —
+ * it is a session, and a session that re-bases every threshold this project
+ * has. Clear, wet and rain are built; cloudy is written up in STATE.
+ *
+ * THE THREE NUMBERS, AND NONE OF THEM IS NEW:
+ *
+ *   clear   rainfall 0, wetness 0            the dry city every gate renders
+ *   wet     rainfall 0, wetness 0.85         `camera.js`'s own `night_rain`
+ *                                            value, and it is eight minutes
+ *                                            after full rain stops:
+ *                                            `DRY_TAU_S`·ln(1/0.85) = 488 s
+ *                                            against a drying constant of 3000
+ *   rain    rainfall 1, wetness 1            full rain is `RAIN_FULL_MMH` =
+ *                                            10 mm/h, and the equilibrium
+ *                                            wetness is `rainfall^0.6` = 1
+ *
+ * `rain` releases the wetness pin after seeding it, so the road goes on being
+ * driven by the water budget instead of being frozen at the value a button
+ * chose — which is the difference between a preset and a mode.
+ */
+const WEATHER = [
+  { label: 'clear', rainfall: 0, wetness: 0, pinWet: true },
+  { label: 'wet', rainfall: 0, wetness: 0.85, pinWet: true },
+  { label: 'rain', rainfall: 1, wetness: 1, pinWet: false },
+  { label: 'cycle', rainfall: null, wetness: null, pinWet: false },
+];
+
 const CSS = `
 #noctis-ui{position:fixed;right:12px;top:12px;z-index:10;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfd4da;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 #noctis-ui .row{display:flex;gap:4px;background:rgba(0,0,0,.62);padding:6px;border-radius:4px}
@@ -124,6 +179,7 @@ export function createUi(options = {}) {
   let view = { cx: 0, cz: 0, mpp: 1, size: 0 };
   let activeRate = 1;
   let activePreset = -1;
+  let activeWeather = -1;
 
   /**
    * HALF-WIDTH OF THE MAPPED WORLD, in metres.
@@ -461,6 +517,56 @@ export function createUi(options = {}) {
       rateRow.appendChild(rateBox);
       root.appendChild(rateRow);
 
+      // --- weather ----------------------------------------------------------
+      const wxRow = el('div', 'row');
+      wxRow.appendChild(el('span', 'lbl', 'weather'));
+      const wxBox = el('span', 'row');
+      wxBox.style.background = 'none';
+      wxBox.style.padding = '0';
+      WEATHER.forEach((w, i) => {
+        const b = button(w.label, () => {
+          const weather = ctx.get('weather');
+          const lights = ctx.get('lights');
+          /**
+           * `?rain=0` leaves `weather` unregistered — an ordinary bisecting
+           * switch (CONTRACT §6) — and `ctx.get()` returning undefined is what
+           * quarantine looks like from the outside, so this must work without
+           * it. Wetness still can be set, because it is `lights`'s uniform and
+           * not the weather module's state; rainfall cannot, because there are
+           * no particles to rain.
+           */
+          if (w.rainfall == null) {
+            if (weather) {
+              weather.releaseRainfall();
+              weather.release();
+            }
+            activeWeather = i;
+            markGroup(wxBox, i);
+            return;
+          }
+          if (weather) weather.setRainfall(w.rainfall);
+          if (weather) weather.override(w.wetness);
+          else if (lights) lights.setWetness(w.wetness);
+          /**
+           * `rain` seeds the wetness and then hands it back, so the road keeps
+           * being driven by the water budget rather than frozen at the number a
+           * button chose. `clear` and `wet` are STATES of the surface and stay
+           * pinned: releasing them would let the drying law walk `wet` back to
+           * zero while the operator is looking at it.
+           */
+          if (!w.pinWet && weather) weather.release();
+          activeWeather = i;
+          markGroup(wxBox, i);
+        });
+        b.title = w.rainfall == null
+          ? 'hand rainfall and wetness back to the shower cycle'
+          : `pins rainfall ${w.rainfall.toFixed(2)} (${(w.rainfall * 10).toFixed(1)} mm/h)` +
+            `, wetness ${w.wetness.toFixed(2)}${w.pinWet ? ' (pinned)' : ' then released'}`;
+        wxBox.appendChild(b);
+      });
+      wxRow.appendChild(wxBox);
+      root.appendChild(wxRow);
+
       // --- map + fullscreen -------------------------------------------------
       const toolRow = el('div', 'row');
       toolRow.appendChild(button('map (M)', () => setMapOpen(ctx, !mapOpen)));
@@ -533,10 +639,24 @@ export function createUi(options = {}) {
         `rate is the SUN only — the shipped day is ${ctx.get('time') ? ctx.get('time').dayLengthSeconds : 1200} s ` +
         '(20 min, already 72x real time), "fast" is 720 s = 120x real'
       );
+      console.log(
+        '[noctis] ui: weather — clear/wet/rain PIN rainfall off session 44\'s shower cycle ' +
+        '(rainfall 0/0/1 = 0.0/0.0/10.0 mm/h, wetness 0/0.85/1); "cycle" hands both back and the ' +
+        'city goes on raining every 48.4 min on its own. The HUD prints "pinned" beside the rate ' +
+        'while one of the first three is held. NO CLOUDY: overcast is not a parameter in this ' +
+        'project — it would need a cloud term in the sky LUT, a matching skyIlluminance, the sun\'s ' +
+        'own intensity and shadow, the PMREM environment and the haze, and all four look bands were ' +
+        'derived in clear air'
+      );
 
       return {
         /** For the console and for a probe. No verdicts. */
-        state: () => ({ mapOpen, rate: RATES[activeRate].label, preset: activePreset }),
+        state: () => ({
+          mapOpen,
+          rate: RATES[activeRate].label,
+          preset: activePreset,
+          weather: activeWeather < 0 ? null : WEATHER[activeWeather].label,
+        }),
         openMap: (on) => setMapOpen(ctx, on !== false),
       };
     },
