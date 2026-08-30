@@ -317,8 +317,10 @@ export function createUi(options = {}) {
     g.strokeStyle = '#6f8391';
     g.lineWidth = Math.max(2, (CITY.roadHalfWidth * 2) / view.mpp);
     const env = riverEnvelope();
-    for (let i = -6; i <= 6; i++) {
-      const bx = bridgeX(i);
+    const crossingXsOnMap = [];
+    for (let i = -6; i <= 6; i++) crossingXsOnMap.push(bridgeX(i));
+    for (const ex of RIVER.extraCrossingsX) crossingXsOnMap.push(ex);
+    for (const bx of crossingXsOnMap) {
       if (Math.abs(bx) > EXTENT_M) continue;
       const a = toPx(bx, env.z0 - 12);
       const b = toPx(bx, env.z1 + 12);

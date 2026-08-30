@@ -3898,6 +3898,25 @@ export const RIVER = {
    */
   bridgeEvery: 4,
   /**
+   * EXTRA CROSSINGS, BY WORLD X — session 56, item 3. The lattice above stays
+   * exactly what it is (its indices name the built bridges and reshuffling
+   * them rebuilds the river), and this list adds relief crossings at street
+   * lines the lattice skips.
+   *
+   * WHY −256 AND ONLY −256. The operator stood at (−257, −373) — the midpoint
+   * of the girder@0 ↔ arch@−512 reach, 254.6 m from one crossing and 257.4 m
+   * from the other, and reported a street meeting the river and ending. −256
+   * is a chunk boundary, so a north–south street already runs at it on both
+   * banks; the road clip, the water claims, the walkability mask, traffic,
+   * the promenade lamps and the canyon bake all consult the crossing
+   * functions below and follow without edits. The reach he walked is the only
+   * one inside the streamed ring whose midpoint the gate region sees; the
+   * derivation for NOT halving `bridgeEvery` globally is that spacing's own
+   * comment above — 512 m is a real urban river, and one relief bridge where
+   * a defect was reported is a repair while 256 m everywhere is a canal.
+   */
+  extraCrossingsX: [-256],
+  /**
    * Metres between the stations the bank is sampled at, and it is a SHARED
    * lattice rather than a resolution each consumer picks for itself.
    *
@@ -4060,6 +4079,20 @@ export function bridgeX(i) {
 }
 
 /**
+ * The x of the crossing nearest to `x` — lattice AND extras. Session 56:
+ * every consumer that used `bridgeX(bridgeIndexAt(x))` to find "the bridge
+ * here" asks this instead, so an extra crossing is a crossing everywhere at
+ * once rather than in the files somebody remembered.
+ */
+export function nearestCrossingX(x) {
+  let best = bridgeX(bridgeIndexAt(x));
+  for (const ex of RIVER.extraCrossingsX) {
+    if (Math.abs(ex - x) < Math.abs(best - x)) best = ex;
+  }
+  return best;
+}
+
+/**
  * Which structure crossing `i` carries.
  *
  * A SEEDED PERMUTATION PER GROUP OF THREE, WHICH IS WHY THE VOCABULARY IS
@@ -4103,9 +4136,31 @@ export function bridgeStructure(rootSeed, i) {
  * beside each other (CONTRACT §9 rule 4).
  */
 export function bridgeSpec(rootSeed, i) {
-  const x = bridgeX(i);
+  return bridgeSpecAtX(rootSeed, bridgeX(i), bridgeStructure(rootSeed, i), i);
+}
+
+/**
+ * The spec for a crossing at an arbitrary street line — the lattice bridges
+ * delegate here, and an EXTRA crossing computes its structure as THE ERA NOT
+ * YET STANDING BETWEEN ITS TWO LATTICE NEIGHBOURS: a relief bridge is the
+ * youngest span on its own reach, which is what an infill crossing in a
+ * growing city is. Between girder@0 and arch@−512 that is the cable-stayed.
+ */
+export function bridgeSpecAtX(rootSeed, x, structure = null, i = null) {
+  if (!structure) {
+    const step = RIVER.bridgeEvery * CITY.chunkSize;
+    const k = Math.round(x / step);
+    if (Math.abs(x - bridgeX(k)) < 0.5) {
+      /** A lattice crossing asked for by x keeps its own timeline identity. */
+      structure = bridgeStructure(rootSeed, k);
+      if (i === null) i = k;
+    } else {
+      const a = bridgeStructure(rootSeed, Math.floor(x / step)).name;
+      const b2 = bridgeStructure(rootSeed, Math.ceil(x / step)).name;
+      structure = BRIDGE_STRUCTURES.find((s) => s.name !== a && s.name !== b2) || BRIDGE_STRUCTURES[0];
+    }
+  }
   const e = riverEdges(x);
-  const structure = bridgeStructure(rootSeed, i);
   const clearSpan = e.south - e.north;
   /**
    * Metres of deck beyond each bank, so the deck lands on the promenade behind
@@ -4170,7 +4225,7 @@ export function riverTouchesChunk(cx, cz) {
   return b.z1 > env.z0 && b.z0 < env.z1;
 }
 
-/** Crossings whose deck reaches into `[x0, x1]`. */
+/** Crossings whose deck reaches into `[x0, x1]` — lattice and extras. */
 export function bridgesTouching(rootSeed, x0, x1) {
   const step = RIVER.bridgeEvery * CITY.chunkSize;
   const out = [];
@@ -4178,6 +4233,10 @@ export function bridgesTouching(rootSeed, x0, x1) {
   const i1 = Math.ceil(x1 / step) + 1;
   for (let i = i0; i <= i1; i++) {
     const s = bridgeSpec(rootSeed, i);
+    if (s.x + s.deckHalf > x0 && s.x - s.deckHalf < x1) out.push(s);
+  }
+  for (const ex of RIVER.extraCrossingsX) {
+    const s = bridgeSpecAtX(rootSeed, ex);
     if (s.x + s.deckHalf > x0 && s.x - s.deckHalf < x1) out.push(s);
   }
   return out;
@@ -4194,9 +4253,7 @@ export function bridgesTouching(rootSeed, x0, x1) {
  * gate being relaxed.
  */
 export function onBridgeDeck(rootSeed, x, z, pad = 0) {
-  const step = RIVER.bridgeEvery * CITY.chunkSize;
-  const i = Math.round(x / step);
-  const s = bridgeSpec(rootSeed, i);
+  const s = bridgeSpecAtX(rootSeed, nearestCrossingX(x));
   return (
     x > s.x - s.deckHalf - pad && x < s.x + s.deckHalf + pad &&
     z > s.deckZ0 - pad && z < s.deckZ1 + pad
@@ -7735,7 +7792,7 @@ export function generateChunk(rootSeed, cx, cz) {
     const nearViaduct = b.x1 > vb.x0 - vpad && b.x0 < vb.x1 + vpad
       && b.z1 > vb.z0 - vpad && b.z0 < vb.z1 + vpad;
     /** A through route: this chunk's own west boundary carries a river bridge. */
-    const onArterial = Math.abs(b.x0 - bridgeX(bridgeIndexAt(b.x0))) < 1;
+    const onArterial = Math.abs(b.x0 - nearestCrossingX(b.x0)) < 1;
 
     if (onRiver && rng.chance(0.6)) kind = onBank && rng.chance(0.6) ? 'port' : 'industrial';
     else if (nearViaduct && rng.chance(0.55)) kind = rng.chance(0.6) ? 'depot' : 'industrial';

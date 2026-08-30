@@ -59,6 +59,7 @@ import {
   onBridgeDeck,
   bridgeIndexAt,
   bridgeX,
+  nearestCrossingX,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -668,7 +669,7 @@ export function createRiver(options = {}) {
             // The footway bands sit at ±(roadHalfWidth + sidewalkWidth/2) in
             // X, which is the axis the deck runs ACROSS: a bridge carries a
             // north–south street, so its cross-section is in x and not in z.
-            const ax = Math.abs(x - bridgeX(bridgeIndexAt(x)));
+            const ax = Math.abs(x - nearestCrossingX(x));
             const half = CITY.roadHalfWidth;
             if (ax > half && ax <= half + CITY.sidewalkWidth) {
               return { y: GROUND.pavement, kind: 'walk', known: true };
