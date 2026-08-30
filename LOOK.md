@@ -13,6 +13,73 @@ document has not succeeded.**
 
 ---
 
+## 0. THE PLAYER MUST BE ABLE TO SEE — SESSION 55, AND IT IS A DECISION
+
+**THE OPERATOR HAS SAID THE CITY IS TOO DARK FOUR TIMES ACROSS TEN SESSIONS, AND
+FOUR CONTENT INCREASES HAVE NOT FIXED IT.** Session 30 raised the lamps to
+0.2151x of their own derivation and rationed them against a band; session 45 lit
+975 signs and put lamps on both kerbs; session 53 lit a kilometre of distant
+city; session 54 lit sixteen of sixteen island kinds with about five hundred new
+lights. Every one of them made the city measurably brighter, every one is
+recorded below with its number, **and he still cannot see.** His words, and they
+are what this section exists to answer:
+
+> *"it may be realistically dark in the churchyard, but it is no fun when you
+> cannot see anything"*
+
+**WHEN FOUR CONTENT ADDITIONS DO NOT SOLVE A PROBLEM, IT IS NOT THE CONTENT.**
+The whole light chain in this project is built as a simulation — lamps in
+candela, surfaces in albedo, air with a density, bands derived from physics,
+CONTRACT §5.3's table of real units — and **nowhere until this line did any
+governing document say that the player must be able to SEE.** So fifty-four
+sessions optimised for faithful radiance, correctly, against the only targets
+that were written down; and faithful radiance in a graveyard at 3 a.m. is black.
+That is not a bug in any of the fifty-four. It is a goal that was never stated.
+
+It is stated now:
+
+> **THE CITY MUST BE LEGIBLE ANYWHERE A PLAYER CAN STAND, AND WHERE FAITHFUL
+> LUMINANCE AND LEGIBILITY CONFLICT, LEGIBILITY WINS.**
+
+**LEGIBLE MEANS FORM, NOT BRIGHTNESS.** A surface is legible when a person can
+tell what shape it is and where its edges are — a headstone at ten metres reads
+as a headstone. It does not mean the churchyard is lit; it means the churchyard
+is DARK AND ATMOSPHERIC rather than INVISIBLE, which are two different pictures
+and only one of them is a picture at all. "Too dark" and "no fun" are the same
+complaint said twice, and the second half is the operative one: this is a game.
+
+**GAMES LIE DELIBERATELY, AND THE LIES HAVE NAMES.** Moonlight far above the
+real figure; a floor under the black that never reaches zero; a cast toward blue
+so that darkness reads as *night* rather than as *absence of picture*. Every one
+of those is a departure from physics made on purpose, by people who knew the
+physical number and chose against it. This project has the physical number for
+all three and has never made the choice.
+
+**WHAT THIS SECTION DOES NOT LICENSE.** It is not a global lift and it is not
+permission to raise a level until a frame looks bright. §3's own haze bullet
+already refuses that and the refusal stands: a change that raises the whole
+frame raises the lit surfaces too, auto-exposure pays for it (CONTRACT §5.4),
+and the dark stays exactly as dark relative to everything else. **The lever this
+section asks for is a FLOOR — a term that acts where the picture is black and
+nowhere else** — and the test of one is the ratio inside a single frame that §3
+already uses, not the frame mean.
+
+**AND THE VALUE IS DERIVED FROM LEGIBILITY, NOT FROM LUX.** §7's rule about
+proxies applies to this section's own numbers first: the question a floor's
+magnitude answers is *"what does a headstone need to be, at ten metres, for a
+person to see that it is there"*, and it is answered on a delivered frame in
+code values against the surface beside it. A floor derived from a lux figure
+would be this document's own mistake made a fifth time.
+
+**WHERE THIS SITS AGAINST §7.** §7 says a look threshold is evidence and not a
+verdict, and that a proxy which argues against the goal needs re-deriving in the
+open. This section is now part of the goal it says that against. A band that
+goes red because an unlit wall stopped being 0/255 is a band measuring a city
+that no longer exists, and the re-derivation discipline in §7 — reason, number,
+date, and the falsifying case — is what it costs to say so.
+
+---
+
 ## 1. The city
 
 **A dense night city in 2049.** Not a ruin, not a utopia, not a cyberpunk
