@@ -3379,32 +3379,109 @@ export const APRON_BAY_M = 4.0;
  *              `PARK.lampHeight` at `PARK.lampEvery`, the 4.20 m post-top and
  *              the 16 m pitch every park in this city is already lit by.
  */
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * AND `approach`, `portico` AND `dropOff` ARE SESSION 55's THREE COLUMNS —
+ * STATE 54 §8 ITEM 3, WHICH SPECIFIED THEM AND DID NOT BUILD THEM.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The operator's own frame: *"the dome has one flight of steps at one edge,
+ * two files of people crossing bare apron, no vehicle approach, no visible
+ * entrance"*. Session 52 opened 4.2 m of precinct round these four and session
+ * 54 lit it; nothing has ever said HOW YOU GET IN.
+ *
+ * **THE APPROACHES ARE ON THE FOUR CARDINAL BEARINGS AND THAT IS GEOMETRY, NOT
+ * TASTE.** Every ground rectangle in this project is axis-aligned — `ground`
+ * carries `{x0, z0, x1, z1}` and nothing else — so a radial at 37° would be
+ * drawn as a comb of steps, which is what `landmarkPrecinct`'s own 2.1 m
+ * staircase already is and is only acceptable there because it is a RESIDUE.
+ * A way in is a thing you look along.
+ *
+ * **AND THEY ARE CLAIMED BEFORE THE BOUNDARY RUN, WHICH MAKES THE GATE FREE.**
+ * `occupancy.js` forbids `feature × path`, so every railing bay whose chord
+ * crosses an approach is refused by the paving — and the railing has an opening
+ * exactly where an approach arrives, without either routine knowing the other
+ * exists. That is the same mechanism `layPath` uses to keep a churchyard's
+ * trees off its own spines.
+ *
+ * `portico` IS THE AMBULANCE BAY'S OWN THREE NUMBERS AND NOT A FOURTH SET.
+ * STATE 54 designed *"a `canopy` feature, 16.0 × 13.0 m at 5.4 m — three car
+ * lengths long, one bay plus a footway deep, and high enough for a van"*, and
+ * this project already contains that object: `PROGRAM.hospBay{Long,Deep,High}M`
+ * = **16 × 9 at 4.6**, a hospital's ambulance bay, described in its own comment
+ * as *"a canopy a vehicle turns under"*. 16 agrees exactly. **The 13.0 is the
+ * design's own arithmetic slipping — one bay (`DEAD_ZONE.bayL` = 5.0) plus a
+ * footway (`CITY.sidewalkWidth` = 4.2) is 9.2 and rounds to the 9 that is
+ * already here; 13.0 counts the footway twice** — and 5.4 was authored where a
+ * derived 4.6 existed. A porte-cochère and an ambulance bay are one object, so
+ * they are one set of numbers (§9 rule 2).
+ *
+ * WHO GETS WHAT, AND EACH ROW IS A SENTENCE ABOUT THE PLACE:
+ *
+ *   condenser  ONE approach and no portico and no drop-off. A works compound
+ *              has a GATE. STATE 54 §8 said this in as many words.
+ *   exchange   four approaches, a portico and a drop-off. It is a hall people
+ *              arrive at, and the operator's spawn looks straight at it.
+ *   dish       the same, and its plaza is the one you can stand under.
+ *   weir       four approaches, no portico, no drop-off. A sunken park is
+ *              entered on foot from every side and nobody is driven into it.
+ *
+ * `approachGround` IS THE SURFACE AND IT IS A SENTENCE TOO — and it is the
+ * ONLY thing about an approach that varies, because the claim is always `path`
+ * (that is what opens the railing) and the datum is always the apron's. Three
+ * of the four are DRIVES and are laid in the car park's own asphalt: a hall is
+ * arrived at by car and a works compound's gate is a lorry track. The weir's
+ * are WALKS and take the park path's pale gravel.
+ *
+ * IT IS A CONTRAST DECISION AND SESSION 50 MEASURED THE RULE: *"on pale ground
+ * the fixture that reads is a change of SURFACE or an object with HEIGHT, not
+ * paint"*. Gravel at 0.19 on a forecourt at 0.26 is a 27% step and reads as
+ * nothing; asphalt at 0.082 on the same paving is **3.2x**, which is the same
+ * order as the 7.6x that makes a bay marking read at night. On the weir's
+ * grass (0.062-0.094) the gravel is 2-3x by itself and needs no help.
+ */
 export const LANDMARK_APRON = {
   condenser: {
     ground: 'apronYard', yKey: 'apronYard',
     edge: 'palisade', edgeHeight: 2.20,
     props: ['cabinet', 'stack', 'bollard'], spacingM: 21,
     light: 'flood', lightHeightM: 6.0, lightEveryM: 30,
+    approaches: 1, portico: false, dropOff: false, approachGround: 'parkingGround',
   },
   exchange: {
     ground: 'apron', yKey: 'apron',
     edge: null, edgeHeight: 0,
     props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
     light: 'lamp', lightHeightM: 10.0, lightEveryM: 30,
+    approaches: 4, portico: true, dropOff: true, approachGround: 'parkingGround',
   },
   weir: {
     ground: 'apronGrass', yKey: 'apronGrass',
     edge: 'railing', edgeHeight: 1.10,
     props: ['tree', 'tree', 'bench', 'bin'], spacingM: 18,
     light: 'lamp', lightHeightM: 4.2, lightEveryM: 16,
+    approaches: 4, portico: false, dropOff: false, approachGround: 'path',
   },
   dish: {
     ground: 'apron', yKey: 'apron',
     edge: null, edgeHeight: 0,
     props: ['bollard', 'bollard', 'planter', 'bench'], spacingM: 12,
     light: 'lamp', lightHeightM: 10.0, lightEveryM: 30,
+    approaches: 4, portico: true, dropOff: true, approachGround: 'parkingGround',
   },
 };
+
+/**
+ * Metres. HALF THE WIDTH OF A LANDMARK APPROACH, and it is the portico's own
+ * depth halved — `PROGRAM.hospBayDeepM / 2` = 4.5.
+ *
+ * A porte-cochère spans the drive it stands over, so the drive is as wide as
+ * the canopy is deep and neither number is free once the other is chosen. What
+ * that 9 m is made of is one set-down bay (`DEAD_ZONE.bayL` = 5.0) and one
+ * footway (`CITY.sidewalkWidth` = 4.2), which is 9.2 and is the sentence
+ * `PROGRAM`'s own ambulance-bay comment already carries.
+ */
+export const APPROACH_HALF_M = PROGRAM.hospBayDeepM / 2;
 
 // ---------------------------------------------------------------------------
 // landmarks — docs/authored-city.md §6
@@ -12513,6 +12590,240 @@ export function generateChunk(rootSeed, cx, cz) {
          * which is the whole reason the delivered census exists.
          */
         reg.claim(claimBox('precinct', g.x0, g.z0, g.x1, g.z1, { owner: `${l.name}:apron` }));
+      }
+
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * THE WAY IN — SESSION 55, AND IT IS STATE 54 §8 ITEM 3 BUILT.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * The operator, at his own spawn looking at the dome: *"one flight of
+       * steps at one edge, two files of people crossing bare apron, no vehicle
+       * approach, no visible entrance"*. Session 52 opened the precinct and
+       * session 54 lit it; nothing had ever said how you get in.
+       *
+       * FROM THE LANDMARK'S OWN CIRCLE TO ITS CLAIM'S EDGE, on the cardinal
+       * bearings — see `LANDMARK_APRON` for why cardinal is geometry rather
+       * than taste. `landmarkGroundRadius` is the silhouette and
+       * `landmarkClaimHalf` is the square the registry holds, so an approach
+       * runs the whole width of the apron and reaches the street corridor at
+       * the far end without either number being chosen here.
+       *
+       * IT IS CLAIMED BEFORE THE BOUNDARY RUN, WHICH IS WHAT MAKES THE GATE
+       * FREE: `feature × path` is forbidden, so the railing bays that cross an
+       * approach are refused by the paving and the opening appears without the
+       * two routines knowing about each other.
+       *
+       * `path` AND NOT `pavement`, at the apron's OWN datum. The category is
+       * the one `layPath` uses for a park spine — a footway that is not beside
+       * a road — and it is the one that forbids `feature` and `prop`, which is
+       * the whole mechanism above. The datum is `spec.yKey` rather than
+       * `pathEW`, because an approach across a forecourt is level with it: a
+       * gravel run at the park path's own height would be a 20 mm step round
+       * three sides of a dome.
+       *
+       * SUBTRACTED AGAINST THE CARRIAGEWAY AS WELL AS THE SOLIDS. `path`
+       * forbids `carriageway`, so an approach reaching a lattice line would be
+       * refused whole by `reg.conflict` and the landmark would lose that
+       * bearing entirely. Cutting first means it stops AT the kerb, which is
+       * where a drive meets a street.
+       */
+      const approachDirs = [];
+      /**
+       * HOW FAR OUT AN APPROACH REACHES, AND IT IS THE PORTICO'S OWN LENGTH.
+       *
+       * The drive is as long as the thing standing over it: `hospBayLongM` is
+       * three car lengths, so three cars stand under the canopy on paving that
+       * runs the whole way. The first arm used two footways (8.4 m) and left
+       * the canopy overhanging its own drive by seven metres and the drop-off
+       * bays painted on bare ground beside it.
+       *
+       * IT IS A BOUND AND NOT A LENGTH. Everything past the apron is cut
+       * against the carriageway and the solids below, so an approach that meets
+       * a kerb at four metres stops at four; this is only how far it is allowed
+       * to look.
+       */
+      const approachOuter = landmarkClaimHalf(l) + PROGRAM.hospBayLongM;
+      if (spec.approaches > 0) {
+        const h = APPROACH_HALF_M;
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].slice(0, spec.approaches);
+        /**
+         * THE CUT IS EVERYTHING A PATH MAY NOT LIE ON, AND THE LANDMARK'S OWN
+         * CLAIM IS IN IT.
+         *
+         * The first arm ran from `landmarkGroundRadius` — the SILHOUETTE —
+         * outward and every bearing came back `conflict with landmark`,
+         * because the registry's claim is a 2.1 m STAIRCASE that contains the
+         * arc rather than a circle of that radius, so along the centreline it
+         * reaches further out than the radius does. Rather than derive where
+         * the staircase ends, the run starts at the landmark's own centre and
+         * the staircase is SUBTRACTED: the residue is exactly the apron, which
+         * is the definition of the precinct one block up. §9's own lesson —
+         * a length computed twice is a length that disagrees with itself.
+         *
+         * `prop`, `feature` and `site` are cut for the same reason and not
+         * because they would be refused: `reg.conflict` would refuse the WHOLE
+         * piece for one kerbside bollard, and losing a bearing to a bin is not
+         * what a way in should cost. Cutting leaves the paving flowing round
+         * it, which is what paving does.
+         */
+        const cutKinds = new Set(['block', 'water', 'building', 'carriageway',
+          'landmark', 'prop', 'feature', 'site']);
+        const pathCut = reg.all().filter((c) => cutKinds.has(c.kind));
+        for (const [dx, dz] of dirs) {
+          const run = dx !== 0
+            ? {
+                x0: dx > 0 ? l.x : l.x - approachOuter,
+                x1: dx > 0 ? l.x + approachOuter : l.x,
+                z0: l.z - h, z1: l.z + h,
+              }
+            : {
+                x0: l.x - h, x1: l.x + h,
+                z0: dz > 0 ? l.z : l.z - approachOuter,
+                z1: dz > 0 ? l.z + approachOuter : l.z,
+              };
+          const clipped = {
+            x0: Math.max(run.x0, b.x0), x1: Math.min(run.x1, b.x1),
+            z0: Math.max(run.z0, b.z0), z1: Math.min(run.z1, b.z1),
+          };
+          if (clipped.x1 - clipped.x0 < MIN_GROUND_PIECE_M) continue;
+          if (clipped.z1 - clipped.z0 < MIN_GROUND_PIECE_M) continue;
+          let laid = 0;
+          for (const q of subtractBoxes([clipped], pathCut)) {
+            if (q.x1 - q.x0 < MIN_GROUND_PIECE_M || q.z1 - q.z0 < MIN_GROUND_PIECE_M) continue;
+            const box = claimBox('path', q.x0, q.z0, q.x1, q.z1, { owner: `${l.name}:approach` });
+            if (reg.conflict(box)) continue;
+            ground.push({
+              x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1,
+              kind: spec.approachGround, yKey: spec.yKey,
+            });
+            reg.claim(box);
+            laid++;
+          }
+          if (laid) approachDirs.push([dx, dz]);
+        }
+      }
+
+      /**
+       * THE PORTICO — A ROOF ON COLUMNS AT THE INNER END OF THE FIRST
+       * APPROACH, and it is the ambulance bay's own three numbers.
+       *
+       * `LANDMARK_APRON` carries why: a porte-cochère and an ambulance bay are
+       * one object — *"a canopy a vehicle turns under"* — so they are one set
+       * of dimensions rather than a fourth set authored beside them.
+       *
+       * `canopy` AND NOT `building`, which is `placeMass`'s own lesson: the
+       * category conflicts with SOLIDS only, so a roof over a forecourt is not
+       * a wall across it. It stands OUTSIDE the landmark's stepped claim —
+       * `canopy × landmark` is forbidden — which is what puts it against the
+       * face rather than through it.
+       *
+       * ITS LONG AXIS IS ALONG THE DRIVE. Sixteen metres is three car lengths
+       * (`DEAD_ZONE.bayL` = 5.0), so three vehicles stand under it at once;
+       * nine metres across is the drive itself. A canopy turned the other way
+       * would be a wide thin roof over one car, which is a bus shelter.
+       */
+      /**
+       * WHICH BEARING IS THE FRONT, AND IT IS DERIVED RATHER THAN CHOSEN: THE
+       * ONE THAT FACES THE CITY CENTRE.
+       *
+       * A civic hall fronts the city it is in. `l.x` and `l.z` are the
+       * landmark's own offset from the origin, so the dominant component names
+       * the bearing back toward it — the exchange at (120, −110) fronts WEST
+       * and the dish at (−150, −160) fronts SOUTH.
+       *
+       * IT HAS TO BE A FUNCTION OF THE LANDMARK AND NOT OF THE CHUNK. A
+       * landmark spans up to four chunks and each one lays only the approaches
+       * that fall inside it, so `approachDirs[0]` is a different bearing in
+       * each — and taking it would have put a portico and a drop-off on every
+       * face, one per chunk, four porte-cochères on a building with one door.
+       * Measured before it shipped: three canopies over the exchange across
+       * three chunks.
+       */
+      const face = Math.abs(l.x) >= Math.abs(l.z)
+        ? [l.x > 0 ? -1 : 1, 0]
+        : [0, l.z > 0 ? -1 : 1];
+
+      if (spec.portico) {
+        const [dx, dz] = face;
+        const long = PROGRAM.hospBayLongM;
+        const deep = PROGRAM.hospBayDeepM;
+        /**
+         * ITS INNER EDGE ON THE CLAIM'S OWN LINE. `canopy × landmark` is
+         * forbidden and the claim is a staircase that reaches past the
+         * silhouette, so a canopy against the FACE is refused; against the
+         * CLAIM it stands at the head of the drive, over the outer edge of the
+         * apron and the footway beyond it, which is where a porte-cochère is.
+         */
+        const stand = landmarkClaimHalf(l) + long / 2;
+        const px = l.x + dx * stand;
+        const pz = l.z + dz * stand;
+        const hx = dx !== 0 ? long / 2 : deep / 2;
+        const hz = dx !== 0 ? deep / 2 : long / 2;
+        if (px >= b.x0 && px < b.x1 && pz >= b.z0 && pz < b.z1) {
+          const box = claimAt('canopy', px, pz, hx, hz,
+            { y0: PROGRAM.hospBayHighM, y1: PROGRAM.hospBayHighM + 1.6, owner: `${l.name}:portico` });
+          if (!reg.conflict(box)) {
+            reg.claim(box);
+            features.push({
+              kind: 'canopy', x: px, z: pz, yawDeg: dx !== 0 ? 0 : 90,
+              length: long, depth: deep, height: PROGRAM.hospBayHighM,
+              albedo: [0.42, 0.40, 0.38],
+            });
+          }
+        }
+      }
+
+      /**
+       * THE DROP-OFF — A ROW OF BAYS AT THE OUTER END OF THE FIRST APPROACH,
+       * PROBED AS `ground` EXACTLY AS `bayRows` PROBES A HOSPITAL'S.
+       *
+       * `ground` forbids only `building`, `landmark` and `water`, so paint
+       * stops at what stands on the apron and is drawn under a canopy and
+       * across a path — which is what a set-down bay is. Offset to one side of
+       * the drive by half a bay, so the marked stalls are the set-down lane and
+       * the other half of the nine metres is the footway they open onto.
+       */
+      if (spec.dropOff) {
+        const [dx, dz] = face;
+        /**
+         * UNDER THE PORTICO, AND THE COUNT IS THE PORTICO'S OWN LENGTH.
+         *
+         * Three bays, because `PROGRAM.hospBayLongM / DEAD_ZONE.bayL` = 16/5
+         * is three — which is the same "three car lengths" the canopy's own
+         * dimension came from, arrived at from the other end. `bayRows`'s own
+         * comment says a bay under a canopy is still a bay, and a covered
+         * set-down is what a porte-cochère is FOR.
+         *
+         * THE MARK IS THE DIVIDER AND NOT THE STALL, which is `bayRows`'s
+         * shape: `n + 1` lines across the lane at `bayL` centres, each one
+         * `bayW` long. Paint that outlined every stall would be four times the
+         * boxes for a rhythm the eye reads off the repeat (session 50's own
+         * finding about the kerb line).
+         *
+         * AGAINST THE FAR EDGE OF THE DRIVE, at `APPROACH_HALF_M - bayW/2`, so
+         * the marked lane is the set-down and the other half of the nine metres
+         * is the footway it opens onto.
+         */
+        const inner = landmarkClaimHalf(l);
+        const nBay = Math.max(1, Math.floor(PROGRAM.hospBayLongM / DEAD_ZONE.bayL));
+        const side = APPROACH_HALF_M - DEAD_ZONE.bayW / 2;
+        for (let i = 0; i <= nBay; i++) {
+          const along = inner + i * DEAD_ZONE.bayL;
+          const x = l.x + dx * along + (dx !== 0 ? 0 : side);
+          const z = l.z + dz * along + (dz !== 0 ? 0 : side);
+          if (x < b.x0 || x >= b.x1 || z < b.z0 || z >= b.z1) continue;
+          const probe = claimAt('ground', x, z,
+            dx !== 0 ? 0.05 : DEAD_ZONE.bayW / 2, dx !== 0 ? DEAD_ZONE.bayW / 2 : 0.05,
+            { y0: 0, y1: 0.02, owner: `${l.name}:dropoff` });
+          if (reg.conflict(probe)) continue;
+          markings.push({
+            x, z,
+            length: dx !== 0 ? 0.10 : DEAD_ZONE.bayW,
+            width: dx !== 0 ? DEAD_ZONE.bayW : 0.10,
+            yawDeg: 0, kind: 'bay',
+          });
+        }
       }
 
       /**
