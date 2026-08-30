@@ -2994,6 +2994,32 @@ export function createStreetlife(options = {}) {
         sum += w;
       }
     }
+    /**
+     * THE DECKS — SESSION 56, AND IT IS THE OPERATOR'S OLDEST UNBUILT WISH.
+     * A platform 22.72 m over the street has had a train stopping at it since
+     * session 54 and nobody standing on it since session 31. Each deck the
+     * camera can see joins the ring as one more allocation entry, weighted
+     * SCALE-FREE against the ring's own mean: a platform offers
+     * `2 sides x lengthM` of standing edge against a chunk loop's
+     * `LOOP_LENGTH` of pavement, so its share of a mean chunk's crowd is that
+     * ratio — 2 x 87.3 / 435 = 0.40 of a chunk for the crossing station,
+     * about sixteen people. A waiting crowd is seated by the same
+     * largest-remainder arithmetic as everybody else.
+     */
+    const cityMod = ctx.get('city');
+    const decks = cityMod && cityMod.decks ? cityMod.decks() : [];
+    const meanW = ring.length ? sum / ring.length : 0;
+    for (const d of decks) {
+      const ddx = d.x - camera.position.x;
+      const ddz = d.z - camera.position.z;
+      if (Math.hypot(ddx, ddz) > SIM_RADIUS_M + d.lengthM / 2) continue;
+      const w = meanW * ((2 * d.lengthM) / LOOP_LENGTH);
+      ring.push({
+        cx: Math.floor(d.x / s), cz: Math.floor(d.z / s),
+        key: `deck:${d.id}`, w, target: 0, exact: 0, deck: d,
+      });
+      sum += w;
+    }
 
     let floored = 0;
     for (const c of ring) {
@@ -3013,7 +3039,8 @@ export function createStreetlife(options = {}) {
     const homeless = [];
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i];
-      const key = chunkKey(a.cx, a.cz);
+      /** A deck agent is held by its deck, not by the chunk under its feet. */
+      const key = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
       if (!wanted.has(key) || !a.placed) {
         homeless.push(i);
         continue;
@@ -3102,21 +3129,38 @@ export function createStreetlife(options = {}) {
      * frames that would have shown it are the ones nobody is looking at.
      */
     a.cross = null;
-    const r2 = SIM_RADIUS_M * SIM_RADIUS_M;
-    let p = 0;
-    for (let t = 0; t < 12; t++) {
-      p = rng.next() * LOOP_LENGTH;
-      loopPoint(a.cx, a.cz, p, laneOffset(a), scratchPoint);
-      // Never seated in the water. Twelve draws and then whatever the last one
-      // gave, which is the existing contract of this loop — a chunk whose
-      // whole loop is river gets a coverage of 0 in `loopCoverage` and is
-      // therefore never allocated anybody to seat.
-      if (notPavement(scratchPoint.x, scratchPoint.z)) continue;
-      const dx = scratchPoint.x - camera.position.x;
-      const dz = scratchPoint.z - camera.position.z;
-      if (dx * dx + dz * dz <= r2) break;
+    if (chunk.deck) {
+      /**
+       * SEATED ON A PLATFORM — session 56. A param along the platform's own
+       * arc and a lateral inside the walking strip; no pavement test, because
+       * a platform is authored clear, and no loop, because there is none at
+       * 22.72 m. The side is drawn per person so both platforms fill.
+       */
+      const d = chunk.deck;
+      a.deck = {
+        ref: d,
+        side: rng.chance(0.5) ? 1 : -1,
+        t: rng.range(-d.tHalf, d.tHalf),
+      };
+      a.p = rng.range(2, d.lengthM - 2);
+    } else {
+      a.deck = null;
+      const r2 = SIM_RADIUS_M * SIM_RADIUS_M;
+      let p = 0;
+      for (let t = 0; t < 12; t++) {
+        p = rng.next() * LOOP_LENGTH;
+        loopPoint(a.cx, a.cz, p, laneOffset(a), scratchPoint);
+        // Never seated in the water. Twelve draws and then whatever the last one
+        // gave, which is the existing contract of this loop — a chunk whose
+        // whole loop is river gets a coverage of 0 in `loopCoverage` and is
+        // therefore never allocated anybody to seat.
+        if (notPavement(scratchPoint.x, scratchPoint.z)) continue;
+        const dx = scratchPoint.x - camera.position.x;
+        const dz = scratchPoint.z - camera.position.z;
+        if (dx * dx + dz * dz <= r2) break;
+      }
+      a.p = p;
     }
-    a.p = p;
     a.dir = rng.chance(0.5) ? 1 : -1;
     a.dwell = 0;
     a.pathLength = 0;
@@ -3149,6 +3193,26 @@ export function createStreetlife(options = {}) {
     const rng = rngIn || ctx.rng('streetlife:trip');
     if (rng.chance(REVERSE_CHANCE)) a.dir = -a.dir;
     const want = Math.min(TRIP_MAX_M, TRIP_MIN_M + -Math.log(1 - rng.next()) * TRIP_SCALE_M);
+    /**
+     * A PLATFORM TRIP — session 56. The platform is a line, not a loop: the
+     * walk is clamped at the ends and a person who reaches one turns round
+     * after standing a while, which is what people on platforms do. No path
+     * probe — the strip is authored clear — and `destKind: 'platform'` is
+     * what the dwell branch reads to face the track.
+     */
+    if (a.deck) {
+      const d = a.deck.ref;
+      const ahead = a.dir > 0 ? d.lengthM - 2 - a.p : a.p - 2;
+      const arc = Math.max(0, Math.min(want, ahead));
+      a.remaining = arc;
+      a.destKind = 'platform';
+      a.pathLength = 0;
+      if (arc <= 1) {
+        a.dir = -a.dir;
+        a.dwell = DWELL_MIN_S;
+      }
+      return;
+    }
 
     const list = destinationsFor(ctx, a.cx, a.cz);
     let best = null;
@@ -3439,6 +3503,21 @@ export function createStreetlife(options = {}) {
       // Waiting at the kerb: face leg 2, the carriageway.
       const f = cr.waiting ? cr.seg[1] : s;
       a.yaw = Math.atan2(f.dx, f.dz);
+      return;
+    }
+    if (a.deck) {
+      /**
+       * ON A PLATFORM — session 56. Position off the deck's own arc frame and
+       * y off the RECORD, never `groundYAt`: the ground query answers for the
+       * street 22.72 m below, and that is the whole reason the deck is a
+       * separate record rather than a surface (see `city.decks()`).
+       */
+      const d = a.deck.ref;
+      const p = d.pointAt(a.p, a.deck.side * d.tMid + a.deck.t);
+      a.x = p.x;
+      a.z = p.z;
+      a.y = d.y;
+      a.yaw = a.dwell > 0 ? a.dwellYaw : Math.atan2(a.dir * p.hx, a.dir * p.hz);
       return;
     }
     loopPoint(a.cx, a.cz, a.p, laneOffset(a), scratchPoint);
@@ -4104,6 +4183,7 @@ export function createStreetlife(options = {}) {
             /** Item 4b: people standing at a shelter, waiting rather than passing. */
             waitingAtStops: agents.reduce((n, a) => n + (!a.cross && a.dwell > 0 && a.destKind === 'busstop' ? 1 : 0), 0),
             busStopChunks: pedRingKeys.reduce((n, k) => {
+              if (k.startsWith('deck:')) return n;
               const [kx, kz] = k.split(',').map(Number);
               return n + (busStopFor(kx, kz) ? 1 : 0);
             }, 0),
@@ -4447,7 +4527,7 @@ export function createStreetlife(options = {}) {
               ? Math.min(wantWalk, a.gaitAmp + f2)
               : Math.max(wantWalk, a.gaitAmp - f2);
             updateAgentPosition(a, ctx);
-            const ck = chunkKey(a.cx, a.cz);
+            const ck = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
             pedCounts.set(ck, (pedCounts.get(ck) || 0) + 1);
             if (a.reseated) reseatsThisFrame++;
             continue;
@@ -4501,7 +4581,20 @@ export function createStreetlife(options = {}) {
                 }
               }
             }
-            if (!a.cross) {
+            if (!a.cross && a.deck) {
+              /**
+               * ARRIVED ON A PLATFORM — session 56. The wait draws from the
+               * BUS STOP's own distribution, because both are the same act
+               * (standing for a timetable, not pausing on a walk), and the
+               * body turns to the TRACK, which is what everyone on every
+               * platform in the world is facing.
+               */
+              a.dwell = Math.min(BUS_WAIT_MAX_S,
+                BUS_WAIT_MIN_S + -Math.log(1 - dwellRng.next()) * BUS_WAIT_SCALE_S);
+              const pt = a.deck.ref.pointAt(a.p, 0);
+              a.dwellYaw = Math.atan2(a.deck.side * pt.hz, -a.deck.side * pt.hx)
+                + dwellRng.range(-0.4, 0.4);
+            } else if (!a.cross) {
               a.dwell = a.destKind === 'busstop'
                 ? Math.min(BUS_WAIT_MAX_S, BUS_WAIT_MIN_S + -Math.log(1 - dwellRng.next()) * BUS_WAIT_SCALE_S)
                 : Math.min(DWELL_MAX_S, DWELL_MIN_S + -Math.log(1 - dwellRng.next()) * DWELL_SCALE_S);
@@ -4557,7 +4650,9 @@ export function createStreetlife(options = {}) {
           ? Math.min(wantAmp, a.gaitAmp + fade)
           : Math.max(wantAmp, a.gaitAmp - fade);
         updateAgentPosition(a, ctx);
-        const key = chunkKey(a.cx, a.cz);
+        /** A deck agent counts under its deck key, so the census row that
+         *  allocated it is the row that reports it (session 56). */
+        const key = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
         pedCounts.set(key, (pedCounts.get(key) || 0) + 1);
         if (a.reseated) reseatsThisFrame++;
       }

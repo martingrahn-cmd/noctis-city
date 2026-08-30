@@ -999,6 +999,8 @@ export function createCity(options = {}) {
    * Dropped in `unbind`/`unbuild` with everything else the chunk owns.
    */
   const chunkClaims = new Map();
+  /** Session 56 — the walkable deck records, built once (authored landmark data). */
+  let deckRecordsCache = null;
 
   /**
    * THE FLASH — slow, asynchronous, and on the one clock.
@@ -8264,6 +8266,70 @@ export function createCity(options = {}) {
           const r = scanGround(x, z);
           if (r.best) return { y: r.best.y, kind: r.best.kind, known: true };
           return { y: GROUND_Y.earth, kind: 'earth', known: r.anyGround };
+        },
+
+        /**
+         * THE WALKABLE DECKS — SESSION 56, AND IT IS STAGE 3 OF THE STATION.
+         *
+         * A deck is a walkable surface WITH A HEIGHT: the station platforms at
+         * 22.72 m, one record per platform, each carrying the strip a person
+         * stands on and a `pointAt(s, t)` in the platform's own arc frame.
+         *
+         * DELIBERATELY NOT IN `worldSurface`'s MAX and not in `surfaceAt`:
+         * that max is global, a person WALKS UNDER this deck every day, and a
+         * platform in the max would lift every pedestrian and prop beneath it
+         * to 22.72 (streetlife's own comment about the 480 m deck says exactly
+         * this). A deck is opt-in — an agent that carries a deck id reads its
+         * y from the record and nobody else ever sees it.
+         *
+         * `pointAt` interpolates the ARC'S OWN STATIONS rather than handing
+         * out a straight frame, because an 87 m platform on a 300 m arc bows
+         * 3.2 m — an agent walking a chord would stand in the air off both
+         * platform ends. Interpolation error at the 10.9 m chord is under
+         * 5 cm, which is inside the strip's own width.
+         */
+        decks() {
+          if (deckRecordsCache) return deckRecordsCache;
+          const l = LANDMARKS.find((v) => v.kind === 'viaduct');
+          if (!l) { deckRecordsCache = []; return deckRecordsCache; }
+          const arc = viaductArc(l);
+          const S = VIADUCT_STATION;
+          const tMid = S.innerT + S.widthM / 2;
+          deckRecordsCache = viaductStations(arc, l).map((st) => {
+            const s0 = arc.stations[st.segFrom].s;
+            const s1 = arc.stations[st.segTo + 1].s;
+            return {
+              id: `viaduct:${st.atS}`,
+              x: st.centre.x, z: st.centre.z,
+              y: st.platformTopY,
+              lengthM: s1 - s0,
+              terminus: st.terminus,
+              /** The two walking strips, as transverse offsets from the deck. */
+              tMid,
+              tHalf: S.widthM / 2 - 0.4,
+              /**
+               * A point on the platform: `u` in [0, lengthM] along it, `t`
+               * transverse. Returns the heading along +u so a walker's yaw is
+               * the platform's own tangent, not the world grid.
+               */
+              pointAt(u, t) {
+                const s = s0 + Math.max(0, Math.min(s1 - s0, u));
+                let i = st.segFrom;
+                while (i < st.segTo && arc.stations[i + 1].s < s) i++;
+                const a = arc.stations[i];
+                const b = arc.stations[i + 1];
+                const f = (s - a.s) / (b.s - a.s);
+                const hx = (b.x - a.x) / Math.hypot(b.x - a.x, b.z - a.z);
+                const hz = (b.z - a.z) / Math.hypot(b.x - a.x, b.z - a.z);
+                return {
+                  x: a.x + (b.x - a.x) * f - hz * t,
+                  z: a.z + (b.z - a.z) * f + hx * t,
+                  hx, hz,
+                };
+              },
+            };
+          });
+          return deckRecordsCache;
         },
 
         /**
