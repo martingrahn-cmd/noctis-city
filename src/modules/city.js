@@ -1188,6 +1188,8 @@ export function createCity(options = {}) {
     const positions = [];
     const normals = [];
     const colors = [];
+    /** `noctisRough`, two floats a vertex: roughness override, then porosity. */
+    const roughs = [];
     /** Every quad this chunk emitted, for `surfaceAt`. See `quad` below. */
     const rects = [];
 
@@ -1208,7 +1210,7 @@ export function createCity(options = {}) {
      * believed by the lighting — which is why nothing looked lit from
      * underneath and nothing looked wrong. CONTRACT §9.1 carries it.
      */
-    const quad = (x0, z0, x1, z1, y, albedo, kind) => {
+    const quad = (x0, z0, x1, z1, y, albedo, kind, porosity = 0) => {
       const v = [
         [x0, y, z0], [x1, y, z1], [x1, y, z0],
         [x0, y, z0], [x0, y, z1], [x1, y, z1],
@@ -1217,6 +1219,14 @@ export function createCity(options = {}) {
         positions.push(p[0], p[1], p[2]);
         normals.push(0, 1, 0);
         colors.push(albedo[0], albedo[1], albedo[2]);
+        /**
+         * `noctisRough` as a vec2 — session 55. `.x` is 0, which is this
+         * mesh's existing answer to "no per-vertex roughness override, use the
+         * material's"; `.y` is the porosity the wet terms read. The default
+         * argument is 0 so a caller that has not thought about water gets the
+         * impervious surface every quad in this city was before.
+         */
+        roughs.push(0, porosity);
       }
       /**
        * THE SAME RECTANGLE, RECORDED, SO THAT `surfaceAt` READS THE SURFACE
@@ -1304,6 +1314,23 @@ export function createCity(options = {}) {
         positions.push(p[0], p[1], p[2]);
         normals.push(n[0], n[1], n[2]);
         colors.push(albedo[0], albedo[1], albedo[2]);
+        /**
+         * AND THE KERB PUSHES `noctisRough` TOO, WHICH IS THE WHOLE OF SESSION
+         * 55's ONE DEFECT IN THIS FILE.
+         *
+         * This function emits into the same four parallel arrays `quad` does,
+         * and the first version of the porosity attribute pushed to three of
+         * them here and to four of them there. Every vertex after the FIRST
+         * KERB then read a porosity two floats out of step, so a car park read
+         * as a lawn and a lawn read as a car park — and the frame showed a
+         * churchyard that was still a mirror, which is exactly the symptom the
+         * change was made to remove. Parallel arrays are CONTRACT §9's own
+         * shape: two descriptions of one vertex that nothing compares.
+         *
+         * A kerb is cast concrete, so its porosity is 0 — the same impervious
+         * default every surface in this city had before.
+         */
+        roughs.push(0, 0);
       }
     };
 
@@ -1450,6 +1477,72 @@ export function createCity(options = {}) {
                               : walkAlbedo);
 
     /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * WHERE THE RAIN GOES — POROSITY, SESSION 55, AND IT IS THE MISSING HALF
+     * OF EVERY WET TERM IN `lights.js`.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The operator's frame: **a lamp post reflecting in a lawn**
+     * (`?player=1&wet=1&spawn=458.79,-1.01,103.78&t=0.0409&seed=1337`).
+     * Session 52 measured that `SURFACE.wetDarkening` multiplies EVERY diffuse
+     * surface by the same 0.5, and predicted that the specular and Fresnel
+     * half was built the same way. It was: `gNoctisWetPond` is
+     * `uNoctisWet × faceUp × openness` — the WEATHER and the GEOMETRY, and not
+     * one term that asks what the surface is made of. So a churchyard, a park,
+     * a gravel path and a carriageway all became the same mirror.
+     *
+     * THE PHYSICAL QUESTION IS NOT "IS IT WET", IT IS "DOES IT POND", and that
+     * has a standard answer: a surface holds standing water when the rain
+     * arrives faster than the surface can swallow it. So
+     *
+     *     porosity = min(1, K / R)
+     *
+     * with `K` the saturated infiltration capacity in mm/h and `R` this
+     * project's own full rain, `weather.js` → `RAIN_FULL_MMH` = **10 mm/h**.
+     * Both ends of the ratio already exist here; nothing below is a new unit.
+     * Reference capacities are USDA soil-texture classes (Rawls, Brakensiek &
+     * Miller 1983); a sealed pavement is definitionally zero.
+     *
+     *     surface                       K mm/h    K/R     porosity
+     *     asphalt, concrete, paving        ~0     0.00       0.00
+     *     compacted clay hardcore           3     0.30       0.30
+     *     bare soil / loam                  9     0.90       0.85
+     *     turf over topsoil             20-30     2-3        1.00
+     *     crushed-stone gravel           >100    >10         1.00
+     *
+     * **A MOWN LAWN INFILTRATES TWO TO THREE TIMES THIS CITY'S HEAVIEST RAIN,
+     * SO IT NEVER PONDS AT ALL** — which is the finding, and it is why the
+     * repair is a material property rather than a smaller number somewhere.
+     *
+     * THE RELIEF ARGUMENT AGREES AND IS NOT USED, because two derivations for
+     * one constant is one too many. A road film is a few tenths of a
+     * millimetre against dense asphalt's 0.4–0.8 mm mean texture depth, so it
+     * bridges most of the relief; the same film against a 20–50 mm sward
+     * bridges none of it. Both put grass at zero sheen and asphalt at one, and
+     * the infiltration one is quoted because its two numbers are already here.
+     *
+     * WHAT IT DOES NOT TOUCH IS THE DARKENING, and that is deliberate. Wet
+     * grass is DARKER than dry grass and so is wet soil — water in the pores
+     * traps light by total internal reflection whether or not it also ponds.
+     * Scaling the darkening by this would have repaired a mirror by making a
+     * lawn PALER, which is the opposite of what a lawn in the rain looks like.
+     * The brief's own sentence is *"dark and matt"*: this buys the matt, and
+     * the dark was already right.
+     *
+     * IT COSTS NO ATTRIBUTE SLOT. `lights.js`'s `noctisRough` was a `float`
+     * occupying a whole four-component slot and is a `vec2` now; `.y` is this.
+     * A geometry supplying the old one-component attribute, or none, reads
+     * `.y = 0` — impervious, which is what every surface in this city was
+     * before — so this change cannot move a gate except through the five kinds
+     * named below.
+     */
+    const porosityFor = (kind) => (
+      kind === 'grass' || kind === 'apronGrass' ? 1.0
+        : kind === 'path' ? 1.0
+          : kind === 'siteGround' ? 0.3
+            : 0.0);
+
+    /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
      * DIFFERENT MISTAKES — session 31, and STATE 30 §10 named it first.
      *
@@ -1507,7 +1600,7 @@ export function createCity(options = {}) {
     const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
       const y = Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth;
-      quad(g.x0, g.z0, g.x1, g.z1, y, albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind);
+      quad(g.x0, g.z0, g.x1, g.z1, y, albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind, porosityFor(g.kind));
       // The kerb upstand. See `riser` above for why only this one edge.
       if (g.kind !== 'walk') continue;
       /**
@@ -1567,7 +1660,11 @@ export function createCity(options = {}) {
     }
     const bounds = { x0: bx0, z0: bz0, x1: bx1, z1: bz1 };
 
-    return { positions, normals, colors, rects, bounds, bytes: positions.length * 4 * 3 };
+    return {
+      positions, normals, colors, roughs, rects, bounds,
+      // Three float arrays at 3 per vertex plus one at 2 — session 55.
+      bytes: (positions.length * 3 + roughs.length) * 4,
+    };
   }
 
   /**
@@ -1599,18 +1696,29 @@ export function createCity(options = {}) {
     const pos = new Float32Array(n);
     const nrm = new Float32Array(n);
     const col = new Float32Array(n);
+    /** Two floats a vertex, not three: roughness override, then porosity. */
+    const rgh = new Float32Array((n / 3) * 2);
     let o = 0;
+    let ro = 0;
     for (const rec of resident.values()) {
       if (!rec.ground) continue;
       pos.set(rec.ground.positions, o);
       nrm.set(rec.ground.normals, o);
       col.set(rec.ground.colors, o);
+      rgh.set(rec.ground.roughs, ro);
       o += rec.ground.positions.length;
+      ro += rec.ground.roughs.length;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    /**
+     * SESSION 55 — `.x` is 0 everywhere on this mesh, which is the answer this
+     * ground has always given to "use the material's roughness"; `.y` is where
+     * the rain goes. See `porosityFor` in `buildGround`.
+     */
+    geo.setAttribute('noctisRough', new THREE.BufferAttribute(rgh, 2));
     geo.computeBoundingSphere();
     if (groundMesh) {
       groundMesh.geometry.dispose();

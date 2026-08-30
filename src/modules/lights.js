@@ -1257,7 +1257,8 @@ uniform vec3 uNoctisSSR3;
 
 varying vec3 vNoctisWorldPos;
 varying vec3 vNoctisWorldNormal;
-varying float vNoctisRough;
+/** x = roughness override (0 = none), y = porosity (0 = impervious). */
+varying vec2 vNoctisRough;
 #ifdef NOCTIS_GRIME
   varying float vNoctisGrime;
 #endif
@@ -1321,10 +1322,36 @@ varying vec3 vNoctisWorldNormal;
  * noctisRough comment above about why 0 is a usable sentinel for a float). The
  * branch below writes the same 0 it used to read.
  */
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * WIDENED TO A vec2 IN SESSION 55, AND IT COSTS EXACTLY ZERO SLOTS.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * .x is the roughness override above; .y is POROSITY — how much of the rain
+ * this surface swallows instead of holding on top of itself. LOOK.md section 0
+ * and the brief's own sentence: wet asphalt is a mirror, wet grass is dark and
+ * matt, and until this session every ground quad in the city got the same
+ * mirror because gNoctisWetPond read the WEATHER and never the MATERIAL.
+ * (No backticks in this comment: it lives INSIDE a template literal.)
+ *
+ * THE SLOT WAS ALREADY PAID FOR. The garment note below has the arithmetic:
+ * the hardware binds sixteen FOUR-COMPONENT slots and a float attribute wastes
+ * three of them, so widening this one is the same trick session 14 used to get
+ * a third colour zone out of two attributes. A pedestrian program is at 16 of
+ * 16 and is unchanged, because this attribute is not declared on it.
+ *
+ * AND ZERO IS STILL THE SAFE DEFAULT, TWICE OVER. A geometry that supplies no
+ * noctisRough at all reads the generic default (0,0,0,1); a geometry that
+ * supplies the ONE-component attribute every mesh in this project supplied
+ * before this session reads (x,0,0,1). Both give .y = 0, and 0 is
+ * IMPERVIOUS — every existing surface behaves exactly as it did, and only the
+ * quads that declare a porosity change. That is the property that makes this
+ * change unable to move a gate except through the materials it names.
+ */
 #ifndef NOCTIS_GARMENT
-  attribute float noctisRough;
+  attribute vec2 noctisRough;
 #endif
-varying float vNoctisRough;
+varying vec2 vNoctisRough;
 
 /**
  * The previous frame's instanceMatrix, CONTRACT §5.12. Declared only under the
@@ -1514,7 +1541,7 @@ ${ZONE_UNPACK_GLSL}
   #endif
   vNoctisWorldNormal = normalize(mat3(modelMatrix) * noctisN);
   #ifdef NOCTIS_GARMENT
-    vNoctisRough = 0.0;
+    vNoctisRough = vec2(0.0);
   #else
     vNoctisRough = noctisRough;
   #endif
@@ -1631,7 +1658,7 @@ ${ZONE_UNPACK_GLSL}
    * weathering a concrete one does, and that is a difference a colour grade
    * cannot flatten. Zero means the mesh carries no such attribute.
    */
-  if (vNoctisRough > 0.0) roughnessFactor = vNoctisRough;
+  if (vNoctisRough.x > 0.0) roughnessFactor = vNoctisRough.x;
 
   // Push the lookup out of the solid. A wall's own voxel is inside the
   // building; trilinear filtering would drag half of that darkness onto it.
@@ -1732,8 +1759,35 @@ ${ZONE_UNPACK_GLSL}
     1.0 - (1.0 - gNoctisSkyBent.a) * clamp(0.5 + 0.5 * wn.y, 0.0, 1.0)
   );
   float level = mix(${SURFACE.verticalFilm.toFixed(2)} * faceOut, 1.0, faceUp);
+  /**
+   * WHAT THE MATERIAL DOES WITH THE WATER — SESSION 55, LOOK.md section 0.
+   *
+   * Until this session all three wet terms read the WEATHER and the GEOMETRY
+   * and never the MATERIAL, so a lawn in the rain was the same mirror an
+   * asphalt road was, and the operator found it: a lamp post reflected in a
+   * churchyard. Session 52 measured the diffuse third of that (one darkening
+   * of 0.5 on every surface alike) and predicted the other two were built the
+   * same way. They were.
+   *
+   * POROSITY IS WHERE THE RAIN GOES, and it decides two of the three:
+   *
+   *   the POND, and therefore the puddles and the screen-space reflection,
+   *     because standing water only stands on something that cannot drink it;
+   *   the FILM'S ROUGHNESS, because a film smooths the relief it can bridge
+   *     and a mown sward is thirty millimetres of relief against a film two
+   *     tenths of one.
+   *
+   * AND IT DECIDES NEITHER FOR THE DARKENING, WHICH EVERY WET SURFACE KEEPS.
+   * Wet grass is DARKER than dry grass and so is wet soil — water in the pores
+   * traps light by total internal reflection whether or not it also ponds — so
+   * scaling the darkening by this would have repaired a mirror by making a
+   * lawn paler, which is the opposite of what a lawn in the rain looks like.
+   * The brief's own sentence is "dark and matt": this term buys the matt and
+   * the darkening was already right.
+   */
+  float sheen = 1.0 - clamp(vNoctisRough.y, 0.0, 1.0);
   gNoctisWetFilm = uNoctisWet * level * openness;
-  gNoctisWetPond = uNoctisWet * faceUp * openness;
+  gNoctisWetPond = uNoctisWet * faceUp * openness * sheen;
 
   if (gNoctisWetFilm > 0.0) {
     vec2 puv = vNoctisWorldPos.xz / ${SURFACE.puddleScale.toFixed(2)};
@@ -1748,7 +1802,7 @@ ${ZONE_UNPACK_GLSL}
     // water on top of it. The gate asks for a *range* of specular response,
     // and this is where the range comes from: the dry-ish film and the pond are
     // two thirds of a decade apart in roughness and both are on the same road.
-    roughnessFactor = mix(roughnessFactor, uNoctisSurface.x, gNoctisWetFilm * 0.9);
+    roughnessFactor = mix(roughnessFactor, uNoctisSurface.x, gNoctisWetFilm * 0.9 * sheen);
     roughnessFactor = mix(roughnessFactor, uNoctisSurface.y, deep);
     diffuseColor.rgb *= mix(1.0, uNoctisSurface.z, gNoctisWetFilm);
   }
@@ -1773,6 +1827,10 @@ ${ZONE_UNPACK_GLSL}
    */
   #ifdef NOCTIS_WATER
   {
+    // Open water is the one surface whose porosity is meaningless: it IS the
+    // standing water. Written rather than relied on — the river's geometry
+    // carries no noctisRough, so .y is already 0, and a future geometry that
+    // did carry one must not be able to drain a river.
     gNoctisWetFilm = 1.0;
     gNoctisWetPond = 1.0;
     gNoctisPuddle = 0.0;
