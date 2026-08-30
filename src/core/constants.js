@@ -45,8 +45,28 @@ export const SITE = {
 export const LIGHT = {
   /** lux, direct normal at the top of the atmosphere */
   solarConstantLux: 128000,
-  /** lux, full moon at zenith */
-  fullMoonLux: 0.267,
+  /**
+   * THE MOON REDISTRIBUTION — session 56, LOOK.md §0's first licensed lie.
+   *
+   * STATE 55 §0.2: 96.7% of the 3.24 lx on a night surface arrives from an
+   * isotropic dome — 2.986 lx of urban skyglow against 0.107 lx of moon — so
+   * every face of every object returns the same radiance and nothing has
+   * form. This is the fraction of the skyglow's horizontal illuminance moved
+   * INTO the moon's directional term at CONSTANT TOTAL LUX (`sky.js` →
+   * `computeRedistribution` carries the identity), which is the one lever
+   * the exposure meter's 0.64 clawback cannot touch, because the frame's
+   * total does not move.
+   *
+   * THE VALUE IS A LOOK DECISION AND WAS CHOSEN FROM DELIVERED MIDNIGHT
+   * FRAMES at the churchyard (LOOK.md §0: legibility, not lux) — the sweep
+   * is `?moonshare=` and the arms are in STATE 56. At 0.85 the moon delivers
+   * about 4.1 lx normal — inside a real overcast-day-to-twilight band and
+   * 38× the physical moon, which is precisely the lie §0 licenses by name:
+   * "moonlight far above the real figure". The dome keeps 15% so the sky
+   * does not go black: the horizon glow the reference look needs survives at
+   * 0.48 cd/m² against an airglow floor of ~0.05.
+   */
+  moonRedistribution: 0.85,
   /** cd/m², a lit office window seen from the street */
   windowNits: 220,
   /** cd/m², a neon tube */

@@ -164,8 +164,20 @@ export function createLighting(options = {}) {
       moon = new THREE.DirectionalLight(0xffffff, 0);
       moon.name = 'lighting:moon';
       moon.target = moonTarget;
-      // No moon shadows. At 0.2 lux the shadow it casts is three orders of
-      // magnitude below the streetlights' and costs a second 4k depth pass.
+      /**
+       * NO MOON SHADOWS — and since session 56 that sentence has a different
+       * justification. It used to read "at 0.2 lux the shadow is three orders
+       * of magnitude below the streetlights'"; the moon redistribution
+       * (`LIGHT.moonRedistribution`) now delivers about 4 lx, a quarter of
+       * `streetAverageLux`, so the old arithmetic is repealed. What stands:
+       * the key exists to separate the FACES of one object (a headstone's lit
+       * side against its dark side), which needs no occlusion; a second 4k
+       * depth pass every frame is the cost; and the error — moonlight
+       * reaching a wall another building shades — is a lie LOOK.md §0
+       * licenses at a luminance where the veil already owns the floor. If a
+       * moonlit wall inside a shadowed canyon ever reads wrong in a frame,
+       * this is the line to reopen.
+       */
       moon.castShadow = false;
       ctx.scene.add(moon);
 

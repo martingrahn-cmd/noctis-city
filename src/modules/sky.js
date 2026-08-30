@@ -21,7 +21,7 @@
 
 import * as THREE from 'three';
 import { createFullscreen, FULLSCREEN_VERT } from '../core/fullscreen.js';
-import { HDR_CLAMP, SSR } from '../core/constants.js';
+import { HDR_CLAMP, SSR, LIGHT } from '../core/constants.js';
 import { ATM, atmosphereGLSL, sunIlluminanceAtGround, skyIlluminance } from '../lib/atmosphere.js';
 import { luminance, EMITTER_CHROMA } from '../lib/color.js';
 
@@ -88,6 +88,52 @@ export function createSky(options = {}) {
 
   let lutMaterial = null;
   let skyMaterial = null;
+
+  /**
+   * THE MOON REDISTRIBUTION — SESSION 56, AND IT IS LOOK.md §0's FIRST
+   * LICENSED LIE, BUILT AS AN INVARIANT.
+   *
+   * STATE 55 §0.2 measured that 96.7% of the light on a night surface
+   * arrives from an isotropic dome, so nothing has a face and the churchyard
+   * has no form — and §8 item 1 named this arm: move light OUT of
+   * `pollutionNits` INTO the moon at constant total lux, which costs the
+   * exposure meter nothing (it is the one arm the 0.64 clawback cannot
+   * touch, because the frame's total does not move) and buys the whole of
+   * the direction.
+   *
+   * `moonShare` (k) is the fraction of the pollution dome's horizontal
+   * illuminance handed to the moon. Per rebuild: the dome is drawn and
+   * integrated at `pollutionNits·(1−k)` and the moon's scale gains
+   * `1 + k·glowE / moonH`, so the CPU total
+   * `moonH·gain + glowE·(1−k) = moonH + glowE` is an identity at every time
+   * and phase WHILE THE MOON IS UP. When the moon is down the boost has
+   * nowhere to land, so k is treated as 0 — the dome keeps its light and
+   * the total is still exact; the step at moonset rides the same rebuild
+   * cadence every other sky change does. CPU and GPU take the SAME two
+   * numbers (`pollutionEff`, `moonGain`), computed once per rebuild BEFORE
+   * the LUT renders, because two halves of one model that read different
+   * copies is CONTRACT §9.1.
+   */
+  let moonShare = 0;
+  let moonGain = 1;
+  let pollutionEff = cfg.pollutionNits;
+  function computeRedistribution(time) {
+    const f = cfg.pollutionFalloff;
+    const tail = f * f * (1 - Math.exp(-1 / f) * (1 + 1 / f));
+    const glowE = 2 * Math.PI * cfg.pollutionNits * tail;
+    const moonEl = time.moon.elevationRad;
+    const up = Math.max(0, Math.sin(moonEl));
+    const moonT = sunIlluminanceAtGround(moonEl);
+    const ms = time.moon.illuminanceLux / 128000;
+    const moonH = luminance(moonT[0] * ms, moonT[1] * ms, moonT[2] * ms) * up;
+    if (!(moonShare > 0) || !(moonH > 1e-6)) {
+      moonGain = 1;
+      pollutionEff = cfg.pollutionNits;
+      return;
+    }
+    moonGain = 1 + (moonShare * glowE) / moonH;
+    pollutionEff = cfg.pollutionNits * (1 - moonShare);
+  }
   let bgMaterial = null;
 
   let lastSunElevation = Number.NaN;
@@ -142,7 +188,9 @@ export function createSky(options = {}) {
     // The moon is the sun, five and a half orders of magnitude down. Running the
     // same integral with a scaled source gives moonlit haze around the moon and
     // a faintly lit sky, for the cost of a second march.
-    u.uMoonScale.value = time.moon.illuminanceLux / 128000;
+    u.uMoonScale.value = (time.moon.illuminanceLux / 128000) * moonGain;
+    /** The redistribution's other half — same two numbers the CPU integral reads. */
+    u.uPollutionStrength.value = pollutionEff;
     fs.render(renderer, skyMaterial, skyRT);
   }
 
@@ -159,7 +207,7 @@ export function createSky(options = {}) {
     // The moon, through the same transmittance, on the same footing.
     const moonEl = time.moon.elevationRad;
     const moonT = sunIlluminanceAtGround(moonEl);
-    const moonScale = time.moon.illuminanceLux / 128000;
+    const moonScale = (time.moon.illuminanceLux / 128000) * moonGain;
     api.moonIlluminance = [moonT[0] * moonScale, moonT[1] * moonScale, moonT[2] * moonScale];
 
     const sunHorizontal = luminance(direct[0], direct[1], direct[2]) * cosZenith;
@@ -176,7 +224,8 @@ export function createSky(options = {}) {
     //   with the cosine weighting a horizontal surface sees.
     const f = cfg.pollutionFalloff;
     const tail = f * f * (1 - Math.exp(-1 / f) * (1 + 1 / f));
-    const glowE = 2 * Math.PI * cfg.pollutionNits * tail;
+    /** `pollutionEff`, not `pollutionNits`: the k·glowE the dome gave up is in the moon term above. */
+    const glowE = 2 * Math.PI * pollutionEff * tail;
     const airglowE = Math.PI * luminance(...cfg.airglowNits);
     api.urbanIlluminanceLux = glowE + airglowE;
 
@@ -186,6 +235,9 @@ export function createSky(options = {}) {
   function rebuild(ctx) {
     const time = ctx.get('time');
     if (!time) return;
+
+    /** Before the LUT: both consumers below read the same two numbers. */
+    computeRedistribution(time);
 
     renderSkyLUT(ctx.renderer, ctx, time);
 
@@ -211,6 +263,14 @@ export function createSky(options = {}) {
 
     init(ctx) {
       const renderer = ctx.renderer;
+      /**
+       * `?moonshare=` — CONTRACT §6. `-1` defers to the shipped
+       * `LIGHT.moonRedistribution`; `>= 0` pins, and 0 is the bisecting arm
+       * that restores the pre-56 sky bit for bit. The sweep that chose the
+       * shipped value is `tools/lookat.mjs --params=moonshare=K`.
+       */
+      const ms = Number(ctx.config.moonshare);
+      moonShare = Number.isFinite(ms) && ms >= 0 ? Math.min(1, ms) : LIGHT.moonRedistribution;
       fs = createFullscreen();
 
       transmittanceRT = makeRT(TRANSMITTANCE_W, TRANSMITTANCE_H);

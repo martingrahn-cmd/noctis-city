@@ -269,6 +269,7 @@ const DEFAULTS = {
    * cycle, exactly as `fill` records for the frontage law.
    */
   rainfall: -1,
+  moonshare: -1,
 };
 
 function readConfig() {
