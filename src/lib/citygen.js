@@ -10533,10 +10533,21 @@ export function generateChunk(rootSeed, cx, cz) {
           const t = (Math.cos(a0) + Math.cos(a1)) / 2 * cr;
           const u = (Math.sin(a0) + Math.sin(a1)) / 2 * cr;
           const seg = 2 * cr * Math.sin(Math.PI / n);
+          const mDeg = (((a0 + a1) / 2) * 180) / Math.PI;
           markings.push({
             x: c.x + (alongX ? t : u), z: c.z + (alongX ? u : t),
             length: seg, width: R.lineW,
-            yawDeg: ((-(a0 + a1) / 2 * 180) / Math.PI) + 90 + (alongX ? 0 : 90),
+            /**
+             * TANGENT TO ITS OWN CIRCLE, IN BOTH BRANCHES — session 56. The
+             * !alongX branch swaps the chord's (t, u) POSITION across the
+             * diagonal, which is a REFLECTION, and the old yaw only negated —
+             * `−m + 90 + 90` — so on every z-axis pitch and court the twelve
+             * chords stood mirrored against their own tangent and the centre
+             * circle delivered as a four-pointed star. A box's long axis under
+             * three's yaw is (cos, −sin): parallel to the tangent needs
+             * `90 − m` unswapped and `+m` swapped, mod 180.
+             */
+            yawDeg: alongX ? 90 - mDeg : mDeg,
             kind: 'sport',
           });
         }
@@ -10553,14 +10564,36 @@ export function generateChunk(rootSeed, cx, cz) {
         for (const c of bank) for (const sgn of [-1, 1]) {
           const x = c.x + (alongX ? sgn * halfL : 0);
           const z = c.z + (alongX ? 0 : sgn * halfL);
+          /**
+           * THE CLAIM IS THE DELIVERED REACH, NOT THE POST — session 56. The
+           * crossbar overhangs each post by a post's width (`width + post` in
+           * the draw), so the wide half is `(width + post) / 2` = 1.89; the
+           * net bag rakes back 0.62 m plus its own slab, so the thin half is
+           * 0.65. The old claim said 0.12 × 1.83 — the frame alone, with the
+           * net unclaimed.
+           */
           const box = claimAt('feature', x, z,
-            alongX ? R.goalPostM : R.goalWidthM / 2,
-            alongX ? R.goalWidthM / 2 : R.goalPostM,
+            alongX ? 0.65 : (R.goalWidthM + R.goalPostM) / 2,
+            alongX ? (R.goalWidthM + R.goalPostM) / 2 : 0.65,
             { y0: 0, y1: R.goalHeightM, owner: 'sport:goal' });
           if (reg.conflict(box)) continue;
           features.push({
             kind: 'goal', x, z, width: R.goalWidthM, height: R.goalHeightM,
-            post: R.goalPostM, yawDeg: alongX ? 0 : 90,
+            post: R.goalPostM,
+            /**
+             * THE CROSSBAR RUNS ACROSS THE PITCH AND THE MOUTH FACES IT —
+             * SESSION 56, AND FOR EIGHT SESSIONS IT WAS `alongX ? 0 : 90`,
+             * WHICH IS THE CLAIM ABOVE TRANSPOSED. Three's yaw takes local +Z
+             * to (sin, cos); the goal's open face is local +Z and its net is
+             * local −Z, so the goal at the +axis end wants its +Z pointing
+             * back down the axis: 270 on an x-axis pitch, 180 on a z-axis
+             * one. The old expression laid every crossbar ALONG the long
+             * axis — the operator's "end goals standing on the touchlines" —
+             * and gave both ends one yaw, so even the nets agreed with each
+             * other and not with the pitch. The stands' table at the bottom
+             * of this block is the same derivation and was right first.
+             */
+            yawDeg: alongX ? (sgn > 0 ? 270 : 90) : (sgn > 0 ? 180 : 0),
           });
           reg.claim(box);
         }
@@ -10568,14 +10601,28 @@ export function generateChunk(rootSeed, cx, cz) {
         for (const c of bank) for (const sgn of [-1, 1]) {
           const x = c.x + (alongX ? sgn * (halfL + 0.6) : 0);
           const z = c.z + (alongX ? 0 : sgn * (halfL + 0.6));
-          const box = claimAt('feature', x, z, 0.6, 0.6,
+          /**
+           * THE CLAIM IS THE DELIVERED REACH — session 56. The rim plate ends
+           * 1.32 m out along the facing axis and the backboard spans ±0.90
+           * across it; the old 0.6 square left both unclaimed.
+           */
+          const box = claimAt('feature', x, z,
+            alongX ? 1.32 : 0.90,
+            alongX ? 0.90 : 1.32,
             { y0: 0, y1: R.rimHeightM + R.boardHeightM, owner: 'sport:hoop' });
           if (reg.conflict(box)) continue;
           features.push({
             kind: 'hoop', x, z, rim: R.rimHeightM, boardW: R.boardWidthM,
             boardH: R.boardHeightM, arm: R.boardArmM,
-            /** Facing IN, which is the whole of what makes a hoop a hoop. */
-            yawDeg: (alongX ? 0 : 90) + (sgn < 0 ? 180 : 0),
+            /**
+             * FACING IN, which is the whole of what makes a hoop a hoop — and
+             * for eight sessions the base yaw was `alongX ? 0 : 90`, which
+             * faced all four hoops at their own touchlines. The hoop marches
+             * post → arm → board → rim along local −Z, so facing the court
+             * centre is the stands' own yaw table: local +Z away from the
+             * middle. SESSION 56.
+             */
+            yawDeg: alongX ? (sgn > 0 ? 90 : 270) : (sgn > 0 ? 0 : 180),
           });
           reg.claim(box);
         }
@@ -10586,10 +10633,19 @@ export function generateChunk(rootSeed, cx, cz) {
          * where there is room rather than a rule doing it.
          */
         for (const [pkind, hw, hh] of [['frame', 3.2, 3.0], ['swing', 2.6, 2.4]]) {
+          /**
+           * THE FRAME'S CLAIM COVERS ITS SLIDE — session 56. The slide is
+           * drawn at `half·1.4` with a 1.7 m slab on a RANDOM bearing, so its
+           * far edge reaches `3.2·1.4 + 0.85 = 5.33 m` from the centre while
+           * the old claim stopped at 3.2: a 2.13 m unclaimed protrusion the
+           * registry could never defend. The claim is the circumscribing
+           * square of the delivered reach, which is what a random yaw needs.
+           */
+          const claimHalf = pkind === 'frame' ? hw * 1.4 + 1.7 / 2 : hw;
           for (let t = 0; t < 3; t++) {
             const x = featRng.range(isl.x0 + 12, isl.x1 - 12);
             const z = featRng.range(isl.z0 + 12, isl.z1 - 12);
-            const box = claimAt('feature', x, z, hw, hw, { y0: 0, y1: hh, owner: `sport:${pkind}` });
+            const box = claimAt('feature', x, z, claimHalf, claimHalf, { y0: 0, y1: hh, owner: `sport:${pkind}` });
             if (reg.conflict(box)) continue;
             features.push({
               kind: 'play', play: pkind, x, z, half: hw, height: hh,
@@ -10749,7 +10805,19 @@ export function generateChunk(rootSeed, cx, cz) {
        * is cut round it by the same `subtractBoxes` a park's grass is cut round
        * its paths with — a car park's deck does not stand on its own tarmac.
        */
-      const box = claimAt('building', mx, mz, hx, hz, { y0: 0, y1: topY, owner: 'carpark:deck' });
+      /**
+       * THE CLAIM COVERS THE SCISSOR RAMP — session 56. The ramp run and its
+       * upstand are drawn at local −Z, reaching `rampWidthM` beyond the deep
+       * face, and the old claim stopped at the deck: a 6.2 m concrete
+       * structure on ground the registry had never been told about. The claim
+       * centre shifts half the ramp toward it, so nothing is over-claimed on
+       * the far side.
+       */
+      const rampR = P.rampWidthM / 2;
+      const box = claimAt('building',
+        mx - (alongX ? 0 : rampR), mz - (alongX ? rampR : 0),
+        hx + (alongX ? 0 : rampR), hz + (alongX ? rampR : 0),
+        { y0: 0, y1: topY, owner: 'carpark:deck' });
       const built = !reg.conflict(box);
       if (built) {
         reg.claim(box);
@@ -10952,8 +11020,16 @@ export function generateChunk(rootSeed, cx, cz) {
           const box = claimAt(cat, px, pz, hx, hz, { y0: base, y1: top, owner });
           if (reg.conflict(box)) continue;
           reg.claim(box);
+          /**
+           * A MASS'S ONE-SIDED FACE — a dock apron, a row of bay doors — is
+           * drawn at local +Z and therefore lands at the island's own +v
+           * (session 56, once `put`'s offsets stopped mirroring the yaw-90
+           * branch). A mass whose yard is on its −v side passes `flip` and
+           * turns 180; the dock-reach claim above is grown on BOTH sides, so
+           * the registry is indifferent to the choice by construction.
+           */
           const f = {
-            kind: fkind, x: px, z: pz, yawDeg: alongX ? 0 : 90,
+            kind: fkind, x: px, z: pz, yawDeg: (alongX ? 0 : 90) + (opts.flip ? 180 : 0),
             length: long, depth: deep, ...extra,
           };
           features.push(f);
@@ -11225,9 +11301,11 @@ export function generateChunk(rootSeed, cx, cz) {
          * impossible to break. The order is the fix, not a test.
          */
         for (const [pkind, hw, hh] of [['frame', 3.2, 3.0], ['swing', 2.6, 2.4]]) {
+          /** The frame's claim covers its slide — see the recreation copy. */
+          const claimHalf = pkind === 'frame' ? hw * 1.4 + 1.7 / 2 : hw;
           for (let t = 0; t < 3; t++) {
             const p2 = at(featRng.range(-halfU + 12, halfU - 12), featRng.range(6, halfV - 12));
-            const box = claimAt('feature', p2.x, p2.z, hw, hw, { y0: 0, y1: hh, owner: `school:${pkind}` });
+            const box = claimAt('feature', p2.x, p2.z, claimHalf, claimHalf, { y0: 0, y1: hh, owner: `school:${pkind}` });
             if (reg.conflict(box)) continue;
             features.push({
               kind: 'play', play: pkind, x: p2.x, z: p2.z, half: hw, height: hh,
@@ -11404,7 +11482,10 @@ export function generateChunk(rootSeed, cx, cz) {
         const shopH = sz(G.depotShopHighM, 0.85, 1.5);
         placeMass('shed', w.x, w.z, G.depotShopLongM, G.depotShopDeepM, shopH + 1.1,
           'depot:shop', { height: shopH, floors: 1, style: 'dock',
-            albedo: bodyAlbedo(), trim: [0.30, 0.298, 0.286] });
+            albedo: bodyAlbedo(), trim: [0.30, 0.298, 0.286] },
+          /** The shop stands at +v with its vans and bays at lower v — its
+           *  dock faces its own yard, not the boundary fence. Session 56. */
+          { flip: true });
         fence('rail', D.railHeight, 'depot:rail');
         floods(3);
       } else if (kind === 'church') {

@@ -3298,9 +3298,25 @@ export function createCity(options = {}) {
          */
         const y0 = worldSurface(ctx, f.x, f.z).y + (f.lift || 0);
         let fx0 = Infinity; let fx1 = -Infinity; let fz0 = Infinity; let fz1 = -Infinity; let fTop = 0;
+        /**
+         * THE OFFSET ROTATES BY THE SAME ANGLE AS THE BOX — SESSION 56, AND
+         * UNTIL THEN IT ROTATED BY THE OPPOSITE ONE. Three's rotation about +Y
+         * takes a local (x, z) to `(x·cos + z·sin, −x·sin + z·cos)` — the
+         * session-46 lamp table five thousand lines down says so and the
+         * viaduct's transverse offsets already negate the angle for exactly
+         * this reason (`Math.cos((yaw * Math.PI) / -180)`). This helper used
+         * the schoolbook 2D form instead, so every sub-box POSITION rotated by
+         * −yaw while its ORIENTATION rotated by +yaw. Identical at yaw 0/180;
+         * a MIRROR at 90/270 — which is why the east and west stadium stands
+         * delivered their rake climbing toward the pitch and their blank wall
+         * against it while the north and south pair were right, seven sessions
+         * after session 49 wrote the correct yaw table against three's own
+         * convention. CONTRACT §9 row 2: a basis in one handedness convention
+         * used as the other.
+         */
         const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
-          const c = Math.cos(((f.yawDeg || 0) * Math.PI) / 180);
-          const s = Math.sin(((f.yawDeg || 0) * Math.PI) / 180);
+          const c = Math.cos(((f.yawDeg || 0) * Math.PI) / -180);
+          const s = Math.sin(((f.yawDeg || 0) * Math.PI) / -180);
           const wx = f.x + dx * c - dz * s;
           const wz = f.z + dx * s + dz * c;
           const m = setMatrix(wx, y0 + dy, wz, sx, sy, sz,
