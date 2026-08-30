@@ -1702,7 +1702,7 @@ export function distantMasses(rootSeed, cx, cz) {
 export const HILLS = {
   rMinM: 3300,
   rMaxM: 3950,
-  count: 150,
+  count: 140,
   footMinM: 110,
   footMaxM: 300,
   heightMinM: 22,
@@ -12974,16 +12974,31 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     for (const g of coreRects
       .map((r) => ({ r, area: (r.x1 - r.x0) * (r.z1 - r.z0) }))
-      .filter((e) => e.area > 300)
+      /** 420, not 300 — the second trim the triangle ceiling asked for: the
+       *  many small strips cost rows across hundreds of chunks while the
+       *  operator's complaint is the LARGE patches, which all clear 420. */
+      .filter((e) => e.area > 420)
       .sort((a, b) => b.area - a.area)
-      .slice(0, 5)
+      .slice(0, 4)
       .map((e) => e.r)) {
       const rowAlongX = (g.x1 - g.x0) >= (g.z1 - g.z0);
       const len = rowAlongX ? g.x1 - g.x0 : g.z1 - g.z0;
-      const rowN = Math.max(2, Math.floor(len / 9));
+      /**
+       * 12 m pitch and no multi-box stacks in the ROWS (the uniform scatter
+       * above keeps its full palette): the first arm at 9 m and five rows a
+       * chunk delivered the repair and 26 444 triangles past
+       * `ceilings.triangles` on `highway_speed` — a count, so a verdict
+       * whatever the load — and two more trims (area 420, pitch 13, ten
+       * fewer hills) were needed to get back under. THE CEILING IS NOW
+       * EFFECTIVELY SPENT: the next session inherits about 2k of headroom. A 13 m pitch on a 12 m strip is ~19 objects/ha,
+       * inside the furnished band's low half; the largest patches stay
+       * covered and the ceiling stays a ceiling.
+       */
+      const rowN = Math.max(2, Math.floor(len / 13));
+      const ROW_KINDS = ['bin', 'cabinet', 'container', 'bollard'];
       for (let i = 0; i < rowN; i++) {
         const u = (i + 0.5) / rowN;
-        const propKind = CORE_KINDS[coreRng.int(0, CORE_KINDS.length - 1)];
+        const propKind = ROW_KINDS[coreRng.int(0, ROW_KINDS.length - 1)];
         const scale = coreRng.range(PROP_SCALE.min, PROP_SCALE.max);
         const variants = propVariantCount(propKind);
         const variant = variants > 0 ? coreRng.int(0, variants - 1) : 0;

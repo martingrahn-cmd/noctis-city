@@ -1782,13 +1782,13 @@ export function createCity(options = {}) {
    * this function's first call rather than its own hook because everything
    * it needs (materials, root) is ready here, and unlike the distant shell
    * it never rebuilds: `hillMasses` reads the world origin, not the camera.
-   * A hemisphere at 10x4 segments is ~72 triangles; ~200 instances is
-   * ~14 000 against the 70 000 the budget has spare, at ONE draw call.
+   * A hemisphere at 8x3 segments is 40 triangles; ~200 instances is
+   * ~8 000 triangles at ONE draw call. It was 10x4 until the ceiling spoke.
    */
   function buildHillsMesh() {
     const masses = hillMasses(rootSeed);
     if (!masses.length) return;
-    const geo = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+    const geo = new THREE.SphereGeometry(1, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2);
     const im = new THREE.InstancedMesh(geo, materials.hills, masses.length);
     let woods = 0;
     for (let i = 0; i < masses.length; i++) {
