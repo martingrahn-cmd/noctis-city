@@ -3819,15 +3819,22 @@ export function createCity(options = {}) {
             const dz = (k + 0.5) * f.tread - f.deep / 2;
             put(0, y / 2, dz, f.long, y, f.tread, conc, 0.9);
             /** The seating deck itself, a shade cooler than the concrete. */
-            put(0, y + 0.12, dz, f.long * 0.99, 0.24, f.tread * 0.92, seat, 0.72);
+            if (!f.bare) put(0, y + 0.12, dz, f.long * 0.99, 0.24, f.tread * 0.92, seat, 0.72);
           }
-          /** The blank outer wall — what a ground shows the street. */
-          const top = f.tiers * f.rise;
-          put(0, (top + 1.6) / 2, f.deep / 2 + 0.3, f.long, top + 1.6, 0.6, dark, 0.92);
-          /** A roof edge over the back row, on two posts. */
-          put(0, top + 2.4, f.deep / 2 - f.tread, f.long, 0.5, f.tread * 2.2, conc, 0.86);
-          for (const e of [-0.42, 0.42]) {
-            put(f.long * e, top + 1.2, f.deep / 2 - f.tread * 1.6, 0.3, 2.4, 0.3, dark, 0.8);
+          /**
+           * `f.bare` — session 56: a courtside bank of SPECTATOR STEPS is this
+           * object with three treads and nothing over them. The wall, the roof
+           * and the seat decks belong to a ground, not to a municipal court.
+           */
+          if (!f.bare) {
+            /** The blank outer wall — what a ground shows the street. */
+            const top = f.tiers * f.rise;
+            put(0, (top + 1.6) / 2, f.deep / 2 + 0.3, f.long, top + 1.6, 0.6, dark, 0.92);
+            /** A roof edge over the back row, on two posts. */
+            put(0, top + 2.4, f.deep / 2 - f.tread, f.long, 0.5, f.tread * 2.2, conc, 0.86);
+            for (const e of [-0.42, 0.42]) {
+              put(f.long * e, top + 1.2, f.deep / 2 - f.tread * 1.6, 0.3, 2.4, 0.3, dark, 0.8);
+            }
           }
         } else if (f.kind === 'deckpark') {
           /**

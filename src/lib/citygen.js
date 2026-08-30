@@ -10471,6 +10471,54 @@ export function generateChunk(rootSeed, cx, cz) {
       const hzP = alongX ? bankS : halfL;
 
       /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * ITEM 2, SESSION 56 — THE GROUND AROUND THE PLAY AREA. The operator:
+       * a court pad "sits in the middle of a 100 m island, and the rest is
+       * empty grass". The pad is 13.8% of a 10 941 m² island and everything
+       * else was one lawn, a fence and 8–12 scattered props. What a real
+       * ground has around its courts is A WAY IN, somewhere to sit, and a
+       * planted boundary — all sized from the island, all in vocabulary this
+       * file already draws.
+       *
+       * THE GATE IS ROLLED BEFORE THE SURFACE because the path must be cut
+       * out of the lawn (coplanar quads z-fight — the pad's own rule), and
+       * the path runs from the gate. Moving the two rolls re-phases the
+       * playground fixtures and floods within this kind only.
+       * ═══════════════════════════════════════════════════════════════════════
+       */
+      const gateSide = featRng.int(0, 3);
+      const gateAt = featRng.range(0.3, 0.7);
+      /** The path from the boundary gate to the play area's near edge —
+       *  exactly boundaryRun's own gate arithmetic, same inset. */
+      const pathRect = (() => {
+        const inset = DEAD_ZONE.edgeInset;
+        const h = PARK.pathHalf;
+        /**
+         * On a stadium island the path stops at the BACK of the stand — the
+         * stands are claimed after this and `building x path` is forbidden,
+         * so a path driven to the pitch would refuse the stand it leads to.
+         * Measured before this clause: chunk (-8,-5) delivered three stands
+         * of four, the missing one exactly where the gate rolled.
+         */
+        const standOff = stadium ? 6.0 + R.tiers * R.tierDeepM + 1.0 : 0;
+        const stopX = hxP + standOff + (hard ? runOff : 2.0);
+        const stopZ = hzP + standOff + (hard ? runOff : 2.0);
+        const gx = (isl.x0 + inset) + ((isl.x1 - isl.x0) - 2 * inset) * gateAt;
+        const gz = (isl.z0 + inset) + ((isl.z1 - isl.z0) - 2 * inset) * gateAt;
+        if (gateSide === 0) return { x0: gx - h, x1: gx + h, z0: isl.z0, z1: mz - stopZ, kind: 'path', yKey: 'pathEW' };
+        if (gateSide === 1) return { x0: gx - h, x1: gx + h, z0: mz + stopZ, z1: isl.z1, kind: 'path', yKey: 'pathEW' };
+        if (gateSide === 2) return { x0: isl.x0, x1: mx - stopX, z0: gz - h, z1: gz + h, kind: 'path', yKey: 'pathEW' };
+        return { x0: mx + stopX, x1: isl.x1, z0: gz - h, z1: gz + h, kind: 'path', yKey: 'pathEW' };
+      })();
+      const pathOk = pathRect.x1 > pathRect.x0 + 2 && pathRect.z1 > pathRect.z0 + 2;
+      if (pathOk) {
+        for (const q of subtractBoxes([pathRect], islandSolids())) {
+          ground.push(q);
+          reg.claim(claimBox('path', q.x0, q.z0, q.x1, q.z1, { owner: 'sport:path' }));
+        }
+      }
+
+      /**
        * THE SURFACE IS THE PLAY AREA AND ITS RUN-OFF, NOT THE ISLAND.
        *
        * A pitch is grass and its run-off is grass, so a pitch takes the whole
@@ -10481,6 +10529,9 @@ export function generateChunk(rootSeed, cx, cz) {
        * `grass` a park's is, so a court reads as a hard rectangle IN a green
        * one, which is what a municipal court is.
        */
+      /** The path is cut out of the lawn exactly as the pad is — coplanar
+       *  quads z-fight, and `islandSolids` knows nothing about paths. */
+      const lawnCuts = pathOk ? [pathRect] : [];
       if (hard) {
         const pad = { kind: 'sportGround', yKey: 'sport',
           x0: mx - hxP - runOff, x1: mx + hxP + runOff,
@@ -10493,11 +10544,11 @@ export function generateChunk(rootSeed, cx, cz) {
          * same ground is a z-fight rather than a court. `subtractBoxes` is the
          * same clipper a park's grass is cut round its own paths with.
          */
-        for (const g of subtractBoxes([green], [...islandSolids(), pad])) ground.push(g);
+        for (const g of subtractBoxes([green], [...islandSolids(), pad, ...lawnCuts])) ground.push(g);
         for (const g of subtractBoxes([pad], islandSolids())) ground.push(g);
       } else {
         const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
-        for (const g of subtractBoxes([surf], islandSolids())) ground.push(g);
+        for (const g of subtractBoxes([surf], [...islandSolids(), ...lawnCuts])) ground.push(g);
       }
       /** A line on play area `c`: `t` along its long axis, `u` across it. */
       const line = (c, t, u, len, wid, across) => markings.push({
@@ -10739,19 +10790,109 @@ export function generateChunk(rootSeed, cx, cz) {
        * segment the registry has already spoken for, and rides the chunk's own
        * mesh at no draw call.
        */
-      const gateSide = featRng.int(0, 3);
-      const gateAt = featRng.range(0.3, 0.7);
       const netH = variant === 'pitch' ? R.netHighM
         : variant === 'court' ? R.netLowM : R.playFenceM;
       boundaryRun({
         inset: DEAD_ZONE.edgeInset, seg: R.fenceSegmentM, halfT: R.fenceHalfT,
         height: netH, category: 'feature', owner: `sport:${variant}:fence`,
         gateSide, gateAt, gateHalf: 3.0,
-        make: (x, z, yawDeg) => ({
-          kind: 'edge', edge: variant === 'playground' ? 'railing' : 'mesh',
-          x, z, length: R.fenceSegmentM, height: netH, yawDeg,
-        }),
+        make: (x, z, yawDeg, axis) => {
+          /**
+           * THE COMMENT ABOVE SAID "a ball-stop behind the goals and a lower
+           * run along the sides" FOR EIGHT SESSIONS AND THE CODE PASSED ONE
+           * HEIGHT TO ALL FOUR SIDES — session 56 implements the sentence.
+           * Behind the goals is the pair of sides the long axis points at:
+           * the 'z'-axis runs when the pitch runs along x. The claim's y1
+           * stays `netH` on every side, which over-claims the low sides in y
+           * only — the conservative direction.
+           */
+          const behindGoal = (axis === 'z') === alongX;
+          const low = variant === 'pitch' && !behindGoal;
+          return {
+            kind: 'edge',
+            edge: variant === 'playground' ? 'railing' : low ? 'rail' : 'mesh',
+            x, z, length: R.fenceSegmentM,
+            height: low ? DEAD_ZONE.railHeight : netH, yawDeg,
+          };
+        },
       });
+
+      /**
+       * SOMEWHERE TO SIT: benches on the play area's two long sides, facing
+       * it, long axis along the edge they serve — and for the court, one bank
+       * of BARE SPECTATOR STEPS, which is the stand vocabulary with three
+       * treads and no wall or roof. Sized from the play area, not authored.
+       */
+      if (variant === 'court') {
+        const deep = 3 * 0.9;
+        const off = (alongX ? hzP : hxP) + runOff + deep / 2 + 0.8;
+        const sx2 = alongX ? mx : mx + off;
+        const sz2 = alongX ? mz + off : mz;
+        const long = pl * 0.6;
+        const box = claimAt('building',
+          sx2, sz2,
+          alongX ? long / 2 : deep / 2, alongX ? deep / 2 : long / 2,
+          { y0: 0, y1: 3 * 0.42 + 0.4, owner: 'sport:steps' });
+        if (!reg.conflict(box)) {
+          reg.claim(box);
+          features.push({
+            kind: 'stand', x: sx2, z: sz2, long, deep, tiers: 3,
+            rise: 0.42, tread: 0.9, bare: true,
+            /** The stands' own facing table: local +Z away from the courts. */
+            yawDeg: alongX ? 0 : 90,
+          });
+        }
+      }
+
+      if (!stadium) {
+        const offA = (alongX ? hzP : hxP) + runOff + 1.2;
+        for (const sa of [-1, 1]) {
+          for (const su of [-0.45, 0.45]) {
+            const bx = alongX ? mx + su * 2 * hxP * 0.5 : mx + sa * offA;
+            const bz = alongX ? mz + sa * offA : mz + su * 2 * hzP * 0.5;
+            const half = propHalfWidth('bench', 0);
+            const spot = claimAt('prop', bx, bz, half, half, { owner: 'sport:bench' });
+            if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+            reg.claim(spot);
+            props.push({ x: bx, z: bz, yawDeg: alongX ? 0 : 90, refDeg: 0, kerb: false,
+              kind: 'bench', scale: 1.0, variant: 0,
+              soil: featRng.range(0.62, 1.0), lean: 0, leanAzDeg: 0 });
+          }
+        }
+      }
+      /**
+       * TREES ALONG THE BOUNDARY — the brief's own list, and the one entry
+       * that reads from every distance. A ring inside the fence at a spacing
+       * drawn from the island side; the registry refuses any that meet the
+       * path, the pad, a stand or the fence, so the ring opens exactly where
+       * the ground is already spoken for.
+       */
+      {
+        const inset2 = DEAD_ZONE.edgeInset + 4.3;
+        const tx0 = isl.x0 + inset2; const tx1 = isl.x1 - inset2;
+        const tz0 = isl.z0 + inset2; const tz1 = isl.z1 - inset2;
+        const step = (tx1 - tx0) / 8;
+        for (const [ax, at2, from, to] of [
+          ['x', tz0, tx0, tx1], ['x', tz1, tx0, tx1],
+          ['z', tx0, tz0, tz1], ['z', tx1, tz0, tz1],
+        ]) {
+          for (let t = from + step / 2; t < to; t += step) {
+            const px = ax === 'x' ? t : at2;
+            const pz = ax === 'x' ? at2 : t;
+            const scale = featRng.range(PROP_SCALE.min, PROP_SCALE.max);
+            const variants = propVariantCount('tree');
+            const tv = variants > 0 ? featRng.int(0, variants - 1) : 0;
+            const pad2 = propHalfWidth('tree', tv) * scale;
+            const spot = claimAt('prop', px, pz, pad2, pad2, { owner: 'sport:tree' });
+            if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+            reg.claim(spot);
+            props.push({ x: px, z: pz, yawDeg: yaw(), refDeg: 0, kerb: false,
+              kind: 'tree', scale, variant: tv,
+              soil: featRng.range(0.62, 1.0),
+              lean: featRng.range(-1, 1), leanAzDeg: featRng.range(0, 360) });
+          }
+        }
+      }
 
       /**
        * AND IT IS LIT, because a pitch nobody can use after four o'clock in
