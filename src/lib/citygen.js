@@ -5432,6 +5432,48 @@ export function landmarkClaimHalf(l) {
   return r > 0 ? r + LANDMARK_SETBACK_M : 0;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * IS THIS POINT ON A LANDMARK'S APPROACH — A PURE PREDICATE, SESSION 55.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `latticeCorridor`'s shape, and it exists for the same reason session 52
+ * built that one: a CHUNK SEAM. `citycheck` pools every chunk's claims, so it
+ * compares an approach laid by one chunk against a prop scattered by the next
+ * — and neither generator's registry has heard of the other. It found
+ * `path(exchange:approach) x prop(bench)` at 0.287 m² on the first run of this
+ * content and again on the second, because the first repair guarded only the
+ * APRON's own scatter and the bench came from the island's.
+ *
+ * **THE GUARD IS THE SENTENCE RATHER THAN THE SEAM**, which is session 52's own
+ * rule written down: *a scatter does not furnish a landmark's drive.* This
+ * reads nothing but `LANDMARKS`, `LANDMARK_APRON` and the point, so it is the
+ * same answer in every chunk in every order, and the two can no longer choose
+ * the same square metre.
+ *
+ * Conservative on purpose: it is the WHOLE corridor a landmark is allowed to
+ * look along, including the part the carriageway and the solids cut away.
+ * Over-refusing a bench costs a bench; under-refusing one costs a forbidden
+ * overlap, and this project has three of those it did not choose.
+ */
+export function inLandmarkApproach(x, z, pad = 0) {
+  for (const l of LANDMARKS) {
+    const spec = LANDMARK_APRON[l.name];
+    if (!spec || !spec.approaches) continue;
+    const outer = landmarkClaimHalf(l) + PROGRAM.hospBayLongM + pad;
+    const hw = APPROACH_HALF_M + pad;
+    const ax = x - l.x;
+    const az = z - l.z;
+    if (Math.abs(ax) > outer || Math.abs(az) > outer) continue;
+    for (const [ux, uz] of [[1, 0], [-1, 0], [0, 1], [0, -1]].slice(0, spec.approaches)) {
+      const along = ux !== 0 ? ax * ux : az * uz;
+      const across = ux !== 0 ? Math.abs(az) : Math.abs(ax);
+      if (along >= -pad && along <= outer && across <= hw) return true;
+    }
+  }
+  return false;
+}
+
 /** Metres a round landmark's ground claim is dilated by. 0 for the other four. */
 export function landmarkClaimMargin(l) {
   return landmarkGroundRadius(l) > 0 ? LANDMARK_SETBACK_M : 0;
@@ -11937,6 +11979,17 @@ export function generateChunk(rootSeed, cx, cz) {
         const yawRad = (CITY.maxYawDeg * Math.PI) / 180;
         const halfAlong = pad * Math.cos(yawRad) + across * Math.sin(yawRad);
         const halfAcross = across * Math.cos(yawRad) + pad * Math.sin(yawRad);
+        /**
+         * A KERBSIDE SCATTER DOES NOT FURNISH A LANDMARK'S DRIVE — session 55,
+         * and this is the site the first two repairs missed. `citycheck`'s
+         * `path(exchange:approach) x prop(bench)` survived a guard on the
+         * apron's own scatter and a guard on the island's, because the bench
+         * came from the KERB BAND: an approach reaches sixteen metres past the
+         * claim, which is exactly where the footway furniture is. See
+         * `inLandmarkApproach` — a pure predicate, so this chunk and the one
+         * that laid the drive cannot disagree across a seam.
+         */
+        if (inLandmarkApproach(x, z, Math.max(halfAlong, halfAcross))) continue;
         const spot = band.bank || band.axis === 'z'
           ? claimAt('prop', x, z, halfAlong, halfAcross, { owner: propKind })
           : claimAt('prop', x, z, halfAcross, halfAlong, { owner: propKind });
@@ -12046,6 +12099,12 @@ export function generateChunk(rootSeed, cx, cz) {
         // The island scatter's yaw is free, so the claim is the model's
         // circumscribing square. Conservative, and the right answer for a
         // rotation nobody has fixed yet.
+        /**
+         * A SCATTER DOES NOT FURNISH A LANDMARK'S DRIVE — session 55, and it
+         * is `latticeCorridor` one line up in spirit: a pure predicate, so
+         * this chunk and the one that laid the approach cannot disagree.
+         */
+        if (inLandmarkApproach(x, z, pad)) continue;
         const spot = claimAt('prop', x, z, pad, pad, { owner: propKind });
         if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
         propClaim = spot;
@@ -12200,6 +12259,8 @@ export function generateChunk(rootSeed, cx, cz) {
          * The circumscribing square, exactly as the island scatter above
          * claims it — the yaw is free, so the claim is the conservative one.
          */
+        /** The same guard the island scatter takes — see `inLandmarkApproach`. */
+        if (inLandmarkApproach(x, z, half)) continue;
         const spot = claimAt('prop', x, z, half, half, { owner: propKind });
         if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
         reg.claim(spot);
@@ -13013,6 +13074,8 @@ export function generateChunk(rootSeed, cx, cz) {
          * is in STATE 52 §1.
          */
         if (latticeCorridor(x, z, half)) continue;
+        /** A forecourt does not furnish its own drive — `inLandmarkApproach`. */
+        if (inLandmarkApproach(x, z, half)) continue;
         const spot = claimAt('prop', x, z, half, half, { owner: `${l.name}:apron` });
         if (reg.conflict(spot, 0, APRON_SETBACKS)) continue;
         reg.claim(spot);
