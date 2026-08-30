@@ -65,7 +65,7 @@ import { RENDER } from '../core/constants.js';
 const INTERNAL_LINES = Math.round(Math.sqrt(RENDER.pixels / (16 / 9)));
 import {
   LANDMARKS, viaductArc, viaductSoffitY, SITE, viaductStations,
-  VIADUCT_RAIL_RISE_M, VIADUCT_LOADING_GAUGE_M,
+  VIADUCT_RAIL_RISE_M, VIADUCT_LOADING_GAUGE_M, VIADUCT_BUFFER_M,
 } from '../lib/citygen.js';
 
 /**
@@ -555,8 +555,25 @@ export function createMoving() {
        * The two ends are where the clamp already put them — `halfArc - len/2`,
        * the nose tip against the portal, session 23's derivation unchanged.
        */
-      const stationStops = viaductStations(arc, viaduct).map((st) => st.atS);
-      const endStop = arc.arcLength / 2 - trainLen / 2;
+      /**
+       * The terminus platforms are NOT stops of their own — session 56. The
+       * end stop below IS the terminus stop, derived from the train's own
+       * extent; the terminus entry in `viaductStations` places the platform
+       * from the deck's last station, and the two meet by construction. A
+       * second stop 6 m short of the buffer is what filtering prevents.
+       */
+      const stationStops = viaductStations(arc, viaduct)
+        .filter((st) => !st.terminus)
+        .map((st) => st.atS);
+      /**
+       * The nose halts `standOffM` short of the buffer beam, which stands
+       * `setInM` inside the deck's last station — one constant, two readers
+       * (`VIADUCT_BUFFER_M`, and city.js draws the buffer from it). Before
+       * session 56 this read `arcLength/2 - trainLen/2` and the nose tip
+       * stopped touching the portal's recess plane.
+       */
+      const endStop = arc.arcLength / 2 - trainLen / 2
+        - VIADUCT_BUFFER_M.setInM - VIADUCT_BUFFER_M.standOffM;
       stopsAt = [-endStop, ...stationStops, endStop].sort((a, b) => a - b);
 
       for (let t = 0; t < TRAIN.trains; t++) {
@@ -722,7 +739,8 @@ export function createMoving() {
               tr.s = target;
               tr.v = 0;
               /** A terminus is a stop at either end of the line, and only there. */
-              tr.reversing = Math.abs(Math.abs(target) - (arc.arcLength / 2 - tr.len / 2)) < 0.01;
+              tr.reversing = Math.abs(Math.abs(target) - (arc.arcLength / 2 - tr.len / 2
+                - VIADUCT_BUFFER_M.setInM - VIADUCT_BUFFER_M.standOffM)) < 0.01;
               tr.hold = tr.reversing ? TRAIN.turnroundS : TRAIN.dwellS;
             }
           }

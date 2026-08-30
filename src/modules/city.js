@@ -89,6 +89,7 @@ import {
   viaductStationSegment,
   VIADUCT_STATION,
   VIADUCT_RAIL_RISE_M,
+  VIADUCT_BUFFER_M,
   generatorCanProduce,
   CORRIDOR,
   BLOCK_KEEPOUT,
@@ -7300,6 +7301,32 @@ export function createCity(options = {}) {
            * this city with no bounce at all. At the night exposure the veil
            * (§5.5) lifts it off zero exactly as it lifts every other unlit wall.
            */
+          /**
+           * BUFFER STOPS — SESSION 56, AND THEY ARE WHAT MAKES THIS END A
+           * TERMINUS RATHER THAN A TUNNEL MOUTH WITH A TIMETABLE PROBLEM.
+           * Since session 54 every train brakes, stands 40 s and REVERSES
+           * here, and the recess below still says "the line continues". Track
+           * that stops carries a buffer: one friction stanchion pair and a
+           * beam per track, at the rail lines' own ±deck·0.235, 1.5 m inside
+           * the abutment's inner face — which is the deck's last station,
+           * where the nose tip stands. Steel, in the steel bucket.
+           */
+          {
+            const railY = l.height + VIADUCT_RAIL_RISE_M;
+            /** (c·sgn, sn·sgn) points OUT past the end — the recess uses it. */
+            const inX = -c * e.sgn; const inZ = -sn * e.sgn;
+            const faceD = e.abutDepth / 2 + VIADUCT_BUFFER_M.setInM;
+            for (const track of [-1, 1]) {
+              const [tx, tz] = at(track * l.deck * 0.235);
+              const bx = tx + inX * faceD; const bz = tz + inZ * faceD;
+              for (const side of [-0.72, 0.72]) {
+                const [sx2, sz2] = at(track * l.deck * 0.235 + side);
+                pushSteel(sx2 + inX * faceD, railY + 0.42, sz2 + inZ * faceD, 0.9, 0.84, 0.24, e.yawDeg);
+              }
+              pushSteel(bx, railY + 0.92, bz, 0.34, 0.42, 1.9, e.yawDeg);
+            }
+          }
+
           const [rx, rz] = at(0);
           push(
             rx + c * e.sgn * (e.reveal / 2), (e.abutTop + e.openTop - e.reveal) / 2,

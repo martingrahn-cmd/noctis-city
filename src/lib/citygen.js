@@ -5871,6 +5871,19 @@ export function viaductSoffitY(l) {
 export const VIADUCT_RAIL_RISE_M = 0.62;
 
 /**
+ * THE BUFFER STOP — SESSION 56, AND IT IS ONE CONSTANT BECAUSE TWO FILES READ
+ * IT. `city.js` stands the buffer `setInM` inside the abutment's inner face
+ * (the deck's last station), and `moving.js` derives the end stop so the nose
+ * halts `standOffM` short of the beam. Before this the nose tip stopped at
+ * s = 240.00 exactly — touching the portal's recess plane — which was the
+ * clamp doing what it said while the end treatment said "through line".
+ * 1.5 m is a friction buffer's own footprint on the rails it grips; 0.6 m is
+ * the stopping mark a driver is given at a real terminus, and both are
+ * bounds a delivered frame can check by eye.
+ */
+export const VIADUCT_BUFFER_M = { setInM: 1.5, standOffM: 0.6 };
+
+/**
  * THE STRUCTURE GAUGE: metres above RAIL LEVEL that must stay clear of
  * structure, so that anything running on this deck passes anything built over
  * it. Session 23.
@@ -6273,7 +6286,27 @@ export const VIADUCT_STATION = {
  */
 export function viaductStations(arc, l) {
   const out = [];
-  for (const atS of VIADUCT_STATION.atS) {
+  /**
+   * THE TERMINI — SESSION 56. Where the line ENDS there was a portal head, a
+   * recess pretending the line continues, and a train visibly reversing at
+   * it every cycle. A terminus is platforms at the end of the track, and the
+   * station vocabulary already knows how to build platforms, canopies and
+   * stair cores — so each end gets one entry, placed from the DECK'S OWN
+   * LAST STATION rather than from the train's stopping point: the platform
+   * runs back from the abutment, and the train (whose stop moving.js derives
+   * from its own extent) stands along it by construction, nose at the
+   * buffer. `terminus: true` is read by moving.js so the stop list does not
+   * gain a near-duplicate of the end stop it already carries, and the stair
+   * cores flip INBOARD — a core placed toward the end would stand in the
+   * portal.
+   */
+  const endS = arc.stations[arc.stations.length - 1].s;
+  const entries = VIADUCT_STATION.atS.map((s) => ({ atS: s, endSgn: 0, terminus: false }));
+  for (const sgn of [-1, 1]) {
+    entries.push({ atS: sgn * (endS - VIADUCT_STATION.halfLengthM), endSgn: sgn, terminus: true });
+  }
+  for (const entry of entries) {
+    const { atS, terminus } = entry;
     /** The deck station nearest this arc distance — the platform's mid-point. */
     const centre = arc.stations.reduce((a, b) => (Math.abs(b.s - atS) < Math.abs(a.s - atS) ? b : a));
     /**
@@ -6299,7 +6332,8 @@ export function viaductStations(arc, l) {
     const cores = [];
     for (const side of [-1, 1]) {
       const t = side * VIADUCT_STATION.coreT;
-      const s = VIADUCT_STATION.coreS;
+      /** A terminus core points inboard: toward the end it stands in the portal. */
+      const s = terminus ? -entry.endSgn * VIADUCT_STATION.coreS : VIADUCT_STATION.coreS;
       cores.push({
         side,
         /** `across(t)` displaced by `s` along the deck: the two are orthogonal. */
@@ -6311,7 +6345,7 @@ export function viaductStations(arc, l) {
     }
 
     out.push({
-      atS, centre, segs,
+      atS, centre, segs, terminus,
       segFrom: segs[0], segTo: segs[segs.length - 1],
       lengthM: segs.length * arc.chord,
       cores,
