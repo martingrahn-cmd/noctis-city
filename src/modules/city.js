@@ -86,6 +86,8 @@ import {
   viaductPiers,
   viaductEnds,
   viaductStations,
+  HILLS,
+  hillMasses,
   viaductStationSegment,
   VIADUCT_STATION,
   VIADUCT_RAIL_RISE_M,
@@ -377,6 +379,7 @@ export function createCity(options = {}) {
    * and once every 5.3 s at `highway_speed`'s 24 m/s.
    */
   let distantMesh = null;
+  let hillsMesh = null;
   let distantAt = null;
 
   const tmpMatrix = new THREE.Matrix4();
@@ -539,6 +542,12 @@ export function createCity(options = {}) {
         m.emissiveIntensity = DISTANT.nightNits;
         return m;
       })(),
+      /**
+       * THE HILLS — session 56. The distant recipe minus the one thing a hill
+       * must not do: emit. A hill at night is lit by the sky and, since this
+       * session, keyed by the moon; a glowing ridge would be a second city.
+       */
+      hills: surface({ color: [1, 1, 1], roughness: 0.96, linear: true }),
     };
   }
 
@@ -1768,7 +1777,50 @@ export function createCity(options = {}) {
    * the sun's depth pass by a factor of four and `castShadow` would submit them
    * to a frustum that cannot contain them.
    */
+  /**
+   * THE HILLS RING — session 56, world-fixed, built exactly once. It rides
+   * this function's first call rather than its own hook because everything
+   * it needs (materials, root) is ready here, and unlike the distant shell
+   * it never rebuilds: `hillMasses` reads the world origin, not the camera.
+   * A hemisphere at 10x4 segments is ~72 triangles; ~200 instances is
+   * ~14 000 against the 70 000 the budget has spare, at ONE draw call.
+   */
+  function buildHillsMesh() {
+    const masses = hillMasses(rootSeed);
+    if (!masses.length) return;
+    const geo = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+    const im = new THREE.InstancedMesh(geo, materials.hills, masses.length);
+    let woods = 0;
+    for (let i = 0; i < masses.length; i++) {
+      const m = masses[i];
+      tmpPos.set(m.x, GROUND.earth, m.z);
+      tmpScale.set(m.foot, m.h, m.foot);
+      tmpQuat.identity();
+      tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
+      im.setMatrixAt(i, tmpMatrix);
+      const a = m.wood ? HILLS.woodAlbedo : HILLS.hillAlbedo;
+      if (m.wood) woods++;
+      tmpColor.setRGB(a[0] * m.tone, a[1] * m.tone, a[2] * m.tone, THREE.LinearSRGBColorSpace);
+      im.setColorAt(i, tmpColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    im.instanceColor.needsUpdate = true;
+    im.castShadow = false;
+    im.receiveShadow = false;
+    im.name = 'city:hills';
+    im.userData.noctisCensus = {
+      hills: masses.length - woods,
+      woods,
+      $ring: `r ${HILLS.rMinM}-${HILLS.rMaxM} m on the earth plane, valleys at the road and the river`,
+    };
+    im.frustumCulled = true;
+    im.computeBoundingSphere();
+    root.add(im);
+    hillsMesh = im;
+  }
+
   function rebuildDistantMesh(ctx) {
+    if (!hillsMesh) buildHillsMesh();
     const s = CITY.chunkSize;
     const ccx = Math.floor(ctx.camera.position.x / s);
     const ccz = Math.floor(ctx.camera.position.z / s);

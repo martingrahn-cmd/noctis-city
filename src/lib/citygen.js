@@ -1672,6 +1672,83 @@ export function distantMasses(rootSeed, cx, cz) {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
+ * THE HILLS PAST THE EDGE — SESSION 56, PART TWO (a). The city ends naturally.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 53 stopped the density at 3 232 m and costed terrain in the band
+ * beyond it; session 54 stopped the lattice there. What was left past the
+ * edge was the flat earth plane running to its 4 000 m rim — a horizon with
+ * no shape. This is the horizon-with-shape variant: a ring of hill MASSES,
+ * standing on the existing plane, drawn on the distant city's own pattern
+ * (one world-fixed instanced mesh, no claims, no gates, nothing that moves)
+ * — the silhouette class, which is CHEAPER than the 21-site terrain variant
+ * because it touches none of the ground machinery at all.
+ *
+ * DERIVED, NOT DRESSED:
+ *   rMin 3 300      just past the lattice edge, so no hill stands where a
+ *                   road or a claim could ever be (density is 0 out there).
+ *   rMax 3 950      the earth plane ends at 4 000; a hill's footprint stays
+ *                   on the ground it stands on.
+ *   height 22–85 m  at 3.5 km one degree of horizon is 61 m, so the ridge
+ *                   subtends 0.35–1.4° — a low rim round a river basin, not
+ *                   an alp. Scaled up with r so a far row reads over a near
+ *                   shoulder rather than hiding behind it.
+ *   THE VALLEYS ARE THE POINT: the main street (z ≈ 0) and the river
+ *   (z ≈ RIVER.z0) each get a gap wider than any hill that could close it —
+ *   a city's one exit road leaves through a valley, and its water does too.
+ *   A wooded shoulder rides some hills as a second, darker, flatter dome:
+ *   the treeline, at zero extra draw calls.
+ */
+export const HILLS = {
+  rMinM: 3300,
+  rMaxM: 3950,
+  count: 150,
+  footMinM: 110,
+  footMaxM: 300,
+  heightMinM: 22,
+  heightMaxM: 85,
+  roadGapM: 170,
+  riverGapM: 150,
+  woodChance: 0.45,
+  /** Linear reflectances: dry scrub hill, and conifer wood on its shoulder. */
+  hillAlbedo: [0.082, 0.092, 0.060],
+  woodAlbedo: [0.034, 0.050, 0.035],
+};
+
+export function hillMasses(rootSeed) {
+  const rng = chunkRng(rootSeed, 0, 0, 'hills');
+  const out = [];
+  for (let i = 0; i < HILLS.count; i++) {
+    const a = rng.range(0, Math.PI * 2);
+    const r = rng.range(HILLS.rMinM, HILLS.rMaxM);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const foot = rng.range(HILLS.footMinM, HILLS.footMaxM);
+    const far = (r - HILLS.rMinM) / (HILLS.rMaxM - HILLS.rMinM);
+    const h = rng.range(HILLS.heightMinM, HILLS.heightMaxM) * (0.7 + 0.6 * far);
+    /** The two valleys: the exit road's and the river's. */
+    if (Math.abs(z) < HILLS.roadGapM + foot * 0.7) continue;
+    if (Math.abs(z - RIVER.z0) < HILLS.riverGapM + foot * 0.7) continue;
+    const tone = rng.range(0.82, 1.12);
+    out.push({ x, z, foot, h, wood: false, tone });
+    if (rng.chance(HILLS.woodChance)) {
+      /** The wood sits on the flank, downhill of the crown, flatter and darker. */
+      const wa = rng.range(0, Math.PI * 2);
+      out.push({
+        x: x + Math.cos(wa) * foot * 0.4,
+        z: z + Math.sin(wa) * foot * 0.4,
+        foot: foot * rng.range(0.35, 0.55),
+        h: h * rng.range(0.30, 0.45),
+        wood: true,
+        tone: rng.range(0.85, 1.1),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
  * HOW DEEP A BUILDING GOES — SESSION 35, AND THE CORE IS DERIVED RATHER THAN
  * CHOSEN.
  * ═══════════════════════════════════════════════════════════════════════════
