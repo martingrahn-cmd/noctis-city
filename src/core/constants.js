@@ -2087,16 +2087,30 @@ export const LAMP_BOWL = {
   streamedNits: BOWL_DERIVED_NITS * BOWL_STREAMED_FACTOR,
 
   /**
-   * THE ORIGIN BLOCK'S 16 BOWLS. **0.2151× the derivation, i.e. 4.65× too dim**
-   * since session 30, and 0.1076× / 9.30× before it — see `BOWL_ORIGIN_FACTOR`
-   * above for the sweep that moved it and for why the remaining **24%** of the
-   * available range was not taken. (550 - 420) / 550 = 23.64%; the 30% this
-   * line carried is the figure from before the bowl moved, and the corrected
-   * value has been 77 lines above it since session 30.)
+   * THE ORIGIN BLOCK'S 16 BOWLS. **1.0000× the derivation — 1952.19 cd/m², THE
+   * DERIVATION ITSELF — since session 45.**
+   *
+   * THIS PARAGRAPH SAID "0.2151x the derivation, i.e. 4.65x too dim" FOR TEN
+   * SESSIONS AFTER THAT STOPPED BEING TRUE, seventy-seven lines below the
+   * change that repealed it, and session 55's brief asked *"if that is still
+   * 0.2151x, that is 4.6x of authored dimming nobody has ever justified —
+   * check it"*. It is not, and the check cost ten minutes because the sentence
+   * was still in the present tense. That is the SECOND time this exact comment
+   * has gone stale under this exact constant — session 31 found it saying 210
+   * when the value was 420 — so the history is in the PAST TENSE now and the
+   * live value is the first line, which is §8's own rule about a statement
+   * that has to be re-checked rather than re-read.
+   *
+   * WHAT IT WAS: 0.1076x (210 cd/m²) to session 30, then 0.2151x (420) when
+   * session 30 swept it against `band:midnight`'s 0.112 ceiling and found the
+   * crossing at about 550, then 1.0 when session 45 re-ran that sweep against
+   * a band the station had moved to 0.0741 and found fourteen times the room.
+   * `BOWL_ORIGIN_FACTOR` above carries both sweeps.
    *
    * ITS HISTORY, IN THE PAST TENSE, BECAUSE SESSION 31 FOUND THIS PARAGRAPH
    * STILL WRITTEN IN THE PRESENT FIVE LINES BELOW ITS OWN 210 -> 420
-   * CORRECTION. The value **was** 210 and is 420; it **was** authored in
+   * CORRECTION. The value **was** 210, then 420, and is the derivation; it
+   * **was** authored in
    * `block.js`'s EMISSIVE table and has not lived there since session 2 — see
    * `block.js`'s own note, which says so. So it was never a wrong derivation,
    * it was an absent one (§9 rule 5: a number without a derivation is a
