@@ -1726,9 +1726,13 @@ export function hillMasses(rootSeed) {
     const foot = rng.range(HILLS.footMinM, HILLS.footMaxM);
     const far = (r - HILLS.rMinM) / (HILLS.rMaxM - HILLS.rMinM);
     const h = rng.range(HILLS.heightMinM, HILLS.heightMaxM) * (0.7 + 0.6 * far);
-    /** The two valleys: the exit road's and the river's. */
-    if (Math.abs(z) < HILLS.roadGapM + foot * 0.7) continue;
-    if (Math.abs(z - RIVER.z0) < HILLS.riverGapM + foot * 0.7) continue;
+    /**
+     * The two valleys: the exit road's and the river's. Against the FULL
+     * footprint — a hemisphere's rim reaches all of it, and the first arm
+     * used 0.7x and stood a hill's shoulder over the forecourt at x 3400.
+     */
+    if (Math.abs(z) < HILLS.roadGapM + foot) continue;
+    if (Math.abs(z - RIVER.z0) < HILLS.riverGapM + foot) continue;
     const tone = rng.range(0.82, 1.12);
     out.push({ x, z, foot, h, wood: false, tone });
     if (rng.chance(HILLS.woodChance)) {
@@ -13565,6 +13569,94 @@ export function generateChunk(rootSeed, cx, cz) {
    */
   const riverBoxes = riverOccluders(rootSeed, cx, cz);
   for (const o of riverBoxes) occluders.push(o);
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * WHAT SITS ALONG THE EXIT ROAD — SESSION 56, PART TWO (c).
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The 8 km main street is the one road that leaves the grid, and past
+   * 3 232 m it ran to the world's rim with nothing beside it. What stands
+   * along a real exit road is the low commerce of the edge — a filling
+   * station where the city lets go, allotments where its gardens end — and
+   * both are already expressible in this file's own vocabulary: a canopy, a
+   * shed, cabinets, planters, a path, floods.
+   *
+   * TWO SITES, DERIVED AND NOT SCATTERED: the first FULL chunk beyond the
+   * lattice edge on each side of the exit (`ceil(extentEdgeM / chunkSize)`
+   * = 26 east, −27 west), on alternating sides of the carriageway, so a
+   * driver leaving either way passes one. Density is 0 out here so nothing
+   * else will ever stand on this ground; every object still claims, because
+   * the registry's authority does not end at the edge of the city.
+   */
+  {
+    const EDGE_CHUNK = Math.ceil(CITY.extentEdgeM / CITY.chunkSize);
+    const rr = chunkRng(rootSeed, cx, cz, 'roadside');
+    if (cx === EDGE_CHUNK && cz === -1) {
+      /** THE FILLING STATION — north of the road, forecourt to the kerb line. */
+      const sx = cx * CITY.chunkSize + 52;
+      ground.push({ x0: sx - 26, x1: sx + 26, z0: -52, z1: -12, kind: 'parkingGround', yKey: 'parking' });
+      const can = { x: sx - 8, z: -26 };
+      const cBox = claimAt('canopy', can.x, can.z, 13, 6.5, { y0: 5.6, y1: 7.0, owner: 'roadside:canopy' });
+      if (!reg.conflict(cBox)) {
+        reg.claim(cBox);
+        features.push({ kind: 'canopy', x: can.x, z: can.z, yawDeg: 0, length: 26, depth: 13, height: 5.6 });
+        /** The pump islands: three cabinets on the forecourt's own line. */
+        for (const px of [-8, 0, 8]) {
+          const half = propHalfWidth('cabinet', 0);
+          const spot = claimAt('prop', can.x + px, can.z, half, half, { owner: 'roadside:pump' });
+          if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+          reg.claim(spot);
+          props.push({ x: can.x + px, z: can.z, yawDeg: 90, refDeg: 90, kerb: false,
+            kind: 'cabinet', scale: 1.0, variant: 0, soil: rr.range(0.7, 0.95), lean: 0, leanAzDeg: 0 });
+        }
+      }
+      const kBox = claimAt('building', sx + 16, -40, 6, 4.5, { y0: 0, y1: 4.5, owner: 'roadside:kiosk' });
+      if (!reg.conflict(kBox)) {
+        reg.claim(kBox);
+        features.push({ kind: 'shed', x: sx + 16, z: -40, yawDeg: 0, length: 12, depth: 9,
+          height: 3.6, floors: 1, style: 'window',
+          albedo: [0.42, 0.41, 0.39], trim: [0.30, 0.30, 0.31] });
+      }
+      for (const fx of [-24, 24]) {
+        const fBox = claimAt('site', sx + fx, -48, 0.7, 0.7, { y0: 0, y1: SITE.floodHeightM, owner: 'roadside:flood' });
+        if (reg.conflict(fBox)) continue;
+        reg.claim(fBox);
+        features.push({ kind: 'flood', x: sx + fx, z: -48, height: SITE.floodHeightM, aimX: can.x, aimZ: can.z });
+      }
+    } else if (cx === -(EDGE_CHUNK + 1) && cz === 0) {
+      /** THE ALLOTMENTS — south of the road: beds, huts and a path. */
+      const mx2 = cx * CITY.chunkSize + 64;
+      ground.push({ x0: mx2 - 44, x1: mx2 + 44, z0: 14, z1: 98, kind: 'grass', yKey: 'grass' });
+      const pathR = { x0: mx2 - 1.4, x1: mx2 + 1.4, z0: 14, z1: 98, kind: 'path', yKey: 'pathEW' };
+      ground.push(pathR);
+      reg.claim(claimBox('path', pathR.x0, pathR.z0, pathR.x1, pathR.z1, { owner: 'roadside:path' }));
+      for (let gz = 26; gz <= 86; gz += 24) {
+        for (const side of [-1, 1]) {
+          /** A hut per plot, off the path, each on its own slight bearing. */
+          const hx = mx2 + side * rr.range(22, 36);
+          const hBox = claimAt('building', hx, gz, 1.9, 1.5, { y0: 0, y1: 2.6, owner: 'roadside:hut' });
+          if (!reg.conflict(hBox)) {
+            reg.claim(hBox);
+            features.push({ kind: 'shed', x: hx, z: gz, yawDeg: rr.range(-8, 8), length: 3.6, depth: 2.8,
+              height: 2.2, floors: 1, style: 'blank',
+              albedo: [0.30, 0.26, 0.20], trim: [0.24, 0.22, 0.18] });
+          }
+          /** The beds: planter rows between the path and the huts. */
+          for (let k = 0; k < 3; k++) {
+            const bx = mx2 + side * (6 + k * 5.5);
+            const half = propHalfWidth('planter', 0);
+            const spot = claimAt('prop', bx, gz + rr.range(-6, 6), half, half, { owner: 'roadside:bed' });
+            if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+            reg.claim(spot);
+            props.push({ x: (spot.x0 + spot.x1) / 2, z: (spot.z0 + spot.z1) / 2, yawDeg: 0, refDeg: 0,
+              kerb: false, kind: 'planter', scale: rr.range(0.9, 1.15), variant: 0,
+              soil: rr.range(0.6, 0.9), lean: 0, leanAzDeg: 0 });
+          }
+        }
+      }
+    }
+  }
 
   return {
     cx, cz, density, lowDetail, kind,
