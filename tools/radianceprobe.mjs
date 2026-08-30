@@ -67,6 +67,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+import { POST } from '../src/core/constants.js';
 import { decodePNG } from './lib/png.mjs';
 import { startServer, launchBrowser, openPage, readRendererString } from './lib/page.mjs';
 
@@ -137,6 +138,15 @@ const ACES_OUT = [
   [-0.00327, -0.07276, 1.07602],
 ];
 const ACES_TOE = 0.000090537 / 0.238081;
+/**
+ * LOOK.md §0's black floor and the rod chromaticity it falls back to at true
+ * black — read from the same module the shader reads, not copied.
+ * `radianceprobe` is allowed to import from `src/` because it is a tool; what
+ * it must never do is carry its own copy of a number the renderer also has,
+ * which is the mistake this whole file exists to catch one step further down
+ * (§9.1).
+ */
+const { blackFloor: BLACK_FLOOR_Y, rodChroma: ROD_CHROMA } = POST;
 const mul3 = (m, v) => [
   m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
   m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
@@ -154,6 +164,10 @@ function acesFitted(c) {
   let v = mul3(ACES_IN, c);
   v = rrtOdtFit(v).map((x) => (x + ACES_TOE) / (1 + ACES_TOE));
   v = mul3(ACES_OUT, v);
+  const fy = Math.max(lum(v), 0);
+  const tint = fy > 1e-7 ? v.map((x) => Math.max(x, 0) / fy) : ROD_CHROMA;
+  const w = fy / (fy + BLACK_FLOOR_Y);
+  v = v.map((x, i) => (x + BLACK_FLOOR_Y * (ROD_CHROMA[i] + (tint[i] - ROD_CHROMA[i]) * w)) / (1 + BLACK_FLOOR_Y));
   return v.map((x) => Math.min(1, Math.max(0, x)));
 }
 function srgbEncode(x) {

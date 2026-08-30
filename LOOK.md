@@ -1578,6 +1578,83 @@ one gate wearing two names.
 is unchanged: a night city got more lit, which is the direction this document
 asks for.
 
+### `distinct:midnight|dusk` — THE THIRD RE-DERIVATION, SESSION 55, 2026-08-30
+
+**This session owes it because this session moved it, by more than any content
+change ever has.** The black floor (§0, `POST.blackFloor`) took it
+**0.02954 → 0.02621** — a fall of 0.00333, which is **333 times** the
+instrument's own 0.00001 run-to-run spread on this band, against session 53's
+distant silhouette at 0.00045 and session 54's five hundred lights at 0.00000.
+
+**AND THE MECHANISM IS THE THIRD FORM OF THE SAME SENTENCE.** Sessions 53 and 54
+found that midnight is darker than dusk, so anything that adds light at midnight
+moves midnight towards dusk. The floor is not light — it is a term added to
+every pixel of every frame after the exposure — and it lands *harder on the
+darker frame* for exactly the reason it exists: midnight has more picture down
+where the floor acts. Delivered, one `lookcheck` run at this session's HEAD:
+
+```
+  frame        mean BEFORE   mean AFTER   the floor's share
+  midnight        0.0835       0.1063          +27.3%
+  dusk            0.1405       0.1550          +10.3%
+  dawn            0.3018       0.3097           +2.6%
+  noon            0.4289       0.4337           +1.1%
+```
+
+**A statistic that measures the distance between two frames falls whenever a
+term lifts the darker one more than the brighter one, and every legibility
+repair this project will ever make has that shape.** So the band does not merely
+argue against LOOK.md §1's lit night city (session 53's finding) — it argues
+against §0's legible one as well, and §0 is the newer and the stronger claim: it
+says in as many words that where faithful luminance and legibility conflict,
+legibility wins.
+
+**`minPairMSD` IS NOT MOVED AND STAYS AT 0.03000, FOR THE THIRD SESSION
+RUNNING.** The shape a derived gate would have is unchanged from session 54's
+entry above — `minCycleMSD` on the spanning pair, `minAdjacentMSD` on the
+neighbours — and this session adds the one thing that entry said the split still
+owed a number for. `midnight <-> noon`, the pair `minCycleMSD` would be defined
+on, reads **0.20447 before and 0.18760 after**: it moves 8.2% and stays **6.3×
+clear of 0.03000**. So the property the current floor is actually protecting
+survives the floor comfortably, and it is the ADJACENT pair — the one where
+similarity is correct — that does not. That is the split's own falsifying case
+arriving on its own.
+
+**THE HONEST READING OF A RED ON THIS BAND** is now two sentences rather than
+one: a night city got more lit (sessions 53, 54), and its shadows stopped being
+0/255 (session 55). Both are the direction this document asks for.
+
+### WHAT THE FLOOR DID NOT TAKE, AND WHICH GATE WOULD HAVE TO MOVE — SESSION 55
+
+Written down because §7's whole subject is what a proxy costs, and because the
+next session should not have to re-run the sweep to find out.
+
+`POST.blackFloor` ships at **0.0025**, which delivers a true black of RGB 7, 8,
+12 and takes the churchyard's median surface from 5 to 12 code values. The
+derivation in `constants.js` asks for **10 at true black** — three code values
+of separation over a 30% face contrast, dithered — and the delivered figure is
+9. **The missing 0.0007 is held by `meanLuminanceBands.midnight`'s ceiling of
+0.112**, which the swept model crosses at about f = 0.0032:
+
+```
+  f         band:midnight     margin      delivered black
+  0.0025       0.1063         0.0057            9/255      ships
+  0.0030       0.1103         0.0017           10/255      admissible, thin
+  0.0035       0.1142          RED             12/255
+```
+
+**IT IS NOT TAKEN AND THE BAND IS NOT MOVED.** That ceiling was *"recentred on
+the session 2 measurements at the session 1 widths"* and has not been re-derived
+since — session 2's city was one origin block with no streamed city, no station,
+no traffic, no crowd, no signs and no distant city — so it is exactly the kind
+of bound the top of this section describes. But it is GREEN, and moving a green
+ceiling so that a change fits under it is *"tuning thresholds green"*, which the
+paragraph above forbids in as many words. `bandRules.minBandGap` is 0.02 and
+`dusk`'s floor is 0.14, so the most that ceiling could ever be is **0.12** — a
+further 0.008, or about three more code values of black. **That is the whole
+size of the argument, and it is a question for the operator rather than a
+decision for a session.**
+
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 
 Written as a question and not a statement, per §8. Session 44 made rainfall a

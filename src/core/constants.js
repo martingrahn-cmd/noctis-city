@@ -961,6 +961,179 @@ export const POST = {
   purkinjeStrength: 0.5,
   purkinjeLow: 0.006,
   purkinjeHigh: 0.4,
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE ROD CHROMATICITY, HOISTED OUT OF THE SHADER — SESSION 55.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * It was `vec3(0.805, 1.007, 1.510)` written inline in `post.js`'s composite
+   * with nothing beside it, which is §9 rule 5's own subject: a number without
+   * a derivation is a guess. It is here because `blackFloor` below needs the
+   * same vector, and two copies of a chromaticity in two files is §9.1's
+   * failure mode with a colour in it.
+   *
+   * WHAT IT IS. The Purkinje term replaces a pixel's colour with its ROD
+   * response `dot(c, vec3(0.08, 0.62, 0.30))` — the scotopic weighting of the
+   * three sRGB primaries, peaked at 507 nm rather than the photopic 555 — and
+   * this is the chromaticity that scalar is rendered as. The blue lift IS the
+   * Purkinje shift: at mesopic levels the rods carry the signal and the eye
+   * reports a scene that measures neutral as blue.
+   *
+   * IT IS LUMINANCE-NORMALISED, and that is the load-bearing property rather
+   * than the values: Rec.709 Y = 0.2126·0.805 + 0.7152·1.007 + 0.0722·1.510 =
+   * **1.00037**. A mix toward it is therefore a HUE change and not a brightness
+   * one — the same rule `EMITTER_CHROMA` states and LOOK.md §3 measured on a
+   * wall when it found that adding NEUTRAL light to a one-hue city makes the
+   * city more neutral. The 0.037% residual is left rather than rounded away,
+   * because these are the numbers that shipped for twenty-eight sessions and a
+   * tidier vector would be a content change wearing a refactor's clothes.
+   */
+  rodChroma: [0.805, 1.007, 1.510],
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE BLACK FLOOR — LOOK.md §0, AND IT IS THE FIRST THING THIS PROJECT HAS
+   * EVER DONE ABOUT "TOO DARK" THAT IS NOT MORE CONTENT.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * Display-linear luminance, added to every pixel after the ACES fit and
+   * before the sRGB encode. At c = 0 the delivered value is `f/(1+f)`; the
+   * division holds the top of the range where it was. It is the same shape
+   * `ACES_TOE` already has one line above it in `post.js`, for a different
+   * reason: the toe repairs the FIT (the published polynomial's numerator goes
+   * negative below 0.00325 and clamps three stops of shadow to exact black),
+   * and this repairs the PICTURE.
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * WHY A FLOOR AND NOT MORE LIGHT — MEASURED, SESSION 55, `radianceprobe`.
+   * ───────────────────────────────────────────────────────────────────────────
+   *
+   * The operator has said the city is too dark four times in ten sessions and
+   * four content increases have not answered it. The chain, at his own
+   * churchyard spawn at midnight, wet, read off the buffers the composite
+   * itself reads and checked against the delivered PNG byte to ±1:
+   *
+   *     the darkest surface in frame      0.067 cd/m²  ->  code value 1
+   *     the median surface                0.260        ->  code value 5
+   *     41.9% of every surface in the frame is under 4/255
+   *
+   * And the reason more lamps cannot reach it is `EXPOSURE.adaptStrength`:
+   * a GLOBAL stop of content arrives as **0.36 stops on screen**, because the
+   * meter takes 0.64 of every one back. To move a black surface 4× therefore
+   * costs **51× the scene radiance** — which is where five hundred lights went.
+   * An exposure lift is cheaper in frame mean and buys almost nothing at the
+   * bottom: near black sRGB is LINEAR at 12.92, so ×1.28 on a code value of 8
+   * is a code value of 10, while ADDING the same energy is a code value of 18.
+   * **At the dark end an additive floor is about four times more efficient per
+   * unit of frame mean than any multiplicative lever in the system, and it is
+   * the ONLY lever the meter cannot take back, because it lands after it.**
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * WHERE 0.0025 COMES FROM, AND IT IS THE ENCODING RATHER THAN A LUX FIGURE.
+   * ───────────────────────────────────────────────────────────────────────────
+   *
+   * LOOK.md §0 requires the magnitude to be derived from LEGIBILITY. The
+   * derivation is a property of the 8-bit encoding and of the material's own
+   * contrast, both of which are facts about this project:
+   *
+   *   - Below 0.04045 encoded, sRGB is LINEAR at 12.92, so one code value is a
+   *     FIXED luminance step and the contrast between adjacent code values at
+   *     level `c` is `1/c`. At c = 4 two neighbours differ by 25%; at c = 2, by
+   *     50%. A surface whose whole tonal range lives between 1 and 8 has eight
+   *     steps to carry every shape in it and the steps are 12–100% apart, so
+   *     its form is not dark — it is QUANTISED AWAY, and no display setting
+   *     recovers it.
+   *   - A Lambertian box under a high moon shows its three visible faces at
+   *     roughly 1 : 0.6 : 0.3, i.e. an internal contrast near 30%.
+   *   - `post.js` dithers ±1 code value after the encode, so a face has to
+   *     clear its neighbour by about 3 code values to be a shape rather than
+   *     noise: 3 / 0.30 = **10 code values is where a headstone starts to read**.
+   *
+   * **AND THE GATES SAY 0.0025, WHICH DELIVERS 9 TO 10.** Swept against the
+   * four delivered `look-out` frames by inverting the sRGB encode, applying the
+   * floor and re-encoding — a model that reproduces `lookcheck`'s own four
+   * means to four decimals at f = 0 (0.0837 / 0.1407 / 0.3018 / 0.4294 against
+   * a measured 0.0835 / 0.1405 / 0.3018 / 0.4289):
+   *
+   *     f        band:midnight   dusk     dawn     noon    dusk-noon R-B   spread(mid)
+   *     0.0000      0.0837       0.1407   0.3018   0.4294     0.0745          0.141
+   *     0.0025      0.1063       0.1546   0.3098   0.4338     0.0775          0.134
+   *     0.0030      0.1103       0.1577   0.3114   0.4343     0.0790          0.133
+   *     0.0035      0.1142 RED   0.1602   0.3125   0.4349     0.0786          0.131
+   *
+   * `meanLuminanceBands.midnight` has a ceiling of 0.112 and the crossing is at
+   * about f = 0.0032. **0.0025 leaves 0.0057 of margin against a band whose
+   * run-to-run spread is 0.0001** — fifty-seven times the instrument's own
+   * resolution, which is the margin CONTRACT §0.1 permits a decision on, and
+   * the same test session 30 applied to the lamp bowl. **NO THRESHOLD MOVES.**
+   * What the last two code values would cost is in LOOK.md §7, not taken here.
+   *
+   * A ROLLED-OFF FLOOR WAS MEASURED AND REJECTED, which is the part worth
+   * keeping. `c + f·exp(-c/k)` spends less frame mean at the top and therefore
+   * buys a higher black point — but its slope at zero is `1 − f/k`, so it pays
+   * for the level by crushing exactly the contrast the floor exists to rescue.
+   * At the k that bought two more code values the crush is 6.7%. **A flat floor
+   * is the contrast-optimal one and that is the whole reason to prefer it.**
+   *
+   * WHAT IT DOES NOT DO, said rather than discovered later: it adds no
+   * contrast. Adding a constant to two dark surfaces leaves their difference
+   * and lowers their ratio. What it does is move the contrast that is already
+   * there out of the range where the encoding and the display throw it away.
+   *
+   * IT IS TIME-INDEPENDENT AND THAT IS A CONTRACT REQUIREMENT. A floor that
+   * switched on at night would be a "night flag", which CONTRACT §0 rule 3
+   * forbids in as many words, and per-time-of-day authoring, which §5.4 forbids
+   * for the exposure law next door. The same number is added at noon; the noon
+   * frame simply has almost nothing down there for it to act on.
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * THE FLOOR TAKES THE PIXEL'S OWN HUE, AND A FLAT ONE WAS BUILT FIRST AND
+   * FAILED A GATE — WHICH IS THE MOST USEFUL THING IN THIS DERIVATION.
+   * ───────────────────────────────────────────────────────────────────────────
+   *
+   * The first arm added the same three numbers to every pixel. It delivered
+   * every band and **turned `warmth:dusk` RED**: dusk-minus-noon mean R−B went
+   * 0.0745 -> 0.0615 against a floor of 0.07. The cause is not the cast — an
+   * ACHROMATIC floor of the same size reads 0.0650 and is red too. **Any
+   * additive lift desaturates a dark pixel**, because sRGB is concave, so
+   * raising R and B by the same amount shrinks the encoded difference between
+   * them; and dusk has more dark area than noon, so dusk loses more of it. The
+   * gate's own comment says what it is for — *"if dusk is not warmer than noon,
+   * the sky model is not doing its job and something is tinting instead"* — and
+   * the sky model had not changed at all. That gate was right to fire: the
+   * flat floor really was making the picture greyer.
+   *
+   * **SO THE FLOOR TAKES THE PIXEL'S OWN CHROMATICITY WHERE THE PIXEL HAS ONE,
+   * AND THE ROD CHROMATICITY WHERE IT DOES NOT**, blended by `y/(y + f)` — 0 at
+   * true black, 1/2 at the floor's own level, 1 well above it. There is no
+   * magic width in that ramp: the floor's own magnitude is the only scale in
+   * the problem.
+   *
+   * It is also the physically-shaped choice rather than a repair. A veil that
+   * desaturates is a LENS artefact and this renderer already has one
+   * (`glareStrength`, §5.5). A FLOOR stands for light that is on the surface,
+   * and light on a surface comes back with the surface's own colour. Delivered:
+   * `warmth:dusk` reads **0.0775 against 0.0745 unfloored** — the floor now
+   * makes the dusk frame measurably WARMER than the city it was added to,
+   * because a hue-preserving lift on a dark warm pixel raises its R−B.
+   *
+   * `shadowHue:noon` is the gate on the other side of that decision — a CEILING
+   * of 1.15 on the shadowed road's blue-over-red, because *"a shadowed road lit
+   * only by an unoccluded blue sky renders navy"*. A hue-preserving lift scales
+   * a pixel's channels together and an sRGB encode is a power law, so the ratio
+   * survives it: measured **1.096 unfloored -> 1.109**, against 1.111 for the
+   * flat arm and a ceiling of 1.15.
+   *
+   * THE CAST IS THEREFORE FREE, AND IT IS THE FULL ROD VECTOR. It acts only
+   * where the pixel has no colour of its own, so `blackFloorCast` — a mixing
+   * fraction the flat arm needed to stay inside `shadowHue` — does not exist
+   * any more. Delivered true black is **RGB 7, 8, 12**, a blue-over-red of
+   * 1.71: LOOK.md §0's *"a slight cast so the dark reads as night rather than
+   * as absence of picture"*, at the one place in the picture where nothing else
+   * has an opinion about the colour.
+   */
+  blackFloor: 0.0025,
 };
 
 /** Half-float ceiling. The sun disc is ~1.9e9 cd/m²; unclamped it becomes Inf. */

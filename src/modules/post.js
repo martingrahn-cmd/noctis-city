@@ -721,6 +721,14 @@ void main() {
           uBloomStrength: { value: cfg.bloomStrength },
           uGlareStrength: { value: cfg.glareStrength },
           uPurkinje: { value: new THREE.Vector3(cfg.purkinjeStrength, cfg.purkinjeLow, cfg.purkinjeHigh) },
+          /**
+           * The rod chromaticity is read by TWO terms — the Purkinje mix and
+           * the black floor — out of one uniform, because two copies of a
+           * colour in one shader is §9.1 with the compiler's help.
+           */
+          uRodChroma: { value: new THREE.Vector3(...POST.rodChroma) },
+          /** LOOK.md §0's floor, as a display-linear LUMINANCE. */
+          uBlackFloorY: { value: POST.blackFloor },
           ...exposureUniforms,
         },
         vertexShader: FULLSCREEN_VERT,
@@ -733,6 +741,8 @@ uniform sampler2D uGlare;
 uniform float uBloomStrength;
 uniform float uGlareStrength;
 uniform vec3 uPurkinje;
+uniform vec3 uRodChroma;
+uniform float uBlackFloorY;
 varying vec2 vUv;
 
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -811,6 +821,30 @@ vec3 acesFitted(vec3 c) {
   c = ACES_IN * c;
   c = (rrtOdtFit(c) + ACES_TOE) / (1.0 + ACES_TOE);
   c = ACES_OUT * c;
+  /**
+   * THE BLACK FLOOR — LOOK.md section 0, SESSION 55. The same shape as the toe
+   * one line up and for a different reason: the toe repairs the FIT, this
+   * repairs the PICTURE. constants.js -> POST.blackFloor carries the whole
+   * derivation, the sweep it came from and the two gates that bound it.
+   *
+   * APPLIED HERE, IN DISPLAY-LINEAR sRGB, AND NOT IN AP1 WITH THE TOE. The
+   * floor's magnitude is derived from what an 8-bit sRGB code value can carry,
+   * so it belongs in the space that code value lives in: the number in
+   * constants.js is then the delivered black point exactly, and a reader can
+   * check it with an sRGB encode and no matrices.
+   *
+   * IT TAKES THE PIXEL'S OWN HUE WHERE THE PIXEL HAS ONE. A flat floor was
+   * built first and turned warmth:dusk RED — any additive lift desaturates a
+   * dark pixel, because sRGB is concave, and dusk has more dark area than noon.
+   * Light on a surface comes back with the surface's colour; a veil that
+   * desaturates is a LENS and this renderer already has one. The blend is
+   * y/(y+f): zero at true black, a half at the floor's own level, one above it,
+   * and the floor's magnitude is the only scale in that ramp.
+   */
+  float fy = max(lum(c), 0.0);
+  vec3 tint = fy > 1e-7 ? max(c, vec3(0.0)) / fy : uRodChroma;
+  vec3 f = uBlackFloorY * mix(uRodChroma, tint, fy / (fy + uBlackFloorY));
+  c = (c + f) / (1.0 + uBlackFloorY);
   return clamp(c, 0.0, 1.0);
 }
 
@@ -843,8 +877,7 @@ void main() {
   float purk = smoothstep(uPurkinje.z, uPurkinje.y, absL) * uPurkinje.x;
   if (purk > 0.0) {
     float rod = dot(c, vec3(0.08, 0.62, 0.30));
-    vec3 rodColor = vec3(0.805, 1.007, 1.510);
-    c = mix(c, rod * rodColor, purk);
+    c = mix(c, rod * uRodChroma, purk);
   }
 
   c = acesFitted(max(c, vec3(0.0)));
@@ -1073,6 +1106,20 @@ void main() {
         },
         setGlareStrength(v) {
           compositeMat.uniforms.uGlareStrength.value = v;
+        },
+        /**
+         * THE BLACK FLOOR'S ARM. `setBloomStrength`'s shape, and subject to
+         * the same rule: not a mode, nothing ships with it touched, and no
+         * gate renders through it. `null` restores the shipped value, so an
+         * arm and the ship cannot drift apart (`setJitterComp`'s own note).
+         *
+         * The floor is one number — a display-linear luminance — so an arm is
+         * one number too, and the hue it takes is the pixel's own at any level.
+         */
+        setBlackFloor(v) {
+          const y = v == null ? POST.blackFloor : Math.max(0, v);
+          compositeMat.uniforms.uBlackFloorY.value = y;
+          return y;
         },
         config: cfg,
       };
