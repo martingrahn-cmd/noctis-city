@@ -187,6 +187,25 @@ void main() {
         get adaptedTexture() {
           return adaptRT[adaptIndex].texture;
         },
+        /**
+         * THE 1x1 ADAPTATION TARGET ITSELF. SESSION 55, item 1.
+         *
+         * `adaptedTexture` above is what a shader binds; this is what an
+         * INSTRUMENT reads a number out of, and the two are deliberately
+         * different accessors. §5.4 forbids the readback on the frame path and
+         * `hud.js` obeys it in as many words -- *"it will NOT print a measured
+         * EV"*. So no readback happens here either: the target is handed to
+         * `tools/radianceprobe.mjs`, which is not a module, and the exposure
+         * multiplier every pixel of a delivered frame was divided by becomes a
+         * MEASUREMENT instead of a guess about what the meter probably read.
+         *
+         * The texel holds the NATURAL LOG of the adapted luminance in cd/m2 --
+         * exactly what `noctisExposure()` in `post.js` fetches -- so a tool
+         * reproduces `EV_used` from the same law rather than from a copy of it.
+         */
+        adaptedTarget() {
+          return adaptRT[adaptIndex];
+        },
         /** Determinism for capture, not a tuning knob. CONTRACT §5.4. */
         snap() {
           snapNext = true;

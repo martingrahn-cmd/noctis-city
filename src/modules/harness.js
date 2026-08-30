@@ -2430,6 +2430,38 @@ export function createHarness(options = {}) {
           return lights.roleCensus();
         },
 
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE RADIANCE CHAIN'S FOUR BUFFERS. SESSION 55, ITEM 1.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `post.radianceBuffers()` owns the three the composite adds together
+         * and `exposure.adaptedTarget()` owns the one it multiplies by. This
+         * puts them in one object so a tool can read a pixel out of all four in
+         * one `page.evaluate` and reconstruct the whole chain from a lamp's
+         * candela to a byte in a PNG.
+         *
+         * NOTHING IS READ BACK HERE. The readback is in
+         * `tools/radianceprobe.mjs` and is forbidden anywhere under `src/`
+         * (§5.4, machine-checked by `parsecheck`). What crosses this boundary
+         * is the render targets and the renderer, which is the same thing
+         * `motionTexture` and `ssrSource` already hand out.
+         *
+         * The question it exists to answer is the one four content increases
+         * could not: where between a lamp's candela and a byte does the picture
+         * stop changing.
+         */
+        radianceBuffers() {
+          const post = ctx.get('post');
+          const exposure = ctx.get('exposure');
+          if (!post || !post.radianceBuffers) return null;
+          const b = post.radianceBuffers();
+          if (!b) return null;
+          b.adapted = exposure && exposure.adaptedTarget ? exposure.adaptedTarget() : null;
+          b.exposureParams = exposure && exposure.params ? { ...exposure.params } : null;
+          return b;
+        },
+
         /** The traffic system's own account of itself. Null when it is absent. */
         trafficStats() {
           const t = ctx.get('traffic');

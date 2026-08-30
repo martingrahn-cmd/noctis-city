@@ -905,6 +905,52 @@ void main() {
           for (const s of ssrRT) n += Math.round(rt(s) * 4 / 3);
           return n;
         },
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE THREE BUFFERS THE COMPOSITE ADDS TOGETHER. SESSION 55, ITEM 1.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Four content increases across ten sessions did not answer *"it is no
+         * fun when you cannot see anything"*, and session 54 added ~500 lights
+         * and moved `distinct:midnight|dusk` by 0.00000. Either something
+         * downstream compresses the picture after the light has been counted,
+         * or the light never reaches the surface — and no frame can tell those
+         * apart, because both deliver the same dark pixel. Answering it means
+         * reading the RADIANCE, in cd/m², before exposure touches it.
+         *
+         * WHY THIS HANDS OUT TARGETS AND DOES NOT READ THEM. CONTRACT §5.4
+         * forbids `readRenderTargetPixels` on the frame path and
+         * `parsecheck.mjs` enforces it as *"forbidden in a module"*, which is
+         * stricter than the sentence it enforces and is the right strictness:
+         * a module that CAN read back is one frame away from doing it every
+         * frame. So the readback lives in `tools/radianceprobe.mjs`, which is
+         * not a module, and this returns the objects it reads — the same shape
+         * `motionTexture` already has, one step up from a texture.
+         *
+         * `scene` is the TAA-resolved radiance the composite samples as `hdr`;
+         * `bloom` is the mip it adds at `bloomStrength`; `glare` is the
+         * coarsest mip, which the upsample never writes, so it still holds the
+         * fully downsampled bright pass that §5.5's veil is taken from.
+         */
+        radianceBuffers() {
+          const target = taaRT[taaIndex];
+          if (!target || !bloom.length) return null;
+          return {
+            renderer: ctx.renderer,
+            scene: target,
+            bloom: bloom[0],
+            glare: bloom[bloom.length - 1],
+            width: target.width,
+            height: target.height,
+            bloomStrength: compositeMat.uniforms.uBloomStrength.value,
+            glareStrength: compositeMat.uniforms.uGlareStrength.value,
+            purkinje: [
+              compositeMat.uniforms.uPurkinje.value.x,
+              compositeMat.uniforms.uPurkinje.value.y,
+              compositeMat.uniforms.uPurkinje.value.z,
+            ],
+          };
+        },
         /** The motion attachment, for the instrument that verifies it. §5.11. */
         get motionTexture() {
           return hdrRT && hdrRT.textures.length > 1 ? hdrRT.textures[1] : null;
