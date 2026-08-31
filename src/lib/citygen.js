@@ -2558,8 +2558,19 @@ export const HILLSIDE = {
    * long axis — 4.4 m of cut at the back and 4.4 m of fill at the front, which
    * is one platform and not a plateau.
    */
-  plotHalfX: 12,
-  plotHalfZ: 9,
+  plotHalfX: 14,
+  plotHalfZ: 13,
+  /**
+   * Metres, in the house's OWN frame: the union of every box `city.js` draws
+   * for a villa, so the registry claims what ARRIVES and not the main volume.
+   * Session 50's *"a shed's parapet, its face and its loading dock were drawn
+   * outside its own claim"*, refused before it happened. Summed over all eleven
+   * boxes with the garage's own +24 degrees folded in: the drawn extent is
+   * **x [-13.65, +11.55], z [-14.20, +13.70]** — 25.2 x 27.9 m against a main
+   * volume of 21 x 10 — and 14 x 15 covers it on both axes.
+   */
+  claimHalfL: 14,
+  claimHalfW: 15,
   houseL: 21,
   houseD: 10,
   houseH: 7.2,
@@ -15668,7 +15679,20 @@ export function generateChunk(rootSeed, cx, cz) {
     for (const hh of hillsideHouses(rootSeed)) {
       if (hh.x < b.x0 || hh.x >= b.x1 || hh.z < b.z0 || hh.z >= b.z1) continue;
       const HS = HILLSIDE;
-      const hBox = claimAt('building', hh.x, hh.z, HS.houseL / 2, HS.houseD / 2,
+      /**
+       * THE CLAIM IS THE DRAWN EXTENT AND NOT THE MAIN VOLUME. Session 50's own
+       * finding — *"a shed's parapet, its face and its loading dock were drawn
+       * outside its own claim"* — with a villa instead of a shed: the crossing
+       * wing, the oversailing slabs, the terrace and the garage all reach past
+       * `houseL x houseD`, so the claim is the union of what `city.js` draws,
+       * `HILLSIDE.claimHalfL/W`, and it is ROTATED by the yaw with the same
+       * `|cos|.L + |sin|.W` this file already carries five times.
+       */
+      const cs = Math.abs(Math.cos((hh.yawDeg * Math.PI) / 180));
+      const sn = Math.abs(Math.sin((hh.yawDeg * Math.PI) / 180));
+      const hBox = claimAt('building', hh.x, hh.z,
+        cs * HS.claimHalfL + sn * HS.claimHalfW,
+        sn * HS.claimHalfL + cs * HS.claimHalfW,
         { y0: 0, y1: HS.houseH + 3, owner: 'hill:house' });
       if (reg.conflict(hBox)) continue;
       reg.claim(hBox);
@@ -15677,8 +15701,17 @@ export function generateChunk(rootSeed, cx, cz) {
       ground.push({ kind: 'yardGround', yKey: 'yard', yAdd: hh.rise,
         x0: hh.x - HS.plotHalfX, x1: hh.x + HS.plotHalfX,
         z0: hh.z - HS.plotHalfZ, z1: hh.z + HS.plotHalfZ });
+      /**
+       * NO `lift`, AND THE FIRST ARM HAD ONE. `city.js` computes a feature's
+       * base as `worldSurface(f.x, f.z).y + (f.lift || 0)`, and `worldSurface`
+       * reads the `rects` `buildGround` has just emitted — INCLUDING the plot
+       * above, whose `yAdd` is this same `rise`. So `lift: rise` put the house
+       * at TWICE the terrace height, floating over its own platform. The plot
+       * is the surface and the feature stands on it, which is what every
+       * feature in this project except a deck park's cars already does.
+       */
       features.push({ kind: 'villa', x: hh.x, z: hh.z, yawDeg: hh.yawDeg,
-        lift: hh.rise, length: HS.houseL, depth: HS.houseD, height: HS.houseH,
+        length: HS.houseL, depth: HS.houseD, height: HS.houseH,
         tone: hh.tone, wall: hh.wall });
       /**
        * A WARM LIGHT ON THE TERRACE, and it is the only way a feature in this
@@ -15693,7 +15726,7 @@ export function generateChunk(rootSeed, cx, cz) {
        */
       features.push({ kind: 'lamp', x: hh.x + Math.cos((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
         z: hh.z + Math.sin((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
-        yawDeg: 0, height: 3.4, lift: hh.rise });
+        yawDeg: 0, height: 3.4 });
     }
 
     /**

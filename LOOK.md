@@ -794,6 +794,85 @@ It is that the street wall is broken.
   region is 1 280 m square, so nothing in this project asserts anything past
   3 232 m. The frames are the verdict out there, and that is written down here
   rather than left for somebody to discover when a change to it goes unnoticed.
+- **AND THE OPERATOR REJECTED IT — SESSION 62, AND HIS SENTENCE IS THE BULLET.**
+  *"It is the city's block vocabulary with green and yellow paint on it."* Five
+  things in his aerial, and every one of them is now a number:
+
+  ```
+    what he saw                          measured                     session 62
+    every field an axis-aligned          218 parcels, 218 of 218      49 parcels,
+      rectangle, one block across        inside one 128 m chunk;      0 of 49 inside
+                                         542 of 872 edges on a        one chunk; 2.58
+                                         multiple of 128              to 6.32 ha
+    the road straight, in the same       block:road:main is one       a polyline at a
+      lattice as downtown                8 km PlaneGeometry           357.6 m radius,
+                                                                      64.8 m of shift
+    CITY LAMP POSTS IN FARMLAND          563 stations on a            0
+                                         countryside chunk
+    the hills domes resting on the       rim slope p50 43.6°,         7.1°, and the
+      plane without meeting it           half the height in the       plan is an
+                                         last 13.4% of the radius     ellipse
+    the ground dead flat                 NO ground surface anywhere   UNCHANGED —
+                                         is a function of (x, z)      see below
+  ```
+
+  **THE ONE THAT IS NOT REPAIRED IS THE GROUND, AND THE REASON IS NOT COST.**
+  Displacing it is about 430 triangles and no draw calls. It is refused because
+  **the ground vocabulary can express a TERRACE and not a SLOPE**: a rectangle
+  carries one scalar height, two rectangles that share an edge but not a
+  subdivision T-junction, and holding that crack under the 0.05 m every join in
+  this project uses forces a wavelength of 2 000 m at 2.5 m of amplitude — a
+  maximum slope of **0.45°**, which `quad()`'s hard-coded `(0, 1, 0)` normal
+  then renders with no shading change at all. So it would read from a car going
+  over a crest and from nowhere else. See STATE 62 §5 for the three
+  measurements; the same mechanism used where it IS right is a hillside house's
+  cut platform (`yAdd`).
+
+  **AND THE THING THAT MADE THE FIELDS READ WAS NOT MORE SUBDIVISION, IT WAS A
+  THIRD TONE AND A PER-PARCEL TINT.** The first arm made the third crop a
+  standing green cereal and a frame refuted it in one render: `grass` is a
+  green, so two thirds of a rim in green reads as one carpet exactly as two
+  alternating tones did — **the count went up and the contrast went down.** The
+  three that work are the three STATES of one piece of ground, pasture, stubble
+  and **ploughed earth**, at luminance 0.0837 / 0.1722 / 0.1000 and R/G
+  0.66 / 1.06 / 1.22 — no pair of them separated on one axis only. The tint is
+  `hillMasses`' own `range(0.82, 1.12)`, because two adjacent fields at one
+  reflectance are one field and that question does not care whether the thing is
+  a hill or a field. It costs nothing: the ground mesh has carried a per-vertex
+  colour since session 19.
+  `tools/shot-out/custom-s62-air-{before,after}-t0_42-wet.png` is the pair, at
+  one pose, taken from a worktree at session 61's head and from session 62's.
+- **AND THERE ARE HOUSES ON THE HILL SHOULDERS NOW, WHICH IS THE SHOT THE WHOLE
+  FRAMING EXISTS TO PRODUCE — SESSION 62.** The operator's word is LUXURIOUS.
+  29 of them at seed 1337, on the 14 hills of 125 whose own footprint comes
+  within 900 m of the exit road, 0 to 21 m up a shoulder falling at 14 to 20
+  degrees, each on a cut platform and each with its glazed elevation facing the
+  ORIGIN — worst dot product over all 29 against the direction to the city,
+  **1.000000**. `tools/shot-out/custom-s62house-t0_42.png` is two of them with
+  the city's skyline on the horizon behind.
+
+  **WHAT MAKES THEM READ AS EXPENSIVE IS FOUR THINGS AND NOT ONE OF THEM IS
+  DETAIL**, which is this section's own *"more detail on a box is a detailed
+  box"* one object over: an L-plan of two volumes at an angle, an oversailing
+  roof slab rather than a parapet, glass on the view elevation ONLY, and a
+  cantilevered terrace. Ten boxes, 120 triangles, zero new draw calls.
+
+  **AND THE BUDGET THEY SPEND IS NOT THE CITY'S.** `wantedChunks` builds five
+  chunks around the CAMERA and no gate route reaches within 1 696 m of
+  `CITY.extentEdgeM`, so this content costs **exactly zero** against every route
+  and both look eyes. The only figure it competes with is a rim eye's 417 792
+  triangles of 2 360 000. **The ceiling out there is a frame and not a gate** —
+  which is the bullet above arriving as a licence rather than as a worry, and it
+  is why the honest answer to *"how many houses"* is a look decision.
+
+  **WHAT THEY DO NOT HAVE IS LIT WINDOWS, AND IT IS A FACT ABOUT THIS PROJECT
+  RATHER THAN A CHOICE.** A feature's geometry goes through `put()`, which
+  writes an albedo and a roughness into an instanced body mesh; the only
+  emissive paths in NOCTIS are a generated BUILDING's windows, a sign, and the
+  lamp pool. So a house out here can be LIT and cannot GLOW, and each villa
+  carries a lamp on its terrace instead. §3's *"what is still
+  emissive-with-no-candela is every window"* has a sibling: **there is no
+  emissive path for a feature at all.**
 
 ---
 

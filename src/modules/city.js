@@ -4498,10 +4498,10 @@ export function createCity(options = {}) {
           /** Its balustrade — a glass blade, which is what a view terrace has. */
           put(0, h * 0.06 + 0.62, d * 1.34, w * 0.86, 1.05, 0.10, glass, 0.08);
           /** The garage, set at the angle a drive arrives at. */
-          put(-w * 0.72, 2.0, -d * 0.30, 9.0, 4.0, 6.4, body, 0.82, (f.yawDeg || 0) + 24);
+          put(-w * 0.40, 2.0, -d * 0.32, 7.5, 4.0, 5.5, body, 0.82, (f.yawDeg || 0) + 24);
           if (f.wall) {
             /** A boundary wall along the approach — a gate is the gap in it. */
-            put(-w * 0.30, 1.0, -d * 1.5, w * 1.5, 2.0, 0.4, deck, 0.9);
+            put(-w * 0.20, 1.0, -d * 0.95, w * 0.9, 2.0, 0.4, deck, 0.9);
           }
         } else if (f.kind === 'canopy') {
           /**
@@ -4784,7 +4784,17 @@ export function createCity(options = {}) {
              */
             kind: f.kind === 'hoarding' || f.kind === 'spoil' || f.kind === 'frame'
               || f.kind === 'crane' || f.kind === 'flood' || f.kind === 'stub' ? 'site'
-              : f.kind === 'parked' ? 'prop'
+              /**
+               * SESSION 62 — A VILLA IS A `building` ON BOTH SIDES. The
+               * generator claims one (`hill:house`) and this is the other half
+               * of that comparison; without the row it would fall through to
+               * `feature` and the delivered census would disagree with the
+               * registry about a mass 24 m across. Nothing checks out there
+               * today, which is exactly why it is written now rather than when
+               * something does.
+               */
+              : f.kind === 'villa' ? 'building'
+                : f.kind === 'parked' ? 'prop'
                 /**
                  * A ROOF ON POSTS IS `canopy` ON BOTH SIDES — session 49.
                  * `occupancy.js`'s own category for the part of a thing that is
