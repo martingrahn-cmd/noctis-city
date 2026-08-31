@@ -90,6 +90,7 @@ import {
   tradeOpen,
   HILLS,
   hillMasses,
+  hillProfile,
   viaductStationSegment,
   VIADUCT_STATION,
   VIADUCT_RAIL_RISE_M,
@@ -1930,7 +1931,17 @@ export function createCity(options = {}) {
     };
     const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
-      const y = Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth;
+      /**
+       * `yAdd` — session 62, and it is `f.lift`'s sibling one table over.
+       * `GROUND_Y` is a table of datums and this is a rectangle standing above
+       * one of them: a hillside house's terrace, cut into a shoulder five
+       * metres up. One scalar per rectangle, so the four corners are at one
+       * height and the surface is a TERRACE rather than a slope — which is what
+       * a plot on a hillside is, and is also the exact limit this session
+       * measured and declined for item 2 (relief). Optional and defaulting to
+       * zero, so every rectangle written before this line is byte-identical.
+       */
+      const y = (Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth) + (g.yAdd || 0);
       /**
        * A PER-RECTANGLE TONE — session 62, and it is the cheapest thing in it.
        * `FARM.toneMin/Max` carries the derivation: two adjacent parcels of the
@@ -2180,7 +2191,14 @@ export function createCity(options = {}) {
     const RAD = 8;
     /** `u` = r/foot at each ring, chosen to spread the band slopes. */
     const RINGS = [0, 0.50, 0.82, 1.0];
-    const prof = (u) => 1 - 3 * u * u + 2 * u * u * u;
+    /**
+     * THE PROFILE IS `citygen.js`'s AND NOT A COPY. `hillRiseAt` answers how
+     * far up a hill a point is — which is what a hillside house's terrace
+     * stands on — and a second expression here would be CONTRACT §9.1 with a
+     * surface: the geometry would draw one hill and the placement would stand
+     * on another, and the two would agree until somebody edited one.
+     */
+    const prof = hillProfile;
     const pos = [];
     const nrm = [];
     const ring = (k) => {
@@ -4417,6 +4435,74 @@ export function createCity(options = {}) {
           /** Roof plant, so the top is not a lid. Two boxes, always. */
           put(w * 0.22, h + 1.5, 0, w * 0.18, 1.6, d * 0.4, trim, 0.9);
           put(-w * 0.28, h + 1.0, d * 0.18, 2.2, 0.9, 2.2, dark, 0.9);
+        } else if (f.kind === 'villa') {
+          /**
+           * ═══════════════════════════════════════════════════════════════════
+           * A HOUSE ON A HILL SHOULDER — SESSION 62, ITEM 4.
+           * ═══════════════════════════════════════════════════════════════════
+           *
+           * `citygen.js` → `HILLSIDE` carries where it goes and why; this is
+           * what it is. The operator's word is LUXURIOUS and LOOK.md §5's test
+           * is that a device be derivable from something the city already has,
+           * so what makes this read as expensive is the same four things that
+           * make a modern hillside house expensive and not one of them is
+           * detail:
+           *
+           *   TWO VOLUMES AT AN ANGLE, one long and low and one crossing it —
+           *     the L-plan, which is the whole difference between a house and a
+           *     shed and is why `shed` could not be reused. `f.yawDeg` points
+           *     the long one at the city.
+           *   A CANTILEVERED TERRACE on the city side, reaching past the wall
+           *     under it. It is the only overhang out here and it is what the
+           *     brief means by *"a terrace facing the city"*.
+           *   GLASS ON ONE ELEVATION ONLY — the one facing the city, full
+           *     height, at 0.055/0.075/0.095 (`glass`, the same reflectance the
+           *     shed's ribbon uses). A wall of glass on the view side and blunt
+           *     masonry everywhere else is the form; four glazed sides is an
+           *     office.
+           *   A FLAT ROOF WITH AN OVERSAILING SLAB, `parapetLongFactor` the
+           *     other way — a lid that projects instead of a parapet that
+           *     contains. That single line is most of what makes a mass read as
+           *     modern rather than as industrial.
+           *
+           * ANGULAR AND NEAR-FUTURE PER LOOK.md, NOT SUBURBAN PASTICHE: no
+           * pitched roof, no porch, no chimney. The garage is a separate blunt
+           * box set at the angle a drive would arrive at.
+           *
+           * TEN BOXES, 120 TRIANGLES, and it rides the chunk's existing
+           * `:masses` instanced mesh at ZERO new draw calls — the same
+           * arrangement every feature has had since session 49.
+           */
+          const w = f.length;
+          const d = f.depth;
+          const h = f.height;
+          const t = f.tone || 1;
+          const body = [0.42 * t, 0.415 * t, 0.40 * t];
+          const dark = [0.085 * t, 0.083 * t, 0.082 * t];
+          const glass = [0.055, 0.075, 0.095];
+          const deck = [0.30 * t, 0.292 * t, 0.276 * t];
+          /** The long volume, facing the city on its +z face. */
+          put(0, h * 0.5, 0, w, h, d, body, 0.78);
+          /** The oversailing roof slab — the modern lid. */
+          put(0, h + 0.25, 0, w * 1.10, 0.5, d * 1.34, deck, 0.86);
+          /** The crossing volume: shorter, deeper, one storey taller, at the
+           *  far end, so the plan is an L and the silhouette is two steps. */
+          put(w * 0.30, h * 0.72, -d * 0.55, w * 0.34, h * 1.44, d * 1.6, body, 0.78);
+          put(w * 0.30, h * 1.44 + 0.25, -d * 0.55, w * 0.40, 0.5, d * 1.74, deck, 0.86);
+          /** The glazed elevation, city side, full height. */
+          put(-w * 0.14, h * 0.52, d / 2 + 0.06, w * 0.62, h * 0.80, 0.12, glass, 0.08);
+          put(w * 0.30, h * 0.9, d * 0.24 + 0.06, w * 0.30, h * 0.9, 0.12, glass, 0.08);
+          /** The terrace: a slab cantilevered over the slope, on one blade. */
+          put(0, h * 0.06, d * 0.92, w * 0.86, 0.34, d * 0.9, deck, 0.9);
+          put(0, h * 0.03 - 0.6, d * 0.62, w * 0.30, 1.2, 0.6, dark, 0.9);
+          /** Its balustrade — a glass blade, which is what a view terrace has. */
+          put(0, h * 0.06 + 0.62, d * 1.34, w * 0.86, 1.05, 0.10, glass, 0.08);
+          /** The garage, set at the angle a drive arrives at. */
+          put(-w * 0.72, 2.0, -d * 0.30, 9.0, 4.0, 6.4, body, 0.82, (f.yawDeg || 0) + 24);
+          if (f.wall) {
+            /** A boundary wall along the approach — a gate is the gap in it. */
+            put(-w * 0.30, 1.0, -d * 1.5, w * 1.5, 2.0, 0.4, deck, 0.9);
+          }
         } else if (f.kind === 'canopy') {
           /**
            * A ROOF ON COLUMNS — session 49. A market hall, a depot's parking

@@ -2473,7 +2473,261 @@ export function exitRoadOwnSpans(b, stationM = EXIT_ROAD.stationM) {
   return out;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE HOUSES ON THE HILL SHOULDERS — SESSION 62, ITEM 4.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator's framing, and his word is LUXURIOUS: *"houses on the hill
+ * shoulders, looking back over the city — that is the shot this whole framing
+ * exists to produce."*
+ *
+ * WHAT IT COSTS, MEASURED BEFORE IT WAS BUILT, AND THE BRIEF'S BUDGET IS THE
+ * WRONG ONE. The brief frames these against the ~40 000 in-city triangles this
+ * session has spare. They spend none of it: `city.js` → `wantedChunks` builds a
+ * Chebyshev ring of 5 chunks around the CAMERA, and the furthest any gate route
+ * travels is x = −820 m, reaching built geometry at −1 536 m against an extent
+ * at 3 232. **A hill-shoulder house costs exactly zero triangles against
+ * `highway_speed`, `downtown_dense`, `night_rain`, `player` and both
+ * `lookcheck` eyes.** The only figure it competes with is STATE 61's un-gated
+ * rim eye — 417 792 triangles of 2 360 000 — which leaves room for about twenty
+ * thousand of them. So the ceiling on this content is a frame and not a gate,
+ * which is STATE 61 §7 item 3 arriving as a licence instead of as a worry.
+ *
+ * WHERE THEY GO IS DERIVED FROM THE SLOPE AND FROM THE ROAD, which is the
+ * brief's own 4a and is the half that stops it looking scattered:
+ *
+ *   THE SLOPE.  `city.js`'s hill profile is smoothstep's complement, and its
+ *               band slopes at the median hill are 14.7 / 18.7 / 7.1 degrees
+ *               over `u = r/foot` bands 0–0.50 / 0.50–0.82 / 0.82–1.00. A house
+ *               wants under about ten degrees, so the buildable band is the
+ *               OUTER one — the shoulder — and `shoulderMin/Max` is a window
+ *               inside it rather than the whole of it, because the last few
+ *               per cent of the radius is the flat ground at the foot and a
+ *               house there is not on the hill at all.
+ *   THE ROAD.   *"A house with no driveway to a road is a mistake."* A hill
+ *               qualifies only if its own footprint comes within `driveReachM`
+ *               of the exit road's polyline, sampled on the road's own station
+ *               lattice — so the hills that carry houses are the ones beside
+ *               the one road in this world that leaves.
+ *   THE VIEW.   Every one of them faces the ORIGIN, which is where the city is.
+ *               That is the whole reason the item exists, and it is one atan2.
+ *
+ * WHAT IS NOT DELIVERED, SAID HERE RATHER THAN LEFT TO BE FOUND: **the drive
+ * itself.** A strip of ground that climbs a hill needs a per-CORNER `y` on a
+ * ground rectangle, and this session costed that (see STATE) and declined it —
+ * the ground vocabulary is axis-aligned rectangles with ONE scalar height, so a
+ * climbing drive is either a staircase of visible steps or it disappears into
+ * the hill. What each house has instead is its own apron and its garage facing
+ * the way the drive would come. The condition above is therefore a statement
+ * about where a drive COULD run and not a drive.
+ */
+export const HILLSIDE = {
+  /**
+   * The buildable band, as a fraction of the hill's own footprint radius, and
+   * THE FIRST ARM PUT IT IN THE WRONG PLACE AND A MEASUREMENT SAID SO. It was
+   * 0.86–0.96, chosen because the profile's outer band is its gentlest at 7.1
+   * degrees — and the delivered rises came out at a **median of 0.00 m**,
+   * because smoothstep's complement has already spent 95% of the hill's height
+   * by u = 0.86. A house at the gentlest point of this profile is a house on
+   * flat ground beside a hill, which is not the item.
+   *
+   * SO THE BAND IS WHERE THE VIEW IS AND THE TERRACE IS A CUT, which is what a
+   * hillside house actually is. 0.62–0.80 delivers `hillProfile` 0.324 down to
+   * 0.104; over the 14 hills that qualify (h/foot 0.068 to 0.540, median 0.26)
+   * that is **0 to 15.5 m of rise**, on ground falling at 20 degrees at the
+   * upper end of the band and 14 at the lower. Nobody builds on a 20-degree
+   * slope; they cut a platform into it, and `yAdd` on the plot below is that
+   * platform: cut at the back, filled at the front, with the terrace's own
+   * blade as the retaining wall.
+   */
+  shoulderMin: 0.62,
+  shoulderMax: 0.80,
+  /** Houses per qualifying hill. Three is a hamlet; one is a folly. */
+  perHill: 3,
+  /**
+   * Metres from a hill's own FOOTPRINT to the exit road, past which no drive
+   * is plausible. 900 m is a long private drive and a short lane; the hills
+   * this admits are the ones a driver on the road out actually sees.
+   */
+  driveReachM: 900,
+  /**
+   * Metres. The plot's half-extents. SMALL, because it is a flat plate on a
+   * slope: at 20 degrees the ground falls 0.364 m a metre, so a 60 m plot would
+   * stand 11 m proud at its downhill edge. 24 x 18 m falls 8.7 m across its own
+   * long axis — 4.4 m of cut at the back and 4.4 m of fill at the front, which
+   * is one platform and not a plateau.
+   */
+  plotHalfX: 12,
+  plotHalfZ: 9,
+  houseL: 21,
+  houseD: 10,
+  houseH: 7.2,
+};
+
+/** The hill profile `city.js` draws, as a pure function. ONE description. */
+export function hillProfile(u) {
+  if (u >= 1) return 0;
+  if (u <= 0) return 1;
+  return 1 - 3 * u * u + 2 * u * u * u;
+}
+
+/**
+ * HOW FAR A POINT IS UP A HILL, in metres above the earth plane. The maximum
+ * over every mass, because that is what `city.js` draws: the domes are
+ * instanced and overlap, and the surface is the highest of them.
+ *
+ * IT IS THE SAME ELLIPSE `city.js` COMPOSES, transformed the other way — a
+ * point is taken into the hill's own frame by the negative of its bearing and
+ * then divided by the two half-extents. Two descriptions of one solid would be
+ * CONTRACT §9.1, so the profile above and the ellipse here are the only ones
+ * and `city.js` reads `hillProfile` for its own vertex ring heights.
+ */
+export function hillRiseAt(rootSeed, x, z) {
+  let best = 0;
+  for (const m of hillMasses(rootSeed)) {
+    const dx = x - m.x;
+    const dz = z - m.z;
+    const a = (-(m.bearingDeg || 0) * Math.PI) / 180;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    /** Into the hill's frame: the inverse of `setFromAxisAngle(UP, bearing)`. */
+    const lx = dx * c + dz * s;
+    const lz = -dx * s + dz * c;
+    const ax = m.foot * (m.ecc || 1);
+    const az = m.foot / (m.ecc || 1);
+    const u = Math.hypot(lx / ax, lz / az);
+    if (u >= 1) continue;
+    const y = m.h * hillProfile(u);
+    if (y > best) best = y;
+  }
+  return best;
+}
+
+/**
+ * EVERY HILLSIDE HOUSE IN THE WORLD, pure in the root seed. A chunk filters
+ * this by its own bounds rather than deciding anything, which is what lets a
+ * house whose hill spans four chunks be emitted exactly once.
+ */
+export function hillsideHouses(rootSeed) {
+  if (houseCacheSeed === rootSeed && houseCacheOut) return houseCacheOut;
+  const H = HILLSIDE;
+  const out = [];
+  /** The road, sampled on its own station lattice, both arms. */
+  const road = [];
+  for (let s = 0; s <= EXIT_ROAD.rimM - EXIT_ROAD.startM; s += 32) {
+    for (const dir of [1, -1]) {
+      const x = dir * (EXIT_ROAD.startM + s);
+      road.push([x, exitRoadZ(x)]);
+    }
+  }
+  const masses = hillMasses(rootSeed);
+  for (let i = 0; i < masses.length; i++) {
+    const m = masses[i];
+    if (m.wood) continue;
+    let d = Infinity;
+    for (const p of road) d = Math.min(d, Math.hypot(m.x - p[0], m.z - p[1]));
+    if (d - m.foot > H.driveReachM) continue;
+    const rng = chunkRng(rootSeed, i, 0, 'hillside');
+    /** Toward the origin, which is where the city is. */
+    const toCity = Math.atan2(-m.z, -m.x);
+    for (let k = 0; k < H.perHill; k++) {
+      /**
+       * ON THE CITY-FACING ARC. A house on the far side of a hill from the city
+       * is a house that cannot see it, which is the one thing this item is for.
+       * +-55 degrees is a third of the hill's circumference and is wide enough
+       * that three houses are not in a row.
+       */
+      const a = toCity + rng.range(-0.96, 0.96);
+      const u = rng.range(H.shoulderMin, H.shoulderMax);
+      const ax = m.foot * (m.ecc || 1) * u;
+      const az = (m.foot / (m.ecc || 1)) * u;
+      /** Out of the hill's own frame, which is `hillRiseAt`'s inverse. */
+      const lx = Math.cos(a) * ax;
+      const lz = Math.sin(a) * az;
+      const b = ((m.bearingDeg || 0) * Math.PI) / 180;
+      const x = m.x + lx * Math.cos(b) - lz * Math.sin(b);
+      const z = m.z + lx * Math.sin(b) + lz * Math.cos(b);
+      /**
+       * AND NOT ON A FACE — the brief's own *"so is one on a 30 degree face"*.
+       * Two tests, both against the DELIVERED surface rather than against the
+       * hill this house was drawn from:
+       *
+       *   THE DOMES OVERLAP. `hillRiseAt` is a maximum over 179 masses, and a
+       *   point on hill A's gentle shoulder can be halfway up hill B. Measured
+       *   before this test existed: 42 houses with rises up to **46.5 m**
+       *   against a shoulder band that reaches 5.7 m on the largest hill, so
+       *   the tallest of them were on a neighbour's flank.
+       *   THE GRADIENT. Sampled at +-8 m on both axes off the same function
+       *   `city.js` draws, so it is the slope of the surface a person would
+       *   stand on. 0.18 is 10.2 degrees, which is the outer band's own 7.1 at
+       *   the median hill with the faceting's own step allowed for.
+       */
+      const own = m.h * hillProfile(u);
+      if (hillRiseAt(rootSeed, x, z) > own + 6.0) continue;
+      const gx = (hillRiseAt(rootSeed, x + 8, z) - hillRiseAt(rootSeed, x - 8, z)) / 16;
+      const gz = (hillRiseAt(rootSeed, x, z + 8) - hillRiseAt(rootSeed, x, z - 8)) / 16;
+      if (Math.hypot(gx, gz) > 0.60) continue;
+      /**
+       * THE PLATFORM IS AT THE PLOT'S CENTRE HEIGHT — cut at the back, filled
+       * at the front, which is what a cut-and-fill platform is and is the only
+       * shape a flat rectangle can take on a slope. THE FIRST ARM TOOK THE
+       * MINIMUM OVER THE FOUR CORNERS, on the argument that a plate should
+       * never stand proud; the delivered rises came back at a **median of
+       * 0.57 m**, because a 24 m plot on a 195 m footprint always has one
+       * corner outside the hill entirely and the minimum is then the flat
+       * ground beside it. A house whose terrace is at the height of the field
+       * below it is not on the hill.
+       */
+      const rise = hillRiseAt(rootSeed, x, z);
+      out.push({
+        x,
+        z,
+        /**
+         * THE GLAZED ELEVATION FACES THE CITY, and it is the local +z face —
+         * see `city.js`'s `villa`, where the glass and the terrace are both at
+         * `+d/2`. `setMatrix`'s yaw is a rotation about +Y, whose matrix takes
+         * local +z to `(sin y, 0, cos y)`; the unit vector to the origin is
+         * `(-x, -z)/r`; so `sin y = -x/r` and `cos y = -z/r` and
+         * `y = atan2(-x, -z)`. The FIRST version wrote `-atan2(-z, -x)`, which
+         * is the yaw that points the house's LONG AXIS at the city and its
+         * glass along the hill — the right city and the wrong face.
+         */
+        yawDeg: (Math.atan2(-x, -z) * 180) / Math.PI,
+        rise,
+        tone: rng.range(0.92, 1.08),
+        wall: rng.chance(0.6),
+      });
+    }
+  }
+  houseCacheSeed = rootSeed;
+  houseCacheOut = out;
+  return out;
+}
+
+/**
+ * MEMOISED ON THE ROOT SEED — SESSION 62, AND IT IS A FRAME-TIME REPAIR RATHER
+ * THAN A TIDY-UP.
+ *
+ * `hillMasses` runs a 140-iteration rng loop. Session 61's `onHill` calls it
+ * once per farmstead candidate; this session's `hillRiseAt` calls it once per
+ * QUERY, and `hillsideHouses` makes about 210 queries — so a single countryside
+ * chunk was regenerating the hill population 29 400 times over. Pure in
+ * `rootSeed` and nothing downstream mutates the array, so one entry is enough
+ * and the worker and the main thread each keep their own (CONTRACT §8.1: the
+ * function is still deterministic in `rootSeed` alone, which is the whole
+ * property a cache here is allowed to rely on).
+ *
+ * ONE ENTRY AND NOT A MAP: every call in this project passes `ctx.config.seed`,
+ * so a second key would be a leak with no reader.
+ */
+let hillCacheSeed = null;
+let hillCacheOut = null;
+let houseCacheSeed = null;
+let houseCacheOut = null;
+
 export function hillMasses(rootSeed) {
+  if (hillCacheSeed === rootSeed && hillCacheOut) return hillCacheOut;
   const rng = chunkRng(rootSeed, 0, 0, 'hills');
   const out = [];
   for (let i = 0; i < HILLS.count; i++) {
@@ -2528,6 +2782,8 @@ export function hillMasses(rootSeed) {
       });
     }
   }
+  hillCacheSeed = rootSeed;
+  hillCacheOut = out;
   return out;
 }
 
@@ -15392,6 +15648,52 @@ export function generateChunk(rootSeed, cx, cz) {
           kind: kind2, scale: 1.0, variant: 0, soil: cr.range(0.5, 0.9),
           lean: 0, leanAzDeg: 0 });
       }
+    }
+
+    /**
+     * THE HOUSES ON THE HILL SHOULDERS — ITEM 4. `HILLSIDE` above carries the
+     * whole derivation and the cost; this only asks which of them stand on
+     * THIS chunk, because `hillsideHouses` is pure in the root seed and a hill
+     * spans four chunks.
+     *
+     * THE PLOT AND THE APRON RIDE THE HILL, which is what `yAdd` is for: a
+     * ground rectangle carries one scalar height and `buildGround` adds this to
+     * it, so a plot at 5.7 m up a shoulder is drawn at 5.7 m and `scanGround`
+     * answers 5.7 m. It is a step and not a slope — the corners of one
+     * rectangle are all at one height — which is exactly the limit this session
+     * costed for item 2 and declined, and here it is admissible because a
+     * house's plot IS a terrace cut into a hillside and a terrace is flat by
+     * definition.
+     */
+    for (const hh of hillsideHouses(rootSeed)) {
+      if (hh.x < b.x0 || hh.x >= b.x1 || hh.z < b.z0 || hh.z >= b.z1) continue;
+      const HS = HILLSIDE;
+      const hBox = claimAt('building', hh.x, hh.z, HS.houseL / 2, HS.houseD / 2,
+        { y0: 0, y1: HS.houseH + 3, owner: 'hill:house' });
+      if (reg.conflict(hBox)) continue;
+      reg.claim(hBox);
+      /** The terrace the house stands on, cut round nothing: it is the topmost
+       *  surface on this ground and the fields below it are 5 m down. */
+      ground.push({ kind: 'yardGround', yKey: 'yard', yAdd: hh.rise,
+        x0: hh.x - HS.plotHalfX, x1: hh.x + HS.plotHalfX,
+        z0: hh.z - HS.plotHalfZ, z1: hh.z + HS.plotHalfZ });
+      features.push({ kind: 'villa', x: hh.x, z: hh.z, yawDeg: hh.yawDeg,
+        lift: hh.rise, length: HS.houseL, depth: HS.houseD, height: HS.houseH,
+        tone: hh.tone, wall: hh.wall });
+      /**
+       * A WARM LIGHT ON THE TERRACE, and it is the only way a feature in this
+       * project can be lit: `put()` writes an albedo and a roughness into the
+       * instanced body mesh and there is no emissive path through it, so a
+       * villa cannot have lit WINDOWS the way a generated building can. What it
+       * can have is the `lamp` feature, whose head takes an emissive gain and a
+       * cluster slot from the same pool a street lamp does — so the house is
+       * lit rather than glowing, which is the honest half of the brief's *"lit
+       * windows at night, warm against the city's cold"*. The other half is a
+       * fourth emissive path and this session did not build one.
+       */
+      features.push({ kind: 'lamp', x: hh.x + Math.cos((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
+        z: hh.z + Math.sin((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
+        yawDeg: 0, height: 3.4, lift: hh.rise });
     }
 
     /**
