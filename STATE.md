@@ -1,364 +1,291 @@
 # NOCTIS — STATE
 
-*End of session 56. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 12 days of
-uptime — the same boot as sessions 47–55. Every gate that reads a pixel printed
+*End of session 57. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 12 d 11 h of
+uptime — the same boot as sessions 47–56. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` READ 2.61 AT THE FIRST COMMAND AND RAN 2.4–6.1 ALL NIGHT — the assistant app itself
-measured 101% CPU — SO NO ABSOLUTE MILLISECOND IN THIS DOCUMENT IS A VERDICT.*** Counts, code
-values, cd/m², metres and generator output are; CONTRACT §0.1's corollary — **counts do not
-drift** — is what the one real perf verdict of the night (the triangle ceiling, §7.4) rests on.
+***`load1` READ 2.27 AT THE FIRST COMMAND and ran 1.37 to 4.89 across the night — it went QUIET
+for the first three gates and loud for the rest (§6). NO ABSOLUTE MILLISECOND HERE IS A
+VERDICT.*** Every number this session turns on
+is a COUNT — triangles, instances, populations — and §0.1's corollary is that counts do not
+drift. That is the whole reason item 0 could be settled on a loud machine.
 
-Branch `claude/noctis-56-facings-and-the-edge`, eleven commits, all pushed as they landed.
-
----
-## 0. WHAT HE SAW, WHAT WAS REPAIRED, WHAT WAS LEFT — THE LIST
-
-Part one was seven defects the operator found walking session 55's branch; part two was the edge
-of the city, asked for twice. **All seven part-one items landed; part two landed (a) and (c) and
-reports (b).** Each entry names its spawn or frame.
-
-1. **ROTATIONS — REPAIRED, AND THE ROOT WAS DEEPER THAN THE GOALS** (§1).
-   `?player=1&spawn=36.41,19.91,-748.54&t=0.6184&seed=1337`. The goals were 90° off their own
-   claim, the hoops faced their touchlines under a comment saying "Facing IN", the centre circles
-   delivered as four-pointed stars on every z-axis pitch — and underneath all three, `put()`'s
-   position rotation was three's yaw NEGATED, which had been silently mirroring every
-   yaw-90/270 feature: **the east and west stadium stands have shown the pitch a blank wall
-   since session 48.** All repaired; `citycheck` gained the facing sweep (§1.2).
-2. **THE COURT IN THE LAWN — FURNISHED FROM THE ISLAND** (§2). Same spawn. A path from the
-   boundary gate, spectator steps, benches, ~28 boundary trees, and the pitch ball-stop split
-   high-behind-goals / rail-along-sides as its own comment promised for eight sessions.
-3. **THE UNBRIDGED REACH — BRIDGED** (§3). `?player=1&spawn=-257.37,14.49,-373.14&t=0.5874` —
-   he stood 254.6 m from one crossing and 257.4 m from the other, the exact midpoint of a 512 m
-   reach. A cable-stayed relief bridge stands at x=−256 now, carrying traffic and pedestrians in
-   `s56-bridge-after-t0_5874-wet.png`.
-4. **THE TERMINUS — BUILT AT BOTH ENDS** (§4). The premise "it turns in mid-air" was checked
-   and is stale: abutments, portal heads and a 40 s turnround already existed. What was missing
-   and is built: terminus platforms from the station vocabulary, buffer stops on the rails, and
-   a stop law that halts the nose 0.6 m short of the beam instead of touching the portal.
-5. **PEOPLE ON THE PLATFORM — HIS OLDEST WISH, THE SMALLEST HONEST VERSION** (§5).
-   `s56-platform-crowd-t0_5.png`: a train at the platform and people standing at 22.72 m.
-   The stairs are specified but not built — the honest cost is in §5.1.
-6. **EMPTY GROUND AMONG THE TOWERS — MEASURED FIRST, SIXTH CAUSE FOUND** (§6). Not bare earth
-   (0.73% of visible ground): the nine largest empty surfaces were all **coreGround slivers**
-   along building backs, up to 845 m² with zero objects. They carry service rows now; the
-   residue after the triangle-ceiling trims is four small patches, worst 499 m².
-7. **THE MOON — THE NIGHT HAS A DIRECTION** (§7). 85% of the skyglow's lux moved into the
-   moon at constant total. The churchyard's headstones have faces
-   (`s56-moon-k{0,0.5,0.85,0.933}-t0-wet.png` is the sweep) and `distinct:midnight|dusk` moved
-   TOWARD its floor for the first time in four sessions.
-8. **THE EDGE** (§8): a ring of 140 hills with wooded shoulders past 3 300 m, valleys where
-   the road and the river leave (`s56-edge-air-t0_55.png`); a filling station and allotments on
-   the first full chunks beyond the lattice (`s56-fillingstation2`, `s56-allotments`); and the
-   honest report on curves — the ground vocabulary is axis-aligned rectangles, so a curved road
-   is a new yawed-quad ground kind, costed in §8.3 and not built.
-
-**LEFT, in one place:** the platform stairs (§5.1); the exchange precinct's emptiness (§6.1);
-posts standing along the exit road past the edge (§8.4); the core density gradient (§8.5);
-`?moonshare` sweep beyond 0.85 if the operator wants more form; and everything §9 carries
-forward from session 55.
+Branch `claude/noctis-57-what-a-city-has`, five commits, all pushed as they landed.
 
 ---
-## 1. ITEM 1 — THE THIRD ROTATION WAS A HANDEDNESS BUG, AND IT HAD BEEN MIRRORING THE CITY'S FEATURES FOR EIGHT SESSIONS
+## 0. THE TRIANGLE NUMBER, WHICH THE BRIEF ASKED FOR FIRST
 
-### 1.1 The repair (commit `20941ea`)
-
-**`put()` — the feature-delivery helper in `city.js` — rotated positions by −yaw and
-orientations by +yaw.** Three's yaw takes local +Z to (sin θ, cos θ); the schoolbook 2D form
-`wx = dx·c − dz·s` is that rotation's mirror. Identical at yaw 0/180, a mirror at 90/270 — so
-every one-sided assembly on a yaw-90/270 feature landed with its asymmetric parts on the wrong
-side. The viaduct's own transverse offsets negate the angle (`Math.PI / -180`) for exactly this
-reason, six times in the same file; `put()` now does too. CONTRACT §9 row 2, again.
-
-What that one sign fixed or revealed, all verified in frames
-(`s56-{pitch-air,stand-west,court-air}-{before,after}`):
-
-- **Goals**: were `alongX ? 0 : 90` — the claim one line up, transposed, with ONE yaw for both
-  ends so even the nets agreed with each other. Now per-end, net away from the pitch.
-- **Hoops**: same inverted base; now the stands' own facing table. Claims grew from a 0.6
-  square to the delivered reach (rim 1.32 m, backboard ±0.90).
-- **Stadium stands**: session 49's yaw table was RIGHT under three's convention and `put()`
-  mirrored the x-pair — the east and west stands delivered rake-toward-the-pitch, wall against
-  it, and only a close frame could see it (an axis-aligned claim is mirror-invariant).
-- **Centre circles**: the `!alongX` branch swaps chord positions across the diagonal (a
-  reflection) and the yaw only negated — twelve chords mirrored against their own tangent, a
-  four-pointed star on every z-axis pitch and court. Tangent now, both branches.
-- **Claims that stopped short of their objects**: the play frame's slide (2.13 m unclaimed on a
-  random bearing, both the recreation and school copies), the deck park's scissor ramp (6.2 m of
-  concrete the registry had never heard of), the goal's net bag. All claimed at delivered reach.
-- **Dock faces land deterministically at +v now**, and the depot shop — whose yard is at −v —
-  passes `flip` and turns to face it.
-
-### 1.2 The check (commit `0d0d246`) — item 1b
-
-`citycheck`'s generator half pairs every `chunk.features` record carrying a `yawDeg` with the
-registry claim at its own centre and asserts the folded yaw's cardinal equals the axis the
-claim's long half implies. Oblong claims only (≥2×), cardinal yaws only (±3°), non-cardinal
-counted as DECLINED with a measured-population floor (3 000 against 6 951 today) so declining
-cannot become CONTRACT §7.1's quiet gate. **Confirmed RED before the fix per §7.2**: at session
-55's HEAD over 17×17 it reads 21 051 measured, 4 mismatches — exactly the operator's four goals.
-Now: **6 951 measured, 0 transposed, 105 declined.** Three falsify cases; coverage 100%
-(67/67). **What it cannot see is written in the budget's `$featureFacings`: a MIRROR** — the
-stands' own defect — is invisible to any axis-aligned claim, so aerials stay the verdict for
-that class.
-
----
-## 2. ITEM 2 — THE GROUND AROUND THE PLAY AREA (commit `118cf95`)
-
-Measured first: the court pad is 1 512 m² of a 10 941 m² island (13.8%) and everything else was
-one lawn, a fence and 8–12 scattered props. Delivered, all in existing vocabulary, sized from
-the island: a **path** from the boundary gate to the play area (cut from the lawn as the pad is,
-claimed `path` so the fence opens over it — on a stadium island it stops at the BACK of the
-stand, because driven to the pitch it refused the stand it leads to, measured as chunk (−8,−5)
-delivering three stands of four); **spectator steps** beside a court (the stand vocabulary with
-three treads and a `bare` flag dropping wall, roof and seat decks; 3 of 4 courts took them);
-**benches** on the long sides facing in; **~28 boundary trees** at a spacing drawn from the
-island side, refused wherever the ground was spoken for; and the pitch boundary's
-eight-session-old comment implemented — 4.0 m ball-stop mesh behind the goals only, knee rail
-along the sides. `s56-court-air-{before,item2}` is the pair.
-
----
-## 3. ITEM 3 — THE RELIEF CROSSING (commit `29159b6`)
-
-**Premise corrections, per the brief's own request:** "two bridges" is the census window's
-sample — the code defines a crossing at every 512 m for all integer i (arch@−512 exists);
-and session 52's rule is a street-end FOOTWAY whose own comment disclaims the turning head.
-
-The spacing is real: the operator stood at the midpoint of the girder@0 ↔ arch@−512 reach.
-`RIVER.extraCrossingsX = [-256]` adds the relief crossing there — a chunk boundary, so a
-north–south street already runs at it on both banks. `nearestCrossingX`/`bridgeSpecAtX`
-generalise the five crossing functions, so the road clip, water claims, walkability, traffic,
-promenade lamps, the map and the canyon bake all followed with **zero further edits** (a bridge
-claims nothing by construction). The extra's structure is derived as **the era not yet standing
-between its two lattice neighbours** — the cable-stayed — because an infill crossing is the
-youngest span on its reach. Global halving to 256 m was considered and declined: `bridgeEvery`'s
-own derivation (512 m is a real urban river) stands; one relief bridge where a defect was
-reported is a repair, a canal everywhere is not. Span 93.6 m, walkable, carrying traffic.
-
----
-## 4. ITEM 4 — THE TERMINUS (commit `296e9c3`)
-
-The line's ends already carried abutments, wing walls, portal heads and (since session 54) a
-brake-dwell-reverse cycle — "it turns in mid-air" is stale as geometry and motion. What was true:
-no platform, no buffer, and a recess whose one job is to say "the line CONTINUES" behind a train
-that visibly reverses at it.
-
-- `viaductStations` emits a **terminus entry per end**, placed from the DECK'S last station
-  (platform runs back from the abutment; the train's stop is derived independently in
-  `moving.js` from its own extent, and the two meet by construction — no duplicated constant).
-  The station vocabulary brings platforms, coping, balustrades, canopies and stair cores;
-  terminus cores flip INBOARD, because a core toward the end stands in the portal.
-- `VIADUCT_BUFFER_M { setInM: 1.5, standOffM: 0.6 }` — one constant, two readers: `city.js`
-  stands a stanchion pair and beam per track inside each abutment face, and `moving.js` derives
-  the end stop so the nose halts 0.6 m short of the beam. Before this the nose tip stopped at
-  s = 240.00 exactly — touching the recess plane.
-- `moving.js` filters terminus entries from its stop list (the end stop IS the terminus stop).
-
-Delivered: 3 stations (mid + termini at segs 0–6 and 37–43, 76.4 m each).
-`s56-terminus-{north,street}` frames.
-
----
-## 5. ITEM 5 — PEOPLE STAND ON THE PLATFORM (commit `6142453`)
-
-**`city.decks()`** is the new record: one per station platform, carrying the walking strip and a
-`pointAt(u, t)` built on the ARC'S OWN stations — an 87 m platform on a 300 m arc bows 3.2 m, so
-a straight frame would stand people in the air off both ends. **Deliberately NOT in
-`worldSurface`'s max**: a person walks UNDER this deck; the record is opt-in and only an agent
-carrying a deck id reads it.
-
-`streetlife`: each visible deck joins the rebalance ring as one allocation entry, weighted
-scale-free against the ring's own mean (2 × 87.3 m of platform against 435 m of chunk loop =
-0.40 of a mean chunk ≈ sixteen people at the crossing station). A platform trip is a LINE, not
-a loop; y comes off the record, never `groundYAt`; a waiting passenger draws from the bus
-stop's own wait distribution and turns to the track. Census rows key by deck, so the row that
-allocated the crowd reports it. `s56-platform-crowd-t0_5.png` is the picture: a train at the
-platform, people beside it.
-
-### 5.1 What the stairs would take (specified, not built)
-
-A crossing-style path per core: ~25 y-interpolated legs (12 flights + landings, geometry at
-`city.js`'s stair draw), the re-seat-clears-path rule (`a.cross = null`'s own argument), and a
-gait caveat — the shader gait is a flat walk cycle and on the 31° pitch it will read as sliding
-unless amplitude/frequency are tuned. **Plus a ground claim for the cores**: they appear in NO
-ground predicate today, so an agent can walk through a stair core at street level — that gap
-predates this session and needs closing whether or not anyone climbs. The lift is one solid box
-and is NOT honest to put people in as drawn.
-
----
-## 6. ITEM 6 — MEASURED FIRST: THE CORE SLIVERS (commits `3197bc9`, `2dfea02`)
-
-Sixth time the operator has said "empty ground among the towers"; sixth different cause.
-`bareprobe --camera=0,0`: BARE is **0.73% of visible ground** — the floor holds — and the
-largest owner is the block interior at 40.1%. One level down (a patch census over the 5×5 at
-the origin): **the nine largest empty surfaces were all coreGround SLIVERS** — the 8–17 m
-strips `subtractBoxes` leaves along building backs, up to 845 m² with zero objects — while
-furnished core patches run 19–41 objects/ha. The island-uniform core scatter cannot reach them.
-
-**The repair is service ROWS along each large strip's own axis** (a strip along a building's
-back is where a block's servicing stands), from the core's own palette and named stream —
-appended draws only, nothing already delivered moved. After the triangle-ceiling trims (§7.4):
-13 m pitch, four rows a chunk, area floor 420 m², single-box palette. Residue: four zero-object
-patches in the 5×5, worst 499 m², written here rather than chased.
-
-### 6.1 The next-largest empty read is the exchange precinct
-
-At the daylight aerial (`s56-core-air{,-after}`) the single largest contiguous empty surface is
-the dome's precinct — session 55 gave it approaches and porticos; the ground between them is
-still a plain field with scattered crates. A civic precinct's furniture (planting beds, kiosks,
-banner masts, a paving pattern) is a session of its own.
-
----
-## 7. ITEM 7 — THE MOON REDISTRIBUTION (commit `423b5af`)
-
-STATE 55 §0.2 measured the mechanism: 96.7% of the 3.24 lx on a night surface arrives from an
-isotropic dome, so nothing has a face. **The repair moves 85% of the skyglow's horizontal
-illuminance into the moon's directional term at CONSTANT TOTAL LUX** — an identity per rebuild
-(`sky.js` → `computeRedistribution`: dome × (1−k), moon × (1 + k·glowE/moonH); the ±k·glowE
-cancels at every time and phase while the moon is up; moon down → k treated as 0). It is the
-one lever the exposure meter's 0.64 clawback cannot touch, because the frame's total does not
-move. CPU and GPU read the same two numbers, computed before the LUT renders.
-
-- **`?moonshare=` is a CONTRACT §6 parameter** (−1 defers to `LIGHT.moonRedistribution` = 0.85;
-  0 restores the pre-56 sky bit for bit). No gate passes it.
-- **k = 0.85 was chosen from delivered midnight frames** at the churchyard per LOOK.md §0:
-  grave-region contrast sd 3.71 → 4.28 (+15%) with the floor's blacks holding at p05 10; at
-  0.933 the gain is marginal (4.44) and the horizon glow nearly gone. The moon delivers ~4 lx
-  normal — 38× the physical figure, the first lie LOOK.md §0 licenses by name. The trade shown,
-  not hidden: the visible sky dims hard (the amber wash becomes a dark night sky) — if the
-  operator wants the old sky back it is one URL.
-- **`distinct:midnight|dusk` moved 0.02621 → 0.02841, TOWARD its floor** — the first change in
-  four sessions to move L15 the right way (midnight's sky darkened away from dusk).
-  `band:midnight` 0.1090 against 0.112, margin 0.0030 = 30× the instrument's spread. Dusk
-  untouched (moon below its horizon — the invariant working).
-- The stale `castShadow` arithmetic in `lighting.js` is repealed in place; the accepted
-  no-shadow lie is written beside it. `LIGHT.fullMoonLux` — 0.267 in two files, nothing
-  comparing them — lost its dead copy; `solar.js` owns the number.
-- **Premise correction:** STATE 55's own two moon figures disagreed (§0.2 said 0.107 lx, §8
-  said 0.099); 0.107 is what the code reproduces.
-
----
-## 8. PART TWO — THE EDGE (commits `01ea194`, `42ee19d`)
-
-### 8.1 The hills (a)
-
-A ring of **140 hill masses with wooded shoulders**, r 3 300–3 950 m, on the earth plane that
-already ends at 4 000 — the distant city's own pattern (pure function, own stream, one
-world-fixed InstancedMesh, ONE draw call, no claims, no gates, nothing that moves), which is
-CHEAPER than the 21-site terrain variant session 53 costed because it touches no ground
-machinery at all. Heights 22–85 m = 0.35–1.4° of horizon at 3.5 km, scaled up with r so far
-rows read over near shoulders. **The valleys are the point**: the main street's corridor and
-the river's envelope each carve a gap wider than any hill's FULL footprint (the first arm used
-0.7× and stood a shoulder over the forecourt), so the one road that leaves the grid leaves
-through a valley and the water does too. The hills material is the distant recipe MINUS the
-emission — a ridge does not glow, and item 7's moon keys its form at night.
-`s56-edge-air-t0_55.png`.
-
-### 8.2 The roadside (c)
-
-Two sites, derived not scattered — the first FULL chunk beyond the lattice edge each side
-(`ceil(extentEdgeM/chunkSize)` = 26 east, −27 west), alternating sides of the carriageway:
-east a **filling station** (26×13 canopy over three pump cabinets, kiosk, two floods, forecourt),
-west **allotments** (planter beds off a claimed path, six timber huts on their own bearings).
-Density is 0 out there; every object still claims — the registry's authority does not end at
-the edge. They render when a camera goes out (streaming follows it); that is what roadside
-content on an exit road is for. `s56-fillingstation2`, `s56-allotments`.
-
-### 8.3 A road that leaves (b) — the curve answer, reported
-
-**The network cannot express a curve.** Every ground record is an axis-aligned rectangle
-(`{x0,z0,x1,z1}` — no yaw field exists), `subtractBoxes` is axis-aligned, and the only curved
-carriageable surface in the city is the viaduct's authored deck, which is yawed BOXES in a mass
-mesh, not ground. A curved exit road therefore needs a new ground kind — a yawed quad with its
-own `surfaceAt`, walkability and claim story — before any polyline of chords can be honest.
-The 8 km main street stays the exit road, now passing through §8.1's valley; it stays unlit
-past 3 232 m, which is what a country road is.
-
-### 8.4 Found on the way and not chased
-
-A few **posts stand along the exit road past the edge** (visible in `s56-allotments`) — most
-likely the signal masts or sign pylons missing the `cityExtentAt` guard that stopped the lamps
-in session 54 (`city.js:5043`). One predicate, next session.
-
-### 8.5 The density gradient — premise correction and the honest cost
-
-The brief said "the density field has NO RADIAL TERM." **Stale since session 53**: `densityAt`
-multiplies by `cityExtentAt(x,z)` — but that window is 1 everywhere inside 1 792 m, so within
-the gate's region the premise still holds: the CORE has no gradient and core-vs-rim is still a
-coin toss. Building one means touching `densityAt` inside the window, which **re-phases every
-chunk in the city** — kinds, fills, heights, the arm session 37 chose from nineteen frames.
-That is a session of its own with frames, not a line in this one. `clumping` was NOT touched
-(0.389 → 0.393 across the session, the fill churn of items 2 and 6, printed not argued).
-
----
-## 9. GATE STATE
-
-`npm run gates`, all eight, 24 min, load1 2.4–3.8 throughout (over §0.2's bar — no absolute
-millisecond is a verdict):
+**THE CEILING STANDS. IT WAS NOT MOVED, AND IT DID NOT NEED TO BE.**
 
 ```
-  gate            exit   verdict   seconds
-  parsecheck         0     GREEN       3.5     117 files, contract-clean
-  faultcheck         0     GREEN      10.0
-  lookcheck          1       RED      35.2     THE IDENTICAL THREE
-  windcheck          0     GREEN      41.2     (citycheck's walk: 344 meshes, 344 labelled — city:hills joined)
-  inputcheck         0     GREEN      14.5
-  gateaudit          1       RED      75.0     the carried control
-  citycheck          1       RED     118.5     THE IDENTICAL FOUR
-  perfcheck          1       RED    1187.1
-
-  4 of 8 RED — lookcheck, gateaudit, citycheck, perfcheck. The same four as sessions 53–55.
+  arm                                        triangles    draws   instances
+  WORKING LOD      detailRadius 4 (ships)     2.36 M       401     333 734
+  LOD DEFEATED     detailRadius 5             2 945 208    415     420 025
+                                              ─────────
+  a broken LOD costs                          1.248x       (session 37 measured 1.278x)
 ```
 
-**The battery above ran BEFORE the triangle trims (§7.4's story); after the trims the changed
-gates were re-run singly and are quoted below from those runs.** One genuinely new red appeared
-in the battery and was closed the same night:
+Both arms measured this session on `highway_speed` — the binding route — at seed 1337, the
+working arm on a clean tree and the defeated arm with the one constant changed and the tree
+restored afterwards. **The ratio HOLDS**, which is the brief's own test: *"If the ratio holds,
+the ceiling stands and this session pays for every new triangle with an old one."* It did.
 
-- **`highway_speed` 2 386 444 tris > 2 360 000 — the session's content spent 96k against 70k of
-  headroom.** A count, so a verdict whatever the load. Three trims (rows to 13 m pitch / 4 per
-  chunk / 420 m² floor / single-box palette; hills to 8×3 segments and 140 masses) brought it
-  under, measured after each cut: 2 386 444 → 2 362 108 → 2 360 392 → under. **THE TRIANGLE
-  CEILING IS NOW EFFECTIVELY SPENT — the next session inherits ~1.5k of headroom and should
-  treat it as a wall.** Draws: 401 of 440 (hills +1, station chunks +2).
-- `citycheck` (re-run post-trim): **facings 6 951 measured / 0 transposed / 105 declined** (the
-  new §1.2 sweep, printing beside occupancy); 3 bridges in the 1024 m window; the IDENTICAL
-  FOUR delivered overlaps; clumping 0.393 against 0.60 (untouched per the constraints); 2 of
-  2 645 sign quads (the same two); 1 004 bare walkable samples — identical to sessions 52–55;
-  walkable samples 284 918 (+536, the relief bridge's deck).
-- `lookcheck` (re-run post-trim): the IDENTICAL THREE. Bands 0.1090 / 0.3096 / 0.4336 / 0.1550,
-  crushed black 0.000% everywhere, `distinct:midnight|dusk` **0.02841** (§7).
-- `perfcheck`: the two vehicle silhouette bars (68%/52% of 66 this run against 75% floors) — the
-  seven-session carried pair, population oscillating 52–74 as recorded; `downtown_dense`
-  entropy 4.893 (the carried straddle, single-run assertion); froxel 58/96 margin 38 (carried,
-  one slot better than s55). Every wall/CPU millisecond: load-contaminated, not a verdict.
+**AND THEN THE SESSION PAID.** After the population cut (§2) and everything in §§3–5:
+
+```
+  highway_speed   2.36 M  ->  2.30 M      headroom against 2 360 000:  ~1 500  ->  ~60 000
+```
+
+### 0.1 WHAT HAS DRIFTED, AND IT IS NOT THE RATIO — A QUESTION FOR THE OPERATOR
+
+The ceiling is not merely a number between the two arms; session 37 derived it as **the
+GEOMETRIC MEAN of them**, on an explicit argument — *"equidistant in RATIO from a false red and
+a false green, which is the right symmetry for a multiplicative quantity"*. That property has
+drifted, because the CITY grew inside it:
+
+```
+                          working arm    defeated arm    geometric mean    ceiling sits at
+  session 37, measured    2 086 042      2 666 516       2 358 500         1.131x working
+  session 57, measured    2.36 M         2 945 208       2 636 000         1.000x working
+```
+
+So the ceiling still DISCRIMINATES — a defeated LOD delivers 2 945 208 and is rejected — but it
+no longer sits between the arms with room on both sides: before this session's cut it stood
+**1.0006× the delivered city**, where any content change at all breaches it, LOD-related or not.
+A detector whose margin is smaller than the thing it must resolve reports content as LOD
+failure, which is CONTRACT §0 rule 6's own subject.
+
+**IT IS NOT MOVED AND THIS SESSION DID NOT NEED IT MOVED.** Re-deriving by session 37's own
+formula on today's arms gives **2 630 000**, and that is the number a future session would use
+if it wants headroom without a cut. Raising it here would have been a ceiling raised on the
+session that wanted the room — the shape CONTRACT §0 rule 5 forbids — when a cut was available
+and the operator had already authorised one. **The question for the operator is whether the
+ceiling should be re-derived at 2 630 000 (restoring its own symmetry, still rejecting a broken
+LOD by 1.12×) or held at 2 360 000 and paid for in content every session.** The measurement is
+here either way.
 
 ---
-## 10. WHAT TO DO FIRST NEXT TIME
+## 1. THE EYE-LEVEL FRAMES, WHICH IS WHERE HE WALKS
 
-1. **THE TRIANGLE CEILING IS SPENT** (§9). ~1.5k of headroom on `highway_speed`. Anything that
-   adds geometry must first find geometry to remove, or the operator must be asked about the
-   ceiling (2 360 000 has held since session 37).
-2. **THE STAIRS** (§5.1): the platform crowd exists; the climb is specified — ~25 y-interpolated
-   legs per core on the crossing pattern, the gait pitch caveat, and the cores' missing ground
-   claim (walk-through-able at street level today).
-3. **THE EXCHANGE PRECINCT** (§6.1): the largest contiguous empty surface at the core aerial.
-4. **THE EDGE'S LOOSE POSTS** (§8.4): one `cityExtentAt` predicate.
-5. **`?moonshare` IS A LIVE SWEEP** (§7): if the churchyard still reads flat to the operator,
-   0.933 is one URL away and the numbers are in this file; if the sky reads too dead, lower it.
-   The band that limits further black-floor work is unchanged (STATE 55 §8 item 4 carries it).
-6. **CARRIED UNTOUCHED FROM SESSION 55**: the 128-blocks-one-size question (the largest single
-   thing the operator has named); cloudy (costed, a session); the turning head; the 47 m of
-   lane on pavement; `SURFACE_TOP_M`'s false derivation; the vehicle silhouette bars (seven→
-   eight sessions); clumping at 0.393 for nineteen sessions with STATE 53's window experiment
-   still unrun; the apron staircase's 0.40 ha bare residue (1 004 samples, identical five
-   sessions); hoisting `buildChunkBody`'s claims; the arena.
-7. **PREMISE LEDGER FOR THE NEXT BRIEF** (the brief asked): "goals on touchlines" — position
-   false, perception true (yaw); "session 49 fixed the stands" — claims yes, delivery mirrored;
-   "two bridges" — the window's sample; "turning head rule" — it is an end footway that
-   disclaims the head; "turns in mid-air" — stale; "platform from session 54" — session 31
-   built it, 54 stopped at it; STATE 55's two moon numbers disagreed (0.107 reproduces);
-   "no radial term" — stale at the rim, true in the core; "21 sites" — accurate, +22
-   conditional if anyone walks out there.
-8. **`decodePNG` RETURNS THREE BYTES PER PIXEL** (measured again this session, §7's sweep).
-   And the frames: `tools/shot-out/s56-*` — thirty-odd, every one named in the section it
-   verifies.
+```
+  s57-iron-close-t0_5.png        THE ITEM-1b FRAME. A streamed carriageway from 6 m: a gully
+                                 casting in the channel, a manhole on the crown, another on
+                                 the near-side duct line, against lane and edge paint.
+  s57-iron-noon-t0_5.png         The same street from 1.7 m — where the castings are subtle,
+                                 which is what cast iron on concrete at 0.67x IS.
+  s57-iron-midnight-t0-wet.png   THE VERDICT FRAME. Wet midnight on the same street: a
+                                 handful of vehicles, one pedestrian in a lit shopfront, the
+                                 moon on the road. The night is quiet now, which is item 0d.
+  s57-road-noon / s57-pavement-noon   1.7 m on the origin block's pavement, the new furniture
+                                 among the crowd at noon.
+  s57-barge-t0_5.png             ITEM 1f. A barge moored against the quay wall, hold cover,
+                                 deckhouse aft, mast — with a person on the quay above it.
+  s57-craft-nadir-t0_5.png       The same from 45 m, which is how the moorings were confirmed
+                                 after three frames failed to show them (§5.1).
+  s57-river-reach-t0_5.png       East along the river from the girder bridge.
+```
+
+---
+## 2. ITEM 0d — THE POPULATIONS COME DOWN, AND FOR THE FIRST TIME THEY READ THE CLOCK
+
+The operator released these counts and gave the reason: *"there is really too much"*, and *"an
+outer arterial at 3 a.m. should not be busy"*. Those are two different asks and they needed two
+different answers.
+
+**THE BASE CUT** — pedestrians **360 → 280**, vehicles **160 → 120**. The vehicle figure is
+costed in `traffic.js`'s own units, beside the two numbers that file already argues about:
+
+```
+  160 over 1771 m of centreline   one every 11.07 m over four lanes   975 veh/h/lane  "busy"
+  120                             one every 14.76 m                   732 veh/h/lane  ships
+   96                             one every 18.45 m                   585 veh/h/lane  "a quiet night"
+```
+
+against a saturation flow near 1800. **The headlamp pool is untouched at 96** — the two budgets
+that block exists to keep apart stay apart, and 96 of 120 lit fills a disc of 170 m against the
+190 m simulated, so the pool is shallower and still a pool.
+
+**THE DIURNAL CURVE**, and the finding under it: **nothing in this city has ever read the clock
+for population.** `rebalance` normalises its weights by their own sum, so the ring received
+EXACTLY `agents.length` people at every hour — a midnight ring of empty outer chunks got the
+same crowd as downtown at noon, merely redistributed. `crowdFactor` is a day window (1 from
+08:00 to 20:00, `smoothstep` to an 18% floor at 03:30 — a real city's small hours are not empty)
+and it delivers:
+
+```
+  t = 0.0    midnight   0.549   154 people      three of the four gate routes run here
+  t = 0.146  03:30      0.180    50 people      the trough
+  t = 0.25   dawn       0.658   184
+  t = 0.5    noon       1.000   280 people      highway_speed — the triangle-binding route
+  t = 0.78   dusk       1.000   280 people      citycheck, against pedestrians.minTotal 200
+```
+
+**IT IS FREE BECAUSE `awake` IS A PREFIX.** `bodies[].indices` is built by walking the agents in
+order, so it is ascending, so the awake agents are the first rows of every body mesh and
+`InstancedMesh.count` alone draws them — no reordering, no compaction, and no row that changes
+occupant between frames. A wake sets `reseated`, so §5.12's carry covers the frame a row comes
+back. `poseRelease` restores to the awake prefix rather than the allocation.
+
+**WHERE IT COSTS NOTHING, SAID PLAINLY.** `highway_speed` runs at t = 0.5, where the factor is
+exactly 1 — **so the diurnal curve buys NO triangles on the route the ceiling binds on**, and
+the base cut is what paid for §§3–5. What the curve buys is the picture at night, and
+`s57-iron-midnight` is that picture.
+
+`pedestrianStats().total` now reports the DRAWN population rather than the allocation: a census
+saying 280 while 50 people were out would be a gate reading the config (CONTRACT §9.1).
+
+---
+## 3. ITEM 1a — FIVE KINDS OF STREET FURNITURE, AT ABOUT THE PRICE OF NOTHING
+
+`postbox` (a pillar box and a wall-mounted one), `cyclestand` (the Sheffield hoop, and a pair),
+`charger` (2049's parking meter — a kerbside charging point with its cable on the hook),
+`newsbox` (a vending box and a timber stall) and `cafetable` (a table and two chairs — the one
+object here that says somebody is USING the street rather than passing through it).
+
+**THE COST IS THE POINT.** `propCount` decides HOW MANY objects a chunk carries and
+`PROP_MODELS` decides WHAT THEY ARE, so adding kinds changes the mix and not the population:
+the delivered cost is the difference between a new kind's box count and the average of the
+palette it joins, which is between −1 and +2 boxes. Five new objects at eye level for about
+nothing, which is the cheapest content this project has added.
+
+**THE PALETTE IS WEIGHTED RATHER THAN APPENDED**, because a uniform pick over a longer list
+would put one pillar box on every chunk — one every 128 m, where a real city has one every few
+hundred. Delivered over 5 × 5 chunks at seed 1337: bollard 265, cabinet 250, bin 248, tree 58,
+planter 48, cyclestand 44, bench 38, cafetable 34, charger 32, hydrant 25, newsbox 24,
+postbox 23.
+
+**WHAT WAS ALREADY THERE, AND THE BRIEF LISTED IT AS MISSING:** bus shelters with timetables
+exist — `BUS_STOP` since session 28, a roof, posts and a glazed back panel *"the timetable is
+lit against"*. Planters and varied bollards exist (three bollard variants since session 21).
+
+---
+## 4. ITEM 1b — THE IRONWORK IN THE ROAD
+
+*"The carriageway is the largest surface in a street frame and it is uniform."* It is not now.
+
+- **Gullies every 20 m, IN THE CHANNEL** — the gutter line against the kerb face, which is
+  where the water goes, so the offset is the carriageway half-width less the casting's own
+  half-length rather than a number chosen to look right.
+- **Manholes every 34 m on TWO lines** — the crown where a sewer runs and the near-side lane
+  where the ducts do, offset half a cycle so the road does not read as a dotted line. 34 is
+  coprime with the 6 m centre-line cycle, so no cover lands centred on a dash.
+
+**THEY ARE MARKINGS AND NOT PROPS, WHICH IS THE WHOLE ECONOMY OF THE ITEM.** A marking is a
+4 mm box in a mesh the chunk already builds, so a casting costs **12 triangles and no draw
+call**, where the same object as a `prop` would carry a registry claim, a setback test and a
+scatter slot it would have to win from a bollard. `markings` gained an optional `albedo`/`rough`
+— cast iron 0.055 at roughness 0.72, which is **0.67× the asphalt where paint is 7.6× it** — and
+a marking with no albedo of its own is still paint, so every line written before this session is
+byte-identical.
+
+Delivered over 5 × 5 chunks: **467 gullies and 311 manholes, 9 336 triangles.**
+
+---
+## 5. ITEM 1f — THE RIVER GETS WORK ON IT
+
+Quays since session 15, a promenade since 16, three crossings since 56, and nothing has ever
+floated on it. `riverCraft` moors barges and launches against both banks: outboard edge a
+fender's 1.1 m off the wall face so the channel stays clear; never inside a crossing (tested
+with `onBridgeDeck` padded by the craft's own half-length — the same predicate the road clip and
+the walkability mask use); on a 240 m berth lattice jittered inside its own cell; 62% of berths
+occupied, because a river with every berth full is a dock. A hull is drawn as a box on purpose —
+what reads from a quay forty metres up-river is the SHEER — but it sits IN the water, so only
+`freeboardM` shows. Delivered: **3 craft in the 1024 m window at seed 1337**, about 18 boxes.
+
+### 5.1 AND IT TOOK FOUR FRAMES TO SEE THEM, WHICH IS WORTH RECORDING
+
+Three frames showed empty water and the pure function reported three craft. The cause was not
+the code: **a craft moored against a quay is occluded by that quay's own wall from any camera
+standing back on the bank** — the sightline that clears a 1.05 m parapet at 43 m is already
+below the barge's deck 3 m further on. It was confirmed from directly above and then framed from
+the water side. *A frame that does not show its subject is not evidence that the subject is
+absent*, and the cheap check is the nadir.
+
+---
+## 6. GATE STATE
+
+`npm run gates`, all eight, 22 minutes. **The machine was QUIET for the first three gates —
+load1 1.37, 1.58, 1.57, inside CONTRACT §0.2's bar of 1.6 — and loud for the rest**, which the
+suite prints itself: *"4 browser gate(s) started above the quiet bar."* So `parsecheck`,
+`faultcheck` and `lookcheck` ran admissibly and nothing after them did.
+
+```
+  gate            exit   verdict   seconds  load1 in   out
+  parsecheck         0     GREEN       3.4     1.37    1.58    117 files, contract-clean
+  faultcheck         0     GREEN       9.7     1.58    1.57
+  lookcheck          1       RED      34.2     1.57    2.46    THE IDENTICAL THREE
+  windcheck          0     GREEN      36.1     2.46    3.65
+  inputcheck         0     GREEN      14.4     3.65    4.64
+  gateaudit          1       RED      69.7     4.64    4.22    the carried control
+  citycheck          1       RED     116.1     4.22    4.89
+  perfcheck          1       RED    1023.0     4.89    4.34
+
+  4 of 8 RED — the same four as sessions 53-56.
+```
+
+**`lookcheck`: unmoved.** `distinct:midnight|dusk` reads **0.02840** against session 56's
+0.02841 — this session's content did not touch it, which is the right answer for furniture and
+castings. The other two are the carried facade pair.
+
+**TWO REDS ARE NEW AND BOTH ARE THIS SESSION'S. Neither was tuned away.**
+
+1. **`120 vehicles, budget says 160`, on all four routes — REPAIRED, and it is a DECLARATION
+   rather than a threshold.** `perfcheck` asserts `traffic.vehicles === contentVehicles`: a
+   DELIVERED count against a written one, which is CONTRACT §9.1's two-descriptions-of-one-thing
+   check. A content change that left the declaration alone would have the gate comparing the new
+   city against a stale note. `budget.json` → `contentVehicles` is 120 with its arithmetic
+   beside it; `contentHeadlamps` stays 96 because the pool did not change, and no floor or
+   ceiling in that file moved. **This one line was changed AFTER the battery and is named here
+   for that reason** (STATE 55's rule); `parsecheck` was re-run on it.
+
+2. **`sign(adpillar) × prop(cyclestand)` 0.067 m² — NOT repaired, and the mechanism is
+   identified.** The delivered occupancy sweep went from the carried FOUR to FIVE, and the new
+   one is a `cyclestand` — one of §3's kinds. **It is not a bad claim: it is a CHUNK SEAM, and
+   the same family as the carried `sign(adpillar) × prop(planter)`.** `city.js` places
+   advertising pillars after the pure generator and tests each against `placed` — *this chunk's*
+   claims — while a neighbouring chunk's kerbside scatter reaches up to `CORRIDOR` = 11.7 m
+   across the boundary, exactly as session 55 §6.1 recorded for a bench and a landmark approach.
+   The pillar already sweeps the **3 × 3 neighbourhood** for lamps and for bus stops, and the
+   comment above that sweep says it exists *because the delivered census found the defect*; the
+   prop test is the one that was never widened. **The fix is to give the prop test the same 3 × 3
+   sweep the two beside it already have**, and it would close the carried planter instance too.
+   Not done here because it changes a baseline four sessions old at the end of a session, which
+   is how a repair becomes an unattributable move.
+
+**`citycheck` otherwise:** clumping 0.393 (untouched, as the constraints require); the same two
+buried sign quads; 1 004 bare walkable samples, identical to sessions 52-56.
+
+**`perfcheck`:** every millisecond was measured at load1 4.3-4.9 and is not a verdict. The
+counts are: **2.30 M triangles**, 401 draws, 336 562 instances, and the vehicle silhouette bars
+at 66% and 58% of **59** vehicles (the population fell with the fleet, as it had to). Frame
+entropy on `downtown_dense` reads 4.941 against session 56's 4.893 — the same carried straddle,
+asserted on one run, and this session's night cut is a mechanism that could move it either way.
+
+
+---
+## 7. WHAT TO DO FIRST NEXT TIME
+
+1. **THE CEILING QUESTION (§0.1).** Re-derive at 2 630 000 by session 37's own formula, or hold
+   2 360 000 and pay in content every session. It is the operator's call and it decides how much
+   any future session can build. ~60 000 of headroom stands today.
+2. **WHAT ITEM 1 STILL HAS IN IT**, in the order a player would notice:
+   - **(c) what moves besides cars** — and the brief's premise needs correcting first: `bus` and
+     `lorry` are body types in **`traffic.js`**, not `moving.js` (which is trains and cranes),
+     and there are already **seven** types (wedge 0.34, pod 0.24, van 0.20, moto 0.12,
+     hauler 0.10, lorry 0.06, bus 0.03). So what is missing is not "big vehicles" but
+     CYCLISTS, a delivery trike, a street sweeper, a refuse round and emergency vehicles. An
+     eighth body type is FREE in count for the same reason §3's furniture is — the fleet size
+     is fixed — so an ambulance or a police unit with its own livery and a roof light bar is
+     the cheapest of these by a distance. A cyclist is not: it is a new figure mesh.
+   - **(d) night vs day** — shutters down, a bar lit when the office beside it is dark. The
+     retail frontage roll knows which frontage is trade, and `crowdFactor` now gives the city a
+     clock it did not have, so this item got cheaper this session.
+   - **(e) vertical public space** — a footbridge over an arterial, an underpass, steps. Session
+     56's deck record already carries people at 22.72 m, so the machinery exists.
+3. **THE STAIRS between platform and street** (STATE 56 §5.1), including that the stair cores
+   block nobody at street level.
+4. **CARRIED**: a curved road needs a new ground kind (STATE 56 §8.3); 128 blocks with 2
+   distinct lengths; cloudy, costed but not built; the vehicle silhouette bars; clumping;
+   the apron staircase's 0.40 ha bare residue.
+5. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**
