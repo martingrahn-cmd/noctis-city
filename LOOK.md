@@ -1252,6 +1252,62 @@ is judged from about 1.7 m.
   and the silhouettes on `detail`, which is `buildFacade`'s own sentence one
   level down: a 0.3 m cabinet is the facade's bollard. The fire escape's
   projecting part is claimed as `canopy` and the guard has fired.
+- **EVERY BUILDING PRESENTED A THIRTY-METRE BLANK WALL TO THE CROSS STREET, AND
+  IT IS THE LARGEST UNBROKEN SURFACE IN A STREET FRAME — SESSION 60.** The
+  operator's question: *"how reasonable is it that buildings in downtown have no
+  windows on every side?"* It is not. `city.js` → `buildFacade` builds four
+  elevations and glazes two, under a comment that is right about the case it
+  names and silent about the case it does not — *"buildings in a run touch, so a
+  window on a side face is a window inside the neighbour"* — which is true INSIDE
+  a run, where the perimeter walk advances `rng.range(0.2, 1.4)`, and false at
+  the end of one, where it advances `rng.range(6, 26)`. Session 35 then took the
+  depth to 29.6 m, so the skipped face is the biggest one.
+
+  Measured over `city-budget`'s own 10 × 10 at seed 1337, from the registry:
+  **1 336 side faces on 668 buildings — 199 party walls (14.9%), 358 partly
+  covered (26.8%), 779 open end to end (58.3%)**, and **73.4% of 1 521 k m² of
+  side elevation area is not a party wall — 1.065× the area of the two faces
+  that were being drawn.**
+
+  **THE FULL REPAIR IS THREE TIMES THE TRIANGLE HEADROOM AND THAT IS THE WHOLE
+  ITEM.** 93 702 panes at two triangles each is 187 404 against about 60 000
+  spare, and at twelve — which is what a window in this city IS, a box with a
+  reveal, since session 5 — it is 1.12 M. What ships is the elevations with **a
+  street's width of clear ground in front of them** (`2 × CORRIDOR` = 23.4 m,
+  this section's own light-well number) at a third of the front's opening
+  density: **9 332 panes, 18 664 triangles, one draw call**, `highway_speed`
+  2.30 M → 2.32 M. `tools/shot-out/s60-flank-{before,after}-t0-wet.png` is a
+  102 m flank at midnight, and the before frame's only light is the sliver of
+  the FRONT elevation down the corner edge.
+
+  **WHAT IS STILL BLANK IS EVERY FLANK FACING A YARD RATHER THAN A STREET** —
+  the 6 to 26 m end-of-run gap — and the sweep in `city.js` → `FLANK` says what
+  each further arm costs. It is a budget decision and the numbers are printed.
+- **A PLAYING SURFACE IS THE ONE SURFACE WHOSE VALUE IS THAT NOTHING IS ON IT —
+  SESSION 60.** Two trees grew out of a basketball court
+  (`?player=1&spawn=580.12,0.14,1061.89&t=0.6017`), and over 25 × 25 chunks at
+  seed 1337 **35 props stood on a play area across 14 recreation islands, 9 of
+  them trees**. The pad carried no keep-out claim at all, and the category it
+  would have carried (`ground`) permits a prop on purpose. `occupancy.js` →
+  `pitch` is the row that says otherwise; delivered afterwards, **0 of 35**.
+
+  **AND THEN THEY WERE EMPTY, WHICH IS THE SAME BULLET ONE LAYER OUT.** *"A
+  sports ground is furniture with nobody in it."* Session 56's platform crowd
+  made a walkable surface that is not a pavement possible; a play area is that
+  at grade, so the courts take a share of the existing crowd rather than new
+  agents — **zero triangles**. The count is `PLAY_PEOPLE_PER_M2` = ten players
+  over a 60 × 38 m five-a-side pitch = 0.00439/m², against `PEOPLE_PER_M2`'s
+  0.06 for a busy pavement, times the ground's own opening hours times the
+  city's diurnal curve. Delivered at the operator's own pose: **six on each of
+  two courts at 14:26, and none at all at midnight.**
+  `tools/shot-out/s60-court-{before,after,people}-t0_6017-wet.png`.
+
+  **STILL OPEN, AND WRITTEN AS A QUESTION PER §8**: a school's hard yard carries
+  **8 trees** and a church's paved square **98**, both growing straight out of
+  the paving. Is a tree in a paved square a tree in a tree pit, or is it the
+  same defect one kind over? The category tool cannot tell them apart — `pitch`
+  refuses every prop and a bench on a churchyard square is right — so the answer
+  decides whether `prop` needs splitting into furniture and planting.
 - **Layered depth.** Three planes in every frame: a dark foreground shape, a lit
   mid-ground, a hazed distance. Frames with only two planes read flat.
 - **Variation over repetition.** The market stalls are the current failure case
