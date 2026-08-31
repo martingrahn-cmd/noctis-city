@@ -2075,7 +2075,7 @@ export const COUNTRYSIDE = {
  * `[-400, +179]` at its narrowest (x = 3900) and unbounded to −400 for the
  * whole of the −X corridor. **The +X road shifts NORTH first** (−z, CONTRACT
  * §3.1) into the side that is clear at every station. Delivered, swept at 4 m
- * over both arms against all 179 delivered hill and wood footprints: the
+ * over both arms against all 173 delivered hill and wood footprints: the
  * road's own VERGE EDGE comes no closer than **194.7 m** to any of them.
  */
 /**
