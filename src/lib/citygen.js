@@ -3190,20 +3190,20 @@ export const LOW_WALL = {
  */
 export const LOW_DETAIL_PROPS = {
   /** The five that existed before session 50, carried across UNCHANGED. */
-  park: ['tree', 'tree', 'tree', 'bench', 'planter', 'bin'],
+  park: ['tree', 'tree', 'tree', 'bench', 'planter', 'bin', 'cafetable'],
   construction: ['container', 'container', 'fence', 'cabinet', 'bollard'],
   parking: ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence'],
   yard: ['stack', 'stack', 'stack', 'container', 'bin', 'cabinet', 'fence'],
   $default: ['fence', 'stack', 'container', 'bollard'],
 
   /** A playing field's margin: seating and litter, and a tree for shade. */
-  recreation: ['bench', 'bench', 'bin', 'tree', 'bollard'],
+  recreation: ['bench', 'bench', 'bin', 'tree', 'bollard', 'cyclestand'],
   /** A deck park's apron is a car park's apron. */
   carpark: ['bollard', 'bollard', 'cabinet', 'bin', 'planter', 'fence'],
   /** A hospital forecourt: guarded edges, planting, seating for waiting. */
   hospital: ['bollard', 'planter', 'bench', 'bin', 'cabinet'],
   /** A school: trees along the boundary, seating and bins on the hard yard. */
-  school: ['tree', 'tree', 'bench', 'bin', 'bollard', 'planter'],
+  school: ['tree', 'tree', 'bench', 'bin', 'bollard', 'planter', 'cyclestand'],
   /** A fire station: HYDRANTS, which exist as a model and belong nowhere else
    *  in this city more than here, and the bollards that keep an apron clear. */
   firestation: ['hydrant', 'hydrant', 'bollard', 'bollard', 'bin', 'cabinet'],
@@ -6787,6 +6787,133 @@ const bx = (x, y, z, w, h, d, albedo, rough = 0.8) => ({ x, y, z, w, h, d, albed
 const bxt = (x, y, z, w, h, d, albedo, rough, tilt, tiltAz) => ({ x, y, z, w, h, d, albedo, rough, tilt, tiltAz });
 
 export const PROP_MODELS = {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * SESSION 57 — FIVE KINDS OF STREET FURNITURE, AND THEY COST ALMOST NOTHING
+   * BECAUSE THE SCATTER'S COUNT IS FIXED.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * `propCount` decides HOW MANY objects a chunk carries and this table decides
+   * WHAT THEY ARE. Adding kinds therefore changes the mix and not the
+   * population: the delivered triangle cost is the difference between a new
+   * kind's box count and the average of the palette it joins, which for the
+   * five below is between −1 and +2 boxes. The city gets five new objects at
+   * eye level for about the price of nothing, which is the cheapest content
+   * this project has ever added and is the answer to "what does a city have
+   * that this one does not" at the one height it is judged from (LOOK.md §4).
+   *
+   * All five are things a person passes within a metre of on an ordinary
+   * pavement, and every one is a shape rather than a texture — the lesson
+   * session 50 paid for with the painted kerb line: on pale ground what reads
+   * is a change of SURFACE or an object with HEIGHT, never paint.
+   */
+
+  /** A pillar box: a drum on a plinth with a domed cap and a slot. */
+  postbox: [
+    {
+      boxes: [
+        bx(0, 0.06, 0, 0.62, 0.12, 0.62, IRON, 0.75),
+        bx(0, 0.62, 0, 0.52, 1.00, 0.52, [0.24, 0.045, 0.035], 0.55),
+        bx(0, 1.14, 0, 0.58, 0.06, 0.58, [0.22, 0.040, 0.032], 0.5),
+        bx(0, 1.20, 0, 0.46, 0.08, 0.46, [0.22, 0.040, 0.032], 0.5),
+        /** The aperture, and it is the one thing that says post box. */
+        bx(0, 0.98, 0.26, 0.30, 0.05, 0.03, [0.02, 0.02, 0.02], 0.9),
+      ],
+    },
+    /** The wall-mounted kind on a post, for the narrower pavement. */
+    {
+      boxes: [
+        bx(0, 0.55, 0, 0.10, 1.10, 0.10, IRON, 0.6),
+        bx(0, 1.22, 0, 0.34, 0.44, 0.28, [0.24, 0.045, 0.035], 0.55),
+        bx(0, 1.42, 0.145, 0.24, 0.04, 0.03, [0.02, 0.02, 0.02], 0.9),
+      ],
+    },
+  ],
+
+  /**
+   * A CYCLE STAND — the Sheffield hoop, which is two uprights and a rail and
+   * is the same object in every city in the world. Drawn as three boxes
+   * because the bend is 0.05 m of steel at 0.8 m: at the 3 px floor session 20
+   * derived, a radius that small is under a pixel past nine metres.
+   */
+  cyclestand: [
+    {
+      boxes: [
+        bx(-0.35, 0.40, 0, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0.35, 0.40, 0, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0, 0.79, 0, 0.76, 0.06, 0.06, STEEL, 0.5),
+      ],
+    },
+    /** A pair, which is how they are actually installed. */
+    {
+      boxes: [
+        bx(-0.35, 0.40, -0.5, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0.35, 0.40, -0.5, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0, 0.79, -0.5, 0.76, 0.06, 0.06, STEEL, 0.5),
+        bx(-0.35, 0.40, 0.5, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0.35, 0.40, 0.5, 0.06, 0.80, 0.06, STEEL, 0.5),
+        bx(0, 0.79, 0.5, 0.76, 0.06, 0.06, STEEL, 0.5),
+      ],
+    },
+  ],
+
+  /**
+   * A KERBSIDE CHARGING POINT. 2049: the thing that has replaced the parking
+   * meter, and the one piece of furniture in this list that dates the city.
+   * The lit face is `emissive` nowhere — it is a pale panel, because a screen
+   * bright enough to read is a light source and this project puts light in the
+   * light list rather than in an albedo (CONTRACT §5.3).
+   */
+  charger: [
+    {
+      boxes: [
+        bx(0, 0.05, 0, 0.34, 0.10, 0.30, CONCRETE, 0.8),
+        bx(0, 0.62, 0, 0.26, 1.05, 0.22, STEEL, 0.45),
+        bx(0, 1.24, 0, 0.30, 0.20, 0.26, [0.30, 0.305, 0.312], 0.4),
+        bx(0, 1.16, 0.115, 0.18, 0.24, 0.02, [0.42, 0.44, 0.46], 0.25),
+        /** The cable, looped on its hook. */
+        bx(0.14, 0.80, 0.02, 0.05, 0.34, 0.05, [0.05, 0.05, 0.055], 0.9),
+      ],
+    },
+  ],
+
+  /** A newspaper or parcel-locker box: a body, a sloped top and a door. */
+  newsbox: [
+    {
+      boxes: [
+        bx(0, 0.10, 0, 0.52, 0.20, 0.40, STEEL, 0.6),
+        bx(0, 0.66, 0, 0.56, 0.92, 0.44, [0.16, 0.20, 0.26], 0.5),
+        bx(0, 1.14, -0.04, 0.58, 0.08, 0.40, [0.14, 0.17, 0.22], 0.5),
+        bx(0, 0.80, 0.225, 0.40, 0.44, 0.02, [0.36, 0.38, 0.40], 0.3),
+      ],
+    },
+    {
+      boxes: [
+        bx(0, 0.50, 0, 0.42, 1.00, 0.36, [0.20, 0.16, 0.12], 0.62),
+        bx(0, 1.04, 0, 0.46, 0.08, 0.40, TIMBER, 0.7),
+      ],
+    },
+  ],
+
+  /**
+   * A CAFE TABLE AND TWO CHAIRS. The one piece of furniture here that says
+   * somebody is USING the street rather than passing through it, which is the
+   * difference §4 asks for between a pavement and a corridor.
+   */
+  cafetable: [
+    {
+      boxes: [
+        bx(0, 0.36, 0, 0.07, 0.72, 0.07, STEEL, 0.5),
+        bx(0, 0.73, 0, 0.72, 0.05, 0.72, [0.30, 0.28, 0.25], 0.45),
+        bx(0, 0.03, 0, 0.34, 0.06, 0.34, IRON, 0.7),
+        bx(-0.62, 0.24, 0, 0.40, 0.05, 0.40, TIMBER, 0.65),
+        bx(-0.80, 0.50, 0, 0.05, 0.56, 0.40, TIMBER, 0.65),
+        bx(0.62, 0.24, 0, 0.40, 0.05, 0.40, TIMBER, 0.65),
+        bx(0.80, 0.50, 0, 0.05, 0.56, 0.40, TIMBER, 0.65),
+      ],
+    },
+  ],
+
   bollard: [
     /** A slim steel post with a cap. The ordinary one. */
     { boxes: [bx(0, 0.45, 0, 0.11, 0.90, 0.11, STEEL, 0.5), bx(0, 0.925, 0, 0.145, 0.05, 0.145, STEEL, 0.45)] },
@@ -9742,6 +9869,38 @@ export function generateChunk(rootSeed, cx, cz) {
      * That is a bounding box of a rotated box computed as though it were
      * unrotated, and it is CONTRACT §9's shape with two extents.
      */
+    /**
+     * WHAT THE IRONWORK IS MADE OF — session 57. Cast iron at 0.055 linear is
+     * the same reflectance every bollard, railing and manhole in this project
+     * already uses (`IRON`), and against asphalt at 0.082 that is 0.67x: a
+     * cover reads as a DARK disc where paint reads as a bright line, which is
+     * why the two need different albedos in one mesh rather than one albedo
+     * and a hope. Roughness 0.72 — a trafficked cover is polished by tyres
+     * where the road around it is not, and that difference is most of what
+     * makes one visible in a wet night frame.
+     */
+    const ROAD_IRON = {
+      albedo: [0.055, 0.055, 0.058],
+      rough: 0.72,
+      manholeM: 0.68,
+      manholeEveryM: 34,
+      gullyLongM: 0.62,
+      gullyAcrossM: 0.34,
+      gullyEveryM: 20,
+    };
+    /**
+     * An iron casting through the paint path: same guard, same mesh, its own
+     * albedo. It takes the axis's own `put` so a gully on a north-south road
+     * lies along that road exactly as its markings do.
+     */
+    const putIron = (put, along, off, len, wid, mkind) => {
+      const before = markings.length;
+      put(along, off, len, wid, mkind);
+      for (let i = before; i < markings.length; i++) {
+        markings[i].albedo = ROAD_IRON.albedo;
+        markings[i].rough = ROAD_IRON.rough;
+      }
+    };
     const paint = (x, z, length, width, yawDeg, mkind) => {
       const ca = Math.abs(Math.cos((yawDeg * Math.PI) / 180));
       const sa = Math.abs(Math.sin((yawDeg * Math.PI) / 180));
@@ -9798,6 +9957,43 @@ export function generateChunk(rootSeed, cx, cz) {
           put(t + ROAD_MARKING.edgeSegmentM / 2, side * (r - ROAD_MARKING.edgeInsetM),
             ROAD_MARKING.edgeSegmentM, LINE_W, 'edge');
         }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE GULLIES — SESSION 57, ITEM 1(b). *"The carriageway is the
+         * largest surface in a street frame and it is uniform."*
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * A road gully sits IN THE CHANNEL — the gutter line against the kerb
+         * face, which is where the water goes — so its offset is the
+         * carriageway half-width less its own half-length, not an inset
+         * chosen to look right. `ROAD_IRON.gullyEveryM` is 20 m, which is
+         * drainage practice for a 15 m carriageway at this gradient and is
+         * also, usefully, about one per frame at eye level.
+         *
+         * IT IS A MARKING AND NOT A PROP, and that is the whole economy of
+         * this item: `markings` are 4 mm boxes in a mesh the chunk already
+         * builds, so a gully costs 12 triangles and no draw call, where the
+         * same object as a `prop` would carry a registry claim, a setback
+         * test and a scatter slot it would have to win from a bollard.
+         */
+        for (let t = from + ROAD_IRON.gullyEveryM / 2; t < from + S; t += ROAD_IRON.gullyEveryM) {
+          putIron(put, t, side * (r - ROAD_IRON.gullyLongM / 2),
+            ROAD_IRON.gullyLongM, ROAD_IRON.gullyAcrossM, 'gully');
+        }
+      }
+      /**
+       * THE MANHOLES, ON THE CROWN AND OFF IT. A carriageway carries more than
+       * one buried service and they do not share a trench, so the covers sit
+       * on two lines — the crown, where the sewer runs, and the near-side lane,
+       * where the ducts do — offset from each other by half a cycle so the
+       * road does not read as a dotted line. `manholeEveryM` 34 m is a
+       * chamber spacing a surveyor would recognise and is coprime with the
+       * 6 m centre-line cycle, so no cover ever lands centred on a dash.
+       */
+      for (let t = from + 6; t < from + S; t += ROAD_IRON.manholeEveryM) {
+        putIron(put, t, 0, ROAD_IRON.manholeM, ROAD_IRON.manholeM, 'manhole');
+        putIron(put, t + ROAD_IRON.manholeEveryM / 2, -ROAD_MARKING.laneOffsetM * 1.5,
+          ROAD_IRON.manholeM, ROAD_IRON.manholeM, 'manhole');
       }
     }
 
@@ -12258,7 +12454,19 @@ export function generateChunk(rootSeed, cx, cz) {
        * did not exist at all. Both were absent because the list was written
        * before there was anything to draw them with.
        */
-      : propRng.pick(['bollard', 'planter', 'bin', 'cabinet', 'tree', 'bench', 'hydrant']);
+      /**
+       * SESSION 57 — FIVE NEW KINDS, WEIGHTED RATHER THAN APPENDED. A uniform
+       * pick over a longer list would put one pillar box on every chunk, i.e.
+       * one every 128 m, where a real city has one every few hundred; the
+       * repeats below keep the ordinary furniture ordinary and make the five
+       * new kinds punctuation. Delivered shares: bollard 3/20, planter and bin
+       * and cabinet and tree and bench 2/20 each, hydrant 1/20, and each new
+       * kind 1/20 — about 0.8 of each per chunk at the shipped `propCount`.
+       */
+      : propRng.pick(['bollard', 'bollard', 'bollard', 'planter', 'planter',
+        'bin', 'bin', 'cabinet', 'cabinet', 'tree', 'tree', 'bench', 'bench',
+        'hydrant', 'cyclestand', 'cyclestand', 'charger', 'newsbox',
+        'postbox', 'cafetable']);
     const scale = propRng.range(PROP_SCALE.min, PROP_SCALE.max);
     /**
      * THE VARIANT IS DRAWN HERE, BEFORE THE FIT TEST, because which model it is

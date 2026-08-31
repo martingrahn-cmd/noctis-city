@@ -4145,11 +4145,24 @@ export function createCity(options = {}) {
        * its arithmetic instead. It is the honest half of "retroreflective under
        * headlights is the detail that pays".
        */
+      /**
+       * `mk.albedo` — SESSION 57, AND IT IS WHAT LETS THE IRONWORK RIDE HERE.
+       * A manhole cover and a gully grating are exactly what a marking is —
+       * a few millimetres proud of the carriageway, in the mesh that is
+       * already being built, at no draw call — and differ from paint in one
+       * property only: they are CAST IRON at 0.055 rather than thermoplastic
+       * at 0.62, i.e. 11x DARKER than the asphalt instead of 7.6x brighter.
+       * A marking with no albedo of its own is paint, so every line written
+       * before this session is byte-identical.
+       */
       for (const mk of chunk.markings) {
         const y = worldSurface(ctx, mk.x, mk.z).y;
         props.push(setMatrix(mk.x, y + MARKING_THICKNESS_M / 2, mk.z,
           mk.length, MARKING_THICKNESS_M, mk.width, mk.yawDeg));
-        propSkin.push({ albedo: MARKING_ALBEDO, roughness: ROAD_PAINT.roughness });
+        propSkin.push({
+          albedo: mk.albedo || MARKING_ALBEDO,
+          roughness: mk.rough == null ? ROAD_PAINT.roughness : mk.rough,
+        });
       }
 
       /**
