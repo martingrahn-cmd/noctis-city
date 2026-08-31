@@ -1,218 +1,241 @@
 # NOCTIS — STATE
 
-*End of session 58. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 12 d 13 h of
-uptime — the same boot as sessions 47–57. Every gate that reads a pixel printed
+*End of session 59. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 12 d 17 h of
+uptime — the same boot as sessions 47–58. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` READ 2.33 AT THE FIRST COMMAND.*** Every number this session turns on is a COUNT —
-buildings, trades, signs, triangles — and CONTRACT §0.1's corollary is that counts do not drift.
+***`load1` READ 1.88 AT THE FIRST COMMAND AND RAN 3.3–5.0 THROUGH THE GATES — over CONTRACT
+§0.2's bar of 1.6 throughout, so no millisecond here is a verdict.*** Every number this session
+turns on is a COUNT or a RATIO OF TWO FRAMES, and §0.1's corollary is that counts do not drift.
 
-Branch `claude/noctis-58-trades-and-light`, three commits, all pushed as they landed.
-
----
-## 0. ONE PAVEMENT AT FOUR TIMES OF DAY
-
-`tools/shot-out/s58-block-{t0,t0_25,t0_5,t0_78}-wet.png` — the same eye-level pose on a trading
-street at (−374, 1.7, 390), wet, looking east along the frontage of chunk (−3, 3), which carries
-eleven trades of five kinds.
-
-```
-  t = 0      MIDNIGHT   a magenta blade over a BAR and a cyan sign over a HAIRDRESSER burn
-                        over cold and warm shopfront glass, and every one of them doubles in
-                        the wet asphalt. Red neon at two depths down the street.
-  t = 0.25   DAWN       the bar is shut and its blade is dark; the cafes are coming up.
-  t = 0.5    NOON       THE SAME MAGENTA BLADE IS A DARK PLATE. The bar does not open until
-                        six, and for the first time in this project's history a sign says so.
-  t = 0.78   DUSK       the street relights, and the trades that are open at dusk are not the
-                        ones that were open at dawn.
-```
-
-**That is the session in four frames.** Before it, every lit bay in the city drew the same warm
-tint at the same strength with a 25% cold share rolled from a hash, and every sign was an
-arbitrary colour that came on with the photocell and went off with it.
+Branch `claude/noctis-59-second-eye`, three commits, all pushed as they landed.
 
 ---
-## 1. ITEM 1 — TRADES, AND THE CUTS ARE MEASURED
+## 0. THE TWO POSES, SIDE BY SIDE
 
-Session 28 gave every frontage a boolean: `bld.retail` says the ground floor is glazed and lit,
-and **nothing anywhere said what it sells.** `citygen.js` → `TRADES` is eight businesses now,
-declared on the building record beside `retail` and `retailFrontage`, null where nothing trades
-so a reader cannot mistake a dark plinth for a shut shop. Its own rng stream, so giving a shop a
-trade cannot move a building, a sign, a prop or a pillar (CONTRACT §6).
-
-**WHERE EACH GOES IS MEASURED, NOT ASSUMED.** Session 48 delivered seven playgrounds out of
-seven by splitting a band it had not measured and that lesson has cost four sessions, so the
-cuts are the terciles of **the trading population itself** over the gate's own 10 × 10 at seed
-1337 — 433 trading buildings of 668, density 0.287 to 0.727, **p33 = 0.5056, p67 = 0.6495**. Not
-the terciles of the density field and not of the low-detail band: three different populations,
-and only one of them is the one being split.
-
-**WEIGHTS AND NOT CONDITIONS**, so no cut can empty a district — session 49's fallback-chain rule
-with a distribution instead of a chain. A corner doubles the bar and kiosk weights, because
-`RETAIL.cornerM` already treats a corner as a different site and a corner pub is a real building
-type. Delivered over the region:
+The look gate has graded one camera since session 1. It now grades two, and this is what each
+one can see. **Measured by positive control** — the same pose rendered at `?fill=1.0` and
+`?fill=0.0`, the two extremes of the frontage-fill law, which is a **60% swing in the city's
+building population**:
 
 ```
-  band     shop  bar  hairdr  takeaway  cafe  laundr  restaurant  kiosk
-  quiet      37    4      18        18    16      29           9     13
-  middle     33   23      25        20    17       9          11      8
-  busy       36   32      10        14    17       5          19     10
+                              pixels differing    mean green moves
+                              >2cv     >8cv       (of 255)
+  ORIGIN EYE  street          2.74%    0.87%      0.05     midnight
+  (70, 1.74, 0.9)             4.66%    2.59%      0.03     noon
+
+  SECOND EYE  trade          93.20%   61.91%     11.87     midnight
+  (-251.94, 1.7, 291.58)
 ```
 
-**The laundrette runs 29 in the quiet tercile against 5 in the busy one and the bar runs 4
-against 32**, which is the derivation doing exactly what the operator asked for: a bar where
-people are at night, a laundrette where people live.
+**237× the sensitivity by mean, 34× by changed pixels.** That is the size of what the look gate
+has not been able to see. `BLOCK_KEEPOUT` is x ∈ [−168, 168], z ∈ [−46, 46] and the origin shot
+stands inside it looking along it; the streamed generator is clipped out of that box, so every
+frame the gate graded for twenty-three sessions was of a district the generator never touches.
+
+**The frames:** `tools/look-out/{midnight,dawn,noon,dusk}.png` (origin, and its `-wet` pair) and
+`tools/look-out/trade-{midnight,dawn,noon,dusk}.png` (the second eye). `s59-neon-midnight-t0-wet.png`
+is the second eye at 1600 × 900 with this session's signage in it.
 
 ---
-## 2. ITEM 2 — THE LIGHT RECIPE, AND `out` IS THE OPERATOR'S OWN AXIS
+## 1. WHICH RECORDED FINDINGS REST ON A FRAME THE GATE COULD NOT SEE
 
-His observation is the whole design: *"different trades light in opposite directions."* Each
-trade carries the recipe its nature implies, and `out` — the fraction of the bay's glow that
-reaches the street — is the axis:
+The brief asked for this list and said it is worth more than any repair. It is four entries, and
+they are not all the same kind of wrong.
+
+**1. SESSION 54's FIVE HUNDRED LIGHTS — SUSPECT, AND THE CONCLUSION SHOULD NOT BE RELIED ON.**
+LOOK.md §7's second re-derivation reads: *"Session 54 put a lamp and a work light in every
+courtyard in the city, lit `lot`, `carpark`, `church` and all four landmark aprons, and
+`midnight ↔ dusk` reads 0.02953 against session 53's lit 0.02953 — unmoved to five decimal
+places. So the band is not sensitive to street-level light in the near city."* **Every one of
+those lights is in the streamed city.** The frame that measured "unmoved" contains none of them,
+so what was demonstrated is that the CAMERA cannot see courtyard lighting, not that the BAND
+cannot. The claim needs re-running at the second eye before anyone leans on it.
+
+**2. SESSION 37's DENSITY SWEEP — CORRECT IN EFFECT, WRONG IN ITS STATED REASON.** *"Session 37
+added 161 buildings — +30% over the region — and `band:noon` moved 0.4281 → 0.4281, a delta of
+0.0000."* The conclusion drawn (the noon floor is not a ceiling on density) is TRUE for that
+camera, and this session says why with a number: the FULL fill swing, four times larger than
+session 37's, moves that frame's mean by **0.03 of 255**. LOOK.md §7 already half-knew this — it
+cites STATE 35's *"lookcheck stands in the origin block, which the generator never touches"* in
+the same paragraph — and then went on treating the band as evidence about density anyway.
+
+**3. SESSION 53's DISTANT CITY — STANDS, AND IT IS THE COUNTER-EXAMPLE THAT MAKES THE LIST
+HONEST.** That session attributed a −0.00045 move in `distinct:midnight|dusk` to the distant
+silhouette and measured **516 956 of 5 760 000 pixels changed, 8.97%**. The distant ring is the
+HORIZON at the end of the street, so it is inside the origin frame — more of it, in fact, than
+the near streamed city is. The gate is not blind to everything the generator makes: it is blind
+to everything the generator makes *within about 300 m*, which is where all the content of the
+last ten sessions lives.
+
+**4. SESSION 58's TRADES — UNSEEN BY CONSTRUCTION, AND SAID SO AT THE TIME.** Eight trades, four
+colour temperatures and opening hours, and `distinct:midnight|dusk` read 0.02840 before and
+after. That was blindness, not neutrality, and it is what bought this session.
+
+**What is NOT on this list, and why:** session 55's black floor and session 56's moon are terms
+in the post-process and the sky, so they act on every pixel of every frame including the origin
+block's; session 43's haze is the same. Their measurements stand.
+
+---
+## 2. THE SECOND EYE — WHERE IT STANDS AND WHY
+
+`camera.js` → `SHOTS.trade`, at (−251.94, 1.7, 291.58) looking to (−270, 3.4, 394), **fov 50 —
+the origin shot's**, because two eyes that differ in field of view differ in how much sky they
+carry and sky is most of what a mean luminance band measures. The one thing that may differ
+between them is where they stand.
+
+A north–south street in chunk (−3, 3), which carries **eleven trades of five kinds** — the
+densest trading frontage near the origin. Chosen with
+`poseprobe --target=-270,3.4,394 --eye=1.7 --dmin=104 --dmax=104`, which ray-tests candidate
+stand-offs against the **1 146 delivered building occluders** and reported nine clear of
+forty-one. **It refused the azimuth the session had picked by eye** (270°, which grazes a
+building) and endorsed 280°, which is the tool earning its place.
+
+**IT WAITS FOR THE CITY A SECOND TIME.** The camera moves about 570 m, so the entire resident
+ring is replaced — every chunk in frame is one the page has never generated. Without a second
+`waitForCity` the gate would grade a frame lit by the analytic default instead of the baked
+field, which is the defect the first one's own comment records. Delivered: re-streamed over
+254–264 frames, **30/30 field slots ready**.
+
+**DRY ONLY.** The wet set exists to assert that water doubles the light, and that is a claim
+about a MATERIAL rather than about a place; asserting it twice at two poses would be one claim
+wearing two names.
+
+---
+## 3. THE FOUR NEW BANDS ARE A DERIVATION, NOT A RE-DERIVATION
+
+No threshold is moved. Four are written for a place that has never had any, dated 2026-08-31,
+with the whole argument in `look-budget.json` → `$tradeBands`.
 
 ```
-  trade        out    interior chroma     sign chroma      hours
-  cafe        1.00    tungsten            neonGreen        07–19
-  takeaway    0.95    fluorescentDirty    neonRed          11–02
-  hairdresser 0.85    fluorescentCold     neonCyan         09–18
-  restaurant  0.75    tungsten            neonRed          12–23
-  laundrette  0.70    fluorescentDirty    fluorescentDirty 06–23
-  kiosk       0.65    fluorescentCold     neonAmber        06–20
-  shop        0.60    tungsten            neonAmber        09–18
-  bar         0.20    neonMagenta         neonMagenta      17–02
+  time       measured   band            what the band rejects
+  midnight    0.1926    [0.158, 0.228]  a half stop is ±0.056 — outside
+  dusk        0.1965    [0.162, 0.232]  ±0.058 — outside
+  dawn        0.3177    [0.283, 0.353]  ±0.093 — outside
+  noon        0.4472    [0.412, 0.482]  ±0.131 — outside
 ```
 
-A bar at 0.20 is not a dark shop — it is a shop whose light is behind something, which is what
-dark glass and a screen at the back of a bar are, and its SIGN carries the street instead.
+**THE WIDTH IS ±0.035 AND IT IS BOUNDED ON BOTH SIDES.** From below it must not fire on content:
+the full fill swing moves this frame by 0.047 and a session-scale change is about half of that,
+so 0.035 clears a realistic session with margin, and it also declines to fire on a legibility
+change the size of session 55's black floor (+0.023). From above it must still catch a break in
+the exposure or tonemap chain, and a half stop is outside it at every time of day. Total width
+0.07, inside `bandRules.maxBandWidth` 0.1.
 
-**THE DIFFERENCE BETWEEN TWO TRADES AT THE SAME LEVEL IS HUE ALONE.** `matchedTint` returns the
-tint that delivers each chroma *at the luminance the warm pair already delivered*, so the colour
-carries none of the level and `out` carries all of it — CONTRACT §5's own rule, and what stops
-this being a brightness change wearing a colour change's clothes.
-
-**THE COLD SHARE IS NO LONGER A CONSTANT.** It used to be `unitHash(...) < COLD_SHOP_SHARE` —
-one bay in four, decided by three multiplied coordinates: the right statistic from no fact about
-the world. It is now however many of the trades on this street happen to be cold ones.
-
-**AND THE CHROMA IS NAMED IN THE GENERATOR AND MIXED IN THE MODULE**, because `citygen.js` has
-never imported `color.js` — the arrangement `DISTANT.nightMix` already uses, in the same words.
-
----
-## 3. ITEM 3 — OPENING HOURS, AND WHY THEY LAND ON THE SIGN
-
-`tradeOpen(trade, t)` returns a **ramp** over `TRADE_RAMP_H` = 0.75 h rather than a boolean, so
-a street at closing time has some windows still on and **no capture ever lands on a
-discontinuity**. Hours wrap past midnight, which is the whole reason a bar and a cafe are
-different objects at 01:00.
-
-**WHY THE SIGN AND NOT THE GLASS — measured, not preferred.** A shopfront's glazing is an
-instance colour in a **per-chunk** mesh, baked when the chunk streams in, and **chunks do not
-rebuild on the clock**: there is no `timeOfDay` listener in `city.js` at all. Making the glass
-follow the hours means either a per-instance attribute plus a shader term (`noctisRough` is a
-`vec2` in a slot that holds four floats, so `.z` is free — session 55's own trick) or a rebuild
-of the resident ring every simulated hour. **The sign mesh is already merged city-wide and
-already rebuilt on every camera chunk crossing**, so re-tinting it on a clock band costs one
-rebuild it was built to do anyway. The trigger is the trade hour quantised to `TRADE_TICK_H` =
-0.25 h — three steps inside the ramp, so nothing snaps.
-
-What the street gets is the half that reads at night, and the frames in §0 are the proof.
+**AND THERE IS NO ORDERING OR GAP RULE HERE, WHICH IS A FINDING RATHER THAN AN OMISSION.**
+`bandRules.minBandGap` asserts that the four times are separated in LEVEL. That is a property of
+the origin block — dark at night because almost nothing lights it. **On a trading street
+midnight and dusk differ by 0.0039** (0.1926 against 0.1965) where the origin eye reads them
+0.046 apart, because the shopfronts and their neon light this street at midnight to very nearly
+its dusk level. A rule the place demonstrably cannot satisfy is not a stricter gate.
 
 ---
-## 4. ITEM 4 — THE SIGN IS THE TRADE'S
+## 4. gateaudit — FIVE NEW CASES, AND A TRAP IN ITS OWN WALKER
 
-`s.chroma` was an index rolled from the sign stream and that was the whole story: a laundrette
-could carry the same red neon as the bar three doors down. A sign over a trading ground floor
-advertises that trade now, so its chroma comes from `TRADES[trade].sign`. **342 of the 966 signs
-over the gate's region carry a trade; the other 624 keep the rolled index and are
-byte-identical.**
+Every new band has a falsifying case: each of the four scaled until it leaves its band, plus
+**"the trade frames never arrived"**, which matters here in a way it does not for a camera that
+never moves — this eye re-streams the whole ring, so *the capture silently produced nothing* is
+a real failure mode. All five are rejected as required.
 
-The per-sign trade rides a **parallel array**, which is CONTRACT §9's own shape — so it is
-pushed on every path `signTint` is (there is exactly one such site), and the rebuild checks the
-two lengths agree before using it. Session 55 paid for a kerb that pushed to three parallel
-arrays instead of four.
-
-**WHAT IS NOT DONE FROM ITEM 4**, and it is the larger half: the sizes and mountings are
-untouched. `TRADES[*].signScale` is written down and **nothing reads it yet** — a bar's blade
-should be 1.45× and a kiosk's 0.60×, and that is a change to `bladeHeightM`'s inputs rather than
-to a tint. Nothing was added on gable ends, roofs, the viaduct, the bridges or the waterfront,
-and the 53 holograms are untouched for a sixth session.
+**AND THE COVERAGE WALKER HAD A TRAP.** `knobsOf` skipped exactly one key by name, `$comment`,
+so the first `$`-prefixed key ever added to `look-budget.json` — `$tradeBands`, this session —
+was counted as a threshold and the audit demanded a falsifying case **for a paragraph**. All
+three budget files carry their derivations under `$` keys (`$derivation_zero`, `$surface`,
+`$estimator`, `$triangles_s37_LOD_MEASURED`), so the walker knew one spelling of a convention
+used everywhere. It skips any `$` key now; adding `$tradeBands` to the hardcoded set would have
+moved the trap one key along rather than removing it, which is the shape CONTRACT §9.1 records
+for `pierEvery`.
 
 ---
-## 5. GATE STATE
+## 5. ITEM 2 — `signScale` DOES SOMETHING
 
-`npm run gates`, all eight, 21 minutes, load1 3.79–5.20 throughout — **over CONTRACT §0.2's bar
-for every browser gate, so no millisecond below is a verdict.** The counts are.
+Session 58 wrote it onto all eight trades and nothing read it. It does two things now, and both
+are the same fact about the business: **a bar's whole shopfront strategy IS its sign**, because
+`TRADES.bar.out` is 0.20 and almost no light leaves its glass, while a laundrette's is a lit
+window. `signScale` runs 0.60 (kiosk) to 1.45 (bar).
+
+- **The blade probability** scales with it, clamped at 0.85 so no trade is certain to hang one:
+  bar 0.34 × 1.45 = 0.49, kiosk 0.34 × 0.60 = 0.20.
+- **The width** scales with it, and through `bladeHeightM`'s own `width × aspect` that makes a
+  bar's blade TALLER as well as wider — "bigger and more vertical where the trade would have it"
+  by one multiplier rather than a second roll.
+- **Capped at 0.85 of its own frontage**, because session 43 found two signs wider than the
+  buildings they are bolted to when an absolute width roll met a narrower elevation, and a scale
+  that multiplies a width has exactly that failure mode.
+
+Delivered over the gate's 10 × 10 at seed 1337: **113 blades against session 34's 85, all 113
+taller than wide, and the tallest sign in the city is 34.31 m** where session 34 left it at
+14.89 and called that a start. By trade: bar 22, shop 23, cafe 15, takeaway 13, restaurant 9,
+hairdresser 8, laundrette 7, kiosk 4 — a bar hangs one at three times a kiosk's rate.
+
+---
+## 6. GATE STATE
 
 ```
   gate            exit   verdict   seconds  load1 in   out
-  parsecheck         0     GREEN       3.4     3.86    3.79    117 files, contract-clean
-  faultcheck         0     GREEN       9.8     3.79    4.29
-  lookcheck          1       RED      34.4     4.29    4.79    THE IDENTICAL THREE
-  windcheck          0     GREEN      35.7     4.79    4.53
-  inputcheck         0     GREEN      14.3     4.53    4.50
-  gateaudit          1       RED      69.7     4.50    4.56    the carried control
-  citycheck          1       RED     116.1     4.56    5.20    IDENTICAL TO SESSION 57
-  perfcheck          1       RED    1024.2     5.20    4.95
+  parsecheck         0     GREEN       3.5     3.45    3.45    117 files, contract-clean
+  faultcheck         0     GREEN       9.8     3.45    3.61
+  lookcheck          1       RED      46.7     3.61    4.18    THE IDENTICAL THREE
+  windcheck          0     GREEN      36.1     4.18    4.61
+  inputcheck         0     GREEN      14.3     4.61    4.78
+  gateaudit          1       RED      73.5     4.78    5.03    the carried control
+  citycheck          1       RED     115.6     5.03    4.76    IDENTICAL TO SESSIONS 57–58
+  perfcheck          1       RED    1022.9     4.76    3.31
 
-  4 of 8 RED — the same four as sessions 53–57. NOT ONE NEW RED THIS SESSION.
+  4 of 8 RED — the same four as sessions 53–58. NOT ONE NEW RED THIS SESSION.
 ```
 
-**THE HEADLINE COUNT: `highway_speed` reads 2.30 M triangles and 401 draws, which is session
-57's figure to three digits** (336 577 instances against 336 562). **This session cost ZERO
-triangles and ZERO draw calls** — trades are a string on a record, the light recipe is a tint
-and a multiplier on an instance colour that already existed, the hours are a factor applied
-during a rebuild that already happened, and the sign chroma is a different entry in a palette
-already in memory. The ~60 000 of headroom session 57 bought is intact, and the ceiling was not
-touched (STATE 57 §0.1 still awaits the operator).
+**THE FOUR NEW BANDS PASS, AND THEY PASSED A TEST NOBODY DESIGNED.** They were derived from
+measurements taken BEFORE item 2 changed the signage; item 2 then added 28 blades and took the
+tallest sign in the city from 14.89 m to 34.31 m. Re-measured through the gate afterwards:
 
-**Session 57's own new red is closed:** `120 vehicles, budget says 160` is gone from all four
-routes — `contentVehicles` was corrected in that session's last commit and this run confirms it.
+```
+  time       derived from   delivered after item 2   band
+  midnight     0.1926            0.1906              [0.158, 0.228]
+  dusk         0.1965            0.1975              [0.162, 0.232]
+  dawn         0.3177            0.3176              [0.283, 0.353]
+  noon         0.4472            0.4472              [0.412, 0.482]
+```
 
-**`citycheck` is identical to session 57 in every line**: clumping 0.393, the same two buried
-sign quads, the same five delivered overlaps (the carried four plus session 57's
-`sign(adpillar) × prop(cyclestand)` chunk seam), 1 004 bare walkable samples. The trades added
-no claim and moved none.
+The largest move is 0.0020 against a half-width of 0.035 — **the band tolerating a session's
+content change, which is precisely the lower bound it was derived against**, demonstrated in the
+live direction rather than argued.
 
-### 5.1 AND THE GAP THAT MATTERS: NO PIXEL-READING GATE CAN SEE THIS SESSION'S WORK
+**`lookcheck` is red on the IDENTICAL THREE**, all of them origin-block assertions:
+`distinct:midnight|dusk` 0.02841, `facadeAlbedo` and `facadeNeighbours` at dusk. `gateaudit`'s
+only failure is that same control, which it NAMES rather than swallowing — and all five new
+trade cases are rejected as required.
 
-`lookcheck` reads `distinct:midnight|dusk` at **0.02840, identical to session 57's 0.02840** —
-and that is not the trades being neutral, it is the gate being blind to them. Its `street` shot
-stands at **(70, 1.74, 0.9) looking to (−104, 17.5, −1.4)**, and `BLOCK_KEEPOUT` is
-**x ∈ [−168, 168], z ∈ [−46, 46]** — so the whole frame is inside the ORIGIN BLOCK, which
-`block.js` authors and out of which the streamed generator's buildings are clipped. Every trade,
-every trade-coloured sign and every opening hour built this session is in the STREAMED city, and
-the four look frames contain none of it.
+**`citycheck` is identical to sessions 57 and 58**: clumping 0.393, the same five delivered
+overlaps, 1 004 bare walkable samples. Its sign census reads **2 of 2 647** quads inside a
+building against session 58's 2 of 2 645 — the two extra quads are this session's blades and
+neither is buried.
 
-**So the verdict on this session is the frames in §0 and nothing else** — which is what
-CONTRACT §10 step 4 says the numbers are for, and it is also a real hole: a session could now
-change every shopfront in the city and no gate that reads a pixel would move by a digit. The
-cheapest closure is a second `lookcheck` shot placed OUTSIDE `BLOCK_KEEPOUT` on a trading
-street; it would need its own four bands derived from scratch, which is a session's work and is
-why it is written here rather than started at the end of one.
+**`perfcheck`: 2.30 M triangles and 401 draws, session 58's figure to three digits** (336 587
+instances against 336 577). Twenty-eight more blades and a sign three times taller cost **56
+triangles**, because a sign is a plane quad and scaling one adds no geometry. The ~60 000 of
+headroom stands and the ceiling was not touched.
 
 
 ---
-## 6. WHAT TO DO FIRST NEXT TIME
+## 7. WHAT TO DO FIRST NEXT TIME
 
-1. **THE SIZES, WHICH IS THE REST OF ITEM 4.** `signScale` exists on every trade and no reader
-   uses it. A bar wants a tall blade and a kiosk a small plate, and session 34's own finding
-   applies: *a band whose top touches the target delivers the target never* — so a scale that
-   multiplies the existing roll needs its ceiling re-solved from how often the target must
-   arrive, not from the largest value it can reach.
-2. **THE GLASS AND THE CLOCK** (§3). The cheap path is written down: `noctisRough` is a `vec2`
-   in a four-float slot, so `.z` carries an hours class per instance and the window material's
-   injection multiplies emissive by a uniform indexed on it. Zero draws, zero triangles, one
-   shader term — and it would make the shopfronts themselves keep hours, which is the half this
-   session could not afford.
-3. **A SHOP LIGHT POOL.** The trades now say which frontages throw light OUT, and nothing in the
-   streamed city gives a shopfront a clustered light — the role census reads
-   `aircraft:1 traffic:96 stall:12 block:56 lamp:192 sign:16`, i.e. **373 of 384 slots used and
-   11 spare.** Eleven is enough for the nearest few cafes, and it is the one thing that would
-   put real directional light on the pavement rather than emissive on the glass. It must be
-   weighed against `minOccupancyMargin`, which is red and must not be judged on one run.
-4. **CARRIED**: STATE 57 §0.1, the triangle ceiling re-derivation at 2 630 000, still awaiting
-   the operator; the `sign(adpillar) × prop(cyclestand)` chunk seam, whose fix is to widen the
-   pillar's existing 3 × 3 sweep from lamps and bus stops to props; the platform stairs; a
-   curved road needing a new ground kind; 128 blocks with 2 distinct lengths; cloudy.
+1. **RE-RUN SESSION 54's CLAIM AT THE SECOND EYE** (§1 entry 1). Five hundred courtyard lights
+   were measured as moving `distinct:midnight|dusk` by 0.00000 on a frame containing none of
+   them. The gate can see them now. That is one command and it settles whether LOOK.md §7's
+   second re-derivation is describing the band or describing the camera.
+2. **THE REST OF ITEM 2, WHICH THIS SESSION DID NOT REACH**: signs beyond the shopfront — gable
+   ends, roofs, the viaduct, the bridges, the waterfront — and the **53 holograms**, untouched
+   since session 43 and now placeable over commercial frontage, which the city knows the
+   location of. Session 45's sign light role has 16 slots and the census reads 373 of 384 used,
+   so **11 spare** before anything is spent.
+3. **A SECOND EYE FOR THE OTHER GATES.** This session fixed the LOOK gate. `citycheck`'s census
+   region and `perfcheck`'s four routes all run down the same main street; whether they carry
+   the same blindness is not established, and the positive control in §0 is the cheap way to
+   ask.
+4. **CARRIED**: STATE 57 §0.1, the triangle ceiling at 2 630 000, still awaiting the operator;
+   shopfront glass following the clock (`noctisRough.z` is free); the
+   `sign(adpillar) × prop(cyclestand)` chunk seam; the platform stairs; a curved road needing a
+   new ground kind; 128 blocks with 2 distinct lengths; cloudy.
 5. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**
