@@ -14656,6 +14656,13 @@ export function generateChunk(rootSeed, cx, cz) {
    * take what frontage is left. A hedge refused by a barn is a gap in a hedge,
    * which is what a farm gate is.
    */
+  /**
+   * A COUNTRY BUS STOP, DECLARED HERE AND PLACED BY `city.js` — the same
+   * split `busStopAt` already has (CONTRACT §9.1: what is decided here is
+   * which kerb and how far along; whether that ground is free is the
+   * delivered census's question).
+   */
+  let countryStop = null;
   if (beyondCity) {
     const K = COUNTRYSIDE;
     const cr = chunkRng(rootSeed, cx, cz, 'country');
@@ -14804,6 +14811,60 @@ export function generateChunk(rootSeed, cx, cz) {
           x0: hx - 22, x1: hx + 22,
           z0: Math.min(hz - 20, side * K.roadHalfM), z1: Math.max(hz + 20, side * K.roadHalfM) };
         for (const g of subtractBoxes([dr], [{ x0: hBox.x0, x1: hBox.x1, z0: hBox.z0, z1: hBox.z1 }])) ground.push(g);
+      }
+    }
+
+    /**
+     * A LAY-BY AND THE BUS STOP ON IT — the brief's own *"a lay-by, a bus stop
+     * with nothing around it"*, and the second half of that phrase is the
+     * point: a shelter on an empty verge is the object that says somebody
+     * lives out here without a building to prove it.
+     *
+     * ONE IN FIVE ROAD CHUNKS, which at 128 m puts a stop about every 640 m —
+     * a rural service interval rather than the city's own
+     * `BUS_STOP.perChunkP` of 0.5. It is a `busStop` DECLARATION in the same
+     * shape `busStopAt` returns, so `city.js` builds it with the shelter,
+     * flag, bench and lit timetable it has built since session 30 and this
+     * adds no geometry at all.
+     */
+    if (onRoad && cr.chance(0.2)) {
+      const side = cr.chance(0.5) ? 1 : -1;
+      const along = b.x0 + cr.range(40, 88);
+      /** The hard standing the shelter sits on, out of the running lane. */
+      const lay = { kind: 'parkingGround', yKey: 'parking',
+        x0: along - 26, x1: along + 26,
+        z0: Math.min(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)),
+        z1: Math.max(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)) };
+      ground.push(lay);
+      countryStop = { axis: 'x', at: 0, side, along };
+    }
+
+    /**
+     * TREES ALONG THE VERGE, and they are the one thing in this landscape that
+     * reads from every distance — the same sentence the sports ground's own
+     * boundary planting is built on. Spaced at `PROP_SPACING`-scale intervals
+     * rather than in a row: a roadside tree line in the world is a remnant of
+     * a hedge and is irregular.
+     *
+     * OFFERED TO THE REGISTRY LIKE EVERY OTHER PROP, so a tree is refused from
+     * the carriageway this block claimed at the top and from the hedge, the
+     * house and the lay-by below it.
+     */
+    if (onRoad) {
+      for (const side of [-1, 1]) {
+        for (let t = b.x0 + cr.range(4, 26); t < b.x1; t += cr.range(18, 44)) {
+          const scale = cr.range(PROP_SCALE.min, PROP_SCALE.max);
+          const variants = propVariantCount('tree');
+          const tv = variants > 0 ? cr.int(0, variants - 1) : 0;
+          const pad = propHalfWidth('tree', tv) * scale;
+          const tz = side * (K.roadHalfM + K.vergeM - 1.2);
+          const spot = claimAt('prop', t, tz, pad, pad, { owner: 'country:tree' });
+          if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+          reg.claim(spot);
+          props.push({ x: t, z: tz, yawDeg: yaw(), refDeg: 0, kerb: false,
+            kind: 'tree', scale, variant: tv, soil: cr.range(0.62, 1.0),
+            lean: cr.range(-1, 1), leanAzDeg: cr.range(0, 360) });
+        }
       }
     }
 
@@ -15007,7 +15068,7 @@ export function generateChunk(rootSeed, cx, cz) {
      *                      derivation of `beforeJunctionM`. This is the field,
      *                      not a second copy of the argument.
      */
-    busStop: busStopAt(rootSeed, cx, cz),
+    busStop: countryStop || busStopAt(rootSeed, cx, cz),
   };
 }
 
