@@ -2492,6 +2492,51 @@ export function createBlock(options = {}) {
           }
         }
 
+        /**
+         * ═════════════════════════════════════════════════════════════════
+         * AND THE SAME MARKS ON THE 8 km RIBBON PAST THE CITY'S EDGE —
+         * SESSION 61, AND IT IS THE ONLY THING THAT SAYS *ROAD* OUT THERE.
+         * ═════════════════════════════════════════════════════════════════
+         *
+         * `roadMain` above is one `groundExtent * 2` plane and it has always
+         * run to the world's rim. Session 54 stopped the LATTICE at
+         * `CITY.extentEdgeM`, and from that line outward the ribbon is asphalt
+         * at 0.11714 over `GROUND.earthAlbedo`'s 0.1229 — **a 4.7% step** — so
+         * the delivered frame at x = 3260 shows no road at all. Measured
+         * before this existed: `s61-past-before-t0_42-wet.png` is a filling
+         * station standing on an undifferentiated plane.
+         *
+         * IT PAINTS EXACTLY THE GROUND THE EXTENT LEFT, which is the same
+         * join the block's own marks already make with the keep-out: the
+         * lattice's last delivered carriageway on cz = 0 reaches **3 211.7 m**
+         * and this starts at `CITY.extentEdgeM` = 3 232, so the two cannot
+         * double up and the 20 m between them is unpainted road at a hundred
+         * kilometres an hour. One number, and it is the number the lattice,
+         * the lamps, the traffic and the countryside are all gated on.
+         *
+         * NO EDGE LINE AND NO LANE LINE — a two-lane country road has a centre
+         * line and nothing else, and this is where the arterial becomes one.
+         * The dashes also stretch: `P.centreCycleM` is an urban cycle, and the
+         * standard ratio out of town is the same mark on a LONGER gap, so the
+         * cycle doubles and the mark does not. It is the cheapest thing in
+         * this session that changes what the road IS rather than what is
+         * beside it.
+         *
+         * ONE DRAW CALL, because it is the same `block:markings` mesh: the
+         * marks below are pushed into the same array and the count goes from
+         * 218 to what STATE 61 records.
+         */
+        {
+          const outFrom = CITYGEN.extentEdgeM;
+          const outTo = cfg.groundExtent;
+          const cycle = P.centreCycleM * 2;
+          for (const dir of [-1, 1]) {
+            for (let t = outFrom + cycle / 2; t < outTo; t += cycle) {
+              put(dir * t, 0, P.centreMarkM, P.lineWidthM, 0);
+            }
+          }
+        }
+
         // --- the cross street, along z, centreline x = 0 -------------------
         const z0 = BLOCK_KEEPOUT.z0;
         const z1 = BLOCK_KEEPOUT.z1;

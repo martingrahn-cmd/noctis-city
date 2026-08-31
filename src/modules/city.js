@@ -1639,6 +1639,23 @@ export function createCity(options = {}) {
      * dark hole at night, which is what a park is at both hours.
      */
     const grassAlbedo = [0.062, 0.094, 0.045];
+    /**
+     * A STUBBLE FIELD — SESSION 61, AND IT IS DERIVED FROM THE LINE ABOVE.
+     *
+     * The mown lawn beside it is [0.062, 0.094, 0.045], broadband ~0.08 —
+     * this project's greens run dark. Cereal stubble reflects about **2.1x** a
+     * green sward in the visible (0.19 against 0.09 broadband is the standard
+     * pair) and its chromaticity is straw rather than leaf: red and green
+     * nearly equal, blue about half of them. So 0.08 x 2.1 = 0.17 broadband,
+     * distributed [0.186, 0.176, 0.094].
+     *
+     * IT IS A SECOND KIND AND NOT A JITTER ON THE FIRST. `city.js` has one
+     * albedo per ground kind, and the point of the second crop is that a rim
+     * of farmland reads as FIELDS — many rectangles that differ — rather than
+     * as one carpet. `docs/authored-city.md` §1's clumping rule with a surface
+     * instead of a prop.
+     */
+    const fieldAlbedo = [0.186, 0.176, 0.094];
     /** Pale gravel: the same reflectance as the concrete road variant. */
     const pathAlbedo = [0.19, 0.186, 0.176];
     /**
@@ -1675,21 +1692,31 @@ export function createCity(options = {}) {
      */
     const sportAlbedo = [0.104, 0.070, 0.052];
 
-    const albedoFor = (kind) => (
-      kind === 'road' ? roadAlbedo
-        : kind === 'walk' ? walkAlbedo
-          : kind === 'grass' ? grassAlbedo
-            : kind === 'path' ? pathAlbedo
-              : kind === 'siteGround' ? siteAlbedo
-                : kind === 'parkingGround' ? parkingAlbedo
-                  : kind === 'yardGround' ? yardAlbedo
-                    : kind === 'coreGround' ? coreAlbedo
-                      : kind === 'sportGround' || kind === 'hardGround' ? sportAlbedo
-                        : kind === 'playField' ? grassAlbedo
-                          : kind === 'apron' ? walkAlbedo
-                            : kind === 'apronGrass' ? grassAlbedo
-                              : kind === 'apronYard' ? yardAlbedo
-                                : walkAlbedo);
+    /**
+     * FLATTENED FROM A FIFTEEN-DEEP TERNARY TO A TABLE — session 61, and it is
+     * the same removal `placedClaims`'s own chain got in session 60. Every row
+     * below was a line of that chain and none of them has changed; what has
+     * gone is the indentation ratchet that made adding the sixteenth kind an
+     * edit to all fifteen. The fall-through is `walkAlbedo`, as it was.
+     */
+    const GROUND_ALBEDO = {
+      road: roadAlbedo,
+      walk: walkAlbedo,
+      grass: grassAlbedo,
+      field: fieldAlbedo,
+      path: pathAlbedo,
+      siteGround: siteAlbedo,
+      parkingGround: parkingAlbedo,
+      yardGround: yardAlbedo,
+      coreGround: coreAlbedo,
+      sportGround: sportAlbedo,
+      hardGround: sportAlbedo,
+      playField: grassAlbedo,
+      apron: walkAlbedo,
+      apronGrass: grassAlbedo,
+      apronYard: yardAlbedo,
+    };
+    const albedoFor = (kind) => GROUND_ALBEDO[kind] || walkAlbedo;
 
     /**
      * ═══════════════════════════════════════════════════════════════════════
@@ -1760,10 +1787,18 @@ export function createCity(options = {}) {
      * falling through, which is what it did under its old name.
      */
     const porosityFor = (kind) => (
-      kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
-        : kind === 'path' ? 1.0
-          : kind === 'siteGround' ? 0.3
-            : 0.0);
+      /**
+       * `field` TAKES BARE SOIL's 0.85 AND NOT TURF's 1.0 — session 61,
+       * against session 55's own table: loam infiltrates 9 mm/h and this
+       * city's full rain is 10, where a sward takes 20–30. A ploughed field
+       * ponds a little and a lawn does not, which is the one property this
+       * pair of crops differs in.
+       */
+      kind === 'field' ? 0.85
+        : kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
+          : kind === 'path' ? 1.0
+            : kind === 'siteGround' ? 0.3
+              : 0.0);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1811,6 +1846,13 @@ export function createCity(options = {}) {
        *  in `citygen.js`'s recreation block for why it is a separate kind. */
       playField: 'pitch',
       hardGround: 'ground',
+      /**
+       * SESSION 61 — a stubble field past the city's edge. `ground`, like
+       * every other surface things stand on, and NAMED HERE or it would match
+       * no category at all and `mayOverlap` would return true for every pair,
+       * which is session 31's `grass` defect exactly.
+       */
+      field: 'ground',
       /**
        * SESSION 51 — A LANDMARK'S APRON, AND IT CLAIMS `precinct` BECAUSE
        * THAT IS WHAT IT IS.

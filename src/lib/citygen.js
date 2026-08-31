@@ -1864,6 +1864,112 @@ export const HILLS = {
   woodAlbedo: [0.034, 0.050, 0.035],
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE COUNTRYSIDE — SESSION 61. WHAT IS BETWEEN THE CITY'S EDGE AND THE HILLS.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * THE PREMISE THE BRIEF ASKED ME TO CHECK, MEASURED, AND IT IS NOT WHAT IT
+ * SAID. The brief's arithmetic was *"the road ends sixty-eight metres before
+ * the hills begin"* — `extentEdgeM` 3232 against `HILLS.rMinM` 3300. Both
+ * numbers are right and neither is the geometry:
+ *
+ *   the last LATTICE carriageway on cz = 0 reaches   x = 3211.7 m
+ *   the nearest hill EDGE to the origin is at        r = 3050 m
+ *   the +X exit valley is clear of any hill footprint for  |z| < 179 m
+ *   `block:road:main` is ONE PLANE, x in [-4000, 4000]     — it never ends
+ *
+ * So the hills already reach 182 m INSIDE the lattice edge, the road does not
+ * end at all, and the exit corridor is a 358 m-wide clear valley all the way
+ * to the rim. THE GAP IS NOT A GAP. What the frame shows at x = 3260 is worse
+ * and simpler: **the road, the pavement and the earth become one surface.**
+ * `block:road:main` is asphalt at 0.11714 against `GROUND.earthAlbedo`'s
+ * 0.1229 — a 4.7% step — so past the last painted line there is nothing in
+ * the frame that says *road* at all, and the only object in 800 m is session
+ * 56's filling station standing on it.
+ *
+ * WHAT THIS BUILDS, AND WHY EACH PIECE IS THE CHEAP ONE:
+ *
+ *   FIELDS       the base layer, and the one that fixes the aerial. A ground
+ *                rectangle is two triangles in the merged `city:ground` mesh
+ *                and costs NO draw call, so a whole rim of fields is free at
+ *                the ceiling. It is also what makes the road read from a car:
+ *                LOOK.md §2's own lesson is that on pale ground what reads is
+ *                a change of SURFACE or an object with HEIGHT, not paint — so
+ *                the fields ARE the road's verge.
+ *   HEDGEROWS    `city.js` has drawn an `edge` of kind `hedge` since session
+ *                49 and nothing has ever asked for one. Two boxes a segment.
+ *   FARMS        a house, a barn, a silo and a yard: `shed`, `shed`, `tower`
+ *                and a ground rectangle — session 49's own three feature kinds,
+ *                which is the brief's point that eight kinds of place were made
+ *                from three meshes.
+ *   A HOUSE ON THE ROAD   single storey on a large plot, which is the object
+ *                this city does not contain anywhere: every mass inside the
+ *                extent is a perimeter block or a landmark.
+ *
+ * WHERE THEY GO IS DERIVED FROM WHAT IS ALREADY OUT THERE. A farm wants FLAT
+ * land, so it is refused inside a hill's footprint (`hillMasses` is pure and
+ * this file owns it). A house wants a ROAD, so it stands on the exit
+ * corridor. A field is what is left.
+ *
+ * AND THE EXIT ROAD CLAIMS ITS OWN GROUND FOR THE FIRST TIME. `block.js`
+ * draws the 8 km ribbon and claims nothing outside `BLOCK_KEEPOUT`, so from
+ * x = 168 to the rim there has never been a `carriageway` claim under it —
+ * which is CONTRACT §9.1's rule unmet on the one road that leaves. Every
+ * beyond-the-city chunk the ribbon crosses claims it now, so a hedgerow, a
+ * silo or a farmhouse is refused from the running lane by the registry rather
+ * than by an arithmetic guard in this block.
+ */
+export const COUNTRYSIDE = {
+  /**
+   * Metres, half-width of the exit road's claimed carriageway. It is
+   * `CITY.roadHalfWidth` and it is ALSO `BLOCK.streetWidth / 2` = 7.5 in
+   * `core/constants.js`, which this file may not import (it runs in the
+   * streaming worker, CONTRACT §8.1). Two constants for one width is §9.1's
+   * own subject, so the equality is written here and the SETBACK below is
+   * large enough that a future disagreement of a metre could not put a hedge
+   * in the road.
+   */
+  roadHalfM: CITY.roadHalfWidth,
+  /**
+   * Metres. The verge: from the carriageway's edge to the first field.
+   * `CORRIDOR - roadHalfWidth` = 4.2 m is the city's own footway width, and a
+   * country road has a verge rather than a footway — so this is that width
+   * plus the same 1.8 m a hedge is deep, which is the ground a hedge needs to
+   * stand on and be clear of the lane.
+   */
+  vergeM: 6.0,
+  /**
+   * Metres. A hedgerow segment. 12 m against the fence's 3.0 m
+   * (`RECREATION.fenceSegmentM`) because a hedge has no posts and no panel
+   * joint — its length is a drawing decision and not a manufactured one — and
+   * a longer segment is four times fewer boxes over a rim that is 121 chunks
+   * wide when you stand in it.
+   */
+  hedgeSegM: 12.0,
+  /** Metres. A stock-proof hedge, and the height `city.js` draws its two boxes at. */
+  hedgeHeightM: 1.8,
+  hedgeHalfT: 0.35,
+  /**
+   * p(a chunk carries a farmstead). One in five puts a farm about every
+   * 286 m along a rim, which at 128 m chunks is a working density for
+   * agricultural land rather than a village.
+   */
+  farmChance: 0.20,
+  /** p(a chunk beside the exit road carries a house). */
+  houseChance: 0.55,
+  /** Metres. A silo: 5 m across, 14 m tall — a real farm silo, and the one
+   *  vertical in this landscape. */
+  siloHalfM: 2.5,
+  siloHeightM: 14,
+  /** Linear reflectance of a stubble field. See `citygen`'s note: a mown lawn
+   *  is [0.062, 0.094, 0.045] here (broadband ~0.08) and cereal stubble
+   *  reflects about 2.1x that with straw's chromaticity — red and green nearly
+   *  equal, blue about half. Delivered as a second ground kind so a rim reads
+   *  as fields of two crops rather than one carpet. */
+  $fieldAlbedo: '[0.186, 0.176, 0.094] — see city.js albedoFor',
+};
+
 export function hillMasses(rootSeed) {
   const rng = chunkRng(rootSeed, 0, 0, 'hills');
   const out = [];
@@ -14530,6 +14636,265 @@ export function generateChunk(rootSeed, cx, cz) {
               soil: rr.range(0.6, 0.9), lean: 0, leanAzDeg: 0 });
           }
         }
+      }
+    }
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE COUNTRYSIDE — SESSION 61. See `COUNTRYSIDE` for the measurement that
+   * replaced the brief's premise and for what each piece costs.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * It runs on every chunk past `CITY.extentEdgeM` — the same predicate the
+   * lattice, the lamps and the traffic are gated on, so there is one statement
+   * in this project about where the city is and this is its fifth reader.
+   *
+   * ORDER IS AUTHORITY, exactly as the registry's own note at the top of this
+   * function says: the ROAD claims first, then the farmstead, then the house,
+   * then the fields are cut round whatever stands on them, then the hedgerows
+   * take what frontage is left. A hedge refused by a barn is a gap in a hedge,
+   * which is what a farm gate is.
+   */
+  if (beyondCity) {
+    const K = COUNTRYSIDE;
+    const cr = chunkRng(rootSeed, cx, cz, 'country');
+
+    /** Does the exit road's 8 km ribbon cross this chunk? It runs at z = 0. */
+    const onRoad = b.z0 < K.roadHalfM && b.z1 > -K.roadHalfM;
+    if (onRoad) {
+      /**
+       * THE ONE ROAD THAT LEAVES, CLAIMED. `block.js` draws it as a single
+       * `groundExtent * 2` plane and claims nothing outside `BLOCK_KEEPOUT`,
+       * so for 3 832 m of its length it has been asphalt nothing was told
+       * about. Claimed per chunk rather than once, because the registry is
+       * built per chunk (CONTRACT §8.1 — it must be deterministic in
+       * `(rootSeed, cx, cz)` alone) and a claim spanning the world would be a
+       * different claim in every chunk that made it.
+       */
+      reg.claim(claimBox('carriageway', b.x0, -K.roadHalfM, b.x1, K.roadHalfM,
+        { owner: 'exit:road' }));
+    }
+
+    /**
+     * FLAT LAND, and it is the one condition a farm has. `hillMasses` is pure
+     * in the root seed and this file owns it, so the same domes `city.js`
+     * draws are the ones a farmstead is refused by — not a second description
+     * of where the hills are (§9.1). Tested against the chunk's own middle
+     * plus the farmstead's own reach.
+     */
+    const mx = (b.x0 + b.x1) / 2;
+    const mz = (b.z0 + b.z1) / 2;
+    const onHill = (x, z, pad) => hillMasses(rootSeed)
+      .some((h) => !h.wood && Math.hypot(x - h.x, z - h.z) < h.foot + pad);
+
+    /** Everything the fields must be cut around, in this chunk's own coordinates. */
+    const solids = [];
+    if (onRoad) {
+      solids.push({ x0: b.x0, x1: b.x1,
+        z0: -K.roadHalfM - K.vergeM, z1: K.roadHalfM + K.vergeM });
+      /**
+       * AND THE VERGE IS LAID RATHER THAN LEFT BARE, which the first arm got
+       * wrong and an aerial said so: cutting the fields back by `vergeM`
+       * without laying anything in the gap left **12 m of the earth plane
+       * either side of the road for its whole length**, so from above the
+       * exit road read as a pale mottled band rather than as a road with
+       * edges. It is session 42's own finding — *"a missing surface is now a
+       * surface of about the right colour that is not there"* — arriving at
+       * the one place session 42 could not reach, because there was no
+       * generator content out here to notice it.
+       *
+       * `grass` and not `field`: a verge is mown and a field is cropped, and
+       * the two greens either side of the carriageway are what draws the
+       * road's edge from the air.
+       */
+      for (const side of [-1, 1]) {
+        ground.push({ kind: 'grass', yKey: 'grass',
+          x0: b.x0, x1: b.x1,
+          z0: Math.min(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)),
+          z1: Math.max(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)) });
+      }
+    }
+
+    /**
+     * A FARMSTEAD: a house, a barn, a silo and the yard they stand on. Four
+     * objects and three of them are session 49's own feature kinds — which is
+     * the brief's own point, that eight kinds of place were made from three
+     * meshes and not one new one.
+     *
+     * IT STANDS BACK FROM THE ROAD AND ON FLAT GROUND. A farm on the verge is
+     * a filling station; a farm on a hillside is a photograph. Both are
+     * conditions on where rather than rolls.
+     */
+    if (!onRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)) {
+      const fx = mx + cr.range(-28, 28);
+      const fz = mz + cr.range(-28, 28);
+      const yard = { x0: fx - 34, x1: fx + 34, z0: fz - 26, z1: fz + 26,
+        kind: 'yardGround', yKey: 'yard' };
+      const along = cr.chance(0.5);
+      /** The house: TWO STOREYS AT MOST AND ON A LARGE PLOT, which is the
+       *  object this city does not contain — every mass inside the extent is a
+       *  perimeter building or a landmark. */
+      const hBox = claimAt('building', fx - 16, fz - 8, 7, 5,
+        { y0: 0, y1: 7.4, owner: 'farm:house' });
+      if (!reg.conflict(hBox)) {
+        reg.claim(hBox);
+        features.push({ kind: 'shed', x: fx - 16, z: fz - 8, yawDeg: along ? 0 : 90,
+          length: 14, depth: 10, height: 6.2, floors: 2, style: 'window',
+          albedo: [0.36, 0.33, 0.29], trim: [0.26, 0.24, 0.21] });
+        solids.push({ x0: yard.x0, x1: yard.x1, z0: yard.z0, z1: yard.z1 });
+        for (const g of subtractBoxes([yard], solids.slice(0, -1))) ground.push(g);
+      }
+      /** The barn: long, blank and taller than the house, which is what makes
+       *  a farmstead read from a road rather than a bungalow with sheds. */
+      const bBox = claimAt('building', fx + 12, fz + 6, 12, 7,
+        { y0: 0, y1: 9.6, owner: 'farm:barn' });
+      if (!reg.conflict(bBox)) {
+        reg.claim(bBox);
+        features.push({ kind: 'shed', x: fx + 12, z: fz + 6, yawDeg: along ? 0 : 90,
+          length: 24, depth: 14, height: 8.4, floors: 1, style: 'dock',
+          albedo: [0.28, 0.26, 0.235], trim: [0.22, 0.205, 0.19] });
+      }
+      /** The silo: the one vertical in this landscape, and it is what you see
+       *  first from a car. `tower` is session 49's third kind. */
+      const sBox = claimAt('building', fx + 30, fz - 14, K.siloHalfM, K.siloHalfM,
+        { y0: 0, y1: K.siloHeightM, owner: 'farm:silo' });
+      if (!reg.conflict(sBox)) {
+        reg.claim(sBox);
+        features.push({ kind: 'tower', x: fx + 30, z: fz - 14, yawDeg: 0,
+          half: K.siloHalfM, height: K.siloHeightM,
+          albedo: [0.40, 0.395, 0.37] });
+      }
+      /** A tractor's worth of clutter, from the yard's own palette. */
+      for (let i = 0; i < 4; i++) {
+        const kind2 = ['stack', 'container', 'cabinet', 'bin'][cr.int(0, 3)];
+        const px = fx + cr.range(-26, 26);
+        const pz = fz + cr.range(-18, 18);
+        const half = propHalfWidth(kind2, 0);
+        const spot = claimAt('prop', px, pz, half, half, { owner: 'farm:yard' });
+        if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+        reg.claim(spot);
+        props.push({ x: px, z: pz, yawDeg: yaw(), refDeg: 0, kerb: false,
+          kind: kind2, scale: 1.0, variant: 0, soil: cr.range(0.5, 0.9),
+          lean: 0, leanAzDeg: 0 });
+      }
+    }
+
+    /**
+     * A HOUSE ON THE ROAD. Single storey on a big plot, set back behind its
+     * own hedge — the brief's *"a different object from anything in this city,
+     * and it is what says 'not the city any more'"*. Placed on the far side of
+     * the verge so the plot's frontage is the road's own edge.
+     */
+    if (onRoad && cr.chance(K.houseChance)) {
+      const side = cr.chance(0.5) ? 1 : -1;
+      const hx = b.x0 + cr.range(30, 98);
+      const hz = side * (K.roadHalfM + K.vergeM + cr.range(16, 30));
+      const hBox = claimAt('building', hx, hz, 9, 6, { y0: 0, y1: 5.2, owner: 'country:house' });
+      if (!reg.conflict(hBox) && !onHill(hx, hz, 12)) {
+        reg.claim(hBox);
+        features.push({ kind: 'shed', x: hx, z: hz, yawDeg: cr.range(-4, 4),
+          length: 18, depth: 12, height: 4.2, floors: 1, style: 'window',
+          albedo: [0.38, 0.355, 0.32], trim: [0.28, 0.26, 0.235] });
+        /** The plot: grass up to the verge, so the house stands in a garden. */
+        solids.push({ x0: hx - 22, x1: hx + 22,
+          z0: Math.min(hz - 20, side * (K.roadHalfM + K.vergeM)),
+          z1: Math.max(hz + 20, side * (K.roadHalfM + K.vergeM)) });
+        const dr = { kind: 'grass', yKey: 'grass',
+          x0: hx - 22, x1: hx + 22,
+          z0: Math.min(hz - 20, side * K.roadHalfM), z1: Math.max(hz + 20, side * K.roadHalfM) };
+        for (const g of subtractBoxes([dr], [{ x0: hBox.x0, x1: hBox.x1, z0: hBox.z0, z1: hBox.z1 }])) ground.push(g);
+      }
+    }
+
+    /**
+     * THE FIELDS. The chunk, split once on each axis at a drawn line, cut
+     * round everything above, and laid as two crops so a rim reads as farmland
+     * rather than as one carpet. Each is `ground`, which conflicts with a
+     * building, a landmark and the water and with nothing else — which is
+     * right: a field is a surface things stand on.
+     */
+    /**
+     * HOW MANY FIELDS THIS CHUNK IS, AND THE FIRST ARM SPLIT EVERY CHUNK INTO
+     * FOUR — which delivered a CHECKERBOARD on a 64 m module, visible from the
+     * air as a grid rather than as farmland. Real fields differ in size by
+     * more than they differ in colour.
+     *
+     * So the split is a roll: a whole chunk, a half on either axis, or
+     * quarters. It is `docs/authored-city.md` §1's clumping rule applied to a
+     * SURFACE — the thing that makes a population read as intended is that the
+     * gaps between groups are bigger than the gaps inside them, and four equal
+     * cells everywhere is the opposite of that.
+     */
+    const splitRoll = cr.next();
+    const splitX = splitRoll > 0.30;
+    const splitZ = splitRoll < 0.30 || splitRoll > 0.62;
+    const sx = splitX ? b.x0 + (b.x1 - b.x0) * cr.range(0.30, 0.70) : b.x1;
+    const sz = splitZ ? b.z0 + (b.z1 - b.z0) * cr.range(0.30, 0.70) : b.z1;
+    const xs = splitX ? [b.x0, sx, b.x1] : [b.x0, b.x1];
+    const zs = splitZ ? [b.z0, sz, b.z1] : [b.z0, b.z1];
+    let ci = 0;
+    for (let i = 0; i + 1 < xs.length; i++) {
+      for (let j = 0; j + 1 < zs.length; j++) {
+        const kind2 = (ci++ + cx + cz) % 2 === 0 ? 'grass' : 'field';
+        for (const g of subtractBoxes(
+          [{ x0: xs[i], x1: xs[i + 1], z0: zs[j], z1: zs[j + 1], kind: kind2, yKey: 'grass' }],
+          solids
+        )) ground.push(g);
+      }
+    }
+
+    /**
+     * THE HEDGEROWS. One run on each of the two split lines, and one along
+     * each side of the road where the road crosses — which is the frontage a
+     * driver actually sees. Every segment is offered to the registry, so the
+     * run BREAKS around a barn, a house and the road itself and closes up
+     * again, which is what a hedge with a field gate in it looks like (the
+     * same argument the churchyard's grave rows are laid on).
+     */
+    const hedgeRun = (axis, at, from, to) => {
+      for (let t = from; t + K.hedgeSegM <= to; t += K.hedgeSegM) {
+        const c = t + K.hedgeSegM / 2;
+        const x = axis === 'x' ? c : at;
+        const z = axis === 'x' ? at : c;
+        /**
+         * THE HEIGHT IS ROLLED PER SEGMENT AND THE CLAIM TAKES THE CEILING.
+         * A hedge whose top line is dead flat over 128 m is a wall, which is
+         * what the first arm delivered and what the frame showed. +-20% of
+         * 1.8 m is 1.44 to 2.16 — a stock-proof hedge either way, and the
+         * only difference is that its top is a line somebody cut rather than
+         * a line somebody drew. The claim is made at the FULL height so a
+         * shorter segment still refuses what a taller one would (the
+         * conservative direction, and the same one the ball-stop's low sides
+         * take).
+         */
+        /**
+         * AND ONE SEGMENT IN TWELVE IS A GAP, which is a FIELD GATE. A hedge
+         * that only breaks where the registry refuses it breaks at buildings
+         * and nowhere else, so a 128 m run beside a road reads as a fence
+         * panel; a hedge in the world has a way into the field behind it every
+         * hundred metres or so. `1/12` of a 12 m segment is one 12 m gap per
+         * 144 m, which is that spacing and is one roll rather than a second
+         * placement pass.
+         */
+        if (cr.next() < 1 / 12) continue;
+        const hh = K.hedgeHeightM * (0.8 + cr.next() * 0.4);
+        const box = claimAt('feature', x, z,
+          axis === 'x' ? K.hedgeSegM / 2 : K.hedgeHalfT,
+          axis === 'x' ? K.hedgeHalfT : K.hedgeSegM / 2,
+          { y0: 0, y1: K.hedgeHeightM * 1.2, owner: 'country:hedge' });
+        if (reg.conflict(box)) continue;
+        reg.claim(box);
+        features.push({ kind: 'edge', edge: 'hedge', x, z,
+          length: K.hedgeSegM, height: hh,
+          yawDeg: (axis === 'x' ? 0 : 90) + yaw() });
+      }
+    };
+    if (splitX) hedgeRun('z', sx, b.z0, b.z1);
+    if (splitZ) hedgeRun('x', sz, b.x0, b.x1);
+    if (onRoad) {
+      for (const side of [-1, 1]) {
+        hedgeRun('x', side * (K.roadHalfM + K.vergeM), b.x0, b.x1);
       }
     }
   }
