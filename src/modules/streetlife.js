@@ -63,6 +63,9 @@ import {
   busStopAt,
   BUS_STOP,
   BLOCK_KEEPOUT,
+  /** Session 60, item 3 — a play area's own hours and its own occupancy. */
+  playOpen,
+  PLAY_PEOPLE_PER_M2,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -174,6 +177,21 @@ function crowdFactor(t) {
 
 /** Metres. The radius the count above was derived over. */
 const SIM_RADIUS_M = 120;
+
+/**
+ * Metres. HOW FAR INSIDE A PLAY AREA'S OWN EDGE A PERSON IS PUT — session 60,
+ * item 3.
+ *
+ * The pad `citygen.js` lays is the play area PLUS its run-off, and the run-off
+ * is `runOff` = 4.0 m wide: it is where the four floodlight masts stand
+ * (`hxP + 3.0`, i.e. 1.0 m inside the pad edge) and where the fence and the
+ * benches are just beyond it. 2.0 m is half of that run-off — inside the masts
+ * by 1.0 m and inside the pad by 2.0 — so nobody is seated standing in a
+ * lighting column and nobody is seated outside the surface they were allocated
+ * to. It is a clearance and not a taste: the two numbers it is derived from
+ * are `RECREATION`'s own run-off and the mast offset beside it.
+ */
+const PLAY_EDGE_M = 2.0;
 
 /** People per m^2 of pavement on a busy street. Fruin LOS A is 0.083. */
 const PEOPLE_PER_M2 = 0.06;
@@ -2320,6 +2338,25 @@ export function createStreetlife(options = {}) {
   let awakeCount = -1;
   let lastRebalanceChunk = null;
   const lastRebalanceAt = new THREE.Vector3(0, -1e9, 0);
+  /**
+   * THE PLAY AREAS THE LAST REBALANCE COULD SEE — session 60, item 3, and it
+   * is a THIRD trigger because the first two cannot see this one.
+   *
+   * A rebalance fires when the camera crosses a chunk or moves
+   * `REBALANCE_MOVE_M`. Both are properties of the CAMERA, and the deck
+   * records they were written for come out of `LANDMARKS`, which is pure and
+   * available on the first frame. A play area comes out of the RESIDENT
+   * GROUND, which arrives over the sixty-odd frames `CITY.generateBudget`
+   * takes to build the ring — so a camera that is placed and then stands still
+   * (which is every gate, every `lookat` and every film shot in this project)
+   * rebalances once, before the court exists, and never again.
+   *
+   * Measured before this line: the census at the operator's own court read
+   * `4,8 78` and no `play:4,8` at all, with the delivered `pitch` claim
+   * present in the same frame. The streaming is the state that changed and
+   * nothing was watching it.
+   */
+  let lastPlaySignature = '';
 
   /**
    * POSE MODE — `{ agent, u, amp, build }` or null. `tools/gaitstrip.mjs` only.
@@ -3048,6 +3085,37 @@ export function createStreetlife(options = {}) {
    * `instanceMatrix.count` — a population that does not match what was
    * allocated is the mismatch `citycheck` exists to catch.
    */
+  /**
+   * WHICH RING ENTRY HOLDS THIS AGENT — session 60, and it is one expression
+   * where there were three copies of a ternary.
+   *
+   * An agent standing on a surface that is not a chunk's pavement loop is
+   * held by that surface: a platform (session 56) or a play area (this one).
+   * The three call sites — the rebalance, the per-chunk census and the deck
+   * census — all asked the same question and each spelled it out, which is the
+   * arrangement CONTRACT §9.1 warns about with a KEY instead of a length: a
+   * fourth surface added to two of the three is an agent counted twice.
+   */
+  function ringKeyFor(a) {
+    if (a.deck) return `deck:${a.deck.ref.id}`;
+    if (a.play) return `play:${a.play.ref.id}`;
+    return chunkKey(a.cx, a.cz);
+  }
+
+  /**
+   * WHICH PLAY AREAS ARE RESIDENT, AS ONE STRING — session 60. Cheap enough to
+   * ask every frame (`city.playAreas()` walks the resident records and there
+   * are at most a couple of hundred, of which a handful carry a `pitch`
+   * rectangle) and exact enough that a court arriving or leaving is a
+   * different string. It is the residency signal streetlife is allowed to
+   * have without reaching into `city`'s own bookkeeping.
+   */
+  function playSignature(ctx) {
+    const cityMod = ctx.get('city');
+    if (!cityMod || !cityMod.playAreas) return '';
+    return cityMod.playAreas().map((p) => p.id).join('|');
+  }
+
   function rebalance(ctx, camera) {
     const s = CITY.chunkSize;
     /**
@@ -3125,6 +3193,57 @@ export function createStreetlife(options = {}) {
       sum += w;
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE PLAY AREAS — SESSION 60, ITEM 3. The decks' own arithmetic with
+     * a number of PEOPLE instead of a length of platform.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The operator: *"a handful per court — some standing, some crossing, a
+     * cluster at the benches — is enough; this does not need a game of
+     * basketball. Derive the count from the time of day."*
+     *
+     * TWO CLOCKS, AND THEY ARE DIFFERENT CURVES ON PURPOSE. `awake` above is
+     * already `crowdFactor(timeOfDay)` of the population, so anything given a
+     * fixed share of the ring is already emptier at night — but that is the
+     * STREET's curve, and its 18% night floor is people going home rather than
+     * people on a basketball court. `playOpen` is the ground's own opening
+     * hours (`citygen.js` → `PLAY_HOURS`, and the closing hour is the
+     * floodlights' curfew), and the delivered count is the product.
+     *
+     * THE WEIGHT IS SOLVED FROM THE COUNT AND NOT CHOSEN. A ring entry's share
+     * of `awake` is `w / sum`, and `meanW` is a mean chunk's weight, so an
+     * entry at `meanW × n / meanPeople` receives about `n` people — where
+     * `meanPeople` is what a mean chunk receives. That is the deck's
+     * `meanW × (2 × lengthM) / LOOP_LENGTH` written the other way up: the deck
+     * derives a share from a length and this derives it from a headcount,
+     * because a play area's headcount is the thing that has a citation
+     * (`PLAY_PEOPLE_PER_M2` — ten players on a five-a-side pitch, against
+     * `PEOPLE_PER_M2`'s Fruin LOS A for a pavement).
+     *
+     * BELOW HALF A PERSON THE ENTRY IS NOT ADDED AT ALL, rather than being
+     * added and rounded to zero by the largest-remainder pass. An entry with a
+     * target of zero is an allocation slot that can still take a remainder,
+     * which would put one person on a court at four in the morning — the one
+     * outcome the hours are there to prevent.
+     */
+    const plays = cityMod && cityMod.playAreas ? cityMod.playAreas() : [];
+    const meanPeople = ring.length ? awake / ring.length : 0;
+    const tod = timeMod ? timeMod.timeOfDay : 0.5;
+    for (const pa of plays) {
+      const pdx = pa.x - camera.position.x;
+      const pdz = pa.z - camera.position.z;
+      if (Math.hypot(pdx, pdz) > SIM_RADIUS_M + Math.max(pa.halfX, pa.halfZ)) continue;
+      const want = pa.areaM2 * PLAY_PEOPLE_PER_M2 * playOpen(pa.variant, tod);
+      if (want < 0.5 || meanPeople <= 0) continue;
+      const w = meanW * (want / meanPeople);
+      ring.push({
+        cx: Math.floor(pa.x / s), cz: Math.floor(pa.z / s),
+        key: `play:${pa.id}`, w, target: 0, exact: 0, play: pa,
+      });
+      sum += w;
+    }
+
     let floored = 0;
     for (const c of ring) {
       c.exact = sum > 0 ? (c.w / sum) * awake : awake / ring.length;
@@ -3148,8 +3267,9 @@ export function createStreetlife(options = {}) {
         a.placed = false;
         continue;
       }
-      /** A deck agent is held by its deck, not by the chunk under its feet. */
-      const key = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
+      /** A deck or play agent is held by its own surface, not by the chunk
+       *  under its feet. */
+      const key = ringKeyFor(a);
       if (!wanted.has(key) || !a.placed) {
         homeless.push(i);
         continue;
@@ -3211,6 +3331,7 @@ export function createStreetlife(options = {}) {
 
     lastRebalanceChunk = `${ccx},${ccz}`;
     lastRebalanceAt.copy(camera.position);
+    lastPlaySignature = playSignature(ctx);
   }
 
   /** Put one agent somewhere on one island's loop, inside the disc if it can. */
@@ -3252,8 +3373,31 @@ export function createStreetlife(options = {}) {
         t: rng.range(-d.tHalf, d.tHalf),
       };
       a.p = rng.range(2, d.lengthM - 2);
+      a.play = null;
+    } else if (chunk.play) {
+      /**
+       * SEATED ON A PLAY AREA — session 60, item 3. A point inside the pad and
+       * nothing else: no loop, because a court has none; no `notPavement`
+       * probe, because the pad is the one surface in this city that is
+       * authored clear by construction (item 1 gave it a `pitch` claim, and
+       * `pitch × prop` is forbidden — so a play area is empty ground in the
+       * registry's own words rather than in a comment's).
+       *
+       * INSET BY `PLAY_EDGE_M` so nobody is seated straddling the pad's own
+       * edge, where the fence and the floodlight masts are.
+       */
+      const pa = chunk.play;
+      a.deck = null;
+      a.play = {
+        ref: pa,
+        ox: pa.x + rng.range(-1, 1) * Math.max(0, pa.halfX - PLAY_EDGE_M),
+        oz: pa.z + rng.range(-1, 1) * Math.max(0, pa.halfZ - PLAY_EDGE_M),
+        hx: 1, hz: 0,
+      };
+      a.p = 0;
     } else {
       a.deck = null;
+      a.play = null;
       const r2 = SIM_RADIUS_M * SIM_RADIUS_M;
       let p = 0;
       for (let t = 0; t < 12; t++) {
@@ -3320,6 +3464,54 @@ export function createStreetlife(options = {}) {
         a.dir = -a.dir;
         a.dwell = DWELL_MIN_S;
       }
+      return;
+    }
+
+    /**
+     * A TRIP ACROSS A PLAY AREA — session 60, item 3. The pad is neither a
+     * loop nor a line, so the trip is a CHORD: the agent's own position is the
+     * new origin, a point inside the pad is the destination, and `a.p` runs
+     * from 0 to the distance between them. `a.dir` stays +1 and the reversal
+     * the loop and the platform use has no meaning here — a person who has
+     * arrived picks a new direction rather than turning round on the same
+     * line.
+     *
+     * THE DESTINATION IS DRAWN INSIDE THE PAD AND NOT CLAMPED TO IT, so the
+     * walk never leaves the surface it was allocated to. That is the same
+     * guarantee the platform gets from clamping its arc, arrived at from the
+     * other side: a rectangle can be sampled and a curve cannot.
+     */
+    if (a.play) {
+      const pa = a.play.ref;
+      const ex = Math.max(0, pa.halfX - PLAY_EDGE_M);
+      const ez = Math.max(0, pa.halfZ - PLAY_EDGE_M);
+      const tx = pa.x + rng.range(-1, 1) * ex;
+      const tz = pa.z + rng.range(-1, 1) * ez;
+      /**
+       * THE ORIGIN IS TAKEN OFF THE CHORD AND NOT OFF `a.x` — and the two are
+       * the same everywhere except at the one place that matters. `seatAgent`
+       * calls `planTrip` BEFORE `updateAgentPosition`, so at a re-seat `a.x`
+       * still holds where this person was standing a hundred metres away,
+       * and a chord drawn from it would start the walk off the pad. Reading
+       * the chord's own parameter is right in both cases: at a re-seat `a.p`
+       * is 0 and this is the seeded point, and at an arrival it is where the
+       * walk ended. CONTRACT §9 rule 7 — the same position from two datums.
+       */
+      const px0 = a.play.ox + a.play.hx * a.p;
+      const pz0 = a.play.oz + a.play.hz * a.p;
+      const dx = tx - px0;
+      const dz = tz - pz0;
+      const len = Math.hypot(dx, dz);
+      a.play.ox = px0;
+      a.play.oz = pz0;
+      a.play.hx = len > 1e-3 ? dx / len : 1;
+      a.play.hz = len > 1e-3 ? dz / len : 0;
+      a.p = 0;
+      a.dir = 1;
+      a.remaining = Math.min(TRIP_MAX_M, len);
+      a.destKind = 'play';
+      a.pathLength = 0;
+      if (a.remaining <= 1) a.dwell = DWELL_MIN_S;
       return;
     }
 
@@ -3627,6 +3819,24 @@ export function createStreetlife(options = {}) {
       a.z = p.z;
       a.y = d.y;
       a.yaw = a.dwell > 0 ? a.dwellYaw : Math.atan2(a.dir * p.hx, a.dir * p.hz);
+      return;
+    }
+    if (a.play) {
+      /**
+       * ON A PLAY AREA — session 60. The position is the chord's origin plus
+       * the distance walked along it, and the height comes from the ORDINARY
+       * ground query rather than from the record: a play area is at grade, so
+       * `groundYAt` answers for the pad the same way it answers for a
+       * pavement. That is the whole difference from the platform above, and it
+       * is why a play area needs no `y` of its own.
+       *
+       * NO LANE OFFSET. Keep-right is a property of a footway; there is no
+       * kerb on a court and nothing to keep right of.
+       */
+      a.x = a.play.ox + a.play.hx * a.p;
+      a.z = a.play.oz + a.play.hz * a.p;
+      a.y = city && city.groundYAt ? city.groundYAt(a.x, a.z) : 0;
+      a.yaw = a.dwell > 0 ? a.dwellYaw : Math.atan2(a.play.hx, a.play.hz);
       return;
     }
     loopPoint(a.cx, a.cz, a.p, laneOffset(a), scratchPoint);
@@ -4591,7 +4801,8 @@ export function createStreetlife(options = {}) {
       // to stand in the same place in every frame of it, and a rebalance moves
       // whoever is furthest from the camera, which is a population of one.
       const moved = camera.position.distanceTo(lastRebalanceAt);
-      if (!posed && (camChunk !== lastRebalanceChunk || moved > REBALANCE_MOVE_M)) {
+      if (!posed && (camChunk !== lastRebalanceChunk || moved > REBALANCE_MOVE_M
+        || playSignature(ctx) !== lastPlaySignature)) {
         rebalance(ctx, camera);
       }
 
@@ -4650,7 +4861,7 @@ export function createStreetlife(options = {}) {
               ? Math.min(wantWalk, a.gaitAmp + f2)
               : Math.max(wantWalk, a.gaitAmp - f2);
             updateAgentPosition(a, ctx);
-            const ck = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
+            const ck = ringKeyFor(a);
             pedCounts.set(ck, (pedCounts.get(ck) || 0) + 1);
             if (a.reseated) reseatsThisFrame++;
             continue;
@@ -4717,6 +4928,18 @@ export function createStreetlife(options = {}) {
               const pt = a.deck.ref.pointAt(a.p, 0);
               a.dwellYaw = Math.atan2(a.deck.side * pt.hz, -a.deck.side * pt.hx)
                 + dwellRng.range(-0.4, 0.4);
+            } else if (!a.cross && a.play) {
+              /**
+               * ARRIVED SOMEWHERE ON A COURT — session 60. The ordinary dwell
+               * distribution, because standing about on a pitch is a pause in
+               * a walk and not a wait for a timetable, and a facing drawn free
+               * rather than turned toward anything: a person on a court is
+               * looking at whatever is happening on it, and this generator has
+               * no opinion about where that is.
+               */
+              a.dwell = Math.min(DWELL_MAX_S,
+                DWELL_MIN_S + -Math.log(1 - dwellRng.next()) * DWELL_SCALE_S);
+              a.dwellYaw = dwellRng.range(-Math.PI, Math.PI);
             } else if (!a.cross) {
               a.dwell = a.destKind === 'busstop'
                 ? Math.min(BUS_WAIT_MAX_S, BUS_WAIT_MIN_S + -Math.log(1 - dwellRng.next()) * BUS_WAIT_SCALE_S)
@@ -4775,7 +4998,7 @@ export function createStreetlife(options = {}) {
         updateAgentPosition(a, ctx);
         /** A deck agent counts under its deck key, so the census row that
          *  allocated it is the row that reports it (session 56). */
-        const key = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
+        const key = ringKeyFor(a);
         pedCounts.set(key, (pedCounts.get(key) || 0) + 1);
         if (a.reseated) reseatsThisFrame++;
       }

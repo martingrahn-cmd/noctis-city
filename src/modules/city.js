@@ -49,7 +49,7 @@ import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, W
  * placement routine grows its own private predicate and becomes the eighth
  * instance.
  */
-import { mayOverlap } from '../lib/occupancy.js';
+import { mayOverlap, CATEGORIES } from '../lib/occupancy.js';
 import { EMITTER_CHROMA, luminance, normaliseLuminance } from '../lib/color.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 import {
@@ -115,9 +115,22 @@ import {
   DISTANT,
   distantMasses,
   distantAlbedo,
+  /** Session 60 — which recreation a chunk got, for `playAreas()`'s own hours. */
+  recreationVariant
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
+
+/**
+ * THE CATEGORY NAMES, AS A SET, FOR THE DELIVERED GROUND CENSUS — session 60.
+ *
+ * `quad()` records a ground rectangle's CATEGORY (not its kind) in `rects`, so
+ * the delivered census only has to translate the names that predate the
+ * categories. Derived from `occupancy.js`'s own list rather than transcribed,
+ * because the transcription is what CONTRACT §9.1's `pierEvery` entry is:
+ * a table in one file and a table in another that have to agree.
+ */
+const GROUND_CATEGORY_NAMES = new Set(CATEGORIES);
 
 /**
  * Bytes one instance costs on the GPU: a mat4 (64) plus an instanceColor (12)
@@ -252,6 +265,117 @@ function matchedTint(chroma, warmTint) {
   const L = luminance(t[0] * warmTint[0], t[1] * warmTint[1], t[2] * warmTint[2]);
   return [(L * chroma[0]) / t[0], (L * chroma[1]) / t[1], (L * chroma[2]) / t[2]];
 }
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE FLANK — SESSION 60, ITEM 2. WHAT A SIDE ELEVATION GETS, AND WHAT EVERY
+ * NUMBER IN IT IS PAYING FOR.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * THE OPERATOR'S QUESTION: *"how reasonable is it that buildings in downtown
+ * have no windows on every side?"* It is not, and `buildFacade` has skipped
+ * the two side elevations since session 5 under a comment that is right about
+ * party walls and silent about everything else. Session 35 then made every
+ * building 29.6 m deep, so what a cross street looks at is thirty metres of
+ * blank wall.
+ *
+ * WHAT THE FULL VERSION COSTS, MEASURED FIRST, WHICH IS WHAT ITEM 2b ASKS
+ * FOR. Over the resident ring at `citycheck`'s own eye, seed 1337, counted off
+ * the DELIVERED meshes:
+ *
+ *     front + rear, today          76 598 panes    919 176 tris   (boxes, 12 each)
+ *     every exposed side face      93 702 panes    187 404 tris   (planes, 2 each)
+ *                                                1 124 424 tris   if they were boxes
+ *
+ * The exposed side elevation is **1.065× the area of the two faces this
+ * function already draws** (73.4% of 1 521 k m² of side elevation is not a
+ * party wall), so the full version is not a rounding error on the ceiling —
+ * it is another whole city of windows. `budget.json` → `triangles` is
+ * 2 360 000 and `highway_speed` delivers 2 300 000, so the city has about
+ * **60 000 triangles spare** and the full version needs three times that as
+ * planes and nineteen times as boxes.
+ *
+ * SO THE ITEM DOES NOT FIT AS WRITTEN, AND THE SWEEP IS HERE SO THE NEXT
+ * SESSION CAN SPEND MORE WITHOUT RE-RUNNING IT. `minOpenM` chooses WHICH
+ * elevations; `bayM` and `keep` choose how many openings each one gets.
+ * Delivered panes / triangles, same ring, same seed:
+ *
+ *     minOpenM   bayM   keep     panes    triangles
+ *        0.0     2.0    1.00    93 702      187 404   every exposed flank
+ *        2.0     2.0    1.00    77 135      154 270
+ *       12.0     2.0    1.00    60 251      120 502
+ *       23.4     2.0    1.00    37 924       75 848
+ *       23.4     2.8    1.00    26 658       53 316
+ *       23.4     3.4    1.00    21 738       43 476
+ *       30.0     2.8    1.00    20 863       41 726
+ *       23.4     2.8    0.50    13 294       26 588
+ *       23.4     2.8    0.35     9 332       18 664   ← ships
+ *       23.4     2.8    0.20     5 339       10 678
+ *
+ * ─── `minOpenM` = 23.4 m, AND IT IS THE ONLY NUMBER HERE THAT IS NOT A
+ * BUDGET. `citygen.js` measures `sideOpenM`, the clear distance in front of
+ * each side face, and this is the cut. **23.4 m is `2 × CORRIDOR`** — this
+ * city's own building line to building line, LOOK.md §2's *"the narrowest gap
+ * it already asserts two facades may face each other across"* and the width
+ * of the light well session 35's depth is derived from. So the rule is: **an
+ * elevation is glazed when it has at least a street's width of clear ground
+ * in front of it**, which is the operator's own *"put windows on the
+ * elevations that face a street"* with the street's width supplied by the
+ * generator rather than by this file. It selects the corner and end-of-side
+ * flanks — item 2c's *"glaze the corner buildings first"* — by measurement
+ * rather than by a corner test.
+ *
+ * It is DIFFERENT from `citygen.js`'s `SIDE_OPEN_MAX_M` (30 m), which is where
+ * the measurement SATURATES. Two numbers doing two jobs, deliberately not one:
+ * a cut equal to the cap would be the cap, and CONTRACT §9.1's two-copies
+ * failure arrives the moment somebody moves one of them.
+ *
+ * ─── `bayM` = 2.8 m. THE WIDEST BAY `buildFacade` ALREADY DRAWS — the
+ * `vertical` rhythm's, twenty lines below — so a flank sits at the coarse end
+ * of this city's own vocabulary rather than at a number invented for it. A
+ * flank IS coarser than a principal elevation: the entrance, the shopfront
+ * and the address are on the front, and the stair and the risers are here.
+ *
+ * ─── `keep` = 0.35. THIS ONE IS A BUDGET AND IS SAID TO BE ONE (CONTRACT §9
+ * rule 5). The fraction of flank bays that carry an opening at all, rolled per
+ * bay per floor off `fractHash`. The arithmetic: 60 000 triangles spare, a
+ * pane is 2 triangles in a mesh that is never frustum-culled, so the city can
+ * carry 30 000 panes; the street-facing exposed flank offers 26 658 bays at
+ * `bayM`; spending a THIRD of the headroom rather than all of it leaves the
+ * ceiling something to be a ceiling with, and 0.35 of 26 658 is 9 332 panes
+ * for 18 664 triangles — **31% of the spare**. Delivered `highway_speed`:
+ * 2.32 M against 2.36 M, 402 draws against 440.
+ *
+ * WHAT THE WORLD HAS TO BE LIKE FOR 0.35 TO BE RIGHT, which is what rule 5
+ * asks of a budget: a flank built expecting a neighbour carries about one
+ * opening for every three the front does — a stair window, a landing, the
+ * back rooms that have no other elevation. If that is wrong, the sweep above
+ * says what the other arms cost and the ceiling says what is affordable.
+ *
+ * ─── `openingOfBay` and `openingOfFloor` are the `grid` era's own 0.55 and
+ * 0.44, unchanged, so a flank opening is the same SIZE as a front one and
+ * differs only in how often it occurs.
+ *
+ * ─── `proudM` = 0.03 m. A plane coplanar with the wall z-fights with it. The
+ * front pane is a box straddling the wall plane and needs no such offset; this
+ * is the price of the plane.
+ *
+ * ─── `sideMarginM` = 0. How far above a neighbour's parapet a bay must be
+ * before it is glazed. Zero ships: the neighbour's claim `y1` is already the
+ * DELIVERED top including its roof plant, so a sill at exactly that height is
+ * already looking over it. Kept as a named zero rather than dropped, because
+ * a frame may yet say a window flush with the roof next door reads wrong, and
+ * the number to change is then this one.
+ */
+const FLANK = {
+  bayM: 2.8,
+  openingOfBay: 0.55,
+  openingOfFloor: 0.44,
+  proudM: 0.03,
+  sideMarginM: 0.0,
+  minOpenM: 23.4,
+  keep: 0.35,
+};
+
 const WINDOW_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, WINDOW_WARM_TINT);
 const WINDOW_MERCURY_TINT = matchedTint(EMITTER_CHROMA.mercuryBlue, WINDOW_WARM_TINT);
 const SHOP_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, SHOP_WARM_TINT);
@@ -320,9 +444,56 @@ const MERCURY_SHARE_OF_COLD = 0.35;
  */
 const COLD_SHOP_SHARE = 0.25;
 
-/** The unit-interval hash this file already uses for `lit`, named once. */
+/**
+ * The unit-interval hash this file already uses for `lit`, named once.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * IT IS NOT UNIFORM, AND EVERY "SHARE" IN THIS FILE THAT IS COMPARED AGAINST
+ * IT DELIVERS A DIFFERENT SHARE — MEASURED IN SESSION 60, NOT REPAIRED.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The canonical GLSL hash is `fract(sin(x) * 43758.5453)` and puts the large
+ * multiplier OUTSIDE the sine, where it is what shreds the smooth sine into a
+ * uniform fraction. This expression puts it INSIDE. `sin(k·x)` is in
+ * [−1, 1], so `% 1` is a no-op except at exactly ±1 and what comes back is
+ * **|sin| of a scrambled argument** — arcsine-distributed, dense at 1 and
+ * sparse at 0, with CDF `P(h < p) = (2/π)·arcsin(p)`.
+ *
+ * So a threshold `p` used as a share delivers `(2/π)·arcsin(p)`:
+ *
+ *     written                        p       delivered   named as
+ *     era `irregular` skip          0.25       0.161     "a quarter"
+ *     rear-elevation skip           0.22       0.141     "half the windows"
+ *     MERCURY_SHARE_OF_COLD         0.35       0.228     "12.2% of all windows"
+ *     COLD_SHOP_SHARE               0.25       0.161     "a minority"
+ *     `lit` fully on   (> 0.42)     0.58       0.724     —
+ *     `lit` dead       (<= 0.30)    0.30       0.194     —
+ *
+ * CONTRACT §9's shape with a DISTRIBUTION instead of a length: every one of
+ * those numbers is computed correctly and used as a quantity it is not. It is
+ * recorded here and NOT repaired, because repairing it re-rolls which window
+ * in the city is lit, which cold and which mercury — it would move every
+ * luminance band and every emitter census in the project, and that is a
+ * session's item rather than a line in this one. See STATE 60.
+ *
+ * `fractHash` below is the uniform one, and new code uses it.
+ */
 function unitHash(a, b, c) {
   return Math.abs(Math.sin((a + b + c) * 43758.5453) % 1);
+}
+
+/**
+ * THE UNIFORM ONE — the canonical hash with the multiplier where it belongs.
+ *
+ * Written in session 60 rather than fixing `unitHash` in place, for the reason
+ * that comment gives: the two have different distributions and every existing
+ * caller's number was chosen (or at least reported) against the old one. A
+ * share compared against THIS is the share that arrives, which is the property
+ * `FLANK.keep` needs to be derivable at all.
+ */
+function fractHash(a, b, c) {
+  const x = Math.sin(a + b + c) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 export function createCity(options = {}) {
@@ -371,6 +542,14 @@ export function createCity(options = {}) {
   let lastTradeTick = null;
   const TRADE_TICK_H = 0.25;
   let signsDirty = false;
+  /**
+   * The one merged FLANK mesh — session 60, item 2. Same arrangement as the
+   * signs, with one difference: it is rebuilt on RESIDENCY only. A sign's tint
+   * follows the trade's opening hours and therefore the clock; a flank pane's
+   * lit/unlit roll is a position hash, so nothing about it changes with time.
+   */
+  let flankMesh = null;
+  let flankDirty = false;
   /**
    * THE TWO MERGED STREET-LIGHTING MESHES — session 45, and they are what pays
    * for the poles on the far kerb.
@@ -1505,11 +1684,12 @@ export function createCity(options = {}) {
                 : kind === 'parkingGround' ? parkingAlbedo
                   : kind === 'yardGround' ? yardAlbedo
                     : kind === 'coreGround' ? coreAlbedo
-                      : kind === 'sportGround' ? sportAlbedo
-                        : kind === 'apron' ? walkAlbedo
-                          : kind === 'apronGrass' ? grassAlbedo
-                            : kind === 'apronYard' ? yardAlbedo
-                              : walkAlbedo);
+                      : kind === 'sportGround' || kind === 'hardGround' ? sportAlbedo
+                        : kind === 'playField' ? grassAlbedo
+                          : kind === 'apron' ? walkAlbedo
+                            : kind === 'apronGrass' ? grassAlbedo
+                              : kind === 'apronYard' ? yardAlbedo
+                                : walkAlbedo);
 
     /**
      * ═══════════════════════════════════════════════════════════════════════
@@ -1571,8 +1751,16 @@ export function createCity(options = {}) {
      * before — so this change cannot move a gate except through the five kinds
      * named below.
      */
+    /**
+     * `playField` IS TURF AND TAKES TURF'S OWN 1.0 — session 60. It is `grass`
+     * with a different CATEGORY and nothing else (see `citygen.js`'s
+     * recreation block), and a porosity that disagreed with the albedo would
+     * make a football pitch the one lawn in the city that ponds.
+     * `hardGround` is the macadam `sportGround` is and takes its 0.0 by
+     * falling through, which is what it did under its old name.
+     */
     const porosityFor = (kind) => (
-      kind === 'grass' || kind === 'apronGrass' ? 1.0
+      kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
         : kind === 'path' ? 1.0
           : kind === 'siteGround' ? 0.3
             : 0.0);
@@ -1604,8 +1792,25 @@ export function createCity(options = {}) {
       parkingGround: 'ground',
       yardGround: 'ground',
       coreGround: 'ground',
-      /** Session 48. A court is a surface things stand on, like the four above. */
-      sportGround: 'ground',
+      /**
+       * SESSION 60 — A COURT IS NOT A SURFACE THINGS STAND ON, AND THE ROW
+       * ABOVE SAYING SO IS WHAT PUT TWO TREES ON A BASKETBALL COURT.
+       *
+       * Session 48's comment is the sentence this row is: *"a court is a
+       * surface things stand on, like the four above."* It is true of a car
+       * park's asphalt and a yard's hardstanding and it is false of the one
+       * surface whose entire value is that nothing is on it. `occupancy.js`
+       * → `pitch` carries the argument and the measured population.
+       *
+       * `hardGround` IS THE OTHER HALF OF THE SPLIT and keeps `ground`: a
+       * school's hard yard and a church's paved square used the `sportGround`
+       * KIND for its macadam and are not play areas.
+       */
+      sportGround: 'pitch',
+      /** A pitch's turf. `grass` in every other respect — see `playField`
+       *  in `citygen.js`'s recreation block for why it is a separate kind. */
+      playField: 'pitch',
+      hardGround: 'ground',
       /**
        * SESSION 51 — A LANDMARK'S APRON, AND IT CLAIMS `precinct` BECAUSE
        * THAT IS WHAT IT IS.
@@ -2008,6 +2213,51 @@ export function createCity(options = {}) {
       { chunk: 'city', signQuads: matrices.length }
     );
     for (const o of root.children) if (o.name === 'city:signs') signMesh = o;
+  }
+
+  /**
+   * THE ONE MERGED FLANK MESH — session 60, item 2.
+   *
+   * `rebuildSignMesh` above with the trade-hours term removed, which is the
+   * whole difference: a flank pane's brightness is a position hash and has no
+   * clock in it, so this rebuilds when the resident set changes and at no
+   * other time.
+   *
+   * ONE MESH AND NOT ONE PER CHUNK, and the arithmetic is the one
+   * `rebuildLampMesh` records: the detail ring is 81 chunks and
+   * `highway_speed` stands at 401 draws of 440, so a mesh a chunk would ask
+   * for up to a fifth of the remaining budget for one elevation. Merged it
+   * asks for ONE.
+   *
+   * WHAT THE MERGE COSTS IN RETURN, said rather than left to be discovered: a
+   * city-wide mesh has a city-wide bounding sphere, so `frustumCulled` never
+   * rejects it and every triangle in it is submitted every frame. That is why
+   * `FLANK`'s own arithmetic is done against the whole delivered population
+   * and not against the fraction of it in front of the camera.
+   */
+  function rebuildFlankMesh() {
+    if (flankMesh) {
+      root.remove(flankMesh);
+      if (flankMesh.geometry.getAttribute('noctisRough')) flankMesh.geometry.dispose();
+      flankMesh.dispose();
+      flankMesh = null;
+    }
+    const matrices = [];
+    const skin = [];
+    for (const rec of resident.values()) {
+      if (!rec.flank) continue;
+      for (let i = 0; i < rec.flank.matrices.length; i++) {
+        matrices.push(rec.flank.matrices[i]);
+        skin.push(rec.flank.skin[i]);
+      }
+    }
+    flankDirty = false;
+    if (!matrices.length) return;
+    addInstanced(
+      root, geometries.plane, materials.window, matrices, 'city:flank', skin, false,
+      { chunk: 'city', flankQuads: matrices.length }
+    );
+    for (const o of root.children) if (o.name === 'city:flank') flankMesh = o;
   }
 
   /**
@@ -2477,24 +2727,38 @@ export function createCity(options = {}) {
     for (const q of (ground && ground.rects) || []) {
       placed.push({
         /**
-         * `precinct` IS NAMED HERE OR IT FALLS THROUGH TO `ground` — SESSION
-         * 51, AND THIS CHAIN IS A SECOND COPY OF `CATEGORY_FOR_GROUND`.
+         * THE TRAP IS REMOVED RATHER THAN MOVED ONE KEY ALONG — SESSION 60,
+         * AND THE PARAGRAPH THIS REPLACES SAID WHAT WOULD HAPPEN.
          *
-         * `quad` records the CATEGORY in `rects`, so most of what arrives here
-         * is already a category name and this chain only has to translate the
-         * two that are not (`road`, `walk`). A category added to that table
-         * and not to this one is claimed as `ground` in the delivered census
-         * and as itself in the generator's — which is exactly the
-         * two-descriptions-of-one-thing CONTRACT §9.1 lists, and it cost this
-         * session a sweep: the dish's apron came back as
-         * `ground(ground:precinct) x landmark(dish)` at 5.6 to 25.1 m² a
-         * piece, twenty-four times, with the owner string already saying
-         * `precinct` and the kind not.
+         * It read: *"`precinct` IS NAMED HERE OR IT FALLS THROUGH TO `ground`
+         * — and this chain is a SECOND COPY of `CATEGORY_FOR_GROUND`. A
+         * category added to that table and not to this one is claimed as
+         * `ground` in the delivered census and as itself in the generator's."*
+         * Session 51 paid for that once, with twenty-four
+         * `ground(ground:precinct) × landmark(dish)` overlaps at 5.6 to
+         * 25.1 m² apiece. Session 60 adds `pitch` to that table, so the same
+         * ternary would have collected the same debt a second time.
+         *
+         * `quad` records the CATEGORY in `rects`, so anything that IS a
+         * category name is already the answer and only the two that are not —
+         * `road` and `walk`, the two kinds that predate the categories — need
+         * translating. The membership test is `CATEGORIES` itself, imported
+         * from the one file that owns the list, so a category added there is
+         * carried by both halves of the census with no edit at all. Naming
+         * `pitch` in a fifth ternary would have been session 59's own lesson
+         * ignored: *"adding `$tradeBands` to the hardcoded set would have
+         * moved the trap one key along rather than removing it."*
+         *
+         * `ground` STAYS AS THE FALL-THROUGH for a ground kind that reached
+         * `quad` without a `CATEGORY_FOR_GROUND` row at all, which is
+         * session 31's `grass` defect and is still the safe direction: a
+         * surface claimed as `ground` under-claims, and an unknown name
+         * claiming NOTHING is what let a park's lawn match no category and
+         * permit everything.
          */
         kind: q.kind === 'road' ? 'carriageway'
           : q.kind === 'walk' ? 'pavement'
-            : q.kind === 'path' ? 'path' : q.kind === 'site' ? 'site'
-              : q.kind === 'precinct' ? 'precinct' : 'ground',
+            : GROUND_CATEGORY_NAMES.has(q.kind) ? q.kind : 'ground',
         owner: `ground:${q.kind}`, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: 0, y1: 0.05,
       });
     }
@@ -2572,6 +2836,15 @@ export function createCity(options = {}) {
     const crownSkin = [];
     const windows = [];
     const windowTint = [];
+    /**
+     * THE FLANK PANES — session 60, item 2. A separate sink from `windows`
+     * because they are a different GEOMETRY (a plane, not a box) and therefore
+     * a different mesh, and one merged city-wide mesh rather than one a chunk
+     * for the reason the signs are merged: one mesh a chunk holding a few
+     * hundred quads is a draw call an in-frustum chunk. See `FLANK`.
+     */
+    const flankQuads = [];
+    const flankTint = [];
     const signQuads = [];
     /**
      * THE CHUNK'S CANDIDATE SIGN LIGHTS — session 45. Filled by
@@ -2740,7 +3013,8 @@ export function createCity(options = {}) {
         let floorBase = 0;
         for (const t of tiers) {
           buildFacade(bld, era, windows, windowTint, bodies, bodySkin,
-            mat.albedo, mat.roughness, t, floorBase, bld.floors);
+            mat.albedo, mat.roughness, t, floorBase, bld.floors,
+            flankQuads, flankTint);
           floorBase += Math.max(0, Math.round((t.y1 - t.y0) / era.floor));
         }
         buildGroundFloor(bld, era, mat, windows, windowTint, bodies, bodySkin, placed);
@@ -5148,6 +5422,9 @@ export function createCity(options = {}) {
      * where the chunk owns them; the MESH is `city:signs` and there is one.
      */
     bytes += signQuads.length * BYTES_PER_INSTANCE;
+    /** Session 60. Same arrangement as the line above: the bytes are counted
+     *  in the chunk that owns them and the MESH is `city:flank`. */
+    bytes += flankQuads.length * BYTES_PER_INSTANCE;
 
     /**
      * The road surface, on detail chunks only — BUILT AT THE TOP OF
@@ -5527,6 +5804,8 @@ export function createCity(options = {}) {
     return {
       group, bytes, lamps, chunk, ground, massMesh, lampParts, signEmitters,
       signs: signQuads.length ? { matrices: signQuads, skin: signTint, trade: signTrade } : null,
+      /** Session 60. The chunk's share of the one merged `city:flank` mesh. */
+      flank: flankQuads.length ? { matrices: flankQuads, skin: flankTint } : null,
       roofSignFaces,
       roofSignArea,
     };
@@ -5561,7 +5840,7 @@ export function createCity(options = {}) {
    * one elevation.
    */
   function buildFacade(bld, era, out, tint, masses, massSkin, albedo, roughness,
-    tier, floorBase, floorTotal) {
+    tier, floorBase, floorTotal, flankOut, flankTint) {
     /** The base tier stands on the street and has a ground floor; the others do not. */
     const plinth = tier.y0 > 0 ? tier.y0 : (era.ground === 'shopfront' ? 5.4 : 4.2);
     const usable = Math.max(0, tier.y1 - plinth);
@@ -5589,10 +5868,10 @@ export function createCity(options = {}) {
     );
 
     const faces = [
-      { dir: [0, -1], w: tier.width, off: tier.depth / 2 },
-      { dir: [0, 1], w: tier.width, off: tier.depth / 2 },
-      { dir: [-1, 0], w: tier.depth, off: tier.width / 2 },
-      { dir: [1, 0], w: tier.depth, off: tier.width / 2 },
+      { dir: [0, -1], w: tier.width, off: tier.depth / 2, axis: 'z', key: 'minus' },
+      { dir: [0, 1], w: tier.width, off: tier.depth / 2, axis: 'z', key: 'plus' },
+      { dir: [-1, 0], w: tier.depth, off: tier.width / 2, axis: 'x', key: 'minus' },
+      { dir: [1, 0], w: tier.depth, off: tier.width / 2, axis: 'x', key: 'plus' },
     ];
 
     for (let f = 0; f < faces.length; f++) {
@@ -5613,12 +5892,67 @@ export function createCity(options = {}) {
       const rear =
         (bld.facing === 'z-' && face.dir[1] === 1) || (bld.facing === 'z+' && face.dir[1] === -1) ||
         (bld.facing === 'x-' && face.dir[0] === 1) || (bld.facing === 'x+' && face.dir[0] === -1);
-      if (!front && !rear) continue;
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * AND THE SIDE ELEVATIONS, WHERE THEY ARE NOT PARTY WALLS — SESSION 60,
+       * ITEM 2.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * The paragraph above is right about the case it names and was silent
+       * about the case it does not: *"buildings in a run touch, so a window on
+       * a side face is a window inside the neighbour."* True of a building
+       * INSIDE a run and false at the end of one, where the walk's own advance
+       * opens 6 to 26 m. Session 35 then took the depth to 29.6 m, so what
+       * stood across every cross street was thirty metres of blank wall — the
+       * largest unbroken surface in a street frame, and the operator's
+       * question.
+       *
+       * WHAT DECIDES IT IS THE REGISTRY AND NOT A RULE. `citygen.js` measures,
+       * against its own claims, which spans of each side face have a building
+       * standing on them and how high that building reaches
+       * (`SIDE_PARTY_PROBE_M`, and the derivation of the 2.0 m is there).
+       * `bld.sideCovered` is that measurement; this loop reads it per COLUMN,
+       * so a 30 m flank beside a 16 m neighbour is a party wall for 16 m and
+       * an elevation for 14, and a 60 m flank beside a four-storey neighbour
+       * is a party wall for four storeys and an elevation above it.
+       *
+       * Measured over `city-budget`'s own 10 x 10 at seed 1337: **1 336 side
+       * faces on 668 buildings — 199 party walls (14.9%), 358 partly covered
+       * (26.8%) and 779 open end to end (58.3%)**, and 73.4% of all side
+       * elevation AREA is exposed. So the two faces this function skipped are
+       * 1.065x the area of the two it draws.
+       */
+      const flank = !front && !rear;
+      /** No flank sink handed in — the ground-floor pass and any future caller
+       *  that only wants the two street elevations. */
+      if (flank && !flankOut) continue;
+      const covered = flank && bld.sideCovered && bld.sideAxis === face.axis
+        ? bld.sideCovered[face.key] : null;
+      if (flank && !covered) continue;
+      /**
+       * AND THE ELEVATION HAS TO BE LOOKING AT SOMETHING. `sideOpenM` is the
+       * clear distance in front of this face, saturating at 30 m; `FLANK
+       * .minOpenM` is where a slot stops being a slot. The number is a BUDGET
+       * and is derived as one — see `FLANK`.
+       */
+      if (flank && (bld.sideOpenM ? bld.sideOpenM[face.key] : 0) < FLANK.minOpenM) continue;
 
-      const cols = Math.max(1, Math.floor(face.w / (era.rhythm === 'vertical' ? 2.8 : 2.0)));
+      /**
+       * THE FLANK'S BAY IS WIDER AND ITS OPENING IS NARROWER, and both are the
+       * same fact about a building rather than a budget: the principal
+       * elevation is the one with the shopfront, the entrance and the address,
+       * and the flank is where the stair, the risers and the back rooms are.
+       * `FLANK` carries the arithmetic and the delivered pane count.
+       */
+      const cols = flank
+        ? Math.max(1, Math.floor(face.w / FLANK.bayM))
+        : Math.max(1, Math.floor(face.w / (era.rhythm === 'vertical' ? 2.8 : 2.0)));
       const colW = face.w / cols;
-      const winW = colW * (era.rhythm === 'band' ? 0.9 : era.rhythm === 'panel' ? 0.95 : 0.55);
-      const winH = era.floor * (era.windowWall > 0.4 ? 0.62 : 0.44);
+      const winW = flank
+        ? colW * FLANK.openingOfBay
+        : colW * (era.rhythm === 'band' ? 0.9 : era.rhythm === 'panel' ? 0.95 : 0.55);
+      const winH = era.floor * (flank ? FLANK.openingOfFloor
+        : era.windowWall > 0.4 ? 0.62 : 0.44);
 
       /**
        * Facade relief — the thing that makes an elevation read as built rather
@@ -5631,8 +5965,17 @@ export function createCity(options = {}) {
        * face, which is cheap in draws (they share the chunk's one box mesh) and
        * is most of the geometry a facade actually has.
        */
-      const relief = era.rhythm === 'band' || era.rhythm === 'panel'
-        ? 'spandrel' : era.rhythm === 'vertical' ? 'mullion' : null;
+      /**
+       * NO RELIEF ON A FLANK, and it is the triangle budget saying what a
+       * building already says. A spandrel is a box per floor per face and a
+       * mullion a box per bay; on the two faces this function has just
+       * admitted, those would cost twelve triangles each against the flank
+       * pane's two. A side elevation is also the one a building spends least
+       * on in life — the articulation belongs to the front.
+       */
+      const relief = flank ? null
+        : era.rhythm === 'band' || era.rhythm === 'panel'
+          ? 'spandrel' : era.rhythm === 'vertical' ? 'mullion' : null;
 
       for (let fl = 0; fl < floors; fl++) {
         const y = plinth + fl * era.floor + era.floor * 0.5;
@@ -5663,6 +6006,32 @@ export function createCity(options = {}) {
           // The courtyard elevation is real but plainer: fewer openings, no
           // display facade. Half the windows of the street front.
           if (rear && h < 0.22) continue;
+          /**
+           * AND ON A FLANK, THE BAY IS SKIPPED WHERE A NEIGHBOUR IS STANDING
+           * AGAINST IT — per bay and per floor, which is the whole reason
+           * `sideCovered` carries spans and a height rather than a boolean.
+           *
+           * The test is the window's own SILL against the neighbour's top: a
+           * pane whose bottom edge clears the party wall is a pane looking out
+           * over its neighbour's roof, which is what the upper floors of a
+           * tall building beside a short one actually have. `SIDE_MARGIN_M` is
+           * added to the neighbour's top so a window is not drawn flush with a
+           * parapet it would be looking straight into.
+           */
+          if (flank) {
+            /**
+             * AND MOST BAYS CARRY NOTHING, WHICH IS A BUDGET AND IS DERIVED AS
+             * ONE — see `FLANK.keep`.
+             */
+            if (fractHash(c * 3.13, (floorBase + fl) * 6.71, bld.z * 0.29) >= FLANK.keep) continue;
+            const uc = -face.w / 2 + colW * (c + 0.5);
+            let blocked = false;
+            for (const sp of covered) {
+              if (uc <= sp.a || uc >= sp.b) continue;
+              if (y - winH / 2 < sp.top + FLANK.sideMarginM) { blocked = true; break; }
+            }
+            if (blocked) continue;
+          }
 
           if (relief === 'mullion' && masses && fl === 0) {
             const mu = -face.w / 2 + colW * c;
@@ -5686,7 +6055,44 @@ export function createCity(options = {}) {
           const pz = bld.z + (face.dir[1] ? face.dir[1] * (face.off - 0.08) : u);
           const yaw = face.dir[0] ? face.dir[0] * 90 : face.dir[1] > 0 ? 0 : 180;
 
-          out.push(setMatrix(px, y, pz, winW, winH, 0.34, yaw + bld.yawDeg));
+          /**
+           * A FLANK PANE IS A PLANE QUAD AND A FRONT PANE IS A BOX, AND THAT
+           * IS A BUDGET DECISION MADE IN THE OPEN.
+           *
+           * The paragraph above this function's `out.push` has argued since
+           * session 5 that a plane flush with a wall *"reads as a decal at any
+           * angle off normal"*, and that argument is why the front and rear
+           * panes are boxes at twelve triangles each. It is also why this
+           * elevation cannot be. `FLANK` carries the arithmetic: the exposed
+           * flank is 1.065x the front-and-rear elevation area, so a box pane
+           * would cost about 0.97 M triangles against 60 000 of headroom, and
+           * the honest answer would have been that the item does not fit.
+           *
+           * A PLANE IS TWO TRIANGLES AND IT RIDES IN ONE MERGED CITY-WIDE
+           * MESH, which is session 58's own arrangement for the sign blades
+           * (113 of them for 56 triangles) and session 57's for the gullies.
+           * It costs ONE draw call for the whole city.
+           *
+           * IT STANDS PROUD RATHER THAN FLUSH, by `FLANK.proudM`. Coplanar
+           * with the wall it would z-fight with the mass it is drawn on —
+           * which is the same rule the court pad and the park lawn are cut
+           * around each other by, one surface over.
+           *
+           * WHAT IS GIVEN UP, SAID PLAINLY: a flank opening has no reveal, so
+           * it has no shadow line at grazing incidence. What it has instead is
+           * the thing a blank wall has none of — a lit rhythm at night, which
+           * is what a flank contributes to a street frame.
+           */
+          if (flank) {
+            flankOut.push(setMatrix(
+              bld.x + (face.dir[0] ? face.dir[0] * (face.off + FLANK.proudM) : u),
+              y,
+              bld.z + (face.dir[1] ? face.dir[1] * (face.off + FLANK.proudM) : u),
+              winW, winH, 1, yaw + bld.yawDeg
+            ));
+          } else {
+            out.push(setMatrix(px, y, pz, winW, winH, 0.34, yaw + bld.yawDeg));
+          }
 
           /**
            * THE HEAD BAND, WHICH WAS A SOLID SLAB OVER THE GLASS UNTIL THIS
@@ -5733,7 +6139,7 @@ export function createCity(options = {}) {
            *
            * It rides in the chunk's one box mesh, so it costs no draw call.
            */
-          if (masses) {
+          if (masses && !flank) {
             masses.push(setMatrix(
               bld.x + (face.dir[0] ? face.dir[0] * (face.off + 0.05) : u),
               y + winH / 2 + 0.09,
@@ -5801,7 +6207,8 @@ export function createCity(options = {}) {
               : unitHash(c * 7.31, (floorBase + fl) * 2.17, bld.z * 0.13) < MERCURY_SHARE_OF_COLD
                 ? WINDOW_MERCURY_TINT
                 : WINDOW_COLD_TINT;
-          tint.push({ albedo: [base[0] * on, base[1] * on, base[2] * on], roughness: 0.05 });
+          (flank ? flankTint : tint).push({
+            albedo: [base[0] * on, base[1] * on, base[2] * on], roughness: 0.05 });
         }
       }
     }
@@ -7862,6 +8269,7 @@ export function createCity(options = {}) {
     // chunk that had either means that mesh no longer describes the ring.
     if (rec.ground) groundDirty = true;
     if (rec.signs) signsDirty = true;
+    if (rec.flank) flankDirty = true;
     if (rec.lampParts) lampsDirty = true;
     bytesResident -= rec.bytes;
     resident.delete(key);
@@ -8525,6 +8933,66 @@ export function createCity(options = {}) {
         },
 
         /**
+         * THE PLAY AREAS — SESSION 60, ITEM 3, AND IT IS `decks()` AT GROUND
+         * LEVEL.
+         *
+         * The operator: *"He would like to see people moving on the courts and
+         * pitches. Right now a sports ground is furniture with nobody in it."*
+         * Session 56 put people on the station platform, so agents are no
+         * longer confined to the pavement loop; this is the second surface
+         * they are allowed on and it is a much easier one, because a play area
+         * is AT GRADE. A deck needs its own `y` and its own arc frame — a
+         * person walks UNDER a platform every day, so it cannot be in
+         * `worldSurface`'s max — and a court is a rectangle of ground that
+         * `surfaceAt` already answers for.
+         *
+         * IT IS READ OFF THE DELIVERED RECTANGLES AND NOT OFF `chunk.ground`.
+         * `quad()` records the CATEGORY of every ground rectangle this module
+         * emits, and item 1 made a play area the one surface that claims
+         * `pitch` — so the list of play areas IS the list of delivered `pitch`
+         * rectangles, and a chunk whose pad was clipped away by a landmark or
+         * the origin block contributes nothing rather than contributing a
+         * rectangle nobody drew. CONTRACT §9.1: the generator's description
+         * would have been the other list.
+         *
+         * ONE RECORD PER CHUNK, as the union of that chunk's `pitch`
+         * rectangles. A bank of two courts is one pad and one claim already;
+         * where `subtractBoxes` split a pad around something, the union is the
+         * ground the play area occupies and the split is an artefact of the
+         * clipper rather than two places to stand.
+         *
+         * THE VARIANT COMES FROM THE CHUNK'S OWN DENSITY through the pure
+         * `recreationVariant`, which is the same function that decided what to
+         * build there — not a second rule keyed on the pad's dimensions, which
+         * is how two descriptions of one thing start.
+         */
+        playAreas() {
+          const out = [];
+          for (const rec of resident.values()) {
+            if (!rec.ground || !rec.ground.rects || !rec.chunk) continue;
+            let box = null;
+            for (const q of rec.ground.rects) {
+              if (q.kind !== 'pitch') continue;
+              box = box ? {
+                x0: Math.min(box.x0, q.x0), x1: Math.max(box.x1, q.x1),
+                z0: Math.min(box.z0, q.z0), z1: Math.max(box.z1, q.z1),
+              } : { x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1 };
+            }
+            if (!box) continue;
+            out.push({
+              id: `${rec.cx},${rec.cz}`,
+              x: (box.x0 + box.x1) / 2,
+              z: (box.z0 + box.z1) / 2,
+              halfX: (box.x1 - box.x0) / 2,
+              halfZ: (box.z1 - box.z0) / 2,
+              areaM2: (box.x1 - box.x0) * (box.z1 - box.z0),
+              variant: recreationVariant(rec.chunk.density),
+            });
+          }
+          return out;
+        },
+
+        /**
          * THE DELIVERED OCCUPANCY — session 21. Every claim this module put on
          * the ground, from the geometry it emitted rather than from the
          * generator's description of it. Read by `harness.occupancyCensus()`
@@ -8946,12 +9414,15 @@ export function createCity(options = {}) {
         const made = buildChunk(ctx, w.cx, w.cz, w.detail, w.ring);
         if (made.ground) groundDirty = true;
         if (made.signs) signsDirty = true;
+        if (made.flank) flankDirty = true;
         if (made.lampParts) lampsDirty = true;
         resident.set(key, {
           cx: w.cx, cz: w.cz,
           group: made.group,
           ground: made.ground,
           signs: made.signs,
+          /** Session 60 — the chunk's share of `city:flank`. */
+          flank: made.flank,
           massMesh: made.massMesh,
           lampParts: made.lampParts,
           /**
@@ -9013,6 +9484,31 @@ export function createCity(options = {}) {
         }
       }
       if (signsDirty) rebuildSignMesh(ctx);
+      /**
+       * ONCE THE RING IS COMPLETE, NOT ONCE PER CHUNK — session 60, and it is
+       * a SCHEDULE rather than a bound. `CITY.generateBudget` chunks are built
+       * per frame (CONTRACT §8.1: never blocks a frame), so a chunk crossing
+       * that queues twenty chunks takes ten frames — and a merged mesh
+       * rebuilt on each of them uploads the whole city's flank ten times for
+       * one crossing.
+       *
+       * MEASURED, AND IT IS THE ANGLE-METAL UPLOAD STALL `budget.json` →
+       * `ceilingsByRoute.night_rain` already names: `highway_speed`'s frames
+       * over 33 ms went **≤3 at HEAD → 12 with 26 658 panes rebuilt per chunk
+       * → 4 with 9 332** — monotone in the population being uploaded, which is
+       * the mechanism rather than the load. (The machine was at load1 3.9 all
+       * session, so the absolute count is not a verdict — CONTRACT §0.2 — and
+       * the MONOTONICITY across three arms is.)
+       *
+       * `built >= generateQueue.length` is "this frame built everything that
+       * was wanted": the queue is rebuilt from scratch every frame from
+       * `wantedChunks`, so an empty remainder means the resident ring is the
+       * one the camera asks for. The mesh is therefore at most one crossing's
+       * streaming behind, which is the same lag every other chunk-scale thing
+       * in this module already has — and `!flankMesh` forces the first build
+       * so a camera that never stops still gets one.
+       */
+      if (flankDirty && (built >= generateQueue.length || !flankMesh)) rebuildFlankMesh();
       if (lampsDirty) rebuildLampMesh();
       /**
        * SESSION 53. Its own dirty test rather than a flag, because what it
@@ -9056,7 +9552,7 @@ export function createCity(options = {}) {
       for (const key of [...resident.keys()]) unbuild(key);
       // The two merged meshes are owned by the module rather than by a chunk,
       // so `unbuild` above cannot reach them.
-      for (const m of [groundMesh, signMesh, lampMesh, bowlMesh, distantMesh]) {
+      for (const m of [groundMesh, signMesh, flankMesh, lampMesh, bowlMesh, distantMesh]) {
         if (!m) continue;
         root.remove(m);
         // The lamp pair shares `geometries.lamp` and `geometries.bowl` with
@@ -9070,6 +9566,7 @@ export function createCity(options = {}) {
       }
       groundMesh = null;
       signMesh = null;
+      flankMesh = null;
       lampMesh = null;
       bowlMesh = null;
       distantMesh = null;

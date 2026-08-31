@@ -866,9 +866,23 @@ export function tradeFor(tradeRng, density, distToEndM) {
 export const TRADE_RAMP_H = 0.75;
 export function tradeOpen(trade, t) {
   const T = TRADES[trade] || TRADES.shop;
+  return hoursFactor(T.openH, T.closeH, t);
+}
+
+/**
+ * OPEN / SHUT AS A RAMP, FOR ANY PAIR OF HOURS — extracted in session 60 so
+ * that the second table of opening hours in this file reads the same
+ * arithmetic rather than carrying a copy of it. `tradeOpen` above and
+ * `playOpen` below are the two callers; a third would be the third caller of
+ * one function and not a third spelling of one ramp (CONTRACT §9.1).
+ *
+ * The ramp itself is session 58's and is unchanged: `TRADE_RAMP_H` wide at
+ * each end, so no capture ever lands on a discontinuity.
+ */
+export function hoursFactor(openH, closeH, t) {
   const h = (((t % 1) + 1) % 1) * 24;
-  const span = ((T.closeH - T.openH) + 24) % 24;
-  const since = ((h - T.openH) + 24) % 24;
+  const span = ((closeH - openH) + 24) % 24;
+  const since = ((h - openH) + 24) % 24;
   if (since >= span) return 0;
   const upto = Math.min(since, TRADE_RAMP_H) / TRADE_RAMP_H;
   const left = Math.min(span - since, TRADE_RAMP_H) / TRADE_RAMP_H;
@@ -2264,6 +2278,50 @@ export const WALK = {
 };
 
 /**
+ * Metres. HOW FAR OUTSIDE A SIDE ELEVATION TO LOOK FOR THE NEIGHBOUR THAT
+ * MAKES IT A PARTY WALL — session 60, item 2.
+ *
+ * IT IS NOT A TOLERANCE, IT IS THE GAP BETWEEN TWO POPULATIONS. The perimeter
+ * walk above advances `t += width + rng.range(0.2, 1.4)` between two buildings
+ * of one run and `rng.range(6, 26)` after the last of one, and the quay walk's
+ * own advance is `rng.range(0.2, 6)`. So the distance from a building's side
+ * face to the next thing along the frontage is drawn from one of two bands and
+ * there is **nothing between 1.4 m and 6.0 m** on the perimeter walk:
+ *
+ *     within a run      0.2 .. 1.4 m     a party wall — the comment in
+ *                                        `city.js` → `buildFacade` is right
+ *     end of a run      6.0 .. 26.0 m    a yard, an alley, a cross street
+ *
+ * 2.0 m stands in that gap: 0.6 m above the first band's ceiling and 4.0 m
+ * below the second's floor. Any number in [1.4, 6.0) classifies every
+ * perimeter building identically, so the value is not a knob and moving it
+ * inside that interval changes nothing — which is the property CONTRACT §9
+ * rule 5 asks a constant to have.
+ *
+ * THE QUAY WALK IS THE EXCEPTION AND IT IS NAMED RATHER THAN EXCUSED: its
+ * `rng.range(0.2, 6)` spans the gap, so a quayside terrace with a 3 m break in
+ * it reads as a party wall here. That is the conservative direction — it keeps
+ * an elevation blank rather than glazing one a neighbour is standing against —
+ * and the quay's own 1 m building margin (`QUAY_SETBACKS`) means its terraces
+ * genuinely do lie one on another.
+ */
+export const SIDE_PARTY_PROBE_M = 2.0;
+
+/**
+ * Metres. HOW FAR IN FRONT OF A SIDE ELEVATION IS WORTH LOOKING — session 60,
+ * item 2, and it is a SATURATION rather than a threshold.
+ *
+ * `sideOpenM` is the clear distance from a side face to the nearest mass in
+ * front of it, and past a certain distance the answer stops carrying
+ * information: `CORRIDOR × 2` = 23.4 m is this city's own building line to
+ * building line (see `depthprobe`'s note and LOOK.md §2's light-well
+ * derivation), so anything clear for 30 m is looking across at least a street.
+ * The sweep stops there rather than walking the whole island, which is what
+ * makes the query one registry call per face.
+ */
+export const SIDE_OPEN_MAX_M = 30.0;
+
+/**
  * SETBACKS — session 20, item 4's other half.
  *
  * A tower that is one width from pavement to parapet reads as a SHAPE. One that
@@ -3027,6 +3085,84 @@ export function recreationVariant(density) {
   if (density < RECREATION.courtBelow) return 'court';
   return 'playground';
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHEN A PLAY AREA IS IN USE — SESSION 60, ITEM 3.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator's item: *"He would like to see people moving on the courts and
+ * pitches ... Derive the count from the time of day."*
+ *
+ * TWO CLOCKS ACT ON A PLAY AREA AND THEY MUST NOT BE ONE. `streetlife.js`'s
+ * `crowdFactor` already scales the WHOLE awake population by the hour, so a
+ * play area allocated a fixed share of that population is already emptier at
+ * three in the morning — 18% of its daytime crowd, the diurnal floor. That is
+ * the street's curve and it is the wrong shape for a ground: at 03:00 the
+ * street's remaining 18% are night workers going home and none of them is on
+ * a basketball court. So a play area carries its OWN hours on top, and what
+ * the two together deliver is the count.
+ *
+ * THE HOURS ARE THE FLOODLIGHTS. `citygen.js` already puts four `flood` masts
+ * at the corners of every play area — *"a pitch nobody can use after four
+ * o'clock in winter is a lawn with lines on it"* — so the ground is usable
+ * after dark by construction and the closing hour is a curfew rather than a
+ * sunset. Each row below says which.
+ *
+ *   pitch       07 → 22   A floodlit adult pitch: booked from before work to
+ *                         a late curfew. The latest of the three, because it
+ *                         is the one with the biggest lighting installation.
+ *   court       08 → 21   A hard court is unbooked and unsupervised, so it
+ *                         closes with the light it can be seen to be used in.
+ *   playground  08 → 19   The one used by children, and the only one whose
+ *                         closing hour is not about light at all.
+ *
+ * A STADIUM TAKES THE PITCH'S ROW, because a stadium in this generator IS a
+ * pitch with a bowl round it (`RECREATION.stadiumBelow`).
+ */
+export const PLAY_HOURS = {
+  pitch: { openH: 7, closeH: 22 },
+  court: { openH: 8, closeH: 21 },
+  playground: { openH: 8, closeH: 19 },
+};
+
+/** The share of a play area's own population that is out at `t`. */
+export function playOpen(variant, t) {
+  const P = PLAY_HOURS[variant] || PLAY_HOURS.court;
+  return hoursFactor(P.openH, P.closeH, t);
+}
+
+/**
+ * People per m² of PLAY SURFACE when the ground is open — session 60, item 3,
+ * and it is `streetlife.js`'s `PEOPLE_PER_M2` with the game as its citation
+ * instead of Fruin.
+ *
+ * That constant is **0.06 people per m² of pavement on a busy street, against
+ * Fruin's LOS A at 0.083**. A play surface needs the same kind of number and
+ * cannot take that one: a pavement is a corridor everybody uses and a pitch is
+ * a facility a few people use at a time.
+ *
+ * THE CITATION IS THE GAME THIS GENERATOR ALREADY BUILT THE GOAL FOR.
+ * `RECREATION.goalWidthM` is 3.66 m, which its own comment records as
+ * *"3.66 x 2.13 for five-a-side"* — so the pitch this city lays is a
+ * five-a-side pitch and the population of one in use is **ten players over
+ * `pitchLongM × pitchShortM` = 60 × 38 = 2 280 m² = 0.00439 people per m²**.
+ * That is 7.3% of the pavement figure, which is the right order: the operator
+ * asked for *"a handful per court ... this does not need a game of
+ * basketball."*
+ *
+ * ONE DENSITY FOR ALL THREE VARIANTS, and the variants differ by their own
+ * area rather than by a second table. Delivered at the shipped dimensions,
+ * play area including run-off:
+ *
+ *     pitch        68 × 46 m = 3 128 m²   →  13.7 people
+ *     court (×2)   36 × 42 m = 1 512 m²   →   6.6 people
+ *     playground   42 × 34 m = 1 428 m²   →   6.3 people
+ *
+ * before the hours factor and before the ring's own apportionment, which is
+ * what turns a wanted count into a share of the crowd that is actually there.
+ */
+export const PLAY_PEOPLE_PER_M2 = 10 / (RECREATION.pitchLongM * RECREATION.pitchShortM);
 
 /**
  * A PARK, AS THE SIX THINGS A PARK HAS — session 21.
@@ -10115,6 +10251,143 @@ export function generateChunk(rootSeed, cx, cz) {
     }
   }
 
+  // --- which SIDE elevations face something -------------------------------
+  //
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SESSION 60, ITEM 2 — THE THIRTY-METRE BLANK WALL, AND THE REGISTRY IS WHAT
+  // KNOWS WHICH ONES ARE PARTY WALLS.
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // THE OPERATOR'S QUESTION: *"how reasonable is it that buildings in downtown
+  // have no windows on every side?"* `city.js` → `buildFacade` builds four
+  // faces and glazes two — the elevation the building FACES and the courtyard
+  // elevation behind it — and skips the two sides, under a comment that is
+  // right about the case it names and silent about the case it does not:
+  //
+  //     "Not the two side faces: buildings in a run touch, so a window on a
+  //      side face is a window inside the neighbour."
+  //
+  // A BUILDING IN A RUN TOUCHES ITS NEIGHBOUR. A BUILDING AT THE END OF A RUN
+  // DOES NOT. The walk advances `t += width + rng.range(0.2, 1.4)` inside a run
+  // and `rng.range(6, 26)` after the last building of one, so the same field
+  // that produced the comment also produces the counter-example — and session
+  // 35 then made the sides 29.6 m deep, so what stands across a cross street is
+  // the largest unbroken surface in a street frame.
+  //
+  // THE PROBE IS 2.0 m AND IT SEPARATES THE TWO POPULATIONS BY CONSTRUCTION.
+  // The within-run gap's own ceiling is 1.4 m and the end-of-run gap's own
+  // floor is 6.0 m; 2.0 clears the first by 0.6 and is under the second by 4.0.
+  // It is not a tuned distance — there is no building in this generator whose
+  // near neighbour stands between 1.4 m and 6.0 m away, so any number in that
+  // interval gives the same answer and the interval's own middle is the honest
+  // place to stand. `SIDE_PARTY_PROBE_M`.
+  //
+  // WHAT IS RECORDED IS THE COVERED SPANS AND NOT A BOOLEAN, because a
+  // neighbour is not obliged to be as deep as the building beside it: session
+  // 35's depth is `rng.range` over a band, so a 30 m building next to a 16 m
+  // one has 14 m of side elevation standing in the open above its own party
+  // wall's end. A boolean would have to round that to blank or to glazed and
+  // both are wrong. `city.js` reads the spans per COLUMN, which is
+  // §7.3.1's rule — *a station is read against the boxes that span it* — with
+  // a window bay instead of a vehicle station.
+  //
+  // AND THE HEIGHT IS CARRIED WITH IT. A neighbour four storeys high against a
+  // twenty-storey flank is a party wall for four storeys and sky for sixteen.
+  // Each covered span therefore carries the TOP of the tallest thing covering
+  // it, and a bay is blank only below that. Recorded as a height above the
+  // ground rather than a floor count, because the two buildings need not share
+  // an era and therefore need not share a storey height.
+  //
+  // IT IS COMPLETE IN THIS CHUNK'S OWN REGISTRY, and that is a property of the
+  // lattice rather than luck: the perimeter walk clamps every side's run to its
+  // own island (see the registry's own note above), so the two buildings that
+  // meet at an island corner are both this chunk's. A neighbouring island is
+  // 23.4 m away across a corridor, which is nine times the probe.
+  for (const bld of buildings) {
+    /**
+     * `width` is the world-X extent and `depth` the world-Z extent — both are
+     * taken off the delivered claim, not off the roll (see `bld.width`). So a
+     * building facing z± has its two SIDE faces on ±X, each of them `depth`
+     * long; one facing x± has them on ±Z, each `width` long. This is
+     * `buildFacade`'s own `faces` table read from the other end, and the two
+     * agree because both are written in world axes.
+     */
+    const sideOnX = bld.facing === 'z-' || bld.facing === 'z+';
+    const halfAcross = (sideOnX ? bld.width : bld.depth) / 2;
+    const halfAlong = (sideOnX ? bld.depth : bld.width) / 2;
+    const spans = {};
+    const open = {};
+    for (const sgn of [-1, 1]) {
+      const faceAt = (sideOnX ? bld.x : bld.z) + sgn * halfAcross;
+      const c = (sideOnX ? bld.z : bld.x);
+      /**
+       * A SLAB IMMEDIATELY OUTSIDE THE FACE, one probe deep and the face's own
+       * length. `y` is a surface band: a `building` claim runs from 0 to its
+       * delivered top, so any building at all overlaps it and the vertical
+       * question is answered by the span's own `top` below rather than by the
+       * query.
+       */
+      const box = sideOnX
+        ? claimBox('building', faceAt + (sgn > 0 ? 0 : -SIDE_PARTY_PROBE_M),
+          c - halfAlong, faceAt + (sgn > 0 ? SIDE_PARTY_PROBE_M : 0), c + halfAlong,
+          { y1: SURFACE_TOP_M })
+        : claimBox('building', c - halfAlong, faceAt + (sgn > 0 ? 0 : -SIDE_PARTY_PROBE_M),
+          c + halfAlong, faceAt + (sgn > 0 ? SIDE_PARTY_PROBE_M : 0), { y1: SURFACE_TOP_M });
+      const out = [];
+      for (const hit of reg.hits(box, 0, ['building', 'landmark'])) {
+        /** The neighbour's own extent along this face, in the face's parameter
+         *  (`-halfAlong .. +halfAlong` from the building's centre). */
+        const a = Math.max(-halfAlong, (sideOnX ? hit.z0 : hit.x0) - c);
+        const b = Math.min(halfAlong, (sideOnX ? hit.z1 : hit.x1) - c);
+        if (b - a <= 0.05) continue;
+        out.push({ a: +a.toFixed(3), b: +b.toFixed(3), top: +hit.y1.toFixed(3) });
+      }
+      spans[sgn > 0 ? 'plus' : 'minus'] = out;
+
+      /**
+       * AND HOW FAR IT CAN SEE, which is a different question from whether it
+       * is a party wall and the two are answered separately on purpose.
+       *
+       * `sideCovered` above says which BAYS have a neighbour standing on them.
+       * This says what the elevation as a whole is LOOKING AT: 0.2 m of slot
+       * between two buildings in a terrace, 14 m of yard at the end of a run,
+       * or the cross street. A side face in a slot is not a party wall — there
+       * is genuinely a gap — and it is not an elevation either, and one number
+       * cannot say both.
+       *
+       * THE NEAREST BLOCKER AND NOT THE MEDIAN ONE, which is the conservative
+       * direction: a neighbour clipping one metre of a thirty-metre face
+       * closes the whole face here. `sideCovered` is what recovers the rest,
+       * where the caller wants it.
+       */
+      const reach = sideOnX
+        ? claimBox('building', sgn > 0 ? faceAt : faceAt - SIDE_OPEN_MAX_M,
+          c - halfAlong, sgn > 0 ? faceAt + SIDE_OPEN_MAX_M : faceAt, c + halfAlong,
+          { y1: SURFACE_TOP_M })
+        : claimBox('building', c - halfAlong, sgn > 0 ? faceAt : faceAt - SIDE_OPEN_MAX_M,
+          c + halfAlong, sgn > 0 ? faceAt + SIDE_OPEN_MAX_M : faceAt, { y1: SURFACE_TOP_M });
+      let openM = SIDE_OPEN_MAX_M;
+      for (const hit of reg.hits(reach, 0, ['building', 'landmark'])) {
+        const near = sgn > 0
+          ? (sideOnX ? hit.x0 : hit.z0) - faceAt
+          : faceAt - (sideOnX ? hit.x1 : hit.z1);
+        if (near < openM) openM = Math.max(0, near);
+      }
+      open[sgn > 0 ? 'plus' : 'minus'] = +openM.toFixed(3);
+    }
+    /**
+     * WHAT `city.js` READS. Named for the axis they are on rather than for
+     * "left" and "right", because a side is only left or right of somebody who
+     * has been told which way the building faces, and this record is read by a
+     * loop that walks all four faces in world axes.
+     */
+    bld.sideAxis = sideOnX ? 'x' : 'z';
+    bld.sideCovered = spans;
+    /** Metres of clear ground in front of each side face, saturating at
+     *  `SIDE_OPEN_MAX_M`. See the note at the query. */
+    bld.sideOpenM = open;
+  }
+
   // --- road markings --------------------------------------------------------
   //
   // EVERY DIMENSION BELOW IS `ROAD_MARKING`, EXPORTED — SESSION 45, AND THE
@@ -11181,6 +11454,51 @@ export function generateChunk(rootSeed, cx, cz) {
       /** The path is cut out of the lawn exactly as the pad is — coplanar
        *  quads z-fight, and `islandSolids` knows nothing about paths. */
       const lawnCuts = pathOk ? [pathRect] : [];
+      /**
+       * ═══════════════════════════════════════════════════════════════════════
+       * THE PLAY AREA IS A CLAIM NOW, AND FOR TWELVE SESSIONS IT WAS NOT —
+       * SESSION 60, ITEM 1.
+       * ═══════════════════════════════════════════════════════════════════════
+       *
+       * THE OPERATOR'S FRAME: `?player=1&spawn=580.12,0.14,1061.89&t=0.6017`,
+       * two trees growing out of a basketball court. Chunk (4, 8), seed 1337,
+       * and the two are at (575.51, 1077.25) and (569.26, 1078.65) — inside a
+       * pad running x [558, 594] × z [1067, 1109].
+       *
+       * IT WAS NOT THE AD PILLAR'S SHAPE. Session 57's neighbouring case is a
+       * 3 × 3 sweep against a scatter that reaches across a chunk boundary;
+       * both trees here are in THIS chunk's own `props` and were placed by
+       * THIS chunk's own island scatter, 40 m from the nearest boundary. It is
+       * the simpler defect: **the pad was never offered to the registry at
+       * all.** The block above pushed it into `ground` and the scatter, forty
+       * lines below, tested `reg.conflict` against a registry that had never
+       * heard of it — 200 claims on this chunk and not one of them the court.
+       *
+       * AND A CLAIM ALONE WOULD NOT HAVE BEEN ENOUGH, which is the half worth
+       * writing down. `city.js` maps `sportGround` into the delivered census as
+       * `ground`, and `ground × prop` is ABSENT from the conflict table ON
+       * PURPOSE: a surface is the thing you stand a bollard on. So the pad had
+       * no claim, and the category it would have carried permits exactly the
+       * thing that stood on it. Two reasons, one frame. `occupancy.js` →
+       * `pitch` is the category that says the other thing.
+       *
+       * THE CLAIM IS THE DELIVERED PIECES AND NOT THE PAD RECTANGLE, so the
+       * generator's registry and `city.js`'s delivered census describe the same
+       * polygons (CONTRACT §9.1). `subtractBoxes` normally returns the pad
+       * whole — a recreation island is `lowDetail`, so no perimeter walk runs
+       * on it — and where it does not, an over-claim would show up as a
+       * spurious conflict and get the rule relaxed.
+       *
+       * `y1` IS `SURFACE_TOP_M` AND NOT THE FENCE'S HEIGHT. It is a SURFACE:
+       * a crown at 4 m over a corner of it is a tree beside the court and must
+       * stay legal, which is the same sentence `canopy × carriageway` is.
+       */
+      const claimPlay = (rects) => {
+        for (const q of rects) {
+          reg.claim(claimBox('pitch', q.x0, q.z0, q.x1, q.z1,
+            { owner: `sport:${variant}` }));
+        }
+      };
       if (hard) {
         const pad = { kind: 'sportGround', yKey: 'sport',
           x0: mx - hxP - runOff, x1: mx + hxP + runOff,
@@ -11194,10 +11512,42 @@ export function generateChunk(rootSeed, cx, cz) {
          * same clipper a park's grass is cut round its own paths with.
          */
         for (const g of subtractBoxes([green], [...islandSolids(), pad, ...lawnCuts])) ground.push(g);
-        for (const g of subtractBoxes([pad], islandSolids())) ground.push(g);
+        const laid = subtractBoxes([pad], islandSolids());
+        for (const g of laid) ground.push(g);
+        claimPlay(laid);
       } else {
+        /**
+         * A PITCH IS GRASS ON GRASS, SO ITS PLAY AREA HAD NOTHING TO BE A
+         * CLAIM OF — and that is why the fix is a ground KIND rather than one
+         * more `reg.claim` line.
+         *
+         * The three hard variants have a pad, and `city.js` reads a delivered
+         * claim off every rectangle it draws; the two grass variants laid one
+         * lawn over the whole island, so there was no delivered rectangle that
+         * was the pitch. A generator-only claim would have been the half of a
+         * two-sided check that CONTRACT §9.1 says is worth least — the
+         * registry says what was tested and the census says what arrived.
+         *
+         * `playField` IS `grass` WITH A DIFFERENT CATEGORY AND NOTHING ELSE.
+         * Same albedo, same datum, same porosity — the delivered frame is
+         * identical to the pixel. It is the relation `apronGrass` already has
+         * to `grass` (session 51), which differs in category for the same
+         * reason: the generator knows something about a piece of ground that
+         * the ground itself cannot say.
+         *
+         * Measured before this existed, over 25 × 25 chunks at seed 1337:
+         * **35 props standing on a play area over 14 recreation islands, 9 of
+         * them trees** — 24 of the 35 on the six PITCHES, which is the variant
+         * that had no surface to claim.
+         */
+        const play = { kind: 'playField', yKey: 'grass',
+          x0: mx - hxP - runOff, x1: mx + hxP + runOff,
+          z0: mz - hzP - runOff, z1: mz + hzP + runOff };
         const surf = { x0: isl.x0, z0: isl.z0, x1: isl.x1, z1: isl.z1, kind: 'grass', yKey: 'grass' };
-        for (const g of subtractBoxes([surf], [...islandSolids(), ...lawnCuts])) ground.push(g);
+        for (const g of subtractBoxes([surf], [...islandSolids(), play, ...lawnCuts])) ground.push(g);
+        const laid = subtractBoxes([play], islandSolids());
+        for (const g of laid) ground.push(g);
+        claimPlay(laid);
       }
       /** A line on play area `c`: `t` along its long axis, `u` across it. */
       const line = (c, t, u, len, wid, across) => markings.push({
@@ -12049,7 +12399,28 @@ export function generateChunk(rootSeed, cx, cz) {
          * that reads as one rather than as an office with a yard.
          */
         lay('grass', 'grass');
-        const yard = { kind: 'sportGround', yKey: 'sport',
+        /**
+         * `hardGround` AND NOT `sportGround` — SESSION 60, AND IT IS A RENAME
+         * THAT CHANGES NO PIXEL.
+         *
+         * Both kinds are the same macadam at the same datum with the same
+         * porosity; what separates them is the CATEGORY `city.js` claims for
+         * the delivered rectangle. `sportGround` is a PLAY AREA now and
+         * refuses a prop (`occupancy.js` → `pitch`); a school's hard yard
+         * carries bins, cycle stands and bollards on purpose and must not.
+         * The name was borrowed for its colour and is given back.
+         *
+         * WHAT IS LEFT ON IT IS A MEASURED QUESTION AND NOT A REPAIR. Over
+         * 25 × 25 chunks at seed 1337 the four school yards in range carry
+         * **8 trees** growing out of the tarmac, and the sixteen church
+         * squares carry **98**. A tree in a paved square is a tree in a tree
+         * pit and a tree in the middle of a playground is not, and the
+         * category tool cannot tell them apart: `pitch` refuses every `prop`,
+         * and a bench on a churchyard square is right. Splitting `prop` into
+         * furniture and PLANTING is what would say it, and it is a change to
+         * every prop claim in the project rather than to this line.
+         */
+        const yard = { kind: 'hardGround', yKey: 'sport',
           x0: mx - (alongX ? 34 : 22), x1: mx + (alongX ? 34 : 22),
           z0: mz - (alongX ? 22 : 34), z1: mz + (alongX ? 22 : 34) };
         for (const g of subtractBoxes([yard], islandSolids())) ground.push(g);
@@ -12286,7 +12657,8 @@ export function generateChunk(rootSeed, cx, cz) {
          * does, which is exactly what a spire is for.
          */
         lay('grass', 'grass');
-        const sq = { kind: 'sportGround', yKey: 'sport',
+        /** `hardGround`: the same macadam, and not a play area. See `school`. */
+        const sq = { kind: 'hardGround', yKey: 'sport',
           x0: mx - (alongX ? 26 : 16), x1: mx + (alongX ? 26 : 16),
           z0: mz - (alongX ? 16 : 26), z1: mz + (alongX ? 16 : 26) };
         for (const g of subtractBoxes([sq], islandSolids())) ground.push(g);

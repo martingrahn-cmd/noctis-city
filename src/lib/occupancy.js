@@ -107,11 +107,20 @@
  *                 footway: a construction site's stripped hardcore, a park's
  *                 mown grass. Things STAND ON it, which is the whole reason it
  *                 had to be split from `site`.
+ *   pitch         SESSION 60. A PLAYING SURFACE — a court's macadam, a
+ *                 pitch's turf, a playground's safety surface. Split from
+ *                 `ground` for the reason `ground` was split from `site`, and
+ *                 it is the same split read backwards: `ground` permits a
+ *                 `prop` because a surface is for standing things on, and a
+ *                 playing surface is the one surface whose whole value is the
+ *                 CLEAR SPACE on it. The operator's sentence, and it is the
+ *                 derivation: *"anything a person is meant to stand on should
+ *                 refuse things that grow."*
  */
 export const CATEGORIES = [
   'building', 'landmark', 'deck', 'water',
   'carriageway', 'pavement', 'path', 'block',
-  'prop', 'canopy', 'sign', 'site', 'feature', 'ground', 'precinct',
+  'prop', 'canopy', 'sign', 'site', 'feature', 'ground', 'precinct', 'pitch',
 ];
 
 /**
@@ -293,6 +302,60 @@ const FORBIDDEN = {
    * thing that STANDS ON ground, which is what ground is for.
    */
   ground: ['building', 'landmark', 'water'],
+
+  /**
+   * `pitch` — A PLAYING SURFACE, AND IT IS THE `ground` ROW PLUS THE FOUR
+   * THINGS THAT WOULD STAND IN THE GAME. SESSION 60.
+   *
+   * THE DEFECT IT CLOSES. Two trees grew out of a basketball court at
+   * `?spawn=580.12,0.14,1061.89` — chunk (4, 8), seed 1337 — and there were
+   * two reasons for it rather than one. The court's pad carried NO CLAIM AT
+   * ALL: `citygen.js` pushed the `sportGround` rectangle into `ground` and
+   * never offered it to the registry, so the island scatter had nothing to be
+   * refused by. And had it carried one, its delivered category was `ground`,
+   * whose row above permits `prop` ON PURPOSE — a container on a site's
+   * hardcore and a bench on a lawn are what a surface is for. Measured over
+   * 25 x 25 chunks at seed 1337: **35 props standing on a play area across 14
+   * recreation islands, 9 of them trees.**
+   *
+   * EVERY ENTRY IS A SENTENCE AND SO IS EVERY ABSENCE.
+   *
+   *   `prop`       the defect. Planting, benches, bollards, bins: the four
+   *                things the palette scatters and none of them belongs
+   *                between the touchlines.
+   *   `sign`       a freestanding pylon on a court is a bollard with a poster
+   *                on it. `city.js` places these AFTER the generator, against
+   *                the delivered claims, so this row is the only thing that
+   *                can refuse one.
+   *   `carriageway`, `building`, `landmark`, `water` — the `ground` row's own
+   *                three plus the road, because a play area is inside an
+   *                island and a carriageway across one is the same defect the
+   *                dome across a road was.
+   *
+   *   `feature` IS ABSENT AND IT IS THE LOAD-BEARING ABSENCE. The goals, the
+   *                hoops, the ball-stop fence, the play frame and the swing
+   *                are all `feature` claims and every one of them stands ON
+   *                the play area BY DESIGN. A row that forbade `feature`
+   *                would have deleted the goals from every pitch in the city,
+   *                which is `site x prop` on a construction site again.
+   *   `site` IS ABSENT for the same reason one level over: the four
+   *                floodlight masts stand at `hxP + 3.0` and the pad reaches
+   *                `hxP + runOff` = `hxP + 4.0`, so the masts are ON the pad's
+   *                run-off — which is where a floodlight mast on a real court
+   *                stands. Forbidding `site` would have unlit every pitch in
+   *                the city to keep a hoarding off one.
+   *   `pavement` and `path` ARE ABSENT because the way IN is a path: session
+   *                56's gate path stops exactly at the pad's own edge and
+   *                `overlaps()` is strict, so the pair is a shared line rather
+   *                than an area — and a boundary case decided by the last bit
+   *                of a double is not a thing to hang a red gate on.
+   *   `canopy` IS ABSENT by the same argument that lets a street tree
+   *                overhang a carriageway: a crown reaching over the fence
+   *                from outside is a tree beside the court.
+   *   `deck` IS ABSENT: a viaduct over a pitch is a viaduct over a pitch.
+   *   `pitch x pitch` IS ABSENT because a bank of two courts is one pad.
+   */
+  pitch: ['building', 'landmark', 'water', 'carriageway', 'prop', 'sign'],
 
   feature: ['building', 'landmark', 'water', 'carriageway', 'pavement', 'path', 'block', 'prop', 'sign'],
 };
