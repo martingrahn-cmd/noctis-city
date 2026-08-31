@@ -210,7 +210,40 @@ const SIM_RADIUS = 190;
  * instead of spread over 190 m. 4a's margin of 21 remains a floor and not an
  * estimate.
  */
-const VEHICLE_COUNT = 160;
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 160 → 120, SESSION 57, AND IT IS AN AESTHETIC DECISION WITH A FLOW RATE
+ * BEHIND IT RATHER THAN A BUDGET CUT WEARING ONE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator released this count in as many words — *"it is fine to reduce
+ * the number of cars and people"*, *"there is really too much"* — so what
+ * follows is his judgement, costed in the same units the paragraph above
+ * uses so the two can be compared:
+ *
+ *   160 over 1771 m   one every 11.07 m over four lanes   975 veh/h/lane
+ *   120 over 1771 m   one every 14.76 m over four lanes   732 veh/h/lane
+ *    96 over 1771 m   one every 18.45 m over four lanes   585 veh/h/lane
+ *
+ * 732 sits between the two figures this file already argues about: above the
+ * 585 the same comment calls *"a real arterial flow that reads as a quiet
+ * night"* and below the 975 it calls *"busy"*, against a saturation flow near
+ * 1800. So the street is still a working arterial and is no longer nose to
+ * tail, which is the complaint.
+ *
+ * THE POOL IS STILL A POOL, AND IT IS SHALLOWER: 96 lit of 120 rather than of
+ * 160, and at the new spacing those 96 fill 1417 m of centreline, i.e. a disc
+ * of radius 170 m against the 190 m simulated. Every vehicle inside 170 m has
+ * a beam; the 20 m shell beyond it is silhouette and light lines. The
+ * separation of the two budgets that this block exists to make is unchanged —
+ * the count came down because of how the street LOOKS, and the pool did not
+ * move at all.
+ *
+ * WHAT IT BUYS: 40 vehicles x 12 body rows and 4 wheels — see STATE 57 §0 for
+ * the delivered triangle figure, which is the reason item 0 could be resolved
+ * without touching a threshold.
+ */
+const VEHICLE_COUNT = 120;
 const HEADLAMP_SLOTS = 96;
 
 /**

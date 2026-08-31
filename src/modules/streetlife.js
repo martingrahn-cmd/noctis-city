@@ -102,7 +102,75 @@ const DEG = Math.PI / 180;
  * runs at zero. That spread is the point; a crowd at a uniform 0.019 per m^2
  * everywhere is not a crowd, it is a texture.
  */
-const PEDESTRIAN_COUNT = 360;
+const PEDESTRIAN_COUNT = 280;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE DIURNAL CURVE — SESSION 57, AND IT IS THE HALF OF THE CUT THAT IS NOT
+ * A SMALLER NUMBER.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator released these counts with a reason: *"there is really too
+ * much"*, and *"an outer arterial at 3 a.m. should not be busy"*. The count
+ * above answers the first. This answers the second, and until now NOTHING IN
+ * THIS CITY READ THE CLOCK FOR POPULATION: `rebalance` normalises its weights
+ * by their own sum, so the ring always receives EXACTLY `agents.length`
+ * people — a midnight ring of empty outer chunks got the same crowd as a
+ * downtown ring at noon, redistributed. The absolute level was a constant in
+ * a city with a day/night cycle.
+ *
+ * THE CURVE IS A DAY WINDOW AND NOT A COSINE, because a cosine peaks once and
+ * a city has an evening. Urban pedestrian and traffic counts run flat through
+ * the working day, fall away after about 20:00 and bottom out around 03:30 —
+ * so the window is 1 from 08:00 to 20:00, `smoothstep` down to `nightFloor`
+ * at 03:30, and back up by 08:00. Every edge is a clock hour a person could
+ * disagree with rather than a fitted constant.
+ *
+ * `nightFloor` = 0.18: the small hours of a real city are not empty — there
+ * are night workers, cleaners, people going home — and 18% of the daytime
+ * crowd on this city's 3×3 ring is about 50 people, which still fills a
+ * lit shopfront and leaves the arterial dark between them. Zero would be a
+ * curfew and this is a working metropolis (LOOK.md §1).
+ *
+ * WHAT IT COSTS AND WHERE: `highway_speed` — the route the triangle ceiling
+ * binds on — runs at **t = 0.5**, where this factor is exactly 1. So the
+ * diurnal curve buys NO triangles on the binding route and the count above is
+ * what pays for the session's content. The three routes at t = 0 get both.
+ * `citycheck` runs at the default t = 0.78, where the factor is also 1, so
+ * `pedestrians.minTotal` = 200 is measured against the full 280.
+ */
+const DIURNAL = {
+  nightFloor: 0.18,
+  dayFromH: 8,
+  dayToH: 20,
+  troughH: 3.5,
+};
+
+/**
+ * The share of the daytime population awake at `t`. One expression, and both
+ * populations read it — `traffic.js` carries its own copy of the same three
+ * hours with the same derivation, because the two modules may not import each
+ * other (CONTRACT §0 rule 1) and a second copy that DRIFTS is §9.1. The two
+ * are asserted equal by nothing; they are kept identical by being four
+ * numbers with one paragraph, which is the honest statement of that risk.
+ */
+function crowdFactor(t) {
+  const D = DIURNAL;
+  const h = ((t % 1) + 1) % 1 * 24;
+  if (h >= D.dayFromH && h <= D.dayToH) return 1;
+  const smooth = (u) => u * u * (3 - 2 * u);
+  if (h > D.dayToH) {
+    /** Evening: 20:00 → the trough, which is on the far side of midnight. */
+    const span = 24 - D.dayToH + D.troughH;
+    return D.nightFloor + (1 - D.nightFloor) * (1 - smooth(Math.min(1, (h - D.dayToH) / span)));
+  }
+  if (h <= D.troughH) {
+    const span = 24 - D.dayToH + D.troughH;
+    return D.nightFloor + (1 - D.nightFloor) * (1 - smooth(Math.min(1, (h + 24 - D.dayToH) / span)));
+  }
+  /** Morning: the trough → 08:00. */
+  return D.nightFloor + (1 - D.nightFloor) * smooth((h - D.troughH) / (D.dayFromH - D.troughH));
+}
 
 /** Metres. The radius the count above was derived over. */
 const SIM_RADIUS_M = 120;
@@ -2248,6 +2316,8 @@ export function createStreetlife(options = {}) {
   const pedDeclarers = new Map();
   const pedCounts = new Map();
   let pedRingKeys = [];
+  /** Session 57: how many agents are out at this hour. See `crowdFactor`. */
+  let awakeCount = -1;
   let lastRebalanceChunk = null;
   const lastRebalanceAt = new THREE.Vector3(0, -1e9, 0);
 
@@ -2980,6 +3050,40 @@ export function createStreetlife(options = {}) {
    */
   function rebalance(ctx, camera) {
     const s = CITY.chunkSize;
+    /**
+     * HOW MANY OF THEM ARE OUT — session 57. `awake` is a PREFIX of the agent
+     * array and that is what makes it free: `bodies[].indices` is built by
+     * walking the agents in order (see `buildPopulation`), so it is ascending,
+     * so the awake agents are the first rows of every body mesh and a mesh
+     * draws them with `count` alone — no reordering, no compaction, and no row
+     * that changes occupant between frames. The asleep tail keeps its rows and
+     * its matrices; it is simply not drawn.
+     *
+     * The clock is `time.timeOfDay` (CONTRACT §3 — the one clock), and an
+     * agent that WAKES gets `reseated` so the §5.12 carry covers the frame its
+     * row comes back, exactly as a re-seat does.
+     */
+    const timeMod = ctx.get('time');
+    const factor = timeMod ? crowdFactor(timeMod.timeOfDay) : 1;
+    const awake = Math.max(1, Math.round(agents.length * factor));
+    if (awake !== awakeCount) {
+      for (let i = Math.max(0, Math.min(awake, awakeCount)); i < Math.max(awake, awakeCount); i++) {
+        if (agents[i]) agents[i].reseated = true;
+      }
+      awakeCount = awake;
+      /**
+       * How many of each body mesh's rows are awake. `indices` is ascending,
+       * so this is a prefix length and `count` is the whole of the drawing
+       * change — CONTRACT §7.1's own arrangement for `frameMesh.count`, which
+       * `poseRelease` already uses.
+       */
+      for (const b of bodies) {
+        let n = 0;
+        while (n < b.indices.length && b.indices[n] < awake) n++;
+        b.awakeRows = n;
+        if (b.frameMesh && !posed) b.frameMesh.count = n;
+      }
+    }
     const ccx = Math.floor(camera.position.x / s);
     const ccz = Math.floor(camera.position.z / s);
 
@@ -3023,11 +3127,11 @@ export function createStreetlife(options = {}) {
 
     let floored = 0;
     for (const c of ring) {
-      c.exact = sum > 0 ? (c.w / sum) * agents.length : agents.length / ring.length;
+      c.exact = sum > 0 ? (c.w / sum) * awake : awake / ring.length;
       c.target = Math.floor(c.exact);
       floored += c.target;
     }
-    const remainder = agents.length - floored;
+    const remainder = awake - floored;
     const byFraction = ring.slice().sort((a, b) => (b.exact - Math.floor(b.exact)) - (a.exact - Math.floor(a.exact)));
     for (let i = 0; i < remainder; i++) byFraction[i % byFraction.length].target++;
 
@@ -3039,6 +3143,11 @@ export function createStreetlife(options = {}) {
     const homeless = [];
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i];
+      /** Asleep: past the awake prefix, so seated nowhere and counted nowhere. */
+      if (i >= awake) {
+        a.placed = false;
+        continue;
+      }
       /** A deck agent is held by its deck, not by the chunk under its feet. */
       const key = a.deck ? `deck:${a.deck.ref.id}` : chunkKey(a.cx, a.cz);
       if (!wanted.has(key) || !a.placed) {
@@ -4165,7 +4274,13 @@ export function createStreetlife(options = {}) {
           let arrivals = 0;
           for (let i = 0; i < ARRIVAL_BUCKETS; i++) arrivals += arrivalBuckets[i];
           return {
-            total: agents.length,
+            /**
+             * THE DRAWN POPULATION, NOT THE ALLOCATION — session 57. A census
+             * that reported 280 while 50 people were on the street would be a
+             * gate reading the config instead of the city (CONTRACT §9.1).
+             */
+            total: awakeCount >= 0 ? awakeCount : agents.length,
+            allocated: agents.length,
             perChunk,
             straightness: n ? +(sum / n).toFixed(4) : 0,
             straightnessAgents: n,
@@ -4369,7 +4484,8 @@ export function createStreetlife(options = {}) {
         poseRelease() {
           posed = null;
           for (const b of bodies) {
-            if (b.frameMesh) b.frameMesh.count = b.indices.length;
+            /** Back to the AWAKE prefix (session 57), not the allocation. */
+            if (b.frameMesh) b.frameMesh.count = b.awakeRows == null ? b.indices.length : b.awakeRows;
           }
         },
       };
@@ -4494,6 +4610,13 @@ export function createStreetlife(options = {}) {
       crossingOccupied.clear();
       for (let i = 0; i < agents.length; i++) {
         const a = agents[i];
+        /**
+         * ASLEEP — session 57. Past the awake prefix: not simulated, not
+         * counted, and not drawn (its row is past every body mesh's `count`).
+         * Skipped BEFORE the crossing rebuild so a sleeping agent cannot hold
+         * a junction against the traffic it is not standing in.
+         */
+        if (i >= awakeCount && awakeCount >= 0) continue;
         /**
          * Posed: nobody walks, and the subject's phase is whatever was pinned.
          * `uPrev` and `ampPrev` are pinned to the same values rather than left
@@ -4663,6 +4786,7 @@ export function createStreetlife(options = {}) {
       if (historyClock >= STRAIGHTNESS_SAMPLE_S) {
         historyClock -= STRAIGHTNESS_SAMPLE_S;
         for (let i = 0; i < agents.length; i++) {
+          if (i >= awakeCount && awakeCount >= 0) continue;
           const a = agents[i];
           const head = (historyHead[i] + 1) % STRAIGHTNESS_SLOTS;
           historyHead[i] = head;
