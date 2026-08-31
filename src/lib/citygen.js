@@ -14667,9 +14667,38 @@ export function generateChunk(rootSeed, cx, cz) {
     const K = COUNTRYSIDE;
     const cr = chunkRng(rootSeed, cx, cz, 'country');
 
-    /** Does the exit road's 8 km ribbon cross this chunk? It runs at z = 0. */
-    const onRoad = b.z0 < K.roadHalfM && b.z1 > -K.roadHalfM;
-    if (onRoad) {
+    /**
+     * DOES THIS CHUNK OWN THE EXIT ROAD? It runs at z = 0, which is a chunk
+     * BOUNDARY, so exactly one of the two chunks either side of it must own
+     * the road or everything beside it is emitted twice.
+     *
+     * THE FIRST ARM ASKED "does the ribbon cross this chunk" — `b.z0 < half &&
+     * b.z1 > -half` — WHICH IS TRUE OF BOTH. Delivered: two verge rectangles
+     * over the same ground (coplanar, so a z-fight), two hedgerow runs, two
+     * lay-bys and two tree lines, and the trees did not refuse each other
+     * because a registry is per chunk (CONTRACT §8.1) and neither chunk can
+     * see the other's claims. It reads in the frame as an avenue where a
+     * roadside tree line was asked for.
+     *
+     * The rule is this file's own: **a chunk owns the corridors on its WEST
+     * and NORTH sides**, which is the sentence the registry's note at the top
+     * of `generateChunk` states and the lattice is built on. The road at z = 0
+     * is the north edge of the `cz = 0` row, so that row owns it.
+     *
+     * BUT OWNERSHIP AND THE CUT ARE TWO DIFFERENT QUESTIONS, and collapsing
+     * them into one predicate was the SECOND arm's defect, which the frame
+     * caught immediately: with only the owner cutting its fields back, the
+     * chunk on the other side laid stubble over the road's near half and
+     * **the left half of the frame was a field**. A chunk must keep its fields
+     * off the road whether or not it furnishes it.
+     *
+     *   `nearRoad`  the ribbon and its verge cross this chunk   -> CUT
+     *   `ownsRoad`  this chunk furnishes it                     -> VERGE,
+     *               trees, hedgerows, lay-by, stop, and the claim
+     */
+    const nearRoad = b.z0 < K.roadHalfM + K.vergeM && b.z1 > -(K.roadHalfM + K.vergeM);
+    const ownsRoad = b.z0 <= 0 && b.z1 > 0;
+    if (ownsRoad) {
       /**
        * THE ONE ROAD THAT LEAVES, CLAIMED. `block.js` draws it as a single
        * `groundExtent * 2` plane and claims nothing outside `BLOCK_KEEPOUT`,
@@ -14697,9 +14726,11 @@ export function generateChunk(rootSeed, cx, cz) {
 
     /** Everything the fields must be cut around, in this chunk's own coordinates. */
     const solids = [];
-    if (onRoad) {
+    if (nearRoad) {
       solids.push({ x0: b.x0, x1: b.x1,
         z0: -K.roadHalfM - K.vergeM, z1: K.roadHalfM + K.vergeM });
+    }
+    if (ownsRoad) {
       /**
        * AND THE VERGE IS LAID RATHER THAN LEFT BARE, which the first arm got
        * wrong and an aerial said so: cutting the fields back by `vergeM`
@@ -14733,7 +14764,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * a filling station; a farm on a hillside is a photograph. Both are
      * conditions on where rather than rolls.
      */
-    if (!onRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)) {
+    if (!nearRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)) {
       const fx = mx + cr.range(-28, 28);
       const fz = mz + cr.range(-28, 28);
       const yard = { x0: fx - 34, x1: fx + 34, z0: fz - 26, z1: fz + 26,
@@ -14793,7 +14824,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * and it is what says 'not the city any more'"*. Placed on the far side of
      * the verge so the plot's frontage is the road's own edge.
      */
-    if (onRoad && cr.chance(K.houseChance)) {
+    if (ownsRoad && cr.chance(K.houseChance)) {
       const side = cr.chance(0.5) ? 1 : -1;
       const hx = b.x0 + cr.range(30, 98);
       const hz = side * (K.roadHalfM + K.vergeM + cr.range(16, 30));
@@ -14827,7 +14858,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * flag, bench and lit timetable it has built since session 30 and this
      * adds no geometry at all.
      */
-    if (onRoad && cr.chance(0.2)) {
+    if (ownsRoad && cr.chance(0.2)) {
       const side = cr.chance(0.5) ? 1 : -1;
       const along = b.x0 + cr.range(40, 88);
       /** The hard standing the shelter sits on, out of the running lane. */
@@ -14836,7 +14867,22 @@ export function generateChunk(rootSeed, cx, cz) {
         z0: Math.min(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)),
         z1: Math.max(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)) };
       ground.push(lay);
-      countryStop = { axis: 'x', at: 0, side, along };
+      /**
+       * `axis: 'z'` AND NOT `'x'`, AND THE FIRST ARM HAD IT THE OTHER WAY —
+       * CONTRACT §9's transposition, caught by reading the record back against
+       * its consumer rather than by a frame.
+       *
+       * `busStopAt`'s own bands are `{ axis: 'x', at: b.x0 }` and their
+       * `along` runs over the chunk's **z**: the field names the axis the band
+       * is FIXED on, which is the opposite of the axis it runs along, and it
+       * is the same pair of quantities session 22's `kerbRef` swapped over
+       * 1 134 props. The exit road is fixed at **z = 0** and runs along x, so
+       * it is a `'z'` band with `along` an x coordinate. Written the other way
+       * `city.js` computes `bx = at + side * standoff` and `bz = along`, which
+       * puts a shelter 8.6 m from the world ORIGIN in x and 3.4 km away in z —
+       * a stop in a field, on a chunk that never asked for one.
+       */
+      countryStop = { axis: 'z', at: 0, side, along };
     }
 
     /**
@@ -14850,7 +14896,7 @@ export function generateChunk(rootSeed, cx, cz) {
      * the carriageway this block claimed at the top and from the hedge, the
      * house and the lay-by below it.
      */
-    if (onRoad) {
+    if (ownsRoad) {
       for (const side of [-1, 1]) {
         for (let t = b.x0 + cr.range(4, 26); t < b.x1; t += cr.range(18, 44)) {
           const scale = cr.range(PROP_SCALE.min, PROP_SCALE.max);
@@ -14953,7 +14999,7 @@ export function generateChunk(rootSeed, cx, cz) {
     };
     if (splitX) hedgeRun('z', sx, b.z0, b.z1);
     if (splitZ) hedgeRun('x', sz, b.x0, b.x1);
-    if (onRoad) {
+    if (ownsRoad) {
       for (const side of [-1, 1]) {
         hedgeRun('x', side * (K.roadHalfM + K.vergeM), b.x0, b.x1);
       }
