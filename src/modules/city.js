@@ -593,6 +593,8 @@ export function createCity(options = {}) {
   const tmpLeanQuat = new THREE.Quaternion();
   const tmpColor = new THREE.Color();
   const tmpEuler = new THREE.Euler();
+  /** +Y. The axis a hill's plan bearing turns about (session 62). */
+  const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
   // -------------------------------------------------------------------------
 
@@ -1656,6 +1658,37 @@ export function createCity(options = {}) {
      * instead of a prop.
      */
     const fieldAlbedo = [0.186, 0.176, 0.094];
+    /**
+     * PLOUGHED EARTH — SESSION 62, AND IT IS THE THIRD TONE.
+     *
+     * Session 61 shipped two crops and the operator's aerial read them as a
+     * checkerboard, because two alternating tones on a lattice IS a
+     * checkerboard whatever shape the cells are. Three is the smallest number
+     * that is not.
+     *
+     * THE FIRST ARM MADE THE THIRD ONE A STANDING GREEN CEREAL AT
+     * [0.112, 0.142, 0.062] AND A FRAME REFUTED IT IN ONE RENDER. That is a
+     * green, `grassAlbedo` is a green, and two thirds of a rim in green reads
+     * as one carpet exactly as two alternating tones did — the count went up
+     * and the CONTRAST went down. The three tones that make farmland read are
+     * the three STATES of one piece of ground, and the pair above leaves out
+     * the one between them: the soil itself, turned over.
+     *
+     * DERIVED FROM `grassAlbedo` THE WAY `fieldAlbedo` IS. Moist bare loam
+     * reflects about **1.25x** a green sward in the visible (0.10 against 0.08
+     * broadband) — where the straw above it reflects 2.1x — and its
+     * chromaticity is iron-oxide soil rather than leaf or straw: R : G : B of
+     * 1.00 : 0.82 : 0.60. Solving `Y = 0.2126R + 0.7152G + 0.0722B = 0.100`
+     * at that ratio gives R = 0.100 / 0.8424 = 0.1187, so
+     * **[0.119, 0.097, 0.071]**.
+     *
+     * THE THREE, PRINTED TOGETHER, WHICH IS THE WHOLE POINT (CONTRACT §9
+     * rule 4): luminance 0.0837 / 0.1722 / 0.1000 and R/G 0.66 / 1.06 / 1.22.
+     * The stubble is the bright one, the sward is the dark one, and the soil is
+     * between them in level and past both of them in hue — so no pair of the
+     * three is separated on one axis only.
+     */
+    const tilledAlbedo = [0.119, 0.097, 0.071];
     /** Pale gravel: the same reflectance as the concrete road variant. */
     const pathAlbedo = [0.19, 0.186, 0.176];
     /**
@@ -1704,6 +1737,7 @@ export function createCity(options = {}) {
       walk: walkAlbedo,
       grass: grassAlbedo,
       field: fieldAlbedo,
+      tilled: tilledAlbedo,
       path: pathAlbedo,
       siteGround: siteAlbedo,
       parkingGround: parkingAlbedo,
@@ -1717,6 +1751,8 @@ export function createCity(options = {}) {
       apronYard: yardAlbedo,
     };
     const albedoFor = (kind) => GROUND_ALBEDO[kind] || walkAlbedo;
+    /** Scratch for the per-rectangle tone below. `quad` copies out of it. */
+    const tintOut = [0, 0, 0];
 
     /**
      * ═══════════════════════════════════════════════════════════════════════
@@ -1795,10 +1831,18 @@ export function createCity(options = {}) {
        * pair of crops differs in.
        */
       kind === 'field' ? 0.85
-        : kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
-          : kind === 'path' ? 1.0
-            : kind === 'siteGround' ? 0.3
-              : 0.0);
+        /**
+         * `tilled` TAKES THE STUBBLE's 0.85 — session 62, and for the reason
+         * session 61 gave it: the split in this table is whether the soil is
+         * bare, and `tilled` is the same loam as `field` with the residue
+         * removed. Loam infiltrates 9 mm/h against this city's 10 mm/h full
+         * rain, so both pond a little and a sward does not.
+         */
+        : kind === 'tilled' ? 0.85
+          : kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
+            : kind === 'path' ? 1.0
+              : kind === 'siteGround' ? 0.3
+                : 0.0);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1815,6 +1859,11 @@ export function createCity(options = {}) {
     const CATEGORY_FOR_GROUND = {
       siteGround: 'ground',
       grass: 'ground',
+      /** Session 62's third crop. A surface things stand on, and the row is
+       *  written for the same reason session 61 wrote `field`'s below: an
+       *  unmapped kind matches no entry in `CATEGORIES`, so `mayOverlap`
+       *  returns true against everything and the surface claims nothing. */
+      tilled: 'ground',
       /**
        * SESSION 40 — and the row is the whole of the lesson above, applied
        * before the defect rather than after it. All three are SURFACES that
@@ -1882,7 +1931,26 @@ export function createCity(options = {}) {
     const kerbAlbedo = walkAlbedo.map((c) => c * KERB_UPSTAND_GAIN);
     for (const g of chunk.ground) {
       const y = Y[g.yKey] !== undefined ? Y[g.yKey] : Y.earth;
-      quad(g.x0, g.z0, g.x1, g.z1, y, albedoFor(g.kind), CATEGORY_FOR_GROUND[g.kind] || g.kind, porosityFor(g.kind));
+      /**
+       * A PER-RECTANGLE TONE — session 62, and it is the cheapest thing in it.
+       * `FARM.toneMin/Max` carries the derivation: two adjacent parcels of the
+       * same crop at the same reflectance are one parcel, and a third of every
+       * boundary has that property with three crops on a lattice. The
+       * multiplier rides the per-vertex colour this mesh has carried since
+       * session 19, so it is one expression and no new anything.
+       *
+       * `tintOut` rather than `.map()`: `buildGround` runs on every chunk load
+       * and a countryside chunk emits up to 140 rectangles.
+       */
+      const alb = albedoFor(g.kind);
+      let tinted = alb;
+      if (g.tone !== undefined) {
+        tintOut[0] = alb[0] * g.tone;
+        tintOut[1] = alb[1] * g.tone;
+        tintOut[2] = alb[2] * g.tone;
+        tinted = tintOut;
+      }
+      quad(g.x0, g.z0, g.x1, g.z1, y, tinted, CATEGORY_FOR_GROUND[g.kind] || g.kind, porosityFor(g.kind));
       // The kerb upstand. See `riser` above for why only this one edge.
       if (g.kind !== 'walk') continue;
       /**
@@ -2055,17 +2123,152 @@ export function createCity(options = {}) {
    * A hemisphere at 8x3 segments is 40 triangles; ~200 instances is
    * ~8 000 triangles at ONE draw call. It was 10x4 until the ceiling spoke.
    */
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * A HILL MEETS THE GROUND — SESSION 62, FOR ZERO TRIANGLES.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The operator, on session 61's aerial: *"the hills are three smooth domes
+   * resting on the plane without meeting it."* Measured over all 179 delivered
+   * masses at seed 1337, off the geometry above:
+   *
+   *   `SphereGeometry(1, 8, 3, 0, 2pi, 0, pi/2)` puts its four vertex rings at
+   *   `phi` = 0, 30, 60, 90 degrees, i.e. at `r/foot` = 0, 0.500, 0.866, 1.000
+   *   and `y/h` = 1, 0.866, 0.500, 0. **The outermost band drops half the
+   *   hill's height over 13.4% of its radius**, so it arrives at the plane at a
+   *   median 43.6 degrees and stops — a crease, and exactly what "resting on"
+   *   describes.
+   *
+   * A HEMISPHERE IS THE WRONG SOLID AND THE RING COUNT IS NOT THE PROBLEM.
+   * What a hill has and a dome does not is a SHOULDER: the surface arrives at
+   * the surrounding ground tangentially, with zero slope, because that is what
+   * the material at its foot has done for as long as it has been falling off
+   * it. So the profile is replaced and the ring count is not — the geometry is
+   * still 8 x 3, still 40 triangles, still one draw call, and this costs
+   * **exactly zero** against a ceiling with 40 000 spare.
+   *
+   * THE PROFILE IS SMOOTHSTEP'S COMPLEMENT, `y/h = 1 - 3u^2 + 2u^3`, whose
+   * derivative `-6u(1 - u)` is ZERO AT BOTH ENDS — a round top and a tangential
+   * foot, which are the two properties a dome has one of. The rings are placed
+   * to spread the slope instead of piling it at the rim, and the delivered band
+   * slopes at the median hill (foot 195 m, h 51 m) are:
+   *
+   *     u      0     0.50    0.82    1.00     band       new     hemisphere
+   *     y/h    1.000 0.500   0.0855  0        0   -0.50   14.7      4.0
+   *                                           0.50-0.82   18.7     14.7
+   *                                           0.82-1.00    7.1     44.3  <- rim
+   *
+   * — at the median hill, in degrees, and the two columns are the whole change:
+   * the hemisphere put its steepest band at the RIM and this puts it in the
+   * MIDDLE, which is what the difference between a dome and a hill is. All
+   * three sizes agree: at foot 268 / h 107 it is 21.8 / 27.3 / 10.7 against
+   * 6.1 / 21.8 / 56.1, and at foot 110 / h 25 it is 12.8 / 16.4 / 6.2 against
+   * 3.5 / 12.8 / 40.3. It is 8-sided in plan and stays so:
+   * this project is flat-shaded on purpose (LOOK.md §5) and the octagon's sag
+   * is `foot * (1 - cos 22.5)` = 14.8 m on a 195 m foot, which is 7.6% of a
+   * silhouette three kilometres away.
+   *
+   * AND THE PLAN IS AN ELLIPSE AT A YAW, WHICH IS ALSO FREE. Three identical
+   * circular domes read as three copies of one object — LOOK.md §4's *"any
+   * object placed at intervals needs FORM variation, not colour variation"*,
+   * which `HILLS.tone` was answering with colour. The instance matrix already
+   * carries a quaternion and two independent horizontal scales, so an
+   * eccentricity and a bearing cost nothing but the roll: `hillMasses` draws
+   * both.
+   */
+  function hillGeometry() {
+    const RAD = 8;
+    /** `u` = r/foot at each ring, chosen to spread the band slopes. */
+    const RINGS = [0, 0.50, 0.82, 1.0];
+    const prof = (u) => 1 - 3 * u * u + 2 * u * u * u;
+    const pos = [];
+    const nrm = [];
+    const ring = (k) => {
+      const u = RINGS[k];
+      const y = prof(u);
+      const out = [];
+      for (let i = 0; i <= RAD; i++) {
+        const a = (i / RAD) * Math.PI * 2;
+        out.push([Math.cos(a) * u, y, Math.sin(a) * u]);
+      }
+      return out;
+    };
+    const rs = RINGS.map((_, k) => ring(k));
+    /**
+     * WINDING, DERIVED — AND THE FIRST DERIVATION WAS BACKWARDS AND A FRAME
+     * SAID SO IN ONE RENDER. It read *"(a[i], b[i], b[i+1]) ... points away
+     * from the axis and upward"* and the hills came out as black spikes,
+     * because that order gives the INSIDE. The arithmetic, done properly this
+     * time and checked against the delivered attribute by
+     * `tools/landprobe.mjs --hills`:
+     *
+     * A ring vertex `i` is at `(cos t_i * u, y, sin t_i * u)` with
+     * `t_i = 2 pi i / RAD`. Take the apex band, `a[i] = (0, 1, 0)`, and `i = 0`,
+     * so `b0 = (u, y, 0)` and `b1 = (u cos d, y, u sin d)` with `d = 45`
+     * degrees. For the order (a, b0, b1):
+     *
+     *     e1 = b0 - a = (u, y - 1, 0)
+     *     e2 = b1 - a = (u cos d, y - 1, u sin d)
+     *     (e1 x e2).y = 0 * u cos d - u * u sin d = -u^2 sin d   < 0
+     *
+     * — DOWNWARD, i.e. into the solid. Reversing the last two gives
+     * `+u^2 sin d`, which is up and out. `t` increases from +X toward +Z and
+     * +Z is SOUTH (CONTRACT §3.1), so a ring runs clockwise seen from above and
+     * the outward face is the reverse of the naive order; that is the whole of
+     * why the first version was wrong, and it is the same right-handedness the
+     * earth plane's own quad derivation in `block.js` turns on.
+     *
+     * `windcheck` reads authored normal against triangle facing over every
+     * generated mesh, so this is derived rather than tried — and the normals
+     * here are the FACE normals of the emitted triangles, computed from the
+     * same three vertices, so the two statements cannot disagree.
+     */
+    const tri = (p, q, r) => {
+      const ux = q[0] - p[0];
+      const uy = q[1] - p[1];
+      const uz = q[2] - p[2];
+      const vx = r[0] - p[0];
+      const vy = r[1] - p[1];
+      const vz = r[2] - p[2];
+      let nx = uy * vz - uz * vy;
+      let ny = uz * vx - ux * vz;
+      let nz = ux * vy - uy * vx;
+      const L = Math.hypot(nx, ny, nz) || 1;
+      nx /= L; ny /= L; nz /= L;
+      for (const v of [p, q, r]) {
+        pos.push(v[0], v[1], v[2]);
+        nrm.push(nx, ny, nz);
+      }
+    };
+    for (let k = 0; k < rs.length - 1; k++) {
+      const a = rs[k];
+      const b = rs[k + 1];
+      for (let i = 0; i < RAD; i++) {
+        /** The apex ring is a point, so its band is a fan of triangles. */
+        if (k === 0) { tri(a[i], b[i + 1], b[i]); continue; }
+        tri(a[i], b[i + 1], b[i]);
+        tri(a[i], a[i + 1], b[i + 1]);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    const arr = new Float32Array(pos);
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrm), 3));
+    g.computeBoundingSphere();
+    return g;
+  }
+
   function buildHillsMesh() {
     const masses = hillMasses(rootSeed);
     if (!masses.length) return;
-    const geo = new THREE.SphereGeometry(1, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2);
+    const geo = track(hillGeometry());
     const im = new THREE.InstancedMesh(geo, materials.hills, masses.length);
     let woods = 0;
     for (let i = 0; i < masses.length; i++) {
       const m = masses[i];
       tmpPos.set(m.x, GROUND.earth, m.z);
-      tmpScale.set(m.foot, m.h, m.foot);
-      tmpQuat.identity();
+      tmpScale.set(m.foot * (m.ecc || 1), m.h, m.foot / (m.ecc || 1));
+      tmpQuat.setFromAxisAngle(UP_AXIS, ((m.bearingDeg || 0) * Math.PI) / 180);
       tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
       im.setMatrixAt(i, tmpMatrix);
       const a = m.wood ? HILLS.woodAlbedo : HILLS.hillAlbedo;

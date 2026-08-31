@@ -29,6 +29,7 @@ import {
   riverBankStations, BUS_STOP, riverEdges,
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
+  EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -922,19 +923,85 @@ export function createBlock(options = {}) {
         root.add(core);
       }
 
-      const roadMain = new THREE.Mesh(
-        track(new THREE.PlaneGeometry(cfg.groundExtent * 2, cfg.streetWidth)),
-        matAsphalt
-      );
-      roadMain.rotation.x = -Math.PI / 2;
+      /**
+       * ═════════════════════════════════════════════════════════════════════
+       * THE MAIN STREET, AND PAST THE CITY'S EDGE IT BENDS — SESSION 62.
+       * ═════════════════════════════════════════════════════════════════════
+       *
+       * IT WAS `PlaneGeometry(groundExtent * 2, streetWidth)` — one 8 km
+       * rectangle, two triangles, dead straight from rim to rim. Session 61
+       * painted a centre line on the far half of it and the operator's verdict
+       * on the frame was that *"the road runs straight through the fields in
+       * the same lattice as downtown"*. It did. The one road in this world
+       * that leaves the grid was the straightest object in it.
+       *
+       * `citygen.js` → `EXIT_ROAD` carries the whole derivation: a curvature
+       * schedule bounded by a 100 km/h design radius, a 1:50 taper from the
+       * arterial's 15.0 m to a country road's 7.0 m, and 768 m of world to do
+       * it in. THIS FILE DRAWS IT AND DECIDES NOTHING. `exitRoadZ`,
+       * `exitRoadHalfM` and `exitRoadYawDeg` are the only description; the
+       * markings below, `blockSurfaceAt`, the registry's `carriageway` claim
+       * and the countryside's field cut all read the same three functions, so
+       * there is no second road anywhere (CONTRACT §9.1).
+       *
+       * A STRIP, AND IT IS THE SAME ONE DRAW CALL. `matAsphalt` is unchanged
+       * and the mesh keeps its name, so nothing downstream can tell the
+       * difference except by looking. **193 quads against 1**: one for the
+       * straight middle between the two extents, and 96 a side at
+       * `EXIT_ROAD.stationM` = 8 m — **+384 triangles** against the 40 000 this
+       * session has spare, and this is the one piece of it that every gate
+       * route pays for, because the origin block is resident everywhere.
+       *
+       * WINDING, DERIVED HERE AND NOT TRIED, exactly as the earth plane above
+       * derives its own: for a quad (xa, za0), (xb, zb1), (xb, zb0) with
+       * xb > xa, za1 > za0 and zb1 > zb0, e1 = (dx, 0, zb1 − za0) and
+       * e2 = (dx, 0, zb0 − za0), so e1 × e2 = (0, dx·(zb1 − zb0), 0) — +Y. The
+       * second triangle (xa, za0), (xa, za1), (xb, zb1) gives
+       * (0, dx·(za1 − za0), 0), also +Y. Both front faces point up, which is
+       * what `matAsphalt`'s FrontSide needs.
+       */
+      const roadGeo = new THREE.BufferGeometry();
+      {
+        const E = cfg.groundExtent;
+        const RY = GROUND.carriageway;
+        const pos = [];
+        /** The stations, west rim to east rim, in increasing x. */
+        const xs = [];
+        for (let x = -E; x < -CITYGEN_ROAD.startM; x += CITYGEN_ROAD.stationM) xs.push(x);
+        xs.push(-CITYGEN_ROAD.startM, CITYGEN_ROAD.startM);
+        for (let x = CITYGEN_ROAD.startM + CITYGEN_ROAD.stationM; x < E; x += CITYGEN_ROAD.stationM) xs.push(x);
+        xs.push(E);
+        for (let i = 0; i < xs.length - 1; i++) {
+          const xa = xs[i];
+          const xb = xs[i + 1];
+          const ca = exitRoadZ(xa);
+          const cb = exitRoadZ(xb);
+          const ha = exitRoadHalfM(xa);
+          const hb = exitRoadHalfM(xb);
+          const za0 = ca - ha;
+          const za1 = ca + ha;
+          const zb0 = cb - hb;
+          const zb1 = cb + hb;
+          pos.push(xa, RY, za0, xb, RY, zb1, xb, RY, zb0);
+          pos.push(xa, RY, za0, xa, RY, za1, xb, RY, zb1);
+        }
+        const arr = new Float32Array(pos);
+        roadGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        const nrm = new Float32Array(arr.length);
+        for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
+        roadGeo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+        roadGeo.computeBoundingSphere();
+      }
+      const roadMain = new THREE.Mesh(track(roadGeo), matAsphalt);
       /**
        * THE DATUM ITSELF. `constants.js` → `GROUND.carriageway` = 0, and this
        * 8 km ribbon is the surface that sentence is about: it has sat at exactly
        * zero over an earth plane at −0.02 since session 1, without z-fighting,
        * which is the only evidence anywhere in the project for the 0.020 m
-       * separation the streamed city now also uses.
+       * separation the streamed city now also uses. It is baked into the strip's
+       * own vertices now rather than carried on the mesh's transform, so a
+       * reader of the geometry and a reader of `blockSurfaceAt` cannot disagree.
        */
-      roadMain.position.y = GROUND.carriageway;
       roadMain.receiveShadow = true;
       roadMain.name = 'block:road:main';
       root.add(roadMain);
@@ -1030,9 +1097,23 @@ export function createBlock(options = {}) {
         if (ax <= halfCross && az <= 230) {
           return { y: GROUND.carriageway + 0.005, kind: 'road', known: true };
         }
-        // Main street. The plane is `groundExtent * 2` long, so it answers for
-        // the whole 8 km ribbon and not only for the block. THE DATUM.
-        if (az <= halfStreet && ax <= cfg.groundExtent) {
+        /**
+         * Main street. The strip is `groundExtent * 2` long, so it answers for
+         * the whole 8 km ribbon and not only for the block. THE DATUM.
+         *
+         * AND SINCE SESSION 62 IT IS THE ONE EXPRESSION THAT KNOWS THE ROAD
+         * BENDS. `az <= halfStreet` was the whole of it, and it is the sentence
+         * STATE 61 §5 predicted would be the entire cost of a road you can WALK
+         * on — *"one new function, because the ground query is the one
+         * axis-aligned thing left"*. It was not one function anywhere else (the
+         * ground pipeline assumes an axis-aligned rectangle in 33 places, see
+         * `citygen.js` → `EXIT_ROAD`), but for THIS surface, which `block.js`
+         * emits by hand and never puts in a `rects` list, it is exactly one
+         * comparison — and both halves of it read the same two functions the
+         * strip above is built from, so the geometry and the query cannot
+         * disagree about where the road is.
+         */
+        if (Math.abs(z - exitRoadZ(x)) <= exitRoadHalfM(x) && ax <= cfg.groundExtent) {
           return { y: GROUND.carriageway, kind: 'road', known: true };
         }
         /**
@@ -2526,13 +2607,51 @@ export function createBlock(options = {}) {
          * marks below are pushed into the same array and the count goes from
          * 218 to what STATE 61 records.
          */
+        /**
+         * ═════════════════════════════════════════════════════════════════
+         * AND SINCE SESSION 62 THE LINE BENDS WITH THE ROAD AND THEN STOPS.
+         * ═════════════════════════════════════════════════════════════════
+         *
+         * Two changes, and both are read off `citygen.js` → `EXIT_ROAD` rather
+         * than decided here.
+         *
+         * IT FOLLOWS THE CENTRELINE. Each dash sits at `exitRoadZ(x)` and takes
+         * `exitRoadYawDeg(x)` — the same two functions the ribbon's own vertices
+         * and `blockSurfaceAt` are built from. `put` has taken a yaw since
+         * session 45 and the streamed city's `paint()` has taken one since
+         * session 21, so a mark on a curve costs nothing new: it is the same
+         * box in the same `block:markings` mesh at the same one draw call.
+         *
+         * AND IT ENDS AT THE TAPER, WHICH IS THE BRIEF'S *"a centre line that
+         * stops"* falling out of a number that already exists rather than being
+         * a second one. A marked centre line belongs to the arterial's
+         * cross-section; `EXIT_ROAD.taperM` = 200 m is where that section has
+         * finished narrowing to a country lane's 7.0 m, and past it the road is
+         * unmarked. So the paint runs from 3 232 to 3 432 and there is 568 m of
+         * road after it with nothing on it at all — which is what a road that
+         * has left a city looks like from a car.
+         *
+         * The dashes keep session 61's doubled cycle: `P.centreCycleM` is an
+         * urban cycle and the standard rural ratio is the same mark on a longer
+         * gap.
+         */
         {
           const outFrom = CITYGEN.extentEdgeM;
-          const outTo = cfg.groundExtent;
+          const outTo = CITYGEN.extentEdgeM + CITYGEN_ROAD.taperM;
           const cycle = P.centreCycleM * 2;
           for (const dir of [-1, 1]) {
             for (let t = outFrom + cycle / 2; t < outTo; t += cycle) {
-              put(dir * t, 0, P.centreMarkM, P.lineWidthM, 0);
+              const x = dir * t;
+              /**
+               * THE SIGN, DERIVED RATHER THAN TRIED. `put`'s yaw is a rotation
+               * about +Y, whose matrix takes the box's local +X to
+               * `(cos y, 0, −sin y)`. The road's tangent is `(1, 0, m)` with
+               * `m = dz/dx = tan(exitRoadYawDeg)`, so `−sin y = m·cos y` and
+               * `y = −exitRoadYawDeg(x)`. The 90° the cross street below uses
+               * is the same expression at `m = ∞` and agrees: local +X goes to
+               * −Z, which is the axis that street runs along.
+               */
+              put(x, exitRoadZ(x), P.centreMarkM, P.lineWidthM, -exitRoadYawDeg(x));
             }
           }
         }

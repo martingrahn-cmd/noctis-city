@@ -1970,6 +1970,509 @@ export const COUNTRYSIDE = {
   $fieldAlbedo: '[0.186, 0.176, 0.094] — see city.js albedoFor',
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ROAD THAT LEAVES — SESSION 62. ONE CENTRELINE, FIVE READERS.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * THE OPERATOR REJECTED SESSION 61's COUNTRYSIDE IN ONE SENTENCE: *"it is the
+ * city's block vocabulary with green and yellow paint on it"*, and the third of
+ * his four tells is that **the road runs straight through the fields in the
+ * same lattice as downtown**. It does: `block.js` draws `block:road:main` as a
+ * single `PlaneGeometry(groundExtent * 2, streetWidth)` at z = 0, so the one
+ * road in this world that leaves the grid is the straightest thing in it.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHAT SESSION 61 COSTED, AND THE HALF OF IT THAT WAS WRONG.
+ *
+ * STATE 61 §5 says a rotated road surface has existed since session 19 and that
+ * *"a road you can WALK on is one new function, because `scanGround` is the one
+ * axis-aligned thing left"*. The first half is true — `city.js`'s road
+ * `patches` are 0.01 m boxes at a yaw, riding the instanced box mesh. The
+ * second half is not: the ground vocabulary is axis-aligned END TO END —
+ * `generateChunk` pushes `{x0, x1, z0, z1}`, `subtractBoxes` intersects
+ * rectangles, `buildGround`'s `quad()` emits from four scalars, `rects` records
+ * the same four, `scanGround` tests them, `harness.occupancyCensus` reads them
+ * and `occupancy.js` is *"a list of AXIS-ALIGNED claims"* in its own first
+ * paragraph.
+ *
+ * **SO THIS ROAD IS NOT A ROTATED GROUND RECTANGLE AND DOES NOT ASK FOR ONE.**
+ * It is a POLYLINE — the brief's own item 0b — and every consumer takes it in
+ * the form that consumer already understands:
+ *
+ *   `block.js`'s ribbon        a triangle strip on this station table. It is
+ *                              the same mesh, the same material and the same
+ *                              ONE draw call the plane already was.
+ *   `block.js`'s markings      a box per dash with a YAW, which is what
+ *                              `put(x, z, l, w, yawDeg)` has taken since s45.
+ *   `blockSurfaceAt`           `|z - centreZ(x)| <= halfAt(x)`. ONE expression,
+ *                              and it replaces `az <= halfStreet`.
+ *   the registry               an axis-aligned `carriageway` box PER CHUNK
+ *                              bounding the polyline's own crossing of it —
+ *                              the same conservative shape `paint()` and the
+ *                              prop scatter already claim rotated things with.
+ *   the countryside            the fields are cut, and the verge laid, against
+ *                              a STAIRCASE of short axis-aligned boxes taken
+ *                              from this table. Rectangles, so `subtractBoxes`
+ *                              is untouched.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE SHAPE, AND EVERY NUMBER IN IT IS FORCED.
+ *
+ * **THERE ARE 768 m OF WORLD.** `BLOCK.groundExtent` is 4000 and
+ * `CITY.extentEdgeM` is 3232, so the whole of *"the transition"* the operator
+ * photographed is 768 m long. The brief asks for *"two or three bends over the
+ * first kilometre"*; there is no first kilometre, and what fits is stated
+ * rather than pretended.
+ *
+ * **THE CURVATURE IS BOUNDED BY A DESIGN SPEED.** `R = v² / (g·(e + f))` with
+ * `e` = 0.05 superelevation and `f` = 0.17 side friction — the standard rural
+ * pair — at 100 km/h (27.78 m/s) gives **R = 357.6 m**. That is `minRadiusM`,
+ * and the schedule's `kmax` is its reciprocal, 2.797e-3 /m.
+ *
+ * **THE BEND IS A CURVATURE SCHEDULE AND NOT A SINE ON z.** A sine centreline
+ * has its steepest SLOPE where it crosses zero, so it leaves the straight
+ * arterial at an angle — a kink at exactly the join this exists to make
+ * invisible. What a road actually does is enter a curve at zero curvature and
+ * build it up, so the schedule is on κ:
+ *
+ *     κ(u) = dir · κmax · sin(2π u / L)        u ∈ [0, L], one SHIFT
+ *     θ(u) = dir · (κmax·L / 2π) · (1 − cos(2π u / L))
+ *
+ * θ is 0 at both ends and peaks at `κmax·L/π` in the middle, so one shift is
+ * **two bends** — out and back — leaving the road parallel to where it started
+ * and displaced sideways. Both ends are tangential to the straight by
+ * construction, which is why nothing has to be blended.
+ *
+ * **THE SEGMENT LENGTH IS WHAT MAKES THE OFFSET READ FROM A CAR.** The lateral
+ * shift of one segment is `≈ κmax·L² / 2π`; at L = 384 m and κmax = 1/357.6
+ * that predicts **65.6 m**, and the table delivers **64.8 m** — the 1.2%
+ * between them is the small-angle step the estimate takes and the integral does
+ * not, and both are printed because CONTRACT §9 rule 2 asks for it. The peak
+ * heading is **19.59°**. At the gate's own 50° field a frame 400 m long is
+ * 373 m wide, so 65 m of offset puts the road's far end a sixth of the frame
+ * off centre — visibly not a lattice arm. Two segments fit in 768 m and the
+ * second is shorter, so the two bends are not each other.
+ *
+ * **THE ROAD ALSO CHANGES KIND, WHICH IS THE OTHER HALF OF THE ITEM.** The
+ * arterial is `2 · CITY.roadHalfWidth` = 15.0 m. A country road is TWO OF THIS
+ * CITY'S OWN LANES and nothing else — `2 · ROAD_MARKING.laneOffsetM` = 7.0 m,
+ * which is where this city already puts a lane line from the centre — and 7.0
+ * clears two haulers passing (`traffic.js` → 2.66 m each) by 0.84 m a side.
+ * The taper is at **1:50**, the standard rate, so narrowing 4.0 m on each side
+ * takes `4.0 × 50` = **200 m**.
+ *
+ * **AND THE CENTRE LINE STOPS WHERE THE CROSS-SECTION DOES.** A marked centre
+ * line belongs to the arterial's section; past the taper the road is an
+ * unmarked country lane. So the paint runs exactly `taperM` past the extent and
+ * ends, which is the brief's *"a centre line that stops"* falling out of the
+ * taper rather than being a second number.
+ *
+ * **THE AMPLITUDE IS CLEAR OF THE HILLS, MEASURED RATHER THAN ASSUMED.**
+ * `hillMasses` refuses any hill with `|z| < HILLS.roadGapM + foot`, so no
+ * footprint reaches within 170 m of the axis. Measured over the delivered
+ * population at seed 1337, the free z-band in the +X corridor is
+ * `[-400, +179]` at its narrowest (x = 3900) and unbounded to −400 for the
+ * whole of the −X corridor. **The +X road shifts NORTH first** (−z, CONTRACT
+ * §3.1) into the side that is clear at every station. Delivered, swept at 4 m
+ * over both arms against all 179 delivered hill and wood footprints: the
+ * road's own VERGE EDGE comes no closer than **194.7 m** to any of them.
+ */
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE FIELD PATTERN — SESSION 62, AND IT IS THE OPERATOR'S FIRST TELL.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * His words about session 61's aerial: *"every field is an axis-aligned
+ * rectangle, several L-cut at exactly 90°, all of them roughly one city block
+ * across."* Measured out of the pure generator at seed 1337 over the rim
+ * (cx 25..33, cz −4..4):
+ *
+ *   field parcels                                                      218
+ *   lying WHOLLY INSIDE their own 128 m chunk                    218 of 218
+ *   axis-aligned rectangles                                      309 of 309
+ *   parcel edges exactly on a multiple of `CITY.chunkSize`     542 of 872, 62%
+ *   parcels with at least two edges on that lattice              218 of 218
+ *   longest side, min / median / max                     45.3 / 89.0 / 128 m
+ *   L-cut into two or more rectangles                       24 of 218, 11.0%
+ *
+ * **HE IS EXACTLY RIGHT AND THE BRIEF'S THIRD PREMISE SURVIVES.** Session 61
+ * split `chunkBounds(cx, cz)` at most once per axis at a rolled line, so a
+ * parcel is a chunk or a half or a quarter of one and can be nothing else —
+ * every parcel has two edges on the 128 m lattice by construction, and the
+ * upper bound on a field is one city block.
+ *
+ * A FOURTH THING THE MEASUREMENT FOUND THAT NOBODY ASKED ABOUT. The crop was
+ * `(ci++ + cx + cz) % 2` over an i-outer/j-inner loop, which puts the two
+ * same-crop cells of a four-way split at the same `j`: **on all 28 four-way
+ * chunks the colour makes two full-width bands and the x split line carries no
+ * change of crop at all.** A four-way split reads from the air as a two-way
+ * split, so half the subdivision this file thought it was drawing was never
+ * visible.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHAT REPLACES IT, AND WHY IT IS STILL AXIS-ALIGNED RECTANGLES.
+ *
+ * The ground vocabulary assumes an axis-aligned rectangle in 33 places (see
+ * `EXIT_ROAD` below), so the answer is not a rotated parcel. It is that the
+ * PARCEL STOPS BEING A PROPERTY OF THE CHUNK: the boundaries come from a WORLD
+ * lattice of irregularly spaced lines, evaluated identically in every chunk
+ * from the root seed and the line's own index, so a parcel spans as many chunks
+ * as it likes and the chunk boundary stops being one of its edges.
+ *
+ * `pitchM` = 260 m gives a mean parcel of **6.8 ha**, which is an arable field;
+ * a chunk is 1.6 ha and that is a paddock. `jitter` = 0.30 puts consecutive
+ * lines `0.4` to `1.6 × pitch` apart — 104 to 416 m — so the gaps never cross
+ * (the minimum is positive by construction) and no two parcels are the same
+ * size.
+ *
+ * THE CROP IS A PROPERTY OF THE PARCEL AND NOT OF THE CHUNK, which is what
+ * makes a parcel spanning four chunks read as ONE field rather than as four.
+ * It is hashed from the line indices, and there are THREE crops rather than
+ * two, because two alternating tones is a checkerboard however the cells are
+ * shaped.
+ */
+export const FARM = {
+  /**
+   * Metres. Mean spacing of the parcel boundaries. 200 m gives 4.0 ha, which is
+   * an arable field; `CITY.chunkSize` is 128 m and 1.6 ha, which is a paddock.
+   * It is also 1.56 chunks, so a boundary crosses a given chunk 0.64 times on
+   * each axis and most parcels reach into a neighbour — which is the whole
+   * point, and is what session 61's 218-of-218-inside-one-chunk could not do.
+   */
+  pitchM: 200,
+  /**
+   * Fraction of `pitchM` a boundary is displaced by. 0.30 puts consecutive
+   * lines 0.4 to 1.6 pitches apart (80–320 m), so the spacing is never
+   * negative and the largest parcel is 16 times the smallest in area.
+   */
+  jitter: 0.30,
+  /**
+   * Metres. A boundary nearer than this to a chunk edge is dropped, because
+   * both chunks either side make the same test on the same world number and so
+   * both drop it — the parcel simply meets its neighbour at the chunk edge
+   * instead, which is a metre or two out and nothing can see it.
+   */
+  minPieceM: 16,
+  /**
+   * The crops. Three and not two: two alternating tones is a checkerboard
+   * whatever shape the cells are, which is what session 61's own frame showed.
+   *
+   * AND THE THIRD ONE IS NOT A THIRD GREEN, which the first arm got wrong and
+   * a frame said so within the minute: a standing cereal at [0.112, 0.142,
+   * 0.062] is a green, `grass` is a green, and a rim that is two thirds green
+   * reads as one carpet exactly as two alternating tones did. The three that
+   * make farmland read are the three STATES of the same ground — sward,
+   * stubble, and the bare soil between them. `grass` is pasture, `field` is
+   * cereal stubble, `tilled` is ploughed earth; see `city.js` →
+   * `GROUND_ALBEDO` for all three reflectances and their derivations.
+   */
+  crops: ['grass', 'field', 'tilled'],
+  /**
+   * PER-PARCEL TONE, AND IT IS `hillMasses`' OWN ROLL. Three crops on a lattice
+   * still delivers a third of every boundary invisible, because a third of
+   * neighbouring parcels draw the same crop — and two adjacent fields of one
+   * reflectance are one field. `hillMasses` already rolls `rng.range(0.82,
+   * 1.12)` on a hill's tone for exactly this reason and this is the same roll:
+   * the question *"two of the same thing at the same reflectance read as one
+   * thing"* does not care whether the thing is a hill or a field.
+   *
+   * It costs NOTHING. `city.js`'s ground mesh has carried a per-vertex colour
+   * since session 19 and `quad()` already writes the kind's albedo into it, so
+   * a multiplier on the way in is one expression and no new attribute, no new
+   * material and no new draw call.
+   */
+  toneMin: 0.82,
+  toneMax: 1.12,
+};
+
+/**
+ * WHERE PARCEL BOUNDARY `k` FALLS, on one axis, in world metres. Pure in
+ * `(rootSeed, axis, k)`, so every chunk that touches this line computes the
+ * same number and the parcel is one parcel.
+ */
+export function farmLine(rootSeed, axis, k) {
+  const j = chunkRng(rootSeed, k, 0, `farm:${axis}`).next() - 0.5;
+  return k * FARM.pitchM + j * 2 * FARM.jitter * FARM.pitchM;
+}
+
+/** The index of the parcel a world coordinate falls in, on one axis. */
+export function farmIndex(rootSeed, axis, v) {
+  let k = Math.floor(v / FARM.pitchM);
+  /** The jitter is under 0.5 pitch, so the true index is within one of this. */
+  for (let i = 0; i < 4; i++) {
+    if (farmLine(rootSeed, axis, k) > v) { k -= 1; continue; }
+    if (farmLine(rootSeed, axis, k + 1) <= v) { k += 1; continue; }
+    break;
+  }
+  return k;
+}
+
+/**
+ * Which crop parcel `(kx, kz)` carries, and at what tone. A property of the
+ * PARCEL, so a parcel spanning four chunks is one field in all four of them.
+ */
+export function farmCrop(rootSeed, kx, kz) {
+  const rng = chunkRng(rootSeed, kx, kz, 'farm:crop');
+  const kind = FARM.crops[Math.min(FARM.crops.length - 1, Math.floor(rng.next() * FARM.crops.length))];
+  return { kind, tone: rng.range(FARM.toneMin, FARM.toneMax) };
+}
+
+/**
+ * The parcel boundaries strictly inside `(from, to)` on one axis, sorted, with
+ * anything within `minPieceM` of either end dropped. See `FARM.minPieceM`.
+ */
+export function farmLinesIn(rootSeed, axis, from, to) {
+  const out = [];
+  const k0 = Math.floor(from / FARM.pitchM) - 1;
+  const k1 = Math.ceil(to / FARM.pitchM) + 1;
+  for (let k = k0; k <= k1; k++) {
+    const v = farmLine(rootSeed, axis, k);
+    if (v > from + FARM.minPieceM && v < to - FARM.minPieceM) out.push(v);
+  }
+  return out;
+}
+
+export const EXIT_ROAD = {
+  /** Where the lattice stops and this road becomes the only one. */
+  startM: CITY.extentEdgeM,
+  /**
+   * The world's rim. `BLOCK.groundExtent` = 4000 in `core/constants.js`, which
+   * this file may not import (CONTRACT §8.1 — it runs in the worker), and it is
+   * already written here as the `4000` inside `extentEdgeM`'s own derivation.
+   * One literal, two uses, said out loud.
+   */
+  rimM: 4000,
+  /** Half-width of the arterial. Identically `CITY.roadHalfWidth`. */
+  halfCityM: CITY.roadHalfWidth,
+  /** Half-width of the country road: one of this city's own lanes. */
+  halfCountryM: 3.5,
+  /** Metres of taper, at the standard 1:50 for a 4.0 m narrowing each side. */
+  taperM: 200,
+  /** m/s. 100 km/h — a rural trunk road leaving a metropolis. */
+  designSpeedMS: 27.78,
+  /** Metres. `v² / (g (e + f))`, e = 0.05, f = 0.17. 27.78² / (9.81 · 0.22). */
+  minRadiusM: 27.78 * 27.78 / (9.81 * 0.22),
+  /**
+   * The shift schedule. `dir` is the sign in z; −1 is NORTH, which is the side
+   * the hill measurement says is clear at every station of the +X corridor.
+   * The west arm runs the same schedule with the signs flipped, so the two
+   * roads out of this city are not each other's mirror.
+   */
+  shifts: [
+    { lengthM: 384, dir: -1 },
+    { lengthM: 300, dir: 1 },
+    { lengthM: 300, dir: -1 },
+  ],
+  /**
+   * Metres between stations of the tabulated polyline. The sagitta a chord
+   * subtends on the tightest arc this road contains is
+   * `R (1 − cos(s / 2R))` = 357.6 · (1 − cos(0.01119)) = **0.022 m**, which is
+   * under the 0.05 m every join in this project is built with, so the strip
+   * is the curve to within the tolerance the rest of the world uses.
+   */
+  stationM: 8,
+  /**
+   * The station the VERGE and the FIELD CUT are built on. Half `stationM`,
+   * because those two are the readers whose error is a rectangle's inability to
+   * follow a sloping edge rather than a chord's sagitta: `4 · tan(19.59°)` =
+   * **1.42 m** of grass over the tarmac at the steepest bend against 2.85 m at
+   * 8 m. See `exitRoadSpans`.
+   */
+  vergeStationM: 4,
+};
+
+/**
+ * THE POLYLINE, TABULATED ONCE. Pure, module-scope, and identical in the
+ * worker and on the main thread because it reads no seed and no state.
+ *
+ * CONTRACT §9 rule 2 — a quantity derived two ways is printed both ways at
+ * least once. The two ways here are the closed-form heading θ(u) above and the
+ * numerically integrated z, and what the table stores is the integral of the
+ * closed form, so there is exactly one description. What is checked from the
+ * other end is the DELIVERED offset against the `κmax·L²/2π` estimate in the
+ * comment: 384 m at κ = 1/429 predicts 54.8 m and the table delivers the
+ * number `tools/landprobe.mjs` prints.
+ */
+const EXIT_ROAD_TABLE = (() => {
+  const E = EXIT_ROAD;
+  const kMax = 1 / E.minRadiusM;
+  const span = E.rimM - E.startM;
+  const n = Math.ceil(span / E.stationM);
+  /** `s` metres past `startM`; z and heading of the EAST arm at each station. */
+  const s = new Float64Array(n + 1);
+  const z = new Float64Array(n + 1);
+  const th = new Float64Array(n + 1);
+  /** Which shift a distance falls in, and how far into it. */
+  const heading = (u) => {
+    let rest = u;
+    for (const sh of E.shifts) {
+      if (rest <= sh.lengthM) {
+        return sh.dir * (kMax * sh.lengthM / (2 * Math.PI))
+          * (1 - Math.cos((2 * Math.PI * rest) / sh.lengthM));
+      }
+      rest -= sh.lengthM;
+    }
+    return 0;
+  };
+  /**
+   * Simpson over each station interval. A trapezoid would accumulate a
+   * first-order error over 96 stations against a quantity the ribbon, the
+   * markings, the claim and the field cut all read — CONTRACT §9's own shape
+   * with an integration rule.
+   */
+  for (let i = 0; i <= n; i++) {
+    s[i] = Math.min(i * E.stationM, span);
+    th[i] = heading(s[i]);
+    if (i === 0) { z[0] = 0; continue; }
+    const a = s[i - 1];
+    const b = s[i];
+    const m = (a + b) / 2;
+    z[i] = z[i - 1] + ((b - a) / 6)
+      * (Math.sin(heading(a)) + 4 * Math.sin(heading(m)) + Math.sin(heading(b)));
+  }
+  return { n, s, z, th, span };
+})();
+
+/**
+ * THE CENTRELINE'S z AT A WORLD x. Zero everywhere the lattice still exists, so
+ * every reader inside the city gets exactly the straight road it had.
+ *
+ * The two arms take opposite signs, which is the whole of what makes the road
+ * out of the west a different road from the road out of the east.
+ */
+export function exitRoadZ(x) {
+  const ax = Math.abs(x);
+  if (ax <= EXIT_ROAD.startM) return 0;
+  const T = EXIT_ROAD_TABLE;
+  const u = Math.min(ax - EXIT_ROAD.startM, T.span);
+  const i = Math.min(Math.floor(u / EXIT_ROAD.stationM), T.n - 1);
+  const t = (u - T.s[i]) / (T.s[i + 1] - T.s[i] || 1);
+  const zz = T.z[i] + (T.z[i + 1] - T.z[i]) * t;
+  return x >= 0 ? zz : -zz;
+}
+
+/**
+ * THE TANGENT'S YAW IN DEGREES, for the markings and for anything laid ALONG
+ * the road. Positive is the rotation about +Y that `setMatrix` takes, and it is
+ * read off the same table rather than differenced out of `exitRoadZ` — two
+ * descriptions of one tangent is §9.1 with an angle.
+ *
+ * On the west arm the road runs toward −x, so a mark's local +X is reversed as
+ * well as its z: the two negations cancel and the yaw is the east arm's own.
+ */
+export function exitRoadYawDeg(x) {
+  const ax = Math.abs(x);
+  if (ax <= EXIT_ROAD.startM) return 0;
+  const T = EXIT_ROAD_TABLE;
+  const u = Math.min(ax - EXIT_ROAD.startM, T.span);
+  const i = Math.min(Math.floor(u / EXIT_ROAD.stationM), T.n - 1);
+  const t = (u - T.s[i]) / (T.s[i + 1] - T.s[i] || 1);
+  const th = T.th[i] + (T.th[i + 1] - T.th[i]) * t;
+  return (th * 180) / Math.PI;
+}
+
+/**
+ * THE CARRIAGEWAY'S HALF-WIDTH AT A WORLD x. 7.5 m of arterial, tapering at
+ * 1:50 to 3.5 m of country lane over `taperM`, and holding.
+ */
+export function exitRoadHalfM(x) {
+  const ax = Math.abs(x);
+  if (ax <= EXIT_ROAD.startM) return EXIT_ROAD.halfCityM;
+  const t = Math.min(1, (ax - EXIT_ROAD.startM) / EXIT_ROAD.taperM);
+  return EXIT_ROAD.halfCityM + (EXIT_ROAD.halfCountryM - EXIT_ROAD.halfCityM) * t;
+}
+
+/**
+ * THE POLYLINE AS AXIS-ALIGNED SPANS OVER AN x RANGE — the form every consumer
+ * in this file already understands, and the reason no rotated ground rectangle
+ * is needed anywhere.
+ *
+ * A RECTANGLE CANNOT FOLLOW A SLOPING EDGE, so each interval reports FOUR z
+ * values rather than two, and which one a caller wants depends on which way it
+ * would rather be wrong:
+ *
+ *   `zFar0` / `zFar1`    the OUTERMOST north and south edges over the interval.
+ *                        A box between them CONTAINS the ribbon. This is what
+ *                        the registry claims and what the fields are cut by, so
+ *                        nothing is ever drawn or placed on the running lane.
+ *   `zNear0` / `zNear1`  the INNERMOST. A verge laid from here outward OVERLAPS
+ *                        the asphalt by at most the interval's own z change and
+ *                        never leaves a strip of bare earth between the two.
+ *
+ * THE DIRECTION IS CHOSEN AND NOT TOLERATED. Session 61's own aerial found the
+ * other one: cutting the fields back by `vergeM` and laying nothing in the gap
+ * left 12 m of earth plane either side of the road for its whole length, which
+ * is session 42's *"a missing surface is a surface of about the right colour
+ * that is not there"*. So the verge overlaps the tarmac rather than falling
+ * short of it, and what that looks like is grass growing over the edge of a
+ * country road — which is what grass does.
+ *
+ * The overlap is bounded: `stationM · tan(θmax)` = 8 · tan(19.59°) = **2.85 m**
+ * at the steepest bend, against a 7.0 m carriageway. `EXIT_ROAD.vergeStationM`
+ * halves the station for exactly this reader and takes it to **1.42 m**, which
+ * is under the 1.8 m a hedge is deep and is the same order as the ragged edge a
+ * mown verge has anyway.
+ */
+export function exitRoadSpans(x0, x1, stationM = EXIT_ROAD.stationM) {
+  const out = [];
+  if (x1 <= x0) return out;
+  /** Snap to the station lattice so two chunks describe the same staircase. */
+  const a = Math.floor(x0 / stationM) * stationM;
+  for (let t = a; t < x1; t += stationM) {
+    const lo = Math.max(t, x0);
+    const hi = Math.min(t + stationM, x1);
+    if (hi <= lo) continue;
+    const zA = exitRoadZ(lo);
+    const zB = exitRoadZ(hi);
+    const hA = exitRoadHalfM(lo);
+    const hB = exitRoadHalfM(hi);
+    out.push({
+      x0: lo,
+      x1: hi,
+      zFar0: Math.min(zA - hA, zB - hB),
+      zNear0: Math.max(zA - hA, zB - hB),
+      zNear1: Math.min(zA + hA, zB + hB),
+      zFar1: Math.max(zA + hA, zB + hB),
+    });
+  }
+  return out;
+}
+
+/**
+ * WHICH x RANGES OF A CHUNK OWN THE ROAD. Session 61's rule was
+ * `b.z0 <= 0 && b.z1 > 0` — the chunk row containing z = 0 — and its own
+ * comment gives the reason: the road runs on a chunk BOUNDARY, so exactly one
+ * of the two chunks either side must furnish it *"or everything beside it is
+ * emitted twice"*.
+ *
+ * A ROAD THAT BENDS CROSSES ROWS, so the rule becomes the same sentence with
+ * the centreline substituted for the boundary: a chunk furnishes the road over
+ * exactly the x where the CENTRELINE lies inside its own z band. The half-open
+ * interval `[b.z0, b.z1)` is what makes it exactly one chunk when the line
+ * lands on a boundary, which is what it does for the whole of the straight
+ * part inside the extent.
+ *
+ * Evaluated on the station lattice so two neighbours agree to the metre.
+ */
+export function exitRoadOwnSpans(b, stationM = EXIT_ROAD.stationM) {
+  const out = [];
+  let run = null;
+  const a = Math.floor(b.x0 / stationM) * stationM;
+  for (let t = a; t < b.x1; t += stationM) {
+    const lo = Math.max(t, b.x0);
+    const hi = Math.min(t + stationM, b.x1);
+    if (hi <= lo) continue;
+    const zc = exitRoadZ((lo + hi) / 2);
+    const owns = zc >= b.z0 && zc < b.z1;
+    if (owns) {
+      if (run && run.x1 === lo) run.x1 = hi;
+      else { run = { x0: lo, x1: hi }; out.push(run); }
+    } else run = null;
+  }
+  return out;
+}
+
 export function hillMasses(rootSeed) {
   const rng = chunkRng(rootSeed, 0, 0, 'hills');
   const out = [];
@@ -1989,7 +2492,27 @@ export function hillMasses(rootSeed) {
     if (Math.abs(z) < HILLS.roadGapM + foot) continue;
     if (Math.abs(z - RIVER.z0) < HILLS.riverGapM + foot) continue;
     const tone = rng.range(0.82, 1.12);
-    out.push({ x, z, foot, h, wood: false, tone });
+    /**
+     * THE PLAN IS AN ELLIPSE AT A BEARING — SESSION 62, AND IT IS FREE.
+     *
+     * The operator's word for session 61's hills was *"three smooth domes"*,
+     * and three identical circular domes at three scales is three copies of one
+     * object — LOOK.md §4's *"any object placed at intervals needs FORM
+     * variation, not colour variation"*, which `tone` above was answering with
+     * colour. `city.js` composes the instance from a quaternion and three
+     * independent scales already, so an eccentricity and a bearing cost nothing
+     * but these two rolls.
+     *
+     * `ecc` multiplies one horizontal half-extent and divides the other, so the
+     * PLAN AREA IS UNCHANGED at every value and the ring's footprint budget —
+     * which `HILLS.roadGapM` and the farmstead's `onHill` are both written
+     * against — does not move with it. 1.0 to 1.45 takes the long axis to
+     * 1.45x the short one, which is a ridge rather than a dome and is under the
+     * 1.5 at which a hemisphere starts to read as a wall.
+     */
+    const ecc = rng.range(1.0, 1.45);
+    const bearingDeg = rng.range(0, 180);
+    out.push({ x, z, foot, h, wood: false, tone, ecc, bearingDeg });
     if (rng.chance(HILLS.woodChance)) {
       /** The wood sits on the flank, downhill of the crown, flatter and darker. */
       const wa = rng.range(0, Math.PI * 2);
@@ -2000,6 +2523,8 @@ export function hillMasses(rootSeed) {
         h: h * rng.range(0.30, 0.45),
         wood: true,
         tone: rng.range(0.85, 1.1),
+        ecc: rng.range(1.0, 1.6),
+        bearingDeg: rng.range(0, 180),
       });
     }
   }
@@ -14696,19 +15221,51 @@ export function generateChunk(rootSeed, cx, cz) {
      *   `ownsRoad`  this chunk furnishes it                     -> VERGE,
      *               trees, hedgerows, lay-by, stop, and the claim
      */
-    const nearRoad = b.z0 < K.roadHalfM + K.vergeM && b.z1 > -(K.roadHalfM + K.vergeM);
-    const ownsRoad = b.z0 <= 0 && b.z1 > 0;
-    if (ownsRoad) {
-      /**
-       * THE ONE ROAD THAT LEAVES, CLAIMED. `block.js` draws it as a single
-       * `groundExtent * 2` plane and claims nothing outside `BLOCK_KEEPOUT`,
-       * so for 3 832 m of its length it has been asphalt nothing was told
-       * about. Claimed per chunk rather than once, because the registry is
-       * built per chunk (CONTRACT §8.1 — it must be deterministic in
-       * `(rootSeed, cx, cz)` alone) and a claim spanning the world would be a
-       * different claim in every chunk that made it.
-       */
-      reg.claim(claimBox('carriageway', b.x0, -K.roadHalfM, b.x1, K.roadHalfM,
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND SINCE SESSION 62 THE ROAD BENDS, SO BOTH PREDICATES READ THE
+     * POLYLINE INSTEAD OF THE NUMBER ZERO.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Session 61's two lines were `b.z0 < half + verge && b.z1 > -(half+verge)`
+     * and `b.z0 <= 0 && b.z1 > 0` — both of them the statement *"the road is
+     * the line z = 0"*, written twice. `citygen.js` → `EXIT_ROAD` is that line
+     * now, and it is a curve, so:
+     *
+     *   `roadSpans`   the staircase of axis-aligned intervals the ribbon
+     *                 crosses this chunk in. Nothing here is rotated: a span is
+     *                 four scalars and `subtractBoxes` never learns anything.
+     *   `ownSpans`    the x sub-ranges where the CENTRELINE is inside this
+     *                 chunk's own z band — which is session 61's *"exactly one
+     *                 of the two chunks either side must own the road"* with a
+     *                 curve substituted for a boundary. A bending road crosses
+     *                 rows, so ownership is now a set of x ranges rather than a
+     *                 property of the whole chunk.
+     *   `nearRoad`    any span reaches this chunk's z band at all -> CUT.
+     */
+    const roadSpans = exitRoadSpans(b.x0, b.x1, EXIT_ROAD.vergeStationM)
+      .filter((s) => s.zFar0 - K.vergeM < b.z1 && s.zFar1 + K.vergeM > b.z0);
+    const ownSpans = exitRoadOwnSpans(b, EXIT_ROAD.vergeStationM);
+    const nearRoad = roadSpans.length > 0;
+    const ownsRoad = ownSpans.length > 0;
+    /**
+     * THE ONE ROAD THAT LEAVES, CLAIMED. `block.js` draws it and claims
+     * nothing outside `BLOCK_KEEPOUT`, so for 3 832 m of its length it was
+     * asphalt nothing had been told about. Claimed per chunk rather than once,
+     * because the registry is built per chunk (CONTRACT §8.1 — it must be
+     * deterministic in `(rootSeed, cx, cz)` alone) and a claim spanning the
+     * world would be a different claim in every chunk that made it.
+     *
+     * ONE BOX PER STATION INTERVAL, AND EACH TAKES THE `zFar` PAIR, so the
+     * claim CONTAINS the ribbon rather than approximating it — the same
+     * conservative direction the hedge's claim takes at its rolled height, and
+     * the reason a hedgerow or a silo cannot land in the running lane however
+     * the road bends. It is claimed over the whole staircase this chunk sees
+     * and not only over `ownSpans`: ownership decides who FURNISHES the road,
+     * and a chunk the road merely crosses must still refuse things from it.
+     */
+    for (const s of roadSpans) {
+      reg.claim(claimBox('carriageway', s.x0, s.zFar0, s.x1, s.zFar1,
         { owner: 'exit:road' }));
     }
 
@@ -14726,31 +15283,50 @@ export function generateChunk(rootSeed, cx, cz) {
 
     /** Everything the fields must be cut around, in this chunk's own coordinates. */
     const solids = [];
-    if (nearRoad) {
-      solids.push({ x0: b.x0, x1: b.x1,
-        z0: -K.roadHalfM - K.vergeM, z1: K.roadHalfM + K.vergeM });
+    /**
+     * THE CUT IS THE STAIRCASE'S OUTER EDGE PLUS THE VERGE, one box per station
+     * interval. It CONTAINS the ribbon, so no field is ever drawn on the road
+     * whichever way the road is turning.
+     */
+    for (const s of roadSpans) {
+      solids.push({ x0: s.x0, x1: s.x1, z0: s.zFar0 - K.vergeM, z1: s.zFar1 + K.vergeM });
     }
     if (ownsRoad) {
       /**
-       * AND THE VERGE IS LAID RATHER THAN LEFT BARE, which the first arm got
-       * wrong and an aerial said so: cutting the fields back by `vergeM`
-       * without laying anything in the gap left **12 m of the earth plane
-       * either side of the road for its whole length**, so from above the
-       * exit road read as a pale mottled band rather than as a road with
-       * edges. It is session 42's own finding — *"a missing surface is now a
-       * surface of about the right colour that is not there"* — arriving at
-       * the one place session 42 could not reach, because there was no
-       * generator content out here to notice it.
+       * AND THE VERGE IS LAID RATHER THAN LEFT BARE, which session 61's first
+       * arm got wrong and an aerial said so: cutting the fields back by
+       * `vergeM` without laying anything in the gap left **12 m of the earth
+       * plane either side of the road for its whole length**, so from above the
+       * exit road read as a pale mottled band rather than as a road with edges.
+       * It is session 42's own finding — *"a missing surface is now a surface
+       * of about the right colour that is not there"* — arriving at the one
+       * place session 42 could not reach.
        *
        * `grass` and not `field`: a verge is mown and a field is cropped, and
-       * the two greens either side of the carriageway are what draws the
-       * road's edge from the air.
+       * the two greens either side of the carriageway are what draws the road's
+       * edge from the air.
+       *
+       * AND SINCE SESSION 62 EACH STRIP RUNS FROM THE RIBBON'S **INNER** EDGE
+       * OUT TO THE CUT, which is the choice `exitRoadSpans` exists to offer. A
+       * rectangle cannot follow a sloping edge, so it either overlaps the
+       * tarmac or leaves earth showing beside it; overlapping is bounded at
+       * `vergeStationM · tan(19.59°)` = 1.42 m and leaving earth is exactly the
+       * defect the paragraph above is about. Grass over the edge of a country
+       * road is what grass does.
+       *
+       * Only over `ownSpans`, so the chunk on the other side of the centreline
+       * does not lay a second one over the same ground.
        */
-      for (const side of [-1, 1]) {
-        ground.push({ kind: 'grass', yKey: 'grass',
-          x0: b.x0, x1: b.x1,
-          z0: Math.min(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)),
-          z1: Math.max(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)) });
+      for (const s of roadSpans) {
+        for (const o of ownSpans) {
+          const x0 = Math.max(s.x0, o.x0);
+          const x1 = Math.min(s.x1, o.x1);
+          if (x1 <= x0) continue;
+          ground.push({ kind: 'grass', yKey: 'grass', x0, x1,
+            z0: s.zFar0 - K.vergeM, z1: s.zNear0 });
+          ground.push({ kind: 'grass', yKey: 'grass', x0, x1,
+            z0: s.zNear1, z1: s.zFar1 + K.vergeM });
+        }
       }
     }
 
@@ -14826,8 +15402,17 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     if (ownsRoad && cr.chance(K.houseChance)) {
       const side = cr.chance(0.5) ? 1 : -1;
-      const hx = b.x0 + cr.range(30, 98);
-      const hz = side * (K.roadHalfM + K.vergeM + cr.range(16, 30));
+      /**
+       * ON THE ROAD MEANS ON THE ROAD, AND SINCE SESSION 62 THAT IS THE CURVE.
+       * `hx` is drawn inside an owned span rather than inside the chunk, and
+       * the setback is measured from `exitRoadZ(hx)` — so a house on a bend
+       * stands beside the bend instead of beside the line z = 0, which after
+       * the first shift is 65 m away in a field.
+       */
+      const span = ownSpans[cr.int(0, ownSpans.length - 1)];
+      const hx = span.x0 + cr.range(0, Math.max(0, span.x1 - span.x0 - 24));
+      const edge = exitRoadZ(hx) + side * (exitRoadHalfM(hx) + K.vergeM);
+      const hz = edge + side * cr.range(16, 30);
       const hBox = claimAt('building', hx, hz, 9, 6, { y0: 0, y1: 5.2, owner: 'country:house' });
       if (!reg.conflict(hBox) && !onHill(hx, hz, 12)) {
         reg.claim(hBox);
@@ -14836,11 +15421,10 @@ export function generateChunk(rootSeed, cx, cz) {
           albedo: [0.38, 0.355, 0.32], trim: [0.28, 0.26, 0.235] });
         /** The plot: grass up to the verge, so the house stands in a garden. */
         solids.push({ x0: hx - 22, x1: hx + 22,
-          z0: Math.min(hz - 20, side * (K.roadHalfM + K.vergeM)),
-          z1: Math.max(hz + 20, side * (K.roadHalfM + K.vergeM)) });
+          z0: Math.min(hz - 20, edge), z1: Math.max(hz + 20, edge) });
         const dr = { kind: 'grass', yKey: 'grass',
           x0: hx - 22, x1: hx + 22,
-          z0: Math.min(hz - 20, side * K.roadHalfM), z1: Math.max(hz + 20, side * K.roadHalfM) };
+          z0: Math.min(hz - 20, edge), z1: Math.max(hz + 20, edge) };
         for (const g of subtractBoxes([dr], [{ x0: hBox.x0, x1: hBox.x1, z0: hBox.z0, z1: hBox.z1 }])) ground.push(g);
       }
     }
@@ -14860,13 +15444,23 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     if (ownsRoad && cr.chance(0.2)) {
       const side = cr.chance(0.5) ? 1 : -1;
-      const along = b.x0 + cr.range(40, 88);
-      /** The hard standing the shelter sits on, out of the running lane. */
-      const lay = { kind: 'parkingGround', yKey: 'parking',
-        x0: along - 26, x1: along + 26,
-        z0: Math.min(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)),
-        z1: Math.max(side * K.roadHalfM, side * (K.roadHalfM + K.vergeM)) };
-      ground.push(lay);
+      const lspan = ownSpans[cr.int(0, ownSpans.length - 1)];
+      const along = (lspan.x0 + lspan.x1) / 2;
+      /**
+       * The hard standing the shelter sits on, out of the running lane — and
+       * since session 62 it is a run of station-length boxes beside the curve
+       * rather than one 52 m rectangle beside z = 0. A lay-by is 52 m long and
+       * the road turns 19.6°, so one rectangle would have put a third of it in
+       * the carriageway and the rest in a field.
+       */
+      const layFrom = Math.max(lspan.x0, along - 26);
+      const layTo = Math.min(lspan.x1, along + 26);
+      for (const s2 of exitRoadSpans(layFrom, layTo, EXIT_ROAD.vergeStationM)) {
+        ground.push({ kind: 'parkingGround', yKey: 'parking',
+          x0: s2.x0, x1: s2.x1,
+          z0: side > 0 ? s2.zNear1 : s2.zFar0 - K.vergeM,
+          z1: side > 0 ? s2.zFar1 + K.vergeM : s2.zNear0 });
+      }
       /**
        * `axis: 'z'` AND NOT `'x'`, AND THE FIRST ARM HAD IT THE OTHER WAY —
        * CONTRACT §9's transposition, caught by reading the record back against
@@ -14882,7 +15476,7 @@ export function generateChunk(rootSeed, cx, cz) {
        * puts a shelter 8.6 m from the world ORIGIN in x and 3.4 km away in z —
        * a stop in a field, on a chunk that never asked for one.
        */
-      countryStop = { axis: 'z', at: 0, side, along };
+      countryStop = { axis: 'z', at: exitRoadZ(along), side, along };
     }
 
     /**
@@ -14903,7 +15497,14 @@ export function generateChunk(rootSeed, cx, cz) {
           const variants = propVariantCount('tree');
           const tv = variants > 0 ? cr.int(0, variants - 1) : 0;
           const pad = propHalfWidth('tree', tv) * scale;
-          const tz = side * (K.roadHalfM + K.vergeM - 1.2);
+          /**
+           * ON THE VERGE'S OUTER EDGE, WHEREVER THE VERGE IS. 1.2 m in from the
+           * cut, so a crown overhangs the road the way a roadside tree does
+           * and its trunk does not. The registry still refuses it from the
+           * carriageway claim above, which is what makes this a position and
+           * not a guarantee.
+           */
+          const tz = exitRoadZ(t) + side * (exitRoadHalfM(t) + K.vergeM - 1.2);
           const spot = claimAt('prop', t, tz, pad, pad, { owner: 'country:tree' });
           if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
           reg.claim(spot);
@@ -14922,30 +15523,38 @@ export function generateChunk(rootSeed, cx, cz) {
      * right: a field is a surface things stand on.
      */
     /**
-     * HOW MANY FIELDS THIS CHUNK IS, AND THE FIRST ARM SPLIT EVERY CHUNK INTO
-     * FOUR — which delivered a CHECKERBOARD on a 64 m module, visible from the
-     * air as a grid rather than as farmland. Real fields differ in size by
-     * more than they differ in colour.
+     * THE PARCEL IS A WORLD OBJECT AND NOT A CHUNK ONE — SESSION 62. Session
+     * 61's split rolled `chunkBounds` in half on each axis, so 218 of 218
+     * parcels lay wholly inside one 128 m chunk and every one of them had two
+     * edges on the lattice. `FARM` above carries the measurement and the whole
+     * derivation of what replaces it.
      *
-     * So the split is a roll: a whole chunk, a half on either axis, or
-     * quarters. It is `docs/authored-city.md` §1's clumping rule applied to a
-     * SURFACE — the thing that makes a population read as intended is that the
-     * gaps between groups are bigger than the gaps inside them, and four equal
-     * cells everywhere is the opposite of that.
+     * The chunk still EMITS its own square — it must, because `generateChunk`
+     * is deterministic in `(rootSeed, cx, cz)` alone (CONTRACT §8.1) — but the
+     * boundaries it cuts on come from `farmLinesIn`, which is a function of the
+     * world coordinate. Two chunks either side of a parcel compute the same
+     * lines and hash the same crop, so what the frame shows is one field
+     * crossing a chunk boundary rather than two fields meeting on one.
      */
-    const splitRoll = cr.next();
-    const splitX = splitRoll > 0.30;
-    const splitZ = splitRoll < 0.30 || splitRoll > 0.62;
-    const sx = splitX ? b.x0 + (b.x1 - b.x0) * cr.range(0.30, 0.70) : b.x1;
-    const sz = splitZ ? b.z0 + (b.z1 - b.z0) * cr.range(0.30, 0.70) : b.z1;
-    const xs = splitX ? [b.x0, sx, b.x1] : [b.x0, b.x1];
-    const zs = splitZ ? [b.z0, sz, b.z1] : [b.z0, b.z1];
-    let ci = 0;
+    const xs = [b.x0, ...farmLinesIn(rootSeed, 'x', b.x0, b.x1), b.x1];
+    const zs = [b.z0, ...farmLinesIn(rootSeed, 'z', b.z0, b.z1), b.z1];
     for (let i = 0; i + 1 < xs.length; i++) {
       for (let j = 0; j + 1 < zs.length; j++) {
-        const kind2 = (ci++ + cx + cz) % 2 === 0 ? 'grass' : 'field';
+        /**
+         * THE CROP IS HASHED FROM THE PARCEL'S OWN INDEX PAIR, taken at the
+         * cell's centre. Session 61's `(ci++ + cx + cz) % 2` was a parity over
+         * a loop counter, and the measurement found what that costs: on all 28
+         * four-way-split chunks it put the two same-crop cells at the same `j`,
+         * so the colour made two full-width bands and **the x split line
+         * carried no change of crop at all**. Half of every four-way split was
+         * invisible.
+         */
+        const kx = farmIndex(rootSeed, 'x', (xs[i] + xs[i + 1]) / 2);
+        const kz = farmIndex(rootSeed, 'z', (zs[j] + zs[j + 1]) / 2);
+        const c = farmCrop(rootSeed, kx, kz);
         for (const g of subtractBoxes(
-          [{ x0: xs[i], x1: xs[i + 1], z0: zs[j], z1: zs[j + 1], kind: kind2, yKey: 'grass' }],
+          [{ x0: xs[i], x1: xs[i + 1], z0: zs[j], z1: zs[j + 1],
+            kind: c.kind, yKey: 'grass', tone: c.tone }],
           solids
         )) ground.push(g);
       }
@@ -14959,49 +15568,88 @@ export function generateChunk(rootSeed, cx, cz) {
      * again, which is what a hedge with a field gate in it looks like (the
      * same argument the churchyard's grave rows are laid on).
      */
+    /**
+     * ONE SEGMENT, AT A POINT AND A YAW — session 62, hoisted out of `hedgeRun`
+     * so that the run along the exit road can hand it the road's own tangent.
+     * A hedge beside a bend that is drawn axis-aligned is a fence panel across
+     * a field, which is what session 61's road hedges became the moment the
+     * road stopped being the line z = 0.
+     *
+     * THE CLAIM IS STILL AXIS-ALIGNED and it is the rotated-AABB expression
+     * this file already carries in five places: a box of length L and depth W
+     * at yaw t occupies `|cos t|·L + |sin t|·W` on x and the transpose on z.
+     * At the road's peak 19.59° that inflates a 12 x 0.7 m segment's claim to
+     * 11.55 x 4.68 m, which is the conservative direction — a hedge refuses
+     * slightly more ground than it stands on, and refusing is what a claim is
+     * for.
+     */
+    const hedgeSeg = (x, z, yawDeg) => {
+      /**
+       * THE HEIGHT IS ROLLED PER SEGMENT AND THE CLAIM TAKES THE CEILING.
+       * A hedge whose top line is dead flat over 128 m is a wall, which is
+       * what the first arm delivered and what the frame showed. +-20% of
+       * 1.8 m is 1.44 to 2.16 — a stock-proof hedge either way, and the
+       * only difference is that its top is a line somebody cut rather than
+       * a line somebody drew. The claim is made at the FULL height so a
+       * shorter segment still refuses what a taller one would (the
+       * conservative direction, and the same one the ball-stop's low sides
+       * take).
+       */
+      /**
+       * AND ONE SEGMENT IN TWELVE IS A GAP, which is a FIELD GATE. A hedge
+       * that only breaks where the registry refuses it breaks at buildings
+       * and nowhere else, so a 128 m run beside a road reads as a fence
+       * panel; a hedge in the world has a way into the field behind it every
+       * hundred metres or so. `1/12` of a 12 m segment is one 12 m gap per
+       * 144 m, which is that spacing and is one roll rather than a second
+       * placement pass.
+       */
+      if (cr.next() < 1 / 12) return;
+      const hh = K.hedgeHeightM * (0.8 + cr.next() * 0.4);
+      const yd = yawDeg + yaw();
+      const cs = Math.abs(Math.cos((yd * Math.PI) / 180));
+      const sn = Math.abs(Math.sin((yd * Math.PI) / 180));
+      const halfX = (cs * K.hedgeSegM + sn * 2 * K.hedgeHalfT) / 2;
+      const halfZ = (sn * K.hedgeSegM + cs * 2 * K.hedgeHalfT) / 2;
+      const box = claimAt('feature', x, z, halfX, halfZ,
+        { y0: 0, y1: K.hedgeHeightM * 1.2, owner: 'country:hedge' });
+      if (reg.conflict(box)) return;
+      reg.claim(box);
+      features.push({ kind: 'edge', edge: 'hedge', x, z,
+        length: K.hedgeSegM, height: hh, yawDeg: yd });
+    };
+    /** A run of segments along one world-axis line. */
     const hedgeRun = (axis, at, from, to) => {
       for (let t = from; t + K.hedgeSegM <= to; t += K.hedgeSegM) {
         const c = t + K.hedgeSegM / 2;
-        const x = axis === 'x' ? c : at;
-        const z = axis === 'x' ? at : c;
-        /**
-         * THE HEIGHT IS ROLLED PER SEGMENT AND THE CLAIM TAKES THE CEILING.
-         * A hedge whose top line is dead flat over 128 m is a wall, which is
-         * what the first arm delivered and what the frame showed. +-20% of
-         * 1.8 m is 1.44 to 2.16 — a stock-proof hedge either way, and the
-         * only difference is that its top is a line somebody cut rather than
-         * a line somebody drew. The claim is made at the FULL height so a
-         * shorter segment still refuses what a taller one would (the
-         * conservative direction, and the same one the ball-stop's low sides
-         * take).
-         */
-        /**
-         * AND ONE SEGMENT IN TWELVE IS A GAP, which is a FIELD GATE. A hedge
-         * that only breaks where the registry refuses it breaks at buildings
-         * and nowhere else, so a 128 m run beside a road reads as a fence
-         * panel; a hedge in the world has a way into the field behind it every
-         * hundred metres or so. `1/12` of a 12 m segment is one 12 m gap per
-         * 144 m, which is that spacing and is one roll rather than a second
-         * placement pass.
-         */
-        if (cr.next() < 1 / 12) continue;
-        const hh = K.hedgeHeightM * (0.8 + cr.next() * 0.4);
-        const box = claimAt('feature', x, z,
-          axis === 'x' ? K.hedgeSegM / 2 : K.hedgeHalfT,
-          axis === 'x' ? K.hedgeHalfT : K.hedgeSegM / 2,
-          { y0: 0, y1: K.hedgeHeightM * 1.2, owner: 'country:hedge' });
-        if (reg.conflict(box)) continue;
-        reg.claim(box);
-        features.push({ kind: 'edge', edge: 'hedge', x, z,
-          length: K.hedgeSegM, height: hh,
-          yawDeg: (axis === 'x' ? 0 : 90) + yaw() });
+        hedgeSeg(axis === 'x' ? c : at, axis === 'x' ? at : c, axis === 'x' ? 0 : 90);
       }
     };
-    if (splitX) hedgeRun('z', sx, b.z0, b.z1);
-    if (splitZ) hedgeRun('x', sz, b.x0, b.x1);
+    /**
+     * ON THE BOUNDARIES THAT EXIST, WHICH IS THE BRIEF'S OWN PHRASE. Session
+     * 61 ran a hedge along the chunk's two rolled split lines, so every hedge
+     * in the world was 128 m long and stopped at a chunk edge whether or not a
+     * field did. These run along `farmLinesIn`'s world lines instead, and the
+     * neighbouring chunk continues the same line from the same number — so a
+     * hedgerow is now as long as the parcel it bounds.
+     */
+    for (const v of farmLinesIn(rootSeed, 'x', b.x0, b.x1)) hedgeRun('z', v, b.z0, b.z1);
+    for (const v of farmLinesIn(rootSeed, 'z', b.z0, b.z1)) hedgeRun('x', v, b.x0, b.x1);
+    /**
+     * AND ALONG THE ROAD, WHICH IS THE FRONTAGE A DRIVER ACTUALLY SEES — one
+     * segment per station interval now, standing on the outer edge of the
+     * verge and taking the road's own yaw, so the hedge follows the bend
+     * instead of running through it.
+     */
     if (ownsRoad) {
       for (const side of [-1, 1]) {
-        hedgeRun('x', side * (K.roadHalfM + K.vergeM), b.x0, b.x1);
+        for (const o of ownSpans) {
+          for (let t = o.x0; t + K.hedgeSegM <= o.x1; t += K.hedgeSegM) {
+            const c = t + K.hedgeSegM / 2;
+            const hz = exitRoadZ(c) + side * (exitRoadHalfM(c) + K.vergeM);
+            hedgeSeg(c, hz, -exitRoadYawDeg(c));
+          }
+        }
       }
     }
   }
