@@ -734,6 +734,67 @@ It is that the street wall is broken.
   `citycheck`'s `maxBareWalkableSamples` is 0. *"The ground looks fine"* stopped
   being evidence in session 42 and nobody noticed until session 51.
 
+- **AND THE HEIGHT LAW READS NOTHING AT ALL — SESSION 61, MEASURED BY DISTRICT
+  RATHER THAN POOLED.** The operator: *"the city feels clustered, with districts
+  that have no tall buildings, and the outskirts do not read as a real place."*
+  Session 53 answered half of that — the density field has no radial term — and
+  the other half is larger. `buildingHeightRoll(rng)` takes an rng and nothing
+  else: not the density, not the radius, not the era. Out of the pure generator
+  over 2 401 chunks at seed 1337, in radial bands of 400 m:
+
+  ```
+    band           bldg/chunk   meanH   medH   p90H    maxH
+       0- 400 m       7.00      39.5    30.7   72.9   149.9
+     800-1200 m       7.05      41.0    34.5   73.9   152.0
+    1600-2000 m       6.81      40.4    34.2   74.4   152.1
+    2000-2400 m       3.74      41.4    34.5   76.5   153.2
+    2400-2800 m       0.38      41.8    36.4   73.1   152.5
+  ```
+
+  **The count falls by eighteen times and the height does not move.** By density
+  band rather than by radius it is the same answer: mean 40.5 / 41.4 / 40.8 over
+  d = 0.30–0.45, 0.45–0.60 and 0.60–1.00. **A building at the rim is exactly as
+  likely to be 150 m as one in the core**, so what separates a district from its
+  neighbour is HOW MANY buildings and nothing else — and a sparse district in
+  this city is a downtown with buildings deleted, which is this section's own
+  *"a suburb is not a sparse downtown"* from the other end. Not repaired:
+  `distantMasses` reads the same law, so a height law that reads the field
+  re-bases every luminance band and the whole distant silhouette at once.
+
+  **AND EVERY BLOCK IN THIS CITY IS THE SAME BLOCK.** Over `citycheck`'s own
+  10 × 10 the delivered pavement runs take 64 distinct lengths and **298 of them
+  are two values** — 120.5 m and 116.3 m, the two island sides — the rest being
+  the clip residue of the river, the landmarks and the origin block. The lattice
+  is one 128 m module. Session 50 measured it and it reproduces exactly.
+- **AND PAST THE CITY'S EDGE IT DID NOT END, IT EVAPORATED — SESSION 61.** The
+  operator's framing: *"the city becomes countryside — hills, winding roads,
+  houses."* Session 56 built the hills and session 54 stopped the lattice, and
+  what was between them was measured for the first time here: the last lattice
+  carriageway on `cz = 0` reaches **3 211.7 m**, the nearest hill EDGE is at
+  **3 050 m** — 182 m INSIDE the lattice edge — and `block:road:main` is one
+  8 km plane that never ends. **There was no gap.**
+
+  What there was is worse. `block:road:main` is asphalt at 0.11714 over the
+  earth plane's 0.1229 — **a 4.7% step** — and past the last painted line there
+  is not one mark on it, so a car's eye at 3 260 m sees no road, no verge and no
+  edge: one undifferentiated plane with a filling station standing on it.
+  `tools/shot-out/s61-past-before-t0_42-wet.png`.
+
+  **WHAT MAKES IT A ROAD AGAIN IS PAINT AND A CHANGE OF SURFACE, WHICH IS THIS
+  SECTION'S OWN LESSON.** A centre line from `CITY.extentEdgeM` outward (+1 536
+  triangles, zero draw calls, in the mesh `block.js` already had), a mown verge
+  either side, and fields of two crops with hedgerows on their boundaries — a
+  ground rectangle being two triangles in the merged ground mesh and therefore
+  free. Then a farmstead on flat land, a single-storey house on a large plot
+  beside the road, a lay-by, a bus stop with nothing around it and a tree line.
+  `s61-past-after-t0_42-wet.png` and `s61-air2-{before,after}`.
+
+  **NONE OF IT IS INSIDE ANY GATE.** `perfcheck`'s longest route travels 720 m,
+  both `lookcheck` eyes stand inside 400 m of the origin and `citycheck`'s
+  region is 1 280 m square, so nothing in this project asserts anything past
+  3 232 m. The frames are the verdict out there, and that is written down here
+  rather than left for somebody to discover when a change to it goes unnoticed.
+
 ---
 
 ## 3. Light
