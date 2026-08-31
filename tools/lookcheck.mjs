@@ -89,6 +89,9 @@ const { page, consoleErrors, pageErrors } = await openPage(browser, {
 
 const frames = {};
 const wetFrames = {};
+/** Session 59 — the second eye's four dry frames, and the info that went with them. */
+const tradeFrames = {};
+const tradeInfoAt = {};
 let rendererString = 'unknown';
 const infoAt = {};
 const wetInfoAt = {};
@@ -148,6 +151,41 @@ try {
   for (const { name, t } of BUDGET.times) await capture(name, t, BUDGET.wetness.value, wetFrames, wetInfoAt);
   await page.evaluate(() => window.__NOCTIS_HARNESS__.setWetness(0));
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE SECOND EYE — SESSION 59. See `camera.js` → `SHOTS.trade` for where it
+   * stands and why, and `look-budget.json` → `$tradeBands` for the derivation
+   * of the four numbers it is graded against.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * AND IT WAITS FOR THE CITY A SECOND TIME, WHICH IS NOT OPTIONAL. The
+   * comment on the first `waitForCity` above says what happens without one: a
+   * frame captured mid-stream is lit by the analytic default rather than by
+   * the baked field, and it is visible once looked for. This camera stands
+   * about 570 m from the first, so the whole resident ring is replaced — every
+   * chunk in frame is one this page has never generated. A gate that graded
+   * that would be grading the streaming system.
+   *
+   * DRY ONLY. The wet set exists to assert that water doubles the light
+   * (`wetness`), and that claim is about a MATERIAL rather than about a place;
+   * asserting it twice at two poses would be one claim wearing two names. The
+   * bands are dry, so this eye is dry.
+   */
+  await page.evaluate(() => window.__NOCTIS_HARNESS__.setShot('trade'));
+  const tradeArrival = await page.evaluate(() => window.__NOCTIS_HARNESS__.waitForCity(1800));
+  console.log(
+    `  second eye: city re-streamed over ${tradeArrival.frames} frames — ` +
+    `${tradeArrival.field.ready}/${tradeArrival.field.slots} field slots ready` +
+    (tradeArrival.timedOut ? '  ** TIMED OUT: the trade frames were captured mid-stream **' : '')
+  );
+  for (const { name, t } of BUDGET.times) await capture(`trade-${name}`, t, 0, tradeFrames, tradeInfoAt);
+  /** Re-keyed to the bare time name, so the assertion reads one vocabulary. */
+  for (const { name } of BUDGET.times) {
+    tradeFrames[name] = tradeFrames[`trade-${name}`];
+    delete tradeFrames[`trade-${name}`];
+  }
+  await page.evaluate((s2) => window.__NOCTIS_HARNESS__.setShot(s2), BUDGET.capture.shot);
+
   if (args.has('extra')) {
     const extraDir = path.join(OUT, 'extra');
     await mkdir(extraDir, { recursive: true });
@@ -200,6 +238,7 @@ await writeFile(
 // ---------------------------------------------------------------------------
 
 const { failures, report, suppressed } = assertLook({
+  tradeFrames,
   budget: BUDGET,
   frames,
   wetFrames,
@@ -255,6 +294,21 @@ for (const [pair, msd] of Object.entries(report.msd)) {
   note(`  msd ${pair.replace('|', ' ↔ ')}: ${msd.toFixed(5)}`);
 }
 note('');
+
+/**
+ * SESSION 59 — what the SECOND EYE measured, printed beside what the first
+ * did. A gate that asserts a number and does not print it is a gate whose next
+ * session has to re-run it to find out what the city is doing.
+ */
+if (report.tradeBands) {
+  note('the second eye — a trading street in chunk (-3,3), outside BLOCK_KEEPOUT');
+  for (const { name } of BUDGET.times) {
+    const v = report.tradeBands[name];
+    const band = BUDGET.tradeBands[name];
+    note(`  trade:${name.padEnd(9)} mean ${v.toFixed(4)}   band [${band[0]}, ${band[1]}]`);
+  }
+  note('');
+}
 
 // The session 2 measurements, printed whether they pass or not — a gate that
 // only speaks when it is angry teaches nobody anything about the frame.

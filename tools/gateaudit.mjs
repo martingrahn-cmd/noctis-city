@@ -201,6 +201,18 @@ for (const n of NAMES) {
 }
 
 /**
+ * SESSION 59 — THE SECOND EYE'S FRAMES. `lookcheck` writes `trade-<time>.png`
+ * from a pose outside `BLOCK_KEEPOUT`; this audit has to be able to break
+ * their bands exactly as it breaks the origin block's, or four thresholds
+ * would ship with no falsifying case and `falsify.requireCoverage` would be a
+ * claim rather than a check.
+ */
+const tradePNG = {};
+for (const n of NAMES) {
+  tradePNG[n] = decodePNG(await readFile(path.join(OUT, `trade-${n}.png`)));
+}
+
+/**
  * The harness state lookcheck recorded alongside the frames. Session 3's
  * structural assertions read it, and the audit breaks it the same way it breaks
  * a pixel. Fabricating it here would mean the audit and the gate disagreed
@@ -238,7 +250,9 @@ function baseInput() {
       block: captured.block ? JSON.parse(JSON.stringify(captured.block)) : undefined,
     };
   }
-  return { budget: BUDGET, frames, wetFrames, infoAt, consoleErrors: [], pageErrors: [] };
+  const tradeFrames = {};
+  for (const n of NAMES) tradeFrames[n] = A(tradePNG[n]);
+  return { budget: BUDGET, frames, wetFrames, tradeFrames, infoAt, consoleErrors: [], pageErrors: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +291,48 @@ const CASES = [
     knobs: ['meanLuminanceBands.dusk'],
     expect: 'band:dusk',
     apply: (i) => { i.frames.dusk = A(scale(dryPNG.dusk, 1.9)); },
+  },
+
+  /**
+   * SESSION 59 — the second eye's four bands. Each is broken the same way the
+   * origin block's is, by scaling the frame it grades: a band that cannot be
+   * made to fail is not a band, and these four are new this session.
+   */
+  {
+    name: 'trade street midnight a stop brighter',
+    knobs: ['tradeBands.midnight'],
+    expect: 'band:trade:midnight',
+    apply: (i) => { i.tradeFrames.midnight = A(scale(tradePNG.midnight, 2.0)); },
+  },
+  {
+    name: 'trade street dusk a stop darker',
+    knobs: ['tradeBands.dusk'],
+    expect: 'band:trade:dusk',
+    apply: (i) => { i.tradeFrames.dusk = A(scale(tradePNG.dusk, 0.5)); },
+  },
+  {
+    name: 'trade street dawn pushed toward noon',
+    knobs: ['tradeBands.dawn'],
+    expect: 'band:trade:dawn',
+    apply: (i) => { i.tradeFrames.dawn = A(scale(tradePNG.dawn, 1.4)); },
+  },
+  {
+    name: 'trade street noon a third darker',
+    knobs: ['tradeBands.noon'],
+    expect: 'band:trade:noon',
+    apply: (i) => { i.tradeFrames.noon = A(scale(tradePNG.noon, 0.66)); },
+  },
+  /**
+   * AND THE ONE THAT MATTERS MOST: a frame that never arrived must be UNRUN
+   * rather than passed. The second eye re-streams the whole resident ring, so
+   * "the capture silently produced nothing" is a real failure mode here in a
+   * way it is not for a camera that never moves.
+   */
+  {
+    name: 'trade street frames missing entirely',
+    knobs: ['tradeBands.midnight'],
+    expect: 'band:trade:midnight',
+    apply: (i) => { i.tradeFrames = {}; },
   },
 
   // --- clipping and crush ---
@@ -730,10 +786,22 @@ const BUDGET_CASES = [
  */
 const NOT_A_THRESHOLD = new Set(['capture', 'times', 'regions', '$comment']);
 
+/**
+ * `$`-PREFIXED KEYS ARE PROSE, AND THIS SKIPPED ONLY `$comment` — SESSION 59.
+ *
+ * All three budget files carry their derivations beside their numbers under
+ * `$`-prefixed keys: `$derivation_zero`, `$surface`, `$estimator`,
+ * `$triangles_s37_LOD_MEASURED`. This walker knew about exactly one of those
+ * spellings, so the first `$` key added to THIS file — `$tradeBands`, this
+ * session — was counted as a threshold and the audit demanded a falsifying
+ * case for a paragraph. A hardcoded name would have moved the trap one key
+ * along rather than removing it, which is the shape CONTRACT §9.1 records for
+ * `pierEvery`.
+ */
 function knobsOf(obj, prefix = '') {
   const out = [];
   for (const [k, v] of Object.entries(obj)) {
-    if (k === '$comment') continue;
+    if (k.startsWith('$')) continue;
     const key = prefix ? `${prefix}.${k}` : k;
     if (!prefix && NOT_A_THRESHOLD.has(k)) continue;
     if (v && typeof v === 'object' && !Array.isArray(v)) out.push(...knobsOf(v, key));

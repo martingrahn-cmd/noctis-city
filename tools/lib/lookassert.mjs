@@ -65,6 +65,31 @@ export function validateBudget(BUDGET) {
     previousHi = hi;
   }
 
+  /**
+   * SESSION 59 — THE SECOND EYE'S BANDS ARE CHECKED FOR SHAPE TOO, and for one
+   * fewer property than the first eye's. Width and range are asserted; the
+   * ORDER and the GAP are not, and `$tradeBands` carries why: `minBandGap`
+   * encodes "the four times are separated in level", which is true of the
+   * origin block and false of a trading street, where midnight and dusk
+   * measure 0.1926 and 0.1965. A rule that a place cannot satisfy is not a
+   * stricter gate, it is a broken one (CONTRACT §0.2's own argument about the
+   * 1.2 quiet bar).
+   */
+  if (BUDGET.tradeBands) {
+    for (const name of rules.order) {
+      const band = BUDGET.tradeBands[name];
+      if (!band) { problems.push(`no trade band for '${name}'`); continue; }
+      const [lo, hi] = band;
+      if (!(hi > lo)) problems.push(`trade band '${name}' is empty or inverted: [${lo}, ${hi}]`);
+      if (hi - lo > rules.maxBandWidth + 1e-9) {
+        problems.push(`trade band '${name}' is ${(hi - lo).toFixed(3)} wide, over the ${rules.maxBandWidth} limit`);
+      }
+      if (lo < gLo || hi > gHi) {
+        problems.push(`trade band '${name}' [${lo}, ${hi}] leaves the global range [${gLo}, ${gHi}]`);
+      }
+    }
+  }
+
   const named = new Set(BUDGET.times.map((t) => t.name));
   for (const name of rules.order) {
     if (!named.has(name)) problems.push(`bandRules.order names '${name}', which is not a captured time`);
@@ -156,7 +181,7 @@ export function validateBudget(BUDGET) {
  * @param {string[]} input.pageErrors
  * @returns {{failures: Array<{key: string, message: string}>, report: object}}
  */
-export function assertLook({ budget, frames, wetFrames = {}, infoAt, consoleErrors = [], pageErrors = [] }) {
+export function assertLook({ budget, frames, wetFrames = {}, tradeFrames = {}, infoAt, consoleErrors = [], pageErrors = [] }) {
   const failures = [];
   const fail = (key, message) => failures.push({ key, message });
 
@@ -199,6 +224,41 @@ export function assertLook({ budget, frames, wetFrames = {}, infoAt, consoleErro
     const v = frames[name].meanLuminance;
     if (v < lo || v > hi) {
       fail(`band:${name}`, `${name}: mean luminance ${v.toFixed(4)} outside its band [${lo}, ${hi}]`);
+    }
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE SECOND EYE'S BANDS — SESSION 59.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The four above grade a frame standing inside `BLOCK_KEEPOUT`, which the
+   * streamed generator is clipped out of; these grade a street the generator
+   * built. `look-budget.json` → `$tradeBands` carries where each number comes
+   * from, and it is a DERIVATION rather than a re-derivation: no threshold is
+   * being moved, four are being written for a place that has never had any.
+   *
+   * ABSENT IS UNRUN AND NOT PASSED. If the capture did not produce the frames
+   * — the shot missing, the city not re-streamed — this says so in its own
+   * voice instead of asserting over an empty object, which is CONTRACT §7.1's
+   * quiet gate exactly.
+   */
+  if (budget.tradeBands) {
+    for (const name of names) {
+      const m = tradeFrames[name];
+      if (!m) {
+        fail(`band:trade:${name}`,
+          `trade eye: no ${name} frame was captured — UNRUN, not passed`);
+        continue;
+      }
+      const [lo, hi] = budget.tradeBands[name];
+      const v = m.meanLuminance;
+      report.tradeBands = report.tradeBands || {};
+      report.tradeBands[name] = +v.toFixed(4);
+      if (v < lo || v > hi) {
+        fail(`band:trade:${name}`,
+          `trade eye ${name}: mean luminance ${v.toFixed(4)} outside its band [${lo}, ${hi}]`);
+      }
     }
   }
 

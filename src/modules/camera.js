@@ -30,6 +30,45 @@ const SHOTS = {
     target: [-104, 17.5, -1.4],
     fov: 50,
   },
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE SECOND EYE — SESSION 59, AND IT IS THE FIRST GATE CAMERA IN THIS
+   * PROJECT'S HISTORY THAT STANDS IN THE CITY THE GENERATOR BUILDS.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * `street` above stands at (70, 1.74, 0.9) and `BLOCK_KEEPOUT` is
+   * x ∈ [−168, 168], z ∈ [−46, 46] — so every frame the look gate has graded
+   * for twenty-three sessions is inside the ORIGIN BLOCK, which `block.js`
+   * authors and out of which the streamed generator is clipped. Session 35
+   * noticed and session 58 measured it; this closes it.
+   *
+   * WHAT THE OLD EYE CANNOT SEE, MEASURED BY POSITIVE CONTROL. The same pose
+   * rendered at `?fill=1.0` and `?fill=0.0` — the two extremes of the
+   * frontage-fill law, a 60% swing in the city's building population — differs
+   * in **2.74% of its pixels at midnight and 4.66% at noon** (above 2 code
+   * values), and its mean green moves by **0.05 and 0.03 of 255**. That is the
+   * whole of what the generator owns in the gate's frame.
+   *
+   * WHERE THIS ONE STANDS. A north–south street in chunk (−3, 3), which
+   * carries eleven trades of five kinds — the densest trading frontage near
+   * the origin. Chosen by `tools/poseprobe.mjs --target=-270,3.4,394
+   * --eye=1.7 --dmin=104 --dmax=104`, which ray-tests candidate stand-offs
+   * against the 1 146 delivered building occluders and reported this azimuth
+   * (280°) among nine clear of nine-and-thirty tested. The pose the session
+   * had used by eye — 270° — is NOT in the clear list, which is the tool
+   * earning its place.
+   *
+   * FOV 50 IS THE ORIGIN SHOT'S, deliberately: two eyes that differ in field
+   * of view differ in how much sky they carry, and sky is most of what a mean
+   * luminance band measures. The one thing that must differ between these two
+   * cameras is WHERE THEY STAND.
+   */
+  trade: {
+    position: [-251.94, 1.7, 291.58],
+    target: [-270, 3.4, 394],
+    fov: 50,
+  },
+
   /** For looking at the block as a whole while iterating. Not gated. */
   elevated: {
     position: [104, 33, 48],

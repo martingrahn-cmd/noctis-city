@@ -1,46 +1,75 @@
 {
-  "$comment": "The look contract. lookcheck.mjs asserts against this AND asserts that this file is itself honest: the four luminance bands must be ordered, non-overlapping, separated by a real gap, and narrow, and every region an assertion names must be a sane rect. A band wide enough to contain any plausible result is not a gate. Session 2 adds tools/gateaudit.mjs, which feeds every threshold here a deliberately wrong frame and fails if the threshold does not reject it — so nothing in this file is a number nobody has watched fire.",
-
+  "$comment": "The look contract. lookcheck.mjs asserts against this AND asserts that this file is itself honest: the four luminance bands must be ordered, non-overlapping, separated by a real gap, and narrow, and every region an assertion names must be a sane rect. A band wide enough to contain any plausible result is not a gate. Session 2 adds tools/gateaudit.mjs, which feeds every threshold here a deliberately wrong frame and fails if the threshold does not reject it \u2014 so nothing in this file is a number nobody has watched fire.",
   "capture": {
-    "viewport": { "width": 1600, "height": 900 },
+    "viewport": {
+      "width": 1600,
+      "height": 900
+    },
     "deviceScaleFactor": 2,
     "shot": "street",
     "seed": "1337",
     "settleFrames": 4
   },
-
   "times": [
-    { "name": "midnight", "t": 0.0 },
-    { "name": "dawn", "t": 0.25 },
-    { "name": "noon", "t": 0.5 },
-    { "name": "dusk", "t": 0.78 }
+    {
+      "name": "midnight",
+      "t": 0.0
+    },
+    {
+      "name": "dawn",
+      "t": 0.25
+    },
+    {
+      "name": "noon",
+      "t": 0.5
+    },
+    {
+      "name": "dusk",
+      "t": 0.78
+    }
   ],
-
   "meanLuminanceBands": {
     "$comment": "Encoded-sRGB Rec.709 luma over the whole frame. Re-baselined once in session 1 against measured output and once in session 2, for a stated reason: raising concrete reflectance from 0.25 to 0.39 linear and removing forty facade-spill lights moved every mean, and by the end noon sat 0.007 from the edge of a band built to be plus or minus 0.027. Recentred on the session 2 measurements at the session 1 widths -- midnight 0.092, dusk 0.160, dawn 0.326, noon 0.455. This did not make any failing assertion pass; all four were already inside. It restores the tightness the band was designed to have, which is the only thing a band is for.",
-    "midnight": [0.072, 0.112],
-    "dusk": [0.14, 0.18],
-    "dawn": [0.299, 0.353],
-    "noon": [0.428, 0.482]
+    "midnight": [
+      0.072,
+      0.112
+    ],
+    "dusk": [
+      0.14,
+      0.18
+    ],
+    "dawn": [
+      0.299,
+      0.353
+    ],
+    "noon": [
+      0.428,
+      0.482
+    ]
   },
-
   "bandRules": {
     "$comment": "Constraints on the bands above, asserted before any frame is rendered.",
-    "order": ["midnight", "dusk", "dawn", "noon"],
+    "order": [
+      "midnight",
+      "dusk",
+      "dawn",
+      "noon"
+    ],
     "maxBandWidth": 0.1,
     "minBandGap": 0.02,
-    "globalRange": [0.02, 0.75]
+    "globalRange": [
+      0.02,
+      0.75
+    ]
   },
-
   "clipping": {
     "$comment": "Fraction of pixels at the extremes. Fully clipped = all three channels >= 254/255; crushed = all three <= 2/255. Both are ceilings, so tightening means lowering them, which is what session 2's audit did to the two with the most headroom.",
     "maxClippedWhite": 0.005,
     "maxCrushedBlackNight": 0.02,
     "maxCrushedBlackDay": 0.002
   },
-
   "spread": {
-    "$comment": "Stddev of frame luma. A flat frame fails even when its mean is correct — this is what stops a grey card from passing as a city.",
+    "$comment": "Stddev of frame luma. A flat frame fails even when its mean is correct \u2014 this is what stops a grey card from passing as a city.",
     "minStdDev": {
       "midnight": 0.126,
       "dusk": 0.128,
@@ -48,7 +77,6 @@
       "noon": 0.176
     }
   },
-
   "emitterClusters": {
     "$comment": "Connected components that are both bright and chromatic, measured at half resolution. Windows, shop bays, sign faces and lamp bowls; not stars, not dither. The brief asks for 30.",
     "saturation": 0.28,
@@ -56,67 +84,127 @@
     "minAreaPx": 12,
     "minCountNight": 60
   },
-
   "distinctness": {
     "$comment": "Mean squared difference of frame luma between every pair of the four times. All six pairs must clear it.",
     "minPairMSD": 0.03
   },
-
   "warmth": {
     "$comment": "Mean (R-B) over the frame. Low sun means a long atmospheric path, which means a red-shifted beam and a red-shifted sky. If dusk is not warmer than noon, the sky model is not doing its job and something is tinting instead.",
     "minDuskOverNoon": 0.07,
     "minDawnOverNoon": 0.07
   },
-
   "hardFails": {
     "consoleErrors": 0,
     "pageErrors": 0,
     "quarantinedModules": 0,
     "clusterOverflow": false
   },
-
   "photocell": {
-    "$comment": "Street lighting switches on ambient illuminance, not on a clock (CONTRACT §3). Asserting the state at all four times is what keeps that true.",
-    "onAt": ["midnight", "dusk"],
-    "offAt": ["noon", "dawn"]
+    "$comment": "Street lighting switches on ambient illuminance, not on a clock (CONTRACT \u00a73). Asserting the state at all four times is what keeps that true.",
+    "onAt": [
+      "midnight",
+      "dusk"
+    ],
+    "offAt": [
+      "noon",
+      "dawn"
+    ]
   },
-
   "regions": {
-    "$comment": "Normalised [x0, y0, x1, y1], y downward, so a rect means the same thing at any capture resolution. The camera is a fixed named shot at a fixed seed, so these rects land on the same surfaces every run. They are the one part of this file that a change to the block layout would invalidate — if session 3 moves a building, re-derive them and say so. The five wall* rects were derived in session 3 by projecting each building's street-facing wall through the gate camera (not by eye), and each lands inside exactly one building: wallSouthNear on the building at x=46, wallSouthMid at x=23, wallNorthFar at x=-24, wallNorthMid at x=26, wallNorthNear at x=49. Those five are the only buildings with more than one percent of the frame's width; the other five are past 100 m and behind haze.",
-    "road": [0.3, 0.665, 0.62, 0.735],
-    "roadway": [0.08, 0.638, 0.92, 0.755],
-    "nearRoad": [0.12, 0.76, 0.88, 0.995],
-    "facadeLeft": [0.0, 0.03, 0.22, 0.58],
-    "facadeRight": [0.82, 0.03, 1.0, 0.58],
-    "wallSouthNear": [0.015, 0.06, 0.275, 0.46],
-    "$wallSouthMid": "SESSION 4, RE-DERIVED, and the comment above says to say so. The rect was [0.32, 0.115, 0.412, 0.44]; re-projecting the building at x=22.9 through the gate camera puts its street-facing wall at x in [0.2906, 0.3765], so the old rect overhung the wall's right edge by 0.036 of the frame. It always did. It went unnoticed for two sessions because what lay behind that edge was sky and haze, whose colour was close enough to the wall's that the patch-spread check did not fire; session 4 put a city there instead and it fired immediately. The assertion is unchanged — same five walls, same four-cluster floor, same 0.3 neighbour separation, same 1.1 spread ceiling. Only the sample region moved, and it moved to be inside the surface it claims to sample.",
-    "wallSouthMid": [0.298, 0.12, 0.369, 0.44],
-    "wallNorthFar": [0.565, 0.09, 0.588, 0.44],
-    "wallNorthMid": [0.64, 0.09, 0.75, 0.19],
-    "wallNorthNear": [0.795, 0.14, 0.915, 0.4],
-
-    "$midWalls": "SESSION 5. The five wall* rects above are all inside the origin block, 30 to 100 m away, which is exactly where the material still is — so the albedo assertion was measuring the near band and calling it the frame. These two are on the streamed city and are the only two that can be: every generated wall in the 150-900 m band was projected through the gate camera and then ray-tested for occlusion against the block's own occluders, the generated buildings and the landmarks' GROUND blockers (not their sky occluders — the viaduct deck stops every ray to the sky and no line of sight down the street). Of 905 candidate faces, 495 face away, 50 are nearer than 150 m, 215 land outside the vista slot, 65 are under 0.8% of the frame wide, 78 are occluded, and two survive: a brick wall at 378 m and a panel wall at 542 m. That is not a shortage of rects, it is what a street canyon shows you of the city behind it. Re-derive both if the camera, the seed or the block moves.",
-    "midWallBrick": [0.449, 0.463, 0.472, 0.548],
-    "midWallPanel": [0.508, 0.574, 0.525, 0.59]
+    "$comment": "Normalised [x0, y0, x1, y1], y downward, so a rect means the same thing at any capture resolution. The camera is a fixed named shot at a fixed seed, so these rects land on the same surfaces every run. They are the one part of this file that a change to the block layout would invalidate \u2014 if session 3 moves a building, re-derive them and say so. The five wall* rects were derived in session 3 by projecting each building's street-facing wall through the gate camera (not by eye), and each lands inside exactly one building: wallSouthNear on the building at x=46, wallSouthMid at x=23, wallNorthFar at x=-24, wallNorthMid at x=26, wallNorthNear at x=49. Those five are the only buildings with more than one percent of the frame's width; the other five are past 100 m and behind haze.",
+    "road": [
+      0.3,
+      0.665,
+      0.62,
+      0.735
+    ],
+    "roadway": [
+      0.08,
+      0.638,
+      0.92,
+      0.755
+    ],
+    "nearRoad": [
+      0.12,
+      0.76,
+      0.88,
+      0.995
+    ],
+    "facadeLeft": [
+      0.0,
+      0.03,
+      0.22,
+      0.58
+    ],
+    "facadeRight": [
+      0.82,
+      0.03,
+      1.0,
+      0.58
+    ],
+    "wallSouthNear": [
+      0.015,
+      0.06,
+      0.275,
+      0.46
+    ],
+    "$wallSouthMid": "SESSION 4, RE-DERIVED, and the comment above says to say so. The rect was [0.32, 0.115, 0.412, 0.44]; re-projecting the building at x=22.9 through the gate camera puts its street-facing wall at x in [0.2906, 0.3765], so the old rect overhung the wall's right edge by 0.036 of the frame. It always did. It went unnoticed for two sessions because what lay behind that edge was sky and haze, whose colour was close enough to the wall's that the patch-spread check did not fire; session 4 put a city there instead and it fired immediately. The assertion is unchanged \u2014 same five walls, same four-cluster floor, same 0.3 neighbour separation, same 1.1 spread ceiling. Only the sample region moved, and it moved to be inside the surface it claims to sample.",
+    "wallSouthMid": [
+      0.298,
+      0.12,
+      0.369,
+      0.44
+    ],
+    "wallNorthFar": [
+      0.565,
+      0.09,
+      0.588,
+      0.44
+    ],
+    "wallNorthMid": [
+      0.64,
+      0.09,
+      0.75,
+      0.19
+    ],
+    "wallNorthNear": [
+      0.795,
+      0.14,
+      0.915,
+      0.4
+    ],
+    "$midWalls": "SESSION 5. The five wall* rects above are all inside the origin block, 30 to 100 m away, which is exactly where the material still is \u2014 so the albedo assertion was measuring the near band and calling it the frame. These two are on the streamed city and are the only two that can be: every generated wall in the 150-900 m band was projected through the gate camera and then ray-tested for occlusion against the block's own occluders, the generated buildings and the landmarks' GROUND blockers (not their sky occluders \u2014 the viaduct deck stops every ray to the sky and no line of sight down the street). Of 905 candidate faces, 495 face away, 50 are nearer than 150 m, 215 land outside the vista slot, 65 are under 0.8% of the frame wide, 78 are occluded, and two survive: a brick wall at 378 m and a panel wall at 542 m. That is not a shortage of rects, it is what a street canyon shows you of the city behind it. Re-derive both if the camera, the seed or the block moves.",
+    "midWallBrick": [
+      0.449,
+      0.463,
+      0.472,
+      0.548
+    ],
+    "midWallPanel": [
+      0.508,
+      0.574,
+      0.525,
+      0.59
+    ]
   },
-
   "shadowHue": {
     "$comment": "The whole visible roadway is in shadow at noon: the sun is at 58 degrees due south and the buildings on the south side are 30-74 m tall, so their shadows reach 19-46 m across a 23 m street. A shadowed road lit only by an unoccluded blue sky renders navy, and that is a chromaticity rather than a level, so no exposure change can pass or fail this. Session 1 measured 1.788.",
     "at": "noon",
     "region": "road",
     "maxBlueOverRed": 1.15
   },
-
   "facadeHue": {
-    "$comment": "The two facade bands are the north and south sides of one street, so whichever the sun is on, the other is the shadow — at noon the sun is on the right band. Asserted as an unsigned angular distance for exactly that reason. topQuantile keeps the brightest 30% of each band, which is the wall rather than the windows, the sign, the lamp post or the shadow under the canopy. Session 1 measured 151.4 degrees at noon (a symptom of the navy shadow, not a virtue). SESSION 3: the dawn entry was RETIRED — see the note on it in STATE.md. It was not lowered and it did not become inconvenient; it asserted a separation that a canyon cannot physically produce, because the fill on a shadowed facade at dawn is the sunlit wall opposite, which is warm. Noon stands unchanged.",
-    "regions": ["facadeLeft", "facadeRight"],
+    "$comment": "The two facade bands are the north and south sides of one street, so whichever the sun is on, the other is the shadow \u2014 at noon the sun is on the right band. Asserted as an unsigned angular distance for exactly that reason. topQuantile keeps the brightest 30% of each band, which is the wall rather than the windows, the sign, the lamp post or the shadow under the canopy. Session 1 measured 151.4 degrees at noon (a symptom of the navy shadow, not a virtue). SESSION 3: the dawn entry was RETIRED \u2014 see the note on it in STATE.md. It was not lowered and it did not become inconvenient; it asserted a separation that a canyon cannot physically produce, because the fill on a shadowed facade at dawn is the sunlit wall opposite, which is warm. Noon stands unchanged.",
+    "regions": [
+      "facadeLeft",
+      "facadeRight"
+    ],
     "topQuantile": 0.3,
     "minSampledFraction": 0.15,
     "minSeparationDeg": {
       "noon": 20
     }
   },
-
   "groundPools": {
     "$comment": "Distinct bright regions on the roadway at midnight, threshold relative to the roadway's own median. This asks the only question that matters about street lighting: is it laying a pattern on the asphalt, or is the street one flat wash with glowing bowls hanging over it. Session 1 measured 2, session 2 measured 5 against a floor of 6.",
     "at": "midnight",
@@ -126,18 +214,16 @@
     "minAreaPx": 120,
     "minCount": 6
   },
-
   "wetness": {
-    "$comment": "Water is a roughness change, so the test is whether the road's specular response gained a range — mirror where it has pooled, damp matte where it has not. A uniform gloss is the same failure as a uniform matte: one value everywhere. Dry road spread in session 1 was 0.025 (midnight) to 0.054 (dawn).",
+    "$comment": "Water is a roughness change, so the test is whether the road's specular response gained a range \u2014 mirror where it has pooled, damp matte where it has not. A uniform gloss is the same failure as a uniform matte: one value everywhere. Dry road spread in session 1 was 0.025 (midnight) to 0.054 (dawn).",
     "value": 1.0,
     "region": "road",
     "minRoadSpread": 0.06,
     "minSpreadOverDry": 1.6,
     "minDryWetMSD": 0.002
   },
-
   "ssrReflections": {
-    "$comment": "What a wet street at night reflects is discrete emissive geometry — individual lit windows, sign faces, shopfronts — and neither an environment map nor a punctual light contains those. Session 2 diagnosed that and left it; this is the assertion that says it was fixed. Three bars, and all three have to be cleared by the same component: area (it is not noise), vertical extent as a fraction of the FRAME height (a sub-pixel specular spike cannot reach it, which is what the session 2 frame was full of), and aspect (taller than wide — the mirror image of something standing up from the road, seen at 80-plus degrees of incidence, is stretched along the view direction). A road covered in round pools of lamplight fails the third bar. The region is the NEAR road, 4.8 to 12.4 m ahead, because that is where the reflections geometrically are: a window 10 m up on a facade 30 m away has its mirror image 4.4 m in front of a camera at 1.74 m, and the roadway region the pool gate uses starts at 12 m.",
+    "$comment": "What a wet street at night reflects is discrete emissive geometry \u2014 individual lit windows, sign faces, shopfronts \u2014 and neither an environment map nor a punctual light contains those. Session 2 diagnosed that and left it; this is the assertion that says it was fixed. Three bars, and all three have to be cleared by the same component: area (it is not noise), vertical extent as a fraction of the FRAME height (a sub-pixel specular spike cannot reach it, which is what the session 2 frame was full of), and aspect (taller than wide \u2014 the mirror image of something standing up from the road, seen at 80-plus degrees of incidence, is stretched along the view direction). A road covered in round pools of lamplight fails the third bar. The region is the NEAR road, 4.8 to 12.4 m ahead, because that is where the reflections geometrically are: a window 10 m up on a facade 30 m away has its mirror image 4.4 m in front of a camera at 1.74 m, and the roadway region the pool gate uses starts at 12 m.",
     "at": "midnight",
     "wet": true,
     "region": "nearRoad",
@@ -148,15 +234,29 @@
     "minAspect": 1.3,
     "minCount": 4
   },
-
   "facadeVariation": {
     "$comment": "Measured at DUSK, and that choice is the whole reason this is a usable number: the sun is 3 degrees below the horizon, so no facade in the block has any direct light on it and every one of them is lit by the same sky and the same canyon bounce. At noon the north side is sunlit and the south side is in shadow, a 2.5x illumination difference that would swamp any albedo difference and hand the gate two free clusters. Distance in the feature space is chromaticity (two axes, times chromaWeight) against log-luminance (one axis), so a global exposure or grade change cancels exactly and only a change of material can move it. Session 2 delivered 2 clusters over the five visible walls and 1 of 3 adjacent pairs distinguishable. minRoughnessClusters is NOT a pixel measurement and does not pretend to be: a still frame cannot separate roughness from albedo, so it is read from the per-instance roughness buffer the renderer actually binds (see harness.info().block.variation), which is the closest thing to the GPU that a gate can get.",
     "at": "dusk",
-    "patches": ["wallSouthNear", "wallSouthMid", "wallNorthFar", "wallNorthMid", "wallNorthNear"],
+    "patches": [
+      "wallSouthNear",
+      "wallSouthMid",
+      "wallNorthFar",
+      "wallNorthMid",
+      "wallNorthNear"
+    ],
     "neighbours": [
-      ["wallSouthMid", "wallSouthNear"],
-      ["wallNorthMid", "wallNorthNear"],
-      ["wallNorthFar", "wallNorthMid"]
+      [
+        "wallSouthMid",
+        "wallSouthNear"
+      ],
+      [
+        "wallNorthMid",
+        "wallNorthNear"
+      ],
+      [
+        "wallNorthFar",
+        "wallNorthMid"
+      ]
     ],
     "wallLow": 0.25,
     "wallHigh": 0.85,
@@ -168,11 +268,13 @@
     "roughnessSeparation": 0.06,
     "minRoughnessClusters": 3
   },
-
   "midDistanceVariation": {
-    "$comment": "SESSION 5. The same measurement as facadeVariation, in the same feature space, at the same hour and for the same reason — but on the streamed city rather than on the origin block. facadeVariation samples five walls between 30 and 100 m, which is inside every ring the renderer has and inside the distance at which the aerosol haze matters, so it can be green while every building past two blocks renders as one grey. Measured on session 4's delivered dusk frame the two walls below sat 0.419 apart; they now sit 0.714. The two materials' own chromaticities are 0.204 apart in u, which is 2.04 in this feature space, so the atmosphere ate 79% of the difference and now eats 65%. minClosest 0.5 is 25% retained: enough margin that noise cannot fire it, low enough that it rejects the frame this session started from. minAlbedoClusters is 2 because there are 2 patches — see regions.$midWalls for why there cannot be more from this camera.",
+    "$comment": "SESSION 5. The same measurement as facadeVariation, in the same feature space, at the same hour and for the same reason \u2014 but on the streamed city rather than on the origin block. facadeVariation samples five walls between 30 and 100 m, which is inside every ring the renderer has and inside the distance at which the aerosol haze matters, so it can be green while every building past two blocks renders as one grey. Measured on session 4's delivered dusk frame the two walls below sat 0.419 apart; they now sit 0.714. The two materials' own chromaticities are 0.204 apart in u, which is 2.04 in this feature space, so the atmosphere ate 79% of the difference and now eats 65%. minClosest 0.5 is 25% retained: enough margin that noise cannot fire it, low enough that it rejects the frame this session started from. minAlbedoClusters is 2 because there are 2 patches \u2014 see regions.$midWalls for why there cannot be more from this camera.",
     "at": "dusk",
-    "patches": ["midWallBrick", "midWallPanel"],
+    "patches": [
+      "midWallBrick",
+      "midWallPanel"
+    ],
     "wallLow": 0.25,
     "wallHigh": 0.85,
     "maxPatchSpread": 0.45,
@@ -181,9 +283,8 @@
     "minAlbedoClusters": 2,
     "minClosest": 0.5
   },
-
   "structuralVariation": {
-    "$comment": "Read from harness.info().block.variation — the generator's own decisions, not pixels, because 'this building has a different floor height from that one' is a fact about the block and measuring it off a screenshot would measure the camera as well. authored-city.md section 2 asks for at least four eras; the rest are the axes era has to actually drive, so that 'era' cannot become a field nobody reads. Each is a count of distinct clusters under single linkage, so two buildings 0.02 m apart in floor height are one value, not two.",
+    "$comment": "Read from harness.info().block.variation \u2014 the generator's own decisions, not pixels, because 'this building has a different floor height from that one' is a fact about the block and measuring it off a screenshot would measure the camera as well. authored-city.md section 2 asks for at least four eras; the rest are the axes era has to actually drive, so that 'era' cannot become a field nobody reads. Each is a count of distinct clusters under single linkage, so two buildings 0.02 m apart in floor height are one value, not two.",
     "at": "noon",
     "minEras": 4,
     "minFloorHeights": 3,
@@ -194,5 +295,24 @@
     "corniceDepthSeparation": 0.15,
     "minWindowWallRatios": 3,
     "windowWallSeparation": 0.05
+  },
+  "$tradeBands": "SESSION 59, 2026-08-31 \u2014 A DERIVATION AND NOT A RE-DERIVATION: no threshold is moved, four are written for a place that has never had any. || WHY A SECOND EYE AT ALL. `capture.shot` is `street`, which stands at (70, 1.74, 0.9), and `BLOCK_KEEPOUT` is x in [-168,168], z in [-46,46] \u2014 so every frame this gate has graded for twenty-three sessions is inside the ORIGIN BLOCK, which block.js authors and out of which the streamed generator is clipped. MEASURED BY POSITIVE CONTROL, the same pose at `?fill=1.0` against `?fill=0.0` (the two extremes of the frontage-fill law, a 60% swing in the city's building population): the origin eye changes 2.74% of its pixels at midnight and 4.66% at noon and its MEAN GREEN moves 0.05 and 0.03 of 255. The same control at the pose below changes 93.20% of pixels and moves the mean by 11.87 of 255 \u2014 237x the sensitivity by mean. That is what the look gate has not been able to see. || WHERE IT STANDS: camera.js -> SHOTS.trade, a north-south street in chunk (-3,3) carrying eleven trades of five kinds, ray-tested with poseprobe against 1146 delivered building occluders (azimuth 280 of nine clear). || THE CENTRES ARE MEASURED, dry, through this gate's own capture path at the shipped seed: midnight 0.1926, dusk 0.1965, dawn 0.3177, noon 0.4472. || THE WIDTH IS +-0.035 AND IT IS BOUNDED ON BOTH SIDES. From below, it must not fire on ordinary content: the full fill swing moves this frame by 0.047 and a session-scale change is about half of that (session 37 moved the law from d^1.10 to d^0.50 and added 161 buildings, ~30%), so 0.035 clears a realistic session with margin. It also declines to fire on a legibility change of the size session 55's black floor made (+0.023 on the origin midnight). From above, it must still catch what a luminance band is FOR \u2014 a break in the exposure or tonemap chain. A HALF STOP is a factor of 1.414, which at these centres is a move of 0.056 / 0.058 / 0.093 / 0.131, and every one of those is outside +-0.035. So the band rejects a half-stop error at every time of day and tolerates any content change this project has ever shipped in one session. Total width 0.07, inside bandRules.maxBandWidth 0.1. || AND THERE IS NO ORDERING OR GAP RULE HERE, WHICH IS THE FINDING RATHER THAN AN OMISSION. bandRules.minBandGap asserts that the four times are separated in LEVEL, and that is a property of the ORIGIN BLOCK's frame \u2014 dark at night because almost nothing lights it. On a trading street MIDNIGHT AND DUSK DIFFER BY 0.0039 (0.1926 against 0.1965) where the origin eye reads them 0.046 apart, because the shopfronts and their neon light this street at midnight to very nearly its dusk level. Imposing a 0.02 gap here would be asserting something the place demonstrably is not; the per-time bands are asserted and the ordering is not.",
+  "tradeBands": {
+    "midnight": [
+      0.158,
+      0.228
+    ],
+    "dusk": [
+      0.162,
+      0.232
+    ],
+    "dawn": [
+      0.283,
+      0.353
+    ],
+    "noon": [
+      0.412,
+      0.482
+    ]
   }
 }
