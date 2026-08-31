@@ -496,6 +496,14 @@ meshes, 0 label mismatches**. It was run TWICE, once in the battery and once aft
 defect landed (§7), and the two runs agree line for line, which is the check rather than the
 claim.
 
+**WHAT LANDED AFTER THE BATTERY, SAID RATHER THAN LEFT.** Three changes: the villa's own
+double-counted `lift` (§7), its boundary wall shortened from `1.1 w` to `0.9 w` so the drawn
+extent fits inside the claim, and `HILLSIDE.claimHalfL/W`. `citycheck` was re-run after the first
+and is identical line for line; `perfcheck --route=highway_speed` was run after it too. The other
+two touch only `villa`, which exists exclusively past `CITY.extentEdgeM` and which no gate route
+reaches within 1 696 m of — so no gate can see them, and `parsecheck` is green at HEAD over 119
+files.
+
 **ONE COUNT MOVED AND IT IS THE CENTRE LINE.** `block_markings` reads **252** where session 61
 read **346**. Session 61 painted the ribbon from 3 232 to 4 000 at a 12 m cycle, both arms — 128
 marks; this session stops at the taper's end, 3 432, which is 33. `346 − 128 + 33 = 251` against a
