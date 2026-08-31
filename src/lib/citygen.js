@@ -9693,15 +9693,54 @@ export function generateChunk(rootSeed, cx, cz) {
              * one is not carrying the other.
              */
             const bladeRoll = signRng.next();
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND THE TRADE DECIDES HOW BADLY IT WANTS ONE — SESSION 59.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * Session 58 wrote `signScale` onto all eight trades and NOTHING
+             * READ IT. It does two things here, and both are the same fact
+             * about the business: a bar's whole shopfront strategy is a sign,
+             * because `TRADES.bar.out` is 0.20 and almost no light leaves its
+             * glass; a laundrette's is a lit window, so its fascia can be
+             * modest. `signScale` runs 0.60 (kiosk) to 1.45 (bar).
+             *
+             *   THE BLADE PROBABILITY scales with it, clamped to 0.85 so no
+             *   trade is certain to hang one — a street where every bar has a
+             *   blade is a street with one idea. bar 0.34 x 1.45 = 0.49,
+             *   kiosk 0.34 x 0.60 = 0.20.
+             *
+             *   THE WIDTH scales with it too, and through `bladeHeightM`'s
+             *   `width * aspect` that makes a bar's blade TALLER as well as
+             *   wider — which is the brief's "bigger and more vertical where
+             *   the trade would have it" delivered by one multiplier rather
+             *   than by a second roll.
+             *
+             * THE CLAMP IS SESSION 43's AND IT IS NOT OPTIONAL. That session
+             * found two signs WIDER THAN THE BUILDINGS THEY ARE BOLTED TO,
+             * because an absolute width roll met a narrower elevation. A scale
+             * that multiplies a width has exactly that failure mode, so the
+             * result is capped at the frontage the sign hangs on.
+             */
+            const tradeSign = bld.trade && TRADES[bld.trade] ? TRADES[bld.trade].signScale : 1;
             const bladeWanted = !big && (bld.retail
-              ? bladeRoll < SIGN_BLADE.pTrading
+              ? bladeRoll < Math.min(0.85, SIGN_BLADE.pTrading * tradeSign)
               : bld.retailFrontage && bladeRoll < SIGN_BLADE.pFrontage);
-            const width = big
+            const widthRaw = big
               ? Math.min(SIGN_BIG.maxWidthM, Math.max(SIGN_BIG.minWidthM,
                 frontageM * signRng.range(SIGN_BIG.widthFracMin, SIGN_BIG.widthFracMax)))
               : bladeWanted
                 ? SIGN_BLADE.widthMinM + (SIGN_BLADE.widthMaxM - SIGN_BLADE.widthMinM) * u
                 : 0.9 + 5.3 * u * u;
+            /**
+             * Scaled by the trade and then CAPPED AT ITS OWN FRONTAGE —
+             * session 43's finding, which is that a width roll meeting a
+             * narrower elevation delivers a sign wider than its building. A
+             * `big` sign is already a fraction of the frontage and is left
+             * alone; only the shop-scale and blade rolls are multiplied.
+             */
+            const width = big ? widthRaw
+              : Math.min(widthRaw * tradeSign, frontageM * 0.85);
             /**
              * ASPECT IS HOISTED ABOVE THE `push` — session 34 — because a
              * blade's HEIGHT decides where its centre goes, and the object
