@@ -11,7 +11,7 @@ so **no millisecond here is a verdict**. Every number this session turns on is a
 or a MONOTONE RELATION across three arms of the same build, and §0.1's corollary is that counts
 do not drift.
 
-Branch `claude/noctis-60-play-and-flank`, off session 59's head, two commits. NOT PUSHED.
+Branch `claude/noctis-60-play-and-flank`, off session 59's head, two commits, pushed.
 
 **THE BRIEF SAID "FOUR THINGS" AND LISTED THREE.** Items 1, 2 and 3 arrived; item 4 did not, and
 nothing here is a guess at what it was. Items 1–3 are done in full.
