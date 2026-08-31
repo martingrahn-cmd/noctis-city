@@ -87,6 +87,7 @@ import {
   viaductEnds,
   viaductStations,
   TRADES,
+  tradeOpen,
   HILLS,
   hillMasses,
   viaductStationSegment,
@@ -366,6 +367,9 @@ export function createCity(options = {}) {
   let groundDirty = false;
   /** The one merged signage mesh, same arrangement. */
   let signMesh = null;
+  /** Session 58: the quantised trade hour the sign mesh was last tinted for. */
+  let lastTradeTick = null;
+  const TRADE_TICK_H = 0.25;
   let signsDirty = false;
   /**
    * THE TWO MERGED STREET-LIGHTING MESHES — session 45, and they are what pays
@@ -1936,7 +1940,39 @@ export function createCity(options = {}) {
    * over the whole resident ring — that rebuilding it whole on a chunk change
    * is cheaper than keeping twenty of them in step.
    */
-  function rebuildSignMesh() {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * SIGNS KEEP OPENING HOURS — SESSION 58, ITEM 3, AND THE MESH IS WHY IT IS
+   * FREE.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The operator: *"right now everything lights at once when the photocell
+   * trips, which is why night reads as a state rather than as a time."* He is
+   * right, and session 57 found the same thing about the crowd — nothing in
+   * this city had ever read the clock except the photocell, which is one bit.
+   *
+   * WHY IT LANDS HERE AND NOT ON THE GLASS. A shopfront's glazing is an
+   * instance colour in a PER-CHUNK mesh, baked when the chunk streams in, and
+   * chunks do not rebuild on the clock — making them would mean either a
+   * per-instance attribute plus a shader term or a rebuild of the resident
+   * ring every simulated hour. THIS mesh is already merged city-wide and
+   * already rebuilt on every camera chunk crossing, so re-tinting it on a
+   * clock band costs one rebuild it was built to do anyway. What the street
+   * gets is the half that reads at night: a bar's neon comes on at six, a
+   * cafe's goes off at seven, and the laundrette's is the one still burning at
+   * three in the morning.
+   *
+   * THE FACTOR IS A RAMP (`tradeOpen`, 0.75 h) so no capture ever lands on a
+   * discontinuity, and a sign with no trade — 624 of 966 — is unaffected, so
+   * every sign this session did not touch is byte-identical.
+   */
+  function signHourFactor(ctx, trade) {
+    if (!trade) return 1;
+    const time = ctx && ctx.get ? ctx.get('time') : null;
+    return tradeOpen(trade, time ? time.timeOfDay : 0);
+  }
+
+  function rebuildSignMesh(ctx) {
     if (signMesh) {
       root.remove(signMesh);
       if (signMesh.geometry.getAttribute('noctisRough')) signMesh.geometry.dispose();
@@ -1947,9 +1983,22 @@ export function createCity(options = {}) {
     const skin = [];
     for (const rec of resident.values()) {
       if (!rec.signs) continue;
+      /**
+       * The two arrays are written on one path and are asserted here rather
+       * than trusted: a parallel array that silently runs short is CONTRACT
+       * §9's shape, and session 55 paid for one with a kerb two floats out of
+       * step.
+       */
+      const trades = rec.signs.trade;
       for (let i = 0; i < rec.signs.matrices.length; i++) {
         matrices.push(rec.signs.matrices[i]);
-        skin.push(rec.signs.skin[i]);
+        const base = rec.signs.skin[i];
+        const f = trades && trades.length === rec.signs.matrices.length
+          ? signHourFactor(ctx, trades[i]) : 1;
+        skin.push(f === 1 ? base : {
+          albedo: [base.albedo[0] * f, base.albedo[1] * f, base.albedo[2] * f],
+          roughness: base.roughness,
+        });
       }
     }
     signsDirty = false;
@@ -2533,6 +2582,14 @@ export function createCity(options = {}) {
     const signEmitters = [];
     const signTint = [];
     /**
+     * SESSION 58. Which trade each sign advertises, parallel to `signTint`, so
+     * `rebuildSignMesh` can apply the opening hours to a tint it did not
+     * compute. Parallel arrays are CONTRACT §9's own shape, so this one is
+     * pushed on EVERY path `signTint` is — there is exactly one such site —
+     * and the rebuild asserts the two lengths agree.
+     */
+    const signTrade = [];
+    /**
      * Session 20. The delivered roof-sign face count and total emitting AREA
      * for this chunk, so the bloom-energy comparison `LIGHT.roofSignNits` asks
      * for is a MEASUREMENT off the geometry rather than that comment's own
@@ -2753,8 +2810,29 @@ export function createCity(options = {}) {
        * 11.63× gain puts its reflectance at 0.065. That is a dark grey and not
        * a reflectance above 1, which is what would make this trick a defect.
        */
-      const c = SIGN_CHROMA[s.chroma % SIGN_CHROMA.length];
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * THE SIGN IS THE TRADE'S — SESSION 58, ITEM 4.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * `s.chroma` is an index rolled from the sign stream, and until this
+       * session it was the whole story: a sign's colour said nothing about the
+       * business under it, so a laundrette could carry the same red neon as
+       * the bar three doors down. `TRADES[s.trade].sign` names the chroma the
+       * business would actually buy — magenta over a bar, red over a
+       * restaurant, the same dirty tube a laundrette lights itself with — and
+       * the rolled index still stands wherever nothing trades, which is 624 of
+       * the 966 signs in the gate's region.
+       *
+       * THE TRADE IS KEPT PER SIGN, not resolved here, because
+       * `rebuildSignMesh` applies the OPENING HOURS and that runs on a
+       * different clock from this. What is stored is the tint a sign has when
+       * it is fully lit; the rebuild multiplies it by `tradeOpen`.
+       */
+      const tc = s.trade && TRADES[s.trade] ? TRADES[s.trade].sign : null;
+      const c = tc ? (EMITTER_CHROMA[tc] || SIGN_CHROMA[0]) : SIGN_CHROMA[s.chroma % SIGN_CHROMA.length];
       const gain = SIGN_STATE_GAIN[s.state] * nitsGain;
+      signTrade.push(s.trade || null);
       signTint.push({ albedo: [c[0] * gain, c[1] * gain, c[2] * gain], roughness: 0.1 });
     };
     /** 1000 / 86 = 11.63. Computed, not typed, so neither constant can drift alone. */
@@ -4840,6 +4918,7 @@ export function createCity(options = {}) {
           const by = HOLOGRAM.clearM + (b + 0.5) * (panelH / bars);
           for (const side of [0, 180]) {
             signQuads.push(setMatrix(px, by, pz, h.width, HOLOGRAM.barM, 1, faceYaw + side));
+            signTrade.push(null);
             signTint.push({
               albedo: [c[0] * HOLO_GAIN, c[1] * HOLO_GAIN, c[2] * HOLO_GAIN],
               roughness: 0.1,
@@ -5447,7 +5526,7 @@ export function createCity(options = {}) {
     });
     return {
       group, bytes, lamps, chunk, ground, massMesh, lampParts, signEmitters,
-      signs: signQuads.length ? { matrices: signQuads, skin: signTint } : null,
+      signs: signQuads.length ? { matrices: signQuads, skin: signTint, trade: signTrade } : null,
       roofSignFaces,
       roofSignArea,
     };
@@ -8917,7 +8996,23 @@ export function createCity(options = {}) {
       enforceBudget(ctx, canyon);
       // After eviction, so a chunk dropped this frame is out of the mesh too.
       if (groundDirty) rebuildGroundMesh();
-      if (signsDirty) rebuildSignMesh();
+      /**
+       * SESSION 58 — AND THE CLOCK IS THE SECOND TRIGGER. The trade hour is
+       * quantised to `TRADE_TICK_H` so a rebuild happens a handful of times a
+       * simulated day rather than every frame: the ramp is 0.75 h wide, so a
+       * 0.25 h tick lands three steps inside it and no shop appears to snap.
+       * At the default day length that is one rebuild every few real seconds
+       * at most, of a mesh this loop already rebuilds on every chunk crossing.
+       */
+      {
+        const time = ctx.get('time');
+        const tick = time ? Math.floor((time.timeOfDay * 24) / TRADE_TICK_H) : 0;
+        if (tick !== lastTradeTick) {
+          lastTradeTick = tick;
+          signsDirty = true;
+        }
+      }
+      if (signsDirty) rebuildSignMesh(ctx);
       if (lampsDirty) rebuildLampMesh();
       /**
        * SESSION 53. Its own dirty test rather than a flag, because what it

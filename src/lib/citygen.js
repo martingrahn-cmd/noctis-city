@@ -9805,6 +9805,16 @@ export function generateChunk(rootSeed, cx, cz) {
                 (big ? Math.min(1, Math.max(0, 1 - width / frontageM) / 0.62) : 1),
               state: r < deadP ? 'dead' : r < deadP + 0.1 ? 'half' : 'lit',
               chroma: signRng.int(0, 5),
+              /**
+               * SESSION 58 — WHOSE SIGN IT IS. A sign over a trading ground
+               * floor advertises THAT TRADE, so `city.js` takes its chroma and
+               * its size from `TRADES` instead of from the index above, and
+               * `rebuildSignMesh` takes its opening hours from the same record.
+               * Null on a building that does not trade, where the index roll
+               * stands exactly as it did — every sign written before this
+               * session is byte-identical unless its own building trades.
+               */
+              trade: bld.trade || null,
               yawDeg: yaw(),
             });
           }
