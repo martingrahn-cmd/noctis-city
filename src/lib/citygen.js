@@ -4324,6 +4324,89 @@ export function bridgesTouching(rootSeed, x0, x1) {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHAT IS MOORED ON THE RIVER — SESSION 57, ITEM 1(f).
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The river has had quays since session 15, a promenade with lamps since 16,
+ * three crossings since 56 — and nothing has ever floated on it. A working
+ * river is not water with walls: it is water with WORK on it, and the cheapest
+ * true statement of that is a moored craft against the bank.
+ *
+ * WHERE THEY GO IS DERIVED FROM WHAT THE RIVER ALREADY KNOWS:
+ *   - against the BANK, never in the channel. A craft moors where the wall is,
+ *     so its outboard edge sits `berthOffM` off the wall face and the channel
+ *     between the two mooring lines stays clear — which is also what makes the
+ *     water still read as navigable rather than as a car park.
+ *   - never under a crossing. `onBridgeDeck` is the same predicate the road
+ *     clip, the walkability mask and the promenade lamps use, padded by the
+ *     craft's own half-length, so a barge cannot be moored inside a bridge.
+ *   - on a lattice of `everyM`, jittered inside its own cell, so the spacing
+ *     reads as moorings taken up rather than as a fence of boats.
+ *
+ * THE STREAM IS ITS OWN (`chunkRng(rootSeed, k, 0, 'craft')`, keyed on the
+ * berth index) so a craft's existence cannot move a building, a prop or a
+ * bridge — CONTRACT §6, and the same arrangement `bridgeStructure` uses to
+ * stay deterministic in `(rootSeed, i)` alone.
+ */
+export const RIVER_CRAFT = {
+  /** Metres between berths along one bank. About four to a 1 024 m window. */
+  everyM: 240,
+  /** Metres from the wall face to the craft's inboard side. A fender's worth. */
+  berthOffM: 1.1,
+  /** p(a berth is occupied). A river with every berth full is a dock. */
+  occupiedP: 0.62,
+  /** Hull, in metres. A European Class I barge is 38.5 x 5.05; this is under it. */
+  bargeLongM: [24, 34],
+  bargeWideM: [4.6, 6.0],
+  /** Freeboard: how much hull stands above the water, laden. */
+  freeboardM: 0.75,
+  /** The small end of the fleet — a workboat or a tender. */
+  launchLongM: [7.0, 10.0],
+  launchWideM: [2.4, 3.1],
+};
+
+/**
+ * The craft moored between `x0` and `x1`. Pure in `(rootSeed, x0, x1)`; the
+ * berth index is global so two overlapping windows agree about every berth,
+ * which is the property `riverBankStations` exists for one object down.
+ */
+export function riverCraft(rootSeed, x0, x1) {
+  const C = RIVER_CRAFT;
+  const out = [];
+  const i0 = Math.floor(x0 / C.everyM) - 1;
+  const i1 = Math.ceil(x1 / C.everyM) + 1;
+  for (let k = i0; k <= i1; k++) {
+    for (const bank of [-1, 1]) {
+      const rng = chunkRng(rootSeed, k, bank, 'craft');
+      if (!rng.chance(C.occupiedP)) continue;
+      const launch = rng.chance(0.28);
+      const long = launch ? rng.range(...C.launchLongM) : rng.range(...C.bargeLongM);
+      const wide = launch ? rng.range(...C.launchWideM) : rng.range(...C.bargeWideM);
+      const x = k * C.everyM + rng.range(-C.everyM * 0.3, C.everyM * 0.3);
+      if (x + long / 2 < x0 || x - long / 2 > x1) continue;
+      /** Padded by its own half-length: a berth is not a bridge. */
+      const e = riverEdges(x);
+      const z = bank < 0
+        ? e.north + RIVER_CRAFT.berthOffM + wide / 2
+        : e.south - RIVER_CRAFT.berthOffM - wide / 2;
+      if (onBridgeDeck(rootSeed, x, z, long / 2 + 6)) continue;
+      out.push({
+        x, z, bank, long, wide, launch,
+        /** Along the bank, and the bank turns: the local tangent, as the wall does. */
+        yawDeg: (-Math.atan2(
+          (bank < 0 ? riverEdges(x + 4).north - riverEdges(x - 4).north
+            : riverEdges(x + 4).south - riverEdges(x - 4).south), 8
+        ) * 180) / Math.PI,
+        tone: rng.range(0.7, 1.15),
+        cabinAft: rng.chance(0.75),
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Is this point on a bridge deck — that is, can a person walk here even though
  * `inRiver` says it is water?
  *

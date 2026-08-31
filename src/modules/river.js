@@ -52,6 +52,8 @@ import {
   riverEnvelope,
   riverBudget,
   bridgesTouching,
+  riverCraft,
+  RIVER_CRAFT,
   BRIDGE_STRUCTURES,
   // Session 17: `surfaceAt` reads the deck's own cross-section, so it needs the
   // same three pure functions the deck was placed from.
@@ -248,6 +250,55 @@ export function createRiver(options = {}) {
    * is 0.96 m of overlap at each joint, which closes it thirty times over and
    * costs nothing — the overlap is inside opaque concrete.
    */
+  /**
+   * THE MOORED CRAFT — session 57. `riverCraft` decides where they are and
+   * this turns each into boxes, which is the `viaductStations` / `city.js`
+   * arrangement one module over: one description, two readers.
+   *
+   * A HULL IS NOT A BOX AND IS DRAWN AS ONE ANYWAY, deliberately. What reads
+   * from a quay forty metres up-river is the SHEER — a long low mass with a
+   * deckhouse at one end — and every curve below that is under a pixel at the
+   * distance this is seen from (session 20's own 3 px floor). What it does get
+   * is the one thing a box cannot fake: the hull sits IN the water, so its
+   * bottom is below the surface and only `freeboardM` of it shows.
+   */
+  function pushCraft(x0, x1, push) {
+    const y = -RIVER.depth;
+    for (const c of riverCraft(rootSeed, x0, x1)) {
+      const F = RIVER_CRAFT.freeboardM;
+      const hull = [0.19 * c.tone, 0.185 * c.tone, 0.175 * c.tone];
+      const deck = [0.24 * c.tone, 0.23 * c.tone, 0.21 * c.tone];
+      const house = [0.34 * c.tone, 0.335 * c.tone, 0.32 * c.tone];
+      /** The hull: half of it under water, so the waterline is on the box. */
+      push('craft', c.x, y + F / 2 - 0.5, c.z, c.long, F + 1.0, c.wide, c.yawDeg, 0, hull, 0.62);
+      /** The gunwale — the line that makes it read as a vessel and not a raft. */
+      push('craft', c.x, y + F, c.z, c.long * 0.99, 0.14, c.wide * 1.04, c.yawDeg, 0, deck, 0.55);
+      if (c.launch) {
+        /** A small open boat: one console and a canopy pole. */
+        push('craft', c.x + (c.long * 0.12), y + F + 0.55, c.z, c.long * 0.26, 0.9, c.wide * 0.62,
+          c.yawDeg, 0, house, 0.5);
+      } else {
+        /**
+         * A BARGE IS A HOLD WITH A HOUSE AT ONE END. The hold is 60% of the
+         * length and its cover stands a little proud; the deckhouse takes the
+         * aft quarter, which is where a working barge's wheelhouse is, and
+         * `cabinAft` decides which end is aft so a line of moorings does not
+         * read as one boat repeated.
+         */
+        const sgn = c.cabinAft ? 1 : -1;
+        push('craft', c.x - sgn * c.long * 0.10, y + F + 0.22, c.z,
+          c.long * 0.58, 0.44, c.wide * 0.80, c.yawDeg, 0, deck, 0.7);
+        push('craft', c.x + sgn * c.long * 0.36, y + F + 0.95, c.z,
+          c.long * 0.20, 1.9, c.wide * 0.74, c.yawDeg, 0, house, 0.5);
+        push('craft', c.x + sgn * c.long * 0.36, y + F + 1.95, c.z,
+          c.long * 0.22, 0.12, c.wide * 0.80, c.yawDeg, 0, deck, 0.6);
+        /** A mast, stepped forward of the house. Steel would be a second mesh. */
+        push('craft', c.x + sgn * c.long * 0.24, y + F + 1.6, c.z,
+          0.16, 3.2, 0.16, c.yawDeg, 0, house, 0.45);
+      }
+    }
+  }
+
   function pushQuays(x0, x1, push) {
     const st = riverBankStations(x0, x1);
     const t = RIVER.wallThickness;
@@ -504,6 +555,7 @@ export function createRiver(options = {}) {
     };
 
     pushQuays(x0, x1, push);
+    pushCraft(x0, x1, push);
 
     bridgeRecords = [];
     for (const s of bridgesTouching(rootSeed, x0, x1)) {
