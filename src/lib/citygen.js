@@ -741,6 +741,141 @@ export const RETAIL = {
  * there is.
  */
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHAT THE SHOP ACTUALLY IS — SESSION 58, AND IT IS THE FIRST TIME THIS CITY
+ * HAS KNOWN THE DIFFERENCE BETWEEN A BAR AND A LAUNDRETTE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 28 decoupled trade from era and gave every frontage a boolean:
+ * `bld.retail` says the ground floor is glazed and lit, and nothing anywhere
+ * says WHAT IT SELLS. So every lit bay in the city drew the same warm tint at
+ * the same strength, with a 25% cold share rolled from a hash — a colour
+ * temperature with no cause behind it.
+ *
+ * THE OPERATOR'S OWN OBSERVATION IS THE DESIGN: *"different trades light in
+ * opposite directions."* A cafe throws light OUT — big windows, warm, the
+ * pavement brighter for it. A bar keeps light IN — dark glass, and the sign is
+ * the only thing that reaches the street. A hairdresser is cold fluorescent; a
+ * laundrette burns pale all night. That is four colour temperatures on one
+ * block, each one a CONSEQUENCE of what the business is rather than a roll.
+ *
+ * THE CHROMA IS NAMED HERE AND MIXED IN `city.js`, and that is not a style
+ * choice: **this file has never imported `color.js`** — only modules do — so a
+ * trade carries the NAME of an `EMITTER_CHROMA` entry and the module resolves
+ * it. `DISTANT.nightMix` is the same arrangement and says so in the same words.
+ *
+ * `out` IS THE FRACTION OF THE BAY'S OWN GLOW THAT REACHES THE STREET, and it
+ * is the axis the operator named. It multiplies the emissive of the glass, so
+ * a bar at 0.20 is not a dark shop — it is a shop whose light is behind
+ * something, which is what dark glass and a screen at the back of a bar are.
+ *
+ * THE HOURS ARE OPEN AND CLOSE IN LOCAL SOLAR HOURS, wrapping past midnight,
+ * and `tradeOpen` below is the one reader. They are the trades' real hours
+ * rather than a shape chosen to look busy: a cafe is finished by seven, a bar
+ * has not started until six, and a laundrette is the only thing on the street
+ * still lit at three in the morning.
+ */
+export const TRADES = {
+  /** The generic unit: a shop with stock in the window. The fallback. */
+  shop: { out: 0.60, chroma: 'tungsten', sign: 'neonAmber', signScale: 1.00, openH: 9, closeH: 18 },
+  /** Light OUT: the biggest glass on the street, and warm. */
+  cafe: { out: 1.00, chroma: 'tungsten', sign: 'neonGreen', signScale: 0.95, openH: 7, closeH: 19 },
+  /** Light IN: the sign is the whole of what the street gets. */
+  bar: { out: 0.20, chroma: 'neonMagenta', sign: 'neonMagenta', signScale: 1.45, openH: 17, closeH: 2 },
+  /** Warm window light and a lit menu — dimmer than a cafe, later. */
+  restaurant: { out: 0.75, chroma: 'tungsten', sign: 'neonRed', signScale: 1.15, openH: 12, closeH: 23 },
+  /** Cold fluorescent, and the mirrors double it. */
+  hairdresser: { out: 0.85, chroma: 'fluorescentCold', sign: 'neonCyan', signScale: 0.85, openH: 9, closeH: 18 },
+  /** Pale, flat and on all night, which is what makes it read at 3 a.m. */
+  laundrette: { out: 0.70, chroma: 'fluorescentDirty', sign: 'fluorescentDirty', signScale: 0.70, openH: 6, closeH: 23 },
+  /** Bright, hard and open latest of all. */
+  takeaway: { out: 0.95, chroma: 'fluorescentDirty', sign: 'neonRed', signScale: 1.10, openH: 11, closeH: 2 },
+  /** A small bright box on a corner. */
+  kiosk: { out: 0.65, chroma: 'fluorescentCold', sign: 'neonAmber', signScale: 0.60, openH: 6, closeH: 20 },
+};
+
+/**
+ * WHERE EACH TRADE GOES, AND THE CUTS ARE MEASURED RATHER THAN ASSUMED.
+ *
+ * Session 48 delivered SEVEN PLAYGROUNDS OUT OF SEVEN by splitting a band it
+ * had not measured, and that lesson has now cost four sessions — so the cuts
+ * below are the TERCILES OF THE TRADING POPULATION ITSELF, taken over
+ * `city-budget.json`'s own 10 x 10 region at seed 1337: 433 trading buildings
+ * of 668, density running 0.287 to 0.727 with **p33 = 0.5056 and p67 =
+ * 0.6495**. They are the terciles of the buildings that TRADE, not of the
+ * density field and not of the low-detail band, because those are three
+ * different populations and only one of them is the one being split.
+ *
+ * WEIGHTS AND NOT CONDITIONS, so no cut can empty a district — session 49's
+ * fallback-chain rule with a distribution instead of a chain. Every trade can
+ * appear anywhere; what the tercile changes is how often.
+ *
+ *   quiet   where people LIVE. The laundrette's own tercile, and the
+ *           takeaway's. Almost no bars: a bar wants a catchment.
+ *   middle  the ordinary high street — the widest mix of the three.
+ *   busy    where people are AT NIGHT. Bars and restaurants take a third of
+ *           it between them, which is what a core does after six.
+ *
+ * AND A CORNER IS A DIFFERENT SITE FROM A MID-BLOCK ONE. `RETAIL.cornerM`
+ * already treats the corner specially — it is the one place a non-retail
+ * frontage may still trade — and a corner pub is a real building type, so a
+ * corner site doubles the bar and kiosk weights before the roll.
+ */
+const TRADE_MIX = {
+  quiet: { shop: 0.30, laundrette: 0.18, takeaway: 0.16, hairdresser: 0.14, cafe: 0.12, kiosk: 0.06, restaurant: 0.03, bar: 0.01 },
+  middle: { shop: 0.26, cafe: 0.16, hairdresser: 0.14, takeaway: 0.13, restaurant: 0.12, bar: 0.09, laundrette: 0.06, kiosk: 0.04 },
+  busy: { shop: 0.20, bar: 0.20, restaurant: 0.18, cafe: 0.17, takeaway: 0.10, hairdresser: 0.07, kiosk: 0.05, laundrette: 0.03 },
+};
+
+/** The measured terciles of the TRADING population. See `TRADE_MIX`. */
+export const TRADE_CUTS = { p33: 0.5056, p67: 0.6495 };
+
+/**
+ * Which trade this building carries. Deterministic in the stream it is given,
+ * so a trade cannot move a building, a sign or a prop (CONTRACT §6).
+ */
+export function tradeFor(tradeRng, density, distToEndM) {
+  const band = density < TRADE_CUTS.p33 ? 'quiet' : density < TRADE_CUTS.p67 ? 'middle' : 'busy';
+  const mix = TRADE_MIX[band];
+  const corner = distToEndM <= RETAIL.cornerM;
+  let total = 0;
+  const w = {};
+  for (const [k, v] of Object.entries(mix)) {
+    w[k] = v * (corner && (k === 'bar' || k === 'kiosk') ? 2 : 1);
+    total += w[k];
+  }
+  let r = tradeRng.next() * total;
+  for (const [k, v] of Object.entries(w)) {
+    r -= v;
+    if (r <= 0) return k;
+  }
+  return 'shop';
+}
+
+/**
+ * Is this trade lit at `t`? Hours wrap past midnight, which is the whole
+ * reason a bar and a cafe are different objects at 01:00.
+ *
+ * IT RETURNS A RAMP AND NOT A BOOLEAN. A shop does not switch off at a stroke;
+ * `rampH` is the hour over which it comes up and goes down, so a street at
+ * closing time has some windows still on — and, more importantly for a
+ * capture, no frame ever lands on a discontinuity. 0.75 h is a real closing
+ * routine and is short enough that midnight and dusk are firmly on opposite
+ * sides of a bar's opening.
+ */
+export const TRADE_RAMP_H = 0.75;
+export function tradeOpen(trade, t) {
+  const T = TRADES[trade] || TRADES.shop;
+  const h = (((t % 1) + 1) % 1) * 24;
+  const span = ((T.closeH - T.openH) + 24) % 24;
+  const since = ((h - T.openH) + 24) % 24;
+  if (since >= span) return 0;
+  const upto = Math.min(since, TRADE_RAMP_H) / TRADE_RAMP_H;
+  const left = Math.min(span - since, TRADE_RAMP_H) / TRADE_RAMP_H;
+  return Math.min(upto, left);
+}
+
+/**
  * SESSION 30, ITEM 4 — THE BUS STOP.
  *
  * A SHELTER, A POLE WITH A FLAG, A BENCH AND A LIT TIMETABLE PANEL, and the
@@ -8000,6 +8135,12 @@ export function generateChunk(rootSeed, cx, cz) {
   const retailRng = chunkRng(rootSeed, cx, cz, 'retail');
   /** SESSION 28, item 3. The advertising pillars, on their own stream too. */
   const pillarRng = chunkRng(rootSeed, cx, cz, 'pillar');
+  /**
+   * SESSION 58. Its OWN stream, so that giving a shop a trade cannot move a
+   * building, a sign, a prop or a pillar — CONTRACT §6's whole point, and the
+   * same reason `DEAD_ZONE.core` draws from `'core'`.
+   */
+  const tradeRng = chunkRng(rootSeed, cx, cz, 'trade');
 
   const touching = landmarksTouching(cx, cz);
   const hasLandmark = touching.length > 0;
@@ -9373,6 +9514,14 @@ export function generateChunk(rootSeed, cx, cz) {
              * lit. The two were one field and they are two facts.
              */
             retail,
+            /**
+             * WHAT IT SELLS — session 58. `retail` says the ground floor is
+             * glazed and lit; this says what the light is FOR, and `city.js`
+             * takes the bay's colour temperature, its strength and its opening
+             * hours from it. Null where nothing trades, so a reader cannot
+             * mistake a dark plinth for a shut shop.
+             */
+            trade: retail ? tradeFor(tradeRng, density, distToEndM) : null,
             /** Kept so a probe can ask why — the frontage's answer, not this building's. */
             retailFrontage: retailSide,
             /** SESSION 28. Wants an advertising pillar; `city.js` decides if it fits. */

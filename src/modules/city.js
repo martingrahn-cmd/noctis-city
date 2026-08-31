@@ -86,6 +86,7 @@ import {
   viaductPiers,
   viaductEnds,
   viaductStations,
+  TRADES,
   HILLS,
   hillMasses,
   viaductStationSegment,
@@ -253,6 +254,24 @@ function matchedTint(chroma, warmTint) {
 const WINDOW_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, WINDOW_WARM_TINT);
 const WINDOW_MERCURY_TINT = matchedTint(EMITTER_CHROMA.mercuryBlue, WINDOW_WARM_TINT);
 const SHOP_COLD_TINT = matchedTint(EMITTER_CHROMA.fluorescentCold, SHOP_WARM_TINT);
+
+/**
+ * A TRADE'S CHROMA, RESOLVED HERE BECAUSE `citygen.js` MAY NOT IMPORT
+ * `color.js` — session 58. The generator names an `EMITTER_CHROMA` entry and
+ * this turns it into a tint at the shop palette's own luminance, which is the
+ * arrangement `DISTANT.nightMix` already uses one object over. Memoised
+ * because it is asked once per bay over every resident chunk and the answer
+ * depends on nothing but the name.
+ */
+const tradeTintCache = new Map();
+function tradeTint(name) {
+  let t = tradeTintCache.get(name);
+  if (!t) {
+    t = matchedTint(EMITTER_CHROMA[name] || EMITTER_CHROMA.tungsten, SHOP_WARM_TINT);
+    tradeTintCache.set(name, t);
+  }
+  return t;
+}
 
 /**
  * WHICH windows, and this is the half that decides whether it reads as a city
@@ -6487,12 +6506,41 @@ export function createCity(options = {}) {
       const glow = shutDown ? 0.01 : 0.55 + h * 0.75;
       windows.push(at(u, glassOut, (plinth - 1.1) / 2 + 0.55, bayW * glassW, plinth - 1.7, 0.3));
       /**
-       * COLD LIGHT AT PAVEMENT HEIGHT — LOOK.md §3's last bullet, and rolled
-       * per BAY because a shop is a bay. See `COLD_SHOP_SHARE`.
+       * ═══════════════════════════════════════════════════════════════════
+       * THE LIGHT IS THE TRADE'S — SESSION 58, AND THIS LINE USED TO BE A
+       * HASH WITH NO CAUSE BEHIND IT.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * It read `unitHash(...) < COLD_SHOP_SHARE` — one bay in four cold, and
+       * which four decided by three multiplied coordinates. That delivered the
+       * right STATISTIC (LOOK.md §3 asks for a cold share at pavement height)
+       * from no fact about the world, so two neighbouring bays could be a warm
+       * one and a cold one for no reason a person could see.
+       *
+       * `citygen.js` → `TRADES` now says what the bay SELLS, and the colour
+       * temperature is a consequence: tungsten in a cafe, cold fluorescent in
+       * a hairdresser, the dirty pale tube a laundrette actually has. The cold
+       * share is no longer a constant — it is however many of the trades on
+       * this street happen to be cold ones, which is what makes a block read
+       * as a set of businesses rather than as a distribution.
+       *
+       * AND `out` IS THE DIRECTION THE OPERATOR NAMED. *"A cafe throws light
+       * OUT; a bar keeps light IN."* It multiplies the bay's own glow, so a
+       * bar's glass sits at 0.20 of a cafe's — not a dark shop, a shop whose
+       * light is behind something — and the bar's SIGN carries the street
+       * instead (`SIGN_TRADE`, below).
+       *
+       * `matchedTint` is what keeps this from being a brightness change in
+       * disguise: it returns the tint that delivers this chroma AT THE
+       * LUMINANCE the warm pair already delivered, so the whole of the
+       * difference between two trades is hue, and `out` carries the level on
+       * its own where it is meant to.
        */
-      const shopCold = unitHash(bld.x * 0.53, bld.z * 0.29, i * 11.7) < COLD_SHOP_SHARE;
-      const sc = shopCold ? SHOP_COLD_TINT : SHOP_WARM_TINT;
-      windowTint.push({ albedo: [glow * sc[0], glow * sc[1], glow * sc[2]], roughness: 0.05 });
+      const trade = bld.trade || 'shop';
+      const rec = TRADES[trade] || TRADES.shop;
+      const sc = tradeTint(rec.chroma);
+      const gl = glow * rec.out;
+      windowTint.push({ albedo: [gl * sc[0], gl * sc[1], gl * sc[2]], roughness: 0.05 });
 
       // A stallriser under the glass — the low solid panel every shopfront has.
       // A punched sockel opening keeps the plinth's own face instead.
