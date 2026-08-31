@@ -15008,6 +15008,35 @@ export function generateChunk(rootSeed, cx, cz) {
 
   return {
     cx, cz, density, lowDetail, kind,
+    /**
+     * WHETHER THIS CHUNK IS PAST THE CITY'S EDGE — SESSION 62, AND IT IS
+     * PUBLISHED BECAUSE TWO READERS OF ONE PREDICATE WERE READING IT AT TWO
+     * DIFFERENT POINTS.
+     *
+     * `beyondCity` above is `cityExtentAt(cxWorld, czWorld) <= 0` — the
+     * chunk's own CENTRE, and its comment says so in as many words: *"the test
+     * is the chunk's centre, so the boundary is 128 m ragged"*. It gates the
+     * lattice, the props, the low-detail island and the whole countryside, so
+     * a chunk is farmland or it is city, entirely, either way.
+     *
+     * `city.js`'s street lamps read `cityExtentAt` too — and at THE LAMP'S OWN
+     * POINT. A rim chunk whose centre is outside the circle still has a
+     * crescent of itself inside it, so the lamp survives on ground the same
+     * predicate has already turned into a field. **Measured over the whole
+     * world at seed 1337: 563 street lamp stations standing on a countryside
+     * chunk**, ten of them on chunk (25, 0) — the exit road, which is where
+     * the operator's aerial was shot and what he named as *"CITY LAMP POSTS
+     * STANDING IN FARMLAND"*.
+     *
+     * It is CONTRACT §9 rule 7 with a predicate instead of a datum: *"both
+     * sides of the check shared the assumption"* — except here they did not
+     * share it, they evaluated it at two places, and neither is wrong on its
+     * own terms. So the decision is made ONCE, here, and handed out. The
+     * counter-measurement is the same run's other column: **363 stations on a
+     * LATTICE chunk that the point test refuses**, i.e. drawn road with no
+     * lamp on it, which reading the chunk's own answer also repairs.
+     */
+    beyondCity,
     roadMaterials,
     buildings, props, signs, holograms, occluders,
     /**

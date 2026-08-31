@@ -5548,7 +5548,44 @@ export function createCity(options = {}) {
            * road in this world that leaves the grid, and it is unlit from here
            * out. STATE 54 §8 says what to do with it.
            */
-          if (cityExtentAt(spot.x, spot.z) <= 0) continue;
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AND SESSION 54's LINE READ THE PREDICATE AT THE WRONG POINT —
+           * SESSION 62, AND IT IS 563 STREET LAMPS STANDING IN FARMLAND.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * The paragraph above is right that `cityExtentAt` is *"one
+           * statement about where the city is, in every place that asks"*. It
+           * is asked HERE at the lamp's own coordinate and asked in
+           * `generateChunk` at the CHUNK'S CENTRE, and those are two different
+           * questions with two different answers over a 128 m band. Everything
+           * that decides what a chunk IS — the lattice, the props, the fields,
+           * the hedgerows — reads the second; only the lamp read the first.
+           *
+           * So a rim chunk is farmland over the whole of itself and keeps the
+           * lamps standing on the crescent of it that is still inside the
+           * circle. Measured out of the pure generator at seed 1337 over every
+           * chunk in the world:
+           *
+           *   lamp stations on a chunk the generator calls COUNTRYSIDE    563
+           *     of them on (25, 0), the exit road's own chunk               10
+           *   stations on a LATTICE chunk this point test refused          363
+           *     — drawn carriageway with no lamp on it, the mirror defect
+           *   stations over `citycheck`'s 10 x 10 region, either way      1620
+           *
+           * The operator named it from the air — *"CITY LAMP POSTS STANDING IN
+           * FARMLAND"* — and it is the single loudest tell in his frame.
+           *
+           * `chunk.beyondCity` IS THE GENERATOR'S OWN ANSWER, handed over
+           * rather than recomputed (CONTRACT §9.1): the chunk that emitted no
+           * road is the chunk that emits no lamp, and the two cannot drift.
+           * It also RESTORES the 363 — a chunk with a lattice lights all of
+           * it, including the corner past the circle where the road is drawn.
+           *
+           * `citycheck`'s own region does not move by one station, which is
+           * why this is a repair and not a content change (CONTRACT §0 rule 5).
+           */
+          if (chunk.beyondCity) continue;
           const yawJitter = (((spot.x * 31 + spot.z * 17) % 100) / 100 - 0.5) * 1.6;
           /**
            * THE FAR KERB'S POLE IS TURNED ROUND — session 45. The column mesh
