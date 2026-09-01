@@ -5,8 +5,11 @@
 uptime — the same boot as sessions 47–64. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RAN 2.77–6.14 THROUGH THIS SESSION***, with the same two `mediaanalysisd`-class helpers
-holding cores as sessions 62–64 — over CONTRACT §0.2's bar of 1.6, for the fifth session running.
+***`load1` RAN 2.77–6.14 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6, for the fifth
+session running. **What is holding the cores is different from sessions 62–64 and is recorded as
+measured rather than as inherited**: at the opening check, `WindowServer` 37.6%,
+`com.apple.WebKit.GPU` 33.0%, `WebKit.WebContent` 8.5% and a Unity editor at 4.1% — a browser and a
+compositor, not session 64's `mediaanalysisd`.
 **No millisecond below is a verdict.** Every number here is a count, a length, an angle, a
 reflectance, a ratio or a pixel.
 
