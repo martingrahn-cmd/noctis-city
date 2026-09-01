@@ -119,7 +119,9 @@ import {
   /** Session 65 — the normal the ground MESH is drawn with. See the feature
    *  loop's pitch, and `citygen.js`'s own note on why it is not
    *  `terrainNormalAt`. */
-  groundNormalAt
+  groundNormalAt,
+  /** Session 65 — the ground a `yAdd` terrace is cut into. See `cutFace`. */
+  TERRAIN, terrainHeightAt
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -2027,6 +2029,80 @@ export function createCity(options = {}) {
         tinted = tintOut;
       }
       quad(g.x0, g.z0, g.x1, g.z1, y, tinted, CATEGORY_FOR_GROUND[g.kind] || g.kind, porosityFor(g.kind));
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * THE CUT FACE AT A TERRACE'S EDGE — SESSION 65, AND IT IS SESSION 45's
+       * KERB REPAIR ONE SCALE UP.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * Session 45's own words about the kerb, sixty lines up: *"Two horizontal
+       * quads at different heights abutting in plan leave a 0.180 m vertical
+       * slot, and from a standing eye you look straight through it."* A
+       * `yAdd` rectangle is that arrangement with a hillside instead of a
+       * kerb — a flat plate at one height beside terrain at another, and
+       * **nothing joined them.**
+       *
+       * MEASURED FIRST (`node tools/landprobe.mjs --plates`), over an 8.8 km
+       * square:
+       *
+       *     kind            plates  over 0.05      p50      p90      max
+       *     grass             2 383      1 630     0.13     1.06     6.21
+       *     yardGround          385        359     0.54     1.23     3.98
+       *     parkingGround        14          0     0.01     0.01     0.01
+       *
+       *   2 782 plates carry a `yAdd` and 1 989 of them stand over 0.05 m off
+       *   the ground at their own edge, over 1.36 km2 of surface.
+       *
+       * It is the other half of session 65's item 2. `tools/featurecensus.mjs`
+       * measured a villa's worst drawn corner **6.00 m** off the ground and the
+       * feature pitch does not fix it, because a villa stands on a LEVEL plot
+       * and is right to be level. The plot was the defect and this is the
+       * plot's own repair.
+       *
+       * ── WHAT IT IS, AND WHAT IT IS NOT ────────────────────────────────
+       *
+       * DOWNHILL ONLY. Where the terrain stands HIGHER than the plate, the
+       * ground already covers the gap and a riser there would be a wall
+       * standing in the middle of somebody's garden — a plate buried in a
+       * hillside is what a CUT looks like and it is not a hole. So each edge
+       * is skirted only where the ground below it falls away.
+       *
+       * SPLIT ON THE TERRAIN'S OWN STATION, so the face follows the ground it
+       * is cut into rather than stepping once at each corner. A 68 m farm yard
+       * on a 384 m landform can be level at all four corners and 2 m out along
+       * an edge, which is why `landprobe --plates` measures the PERIMETER.
+       *
+       * `GROUND.earthAlbedo` AND NOT A NEW NUMBER. A cut face is the soil the
+       * plate is cut into, and this project already has exactly one reflectance
+       * for that — the earth plane's, which session 42 calibrated so the far
+       * ring would stop reading as a ploughed field. A second colour for the
+       * same substance is CONTRACT §9.1's own subject.
+       *
+       * NOTHING IN `rects`, for session 45's reason: a riser is not a surface
+       * anything stands on, and putting a vertical face in there would give the
+       * player a floor at the terrace's height out over the hillside.
+       */
+      if (g.yAdd) {
+        const STEP = TERRAIN.stationM;
+        /** One face along `axis` at `e`, from `a0` to `a1`, facing `dir`. */
+        const cutFace = (axis, e, a0, a1, dir) => {
+          const n = Math.max(1, Math.ceil((a1 - a0) / STEP));
+          for (let i = 0; i < n; i++) {
+            const s0 = a0 + ((a1 - a0) * i) / n;
+            const s1 = a0 + ((a1 - a0) * (i + 1)) / n;
+            const mid = (s0 + s1) / 2;
+            const gx = axis === 'x' ? e : mid;
+            const gz = axis === 'x' ? mid : e;
+            const lo = GROUND.earth + terrainHeightAt(rootSeed, gx, gz);
+            if (y - lo <= GROUND.crossingBias) continue;
+            riser(axis, e, s0, s1, lo, y, dir, GROUND.earthAlbedo);
+          }
+        };
+        cutFace('x', g.x0, g.z0, g.z1, -1);
+        cutFace('x', g.x1, g.z0, g.z1, 1);
+        cutFace('z', g.z0, g.x0, g.x1, -1);
+        cutFace('z', g.z1, g.x0, g.x1, 1);
+      }
       // The kerb upstand. See `riser` above for why only this one edge.
       if (g.kind !== 'walk') continue;
       /**

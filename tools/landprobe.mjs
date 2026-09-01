@@ -59,7 +59,7 @@ const args = new Map(process.argv.slice(2).map((a) => {
 }));
 const SEED = args.get('seed') || BUDGET.capture.params.seed || 1337;
 const S = CITY.chunkSize;
-const ALL = !['road', 'lamps', 'fields', 'hills', 'houses', 'terrain'].some((k) => args.has(k));
+const ALL = !['road', 'lamps', 'fields', 'hills', 'houses', 'terrain', 'plates'].some((k) => args.has(k));
 const f2 = (n, w = 8) => n.toFixed(2).padStart(w);
 const f1 = (n, w = 7) => n.toFixed(1).padStart(w);
 
@@ -547,9 +547,101 @@ function terrain() {
   console.log('');
 }
 
+
+// ---------------------------------------------------------------------------
+// 7. THE FLAT PLATES — SESSION 65
+// ---------------------------------------------------------------------------
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * EVERY GROUND RECTANGLE THAT CARRIES A `yAdd`, AND HOW FAR IT FLOATS OVER
+ * THE GROUND IT IS CUT INTO.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 62 introduced `yAdd`: one scalar per ground rectangle, so a plot on
+ * a hill shoulder is drawn five metres up. Its own comment calls the limit out
+ * — *"the four corners are at one height and the surface is a TERRACE rather
+ * than a slope"* — and that is right for what a terrace is. **What nothing has
+ * ever measured is how far the terrace's own EDGE is from the ground beside
+ * it**, which is what decides whether it reads as a cut platform or as a plate
+ * hanging in the air.
+ *
+ * SESSION 65 FOUND IT THROUGH THE FEATURES STANDING ON IT.
+ * `tools/featurecensus.mjs` reports a villa's worst corner 6.00 m off the
+ * ground, and the pitch that fixed the hedgerows does NOT fix that one: a villa
+ * stands on a level plot and is right to be level. The plot is the defect, and
+ * this is the number for it.
+ *
+ * It is a PROBE and it asserts nothing. `city.js` emits these rectangles and
+ * `citygen.js` decides them; what is printed is the generator's own `yAdd`
+ * against `terrainHeightAt` around the rectangle's perimeter, sampled at the
+ * terrain's own station so the sampling cannot miss a station the mesh has.
+ */
+function plates() {
+  console.log('7. THE FLAT PLATES — every ground rectangle carrying a `yAdd`\n');
+  const R = Number(args.get('ring') || 34);
+  const rows = new Map();
+  for (let cx = -R; cx <= R; cx++) {
+    for (let cz = -R; cz <= R; cz++) {
+      const ch = generateChunk(SEED, cx, cz);
+      for (const g of (ch.ground || [])) {
+        if (!g.yAdd) continue;
+        const y = g.yAdd;
+        /**
+         * THE PERIMETER AND NOT THE CORNERS. A rectangle 68 m across on a
+         * landform whose short period is 384 m can be level at all four
+         * corners and 2 m out along an edge, so a corner-only measurement
+         * would report a plate that is fine and draw a frame that is not.
+         */
+        let worst = 0;
+        const step = Math.min(TERRAIN.stationM, Math.max(2, (g.x1 - g.x0) / 8));
+        for (let x = g.x0; x <= g.x1 + 1e-6; x += step) {
+          for (const z of [g.z0, g.z1]) {
+            const d = Math.abs(y - terrainHeightAt(SEED, Math.min(x, g.x1), z));
+            if (d > worst) worst = d;
+          }
+        }
+        const stepZ = Math.min(TERRAIN.stationM, Math.max(2, (g.z1 - g.z0) / 8));
+        for (let z = g.z0; z <= g.z1 + 1e-6; z += stepZ) {
+          for (const x of [g.x0, g.x1]) {
+            const d = Math.abs(y - terrainHeightAt(SEED, x, Math.min(z, g.z1)));
+            if (d > worst) worst = d;
+          }
+        }
+        const key = g.kind;
+        if (!rows.has(key)) rows.set(key, []);
+        rows.get(key).push({ worst, area: (g.x1 - g.x0) * (g.z1 - g.z0), span: Math.hypot(g.x1 - g.x0, g.z1 - g.z0) });
+      }
+    }
+  }
+  const q = (a, p) => (a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : NaN);
+  console.log(`  ${(2 * R + 1) ** 2} chunks, ${((2 * R + 1) * S / 1000).toFixed(1)} km square.\n`);
+  console.log('  kind             plates  over 0.05      p50      p90      max   p90 span  total m2');
+  console.log('  ------------- --------- ---------- -------- -------- -------- ---------- ---------');
+  let total = 0;
+  let bad = 0;
+  for (const [k, list] of [...rows.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    const w = list.map((r) => r.worst).sort((a, b) => a - b);
+    const sp = list.map((r) => r.span).sort((a, b) => a - b);
+    const over = w.filter((v) => v > 0.05).length;
+    total += list.length;
+    bad += over;
+    console.log(
+      `  ${k.padEnd(13)} ${String(list.length).padStart(9)} ${String(over).padStart(10)} `
+      + `${f2(q(w, 0.5))} ${f2(q(w, 0.9))} ${f2(q(w, 1))} ${f1(q(sp, 0.9), 10)} `
+      + `${String(Math.round(list.reduce((a, r) => a + r.area, 0))).padStart(9)}`
+    );
+  }
+  console.log(`\n  ${total} plates carry a yAdd, ${bad} float over 0.05 m — the join tolerance`);
+  console.log('  every other surface in this project uses. A plate is a TERRACE and a terrace');
+  console.log('  is flat by definition; what is missing is the CUT FACE at its edge, which is');
+  console.log('  session 45\'s kerb repair (*"A RISER, NOT A BOX"*) one scale up. Until it');
+  console.log('  exists, the number above is how much open air a plot edge shows.\n');
+}
+
 if (ALL || args.has('terrain')) terrain();
 if (ALL || args.has('road')) road();
 if (ALL || args.has('lamps')) lamps();
 if (ALL || args.has('fields')) fields();
 if (ALL || args.has('hills')) hills();
 if (ALL || args.has('houses')) houses();
+if (ALL || args.has('plates')) plates();
