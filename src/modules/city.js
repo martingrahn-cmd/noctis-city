@@ -2072,11 +2072,23 @@ export function createCity(options = {}) {
        * on a 384 m landform can be level at all four corners and 2 m out along
        * an edge, which is why `landprobe --plates` measures the PERIMETER.
        *
-       * `GROUND.earthAlbedo` AND NOT A NEW NUMBER. A cut face is the soil the
-       * plate is cut into, and this project already has exactly one reflectance
-       * for that — the earth plane's, which session 42 calibrated so the far
-       * ring would stop reading as a ploughed field. A second colour for the
-       * same substance is CONTRACT §9.1's own subject.
+       * THE FACE IS THE PLATE'S OWN MATERIAL, AND THE FIRST ARM MADE IT
+       * `GROUND.earthAlbedo` — WHICH THE FRAME REFUSED.
+       *
+       * The earth plane's reflectance is a defensible answer to *"what is a
+       * hillside made of"* and it delivered **a pale 0.16 m line along both
+       * sides of the country road for its whole length**, because
+       * `earthAlbedo` Y 0.1212 is half again a mown verge's Y 0.0837 and every
+       * verge plate stands exactly `GROUND.grass − GROUND.earth` = 0.16 m
+       * proud of the field beside it. A repair that closes a hole and draws a
+       * kerb where a country road has none is not a repair.
+       *
+       * A cut through a plate shows the PLATE at the top and soil below, and at
+       * 0.16 m it is mostly the plate. So the face takes the same tinted albedo
+       * the surface above it took, and **no new number is authored at all** —
+       * which matters more than the precision: `lights.js` already darkens a
+       * vertical face because it sees less sky than a horizontal one, and that
+       * is what makes the edge read, not a reflectance somebody chose.
        *
        * NOTHING IN `rects`, for session 45's reason: a riser is not a surface
        * anything stands on, and putting a vertical face in there would give the
@@ -2105,7 +2117,7 @@ export function createCity(options = {}) {
              * exactly what a car's eye at 1.6 m looks along.
              */
             if (y - lo <= GROUND.crossingBias) continue;
-            riser(axis, e, s0, s1, lo, y, dir, GROUND.earthAlbedo);
+            riser(axis, e, s0, s1, lo, y, dir, tinted);
           }
         };
         cutFace('x', g.x0, g.z0, g.z1, -1);
