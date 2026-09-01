@@ -2605,6 +2605,14 @@ export function createHarness(options = {}) {
             sunElevationDeg: time ? (time.sun.elevationRad * 180) / Math.PI : null,
             sunAzimuthDeg: time ? (time.sun.azimuthRad * 180) / Math.PI : null,
             moonElevationDeg: time ? (time.moon.elevationRad * 180) / Math.PI : null,
+            /**
+             * SESSION 63. The sun's pair has been here since session 3 and the
+             * moon had only its elevation, so an instrument that wanted to
+             * predict a night surface's shading had to build a second solar
+             * model to get the bearing — CONTRACT §9.1's config-the-code-does-
+             * not-read with an ephemeris. `tools/slopeprobe.mjs` is the reader.
+             */
+            moonAzimuthDeg: time ? (time.moon.azimuthRad * 180) / Math.PI : null,
             ambientLux: lighting ? lighting.ambientLux : null,
             sunLux: lighting ? lighting.sunIlluminanceLux : null,
             photocellOn: lighting ? lighting.photocellOn : null,
