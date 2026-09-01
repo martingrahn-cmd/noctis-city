@@ -1177,6 +1177,34 @@ tools/
                          elsewhere, or sub-pixel — and a picture distinguishes
                          none of them while three printed lines distinguish all
                          three.
+  roughcensus.mjs        NOT A GATE. SESSION 65. WHAT EVERY SURFACE IN THIS
+                         WORLD CLAIMS ABOUT WATER, in two halves: every mesh
+                         this source CONSTRUCTS against a DECLARED table, and
+                         every mesh in the DELIVERED scene with its porosity
+                         read off its own `noctisRough` buffer. It exists
+                         because the same defect has now been found twice one
+                         surface apart — `block:ground` in session 64 and the
+                         exit-road ribbon in session 65 — and both times by an
+                         operator looking at a frame. An `itemSize` of 0 (no
+                         attribute), 1 (the pre-session-55 float) and 2 (a
+                         chosen porosity) are three different findings and it
+                         prints which. The two halves are crossed against each
+                         other, because a hand table nothing compares is
+                         §9.1's own subject.
+  featurecensus.mjs      NOT A GATE. SESSION 65. WHAT THE SHARED FEATURE
+                         TRANSFORM PLACES, AND HOW FAR ITS ENDS ARE OFF THE
+                         GROUND. `city.js`'s feature loop is ONE `put` closure
+                         taking ONE ground sample at a feature's centre and
+                         composing a yaw and no pitch; this greps every
+                         `f.kind` branch out of that loop, counts the
+                         population, and measures TWO quantities that are easy
+                         to confuse — how much the ground varies under a
+                         footprint (the CAUSE, which no repair moves) and how
+                         far a delivered box's own bottom corners are from the
+                         ground (the EFFECT, which is what a pitch moves). It
+                         also reports what each feature is STANDING ON, which
+                         is what separates a hedge on a slope from a house on
+                         a level terrace that is too small for it.
   lookat.mjs             NOT A GATE. Stand anywhere, look at anything, write a
                          PNG. §10 step 4 says the numbers are necessary and not
                          sufficient, and until session 5 the only way to look at
@@ -1642,6 +1670,29 @@ sceneCensus(): object           §9.1. The live scene walked: instanceMatrix.cou
                                 off every InstancedMesh and the per-kind label it
                                 recorded as it was assembled. The count is the
                                 measurement; the label is what it is compared to.
+roughCensus(): object           SESSION 65. Every mesh in the live scene with its
+                                `noctisRough` read off the DELIVERED buffer —
+                                itemSize, the porosity histogram, and how far the
+                                mesh reaches from the origin. A census, not a
+                                check: it asserts nothing, and it consults no
+                                table, because a porosity the generator chose and
+                                the attribute does not carry is exactly the
+                                disagreement it is looking for.
+featureGround(kinds): Array     SESSION 65. For every feature the delivered census
+                                recorded, the base `city.js`'s transform used
+                                against the ground under the four corners of its
+                                own footprint, plus what that base is a surface OF
+                                and how much of the gap the ground's own gradient
+                                explains. `kinds` is passed IN, grepped out of
+                                `city.js`'s own loop by the tool, so the two sides
+                                cannot hold different lists.
+boxGroundCensus(opts): Array    SESSION 65. Every instanced box whose bottom face
+                                sits on the ground at its centre, and how far its
+                                worst bottom CORNER is from the ground under it,
+                                off its own instanceMatrix. This is the quantity a
+                                pitch in the feature transform moves;
+                                `featureGround`'s is not, and the difference cost
+                                one arm of session 65 to learn.
 particleLayers(): Array         Layers that declare themselves, read off the live
                                 meshes. Empty is a failure, not a pass.
 pedestrianCensus(): object|null Per-chunk counts off the live scene. Null is a
@@ -1845,7 +1896,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 67 so far** — and that numeral is now **generated against, not
+**The 70 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1873,8 +1924,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      67        67
-  every pipe-leading line to EOF        67         —   ← the snippet’s quantity
+  contiguous rows after the header      70        70
+  every pipe-leading line to EOF        70         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -1946,6 +1997,9 @@ runs on every invocation.
 | 23 | the frame INTERVAL delivered **under a vsync lock**, `max(work, T)` | the interval **with vsync and the frame-rate limiter disabled**, which is what `budget.json` → `$wallFrameMsP95` says the 12.5 ms ceiling is a ceiling ON, and what `page.mjs` and `perfcheck` both launch with | the operator ran the live build in a browser and read `frame p50 16.7 / 12.5 ms` in red. 16.7 is 60 Hz: under a lock the interval cannot go below `T` however fast the city renders, so that cell was red for EVERY possible state of the world and carried no information about any of them. **The tell was already in the budget file** — `$wallFrameMsP95_rebaseline` records that this ceiling was 16.67 until session 4 and that *"16.67 was the vsync line"*, so the red number on screen is the ceiling's own discarded value. The reading is CENSORED rather than wrong: `m·T` establishes `work` in `((m−1)·T, m·T]`, so a verdict is available exactly when that band lies on one side of the ceiling — no verdict at 60 Hz, **green** at 120 Hz where the lock PROVES the work, **red** on a dropped frame at every rate. No ceiling moved and no gate changed; `perfcheck` still runs unlocked against the same 12.5 |
 | 23 | a viaduct's **ABUTMENT** — the mass the deck bears ON, topping out at `viaductSoffitY` = 18.20 m | its **END TREATMENT**, the thing that closes the line | session 21 built the abutment, the wing walls and two parapet returns and the ends still read as *"a line that has been cut"*. The abutment stops at the soffit by construction, so the deck's own section from 18.20 to 22.20 — box girder, slab, ballast, rail — was never closed: **8.60 m of the deck's 9.50 m width ended in mid air**, framed by two 0.40 m parapet returns whose underside is 21.00 and which therefore FLOAT 2.80 m above the abutment they stand over. A bearing and a portal are different objects and one had been built where the other was wanted. **And the whole mass was claimed by nobody** — `landmarkOccluders` returns a viaduct's legs and its deck segments, so an 18.2 m solid 6.0 × 11.1 m stood at each end on ground the registry had never been told about, which is §9.1's placement rule with a landmark's own geometry. Claiming it refused one building of 367, standing 1.73 m away against a 4.2 m setback |
 | 23 | the train's **BODY LENGTH**, `cars·carLength + (cars−1)·gap` | the train's **EXTENT**, in the turn-round clamp `halfArc − len/2` | the two were the same number for as long as the leading car's end face was the furthest-forward thing on the train, and a raked nose 1.6 m long separated them. Arithmetic both ways: 74.70 m clamps the centre at 202.65, putting the nose tip at **s = 241.60**, which is **1.30 m inside the portal recess built in the same session**; 77.90 m puts it at 240.00, the deck's last station exactly. The defect would have been a train standing inside a wall, arriving from a change to a different object — and it is the shape §9.1 records for `pierEvery`, with a length that stopped meaning what it meant |
+| 65 | the **generic vertex-attribute default** three hands an unbound `attribute vec2` — `(0, 0)` | **this surface's own porosity**, which `lights.js` reads as *impervious* and turns into a mirror | it is session 64's `block:ground` finding one surface along, and the reason it is a ROW rather than a repeat is that the two were found the same way and only the same way: by an operator looking at a frame. The 8 km exit-road ribbon set `position` and `normal` and nothing else, so at `wet = 1` it returned a full inverted image of a roadside tree — measured on the delivered pixels as a **−33.3 code-value notch, 35.0% of the fitted trend, against −2.2 and 1.4% after**. The default is not wrong; it is unstated, and an unstated default is a decision nobody made. `tools/roughcensus.mjs` now walks every mesh in the delivered scene and prints what each one claims, so the third one is a line of output and not a session |
+| 65 | `EXIT_ROAD.taperM` = 200 m, which is **`4.0 m × 50`** — the standard 1:50 rate for narrowing a carriageway, i.e. a rate of change of WIDTH | the schedule on which the road's **SURFACING** changes from city asphalt to a rural chip seal | my own first arm, and it reads exactly like the good instinct it came from: *the surface changes where the section changes*, so that one number describes how far out of the city a station is. A lane-narrowing standard says nothing about where one authority's tarmac ends. **The frame caught it**: the operator stands 28 m past the edge, where a 200 m ramp delivers a porosity of **0.098**, so the near half of the frame he complained about was still a mirror after the repair. The datum is the city's own edge — a resurfacing joint is where the maintaining authority changes — and it needed no second number at all |
+| 65 | `city.worldSurfaceAt`, whose own comment says **"THE RESULT IS TRANSIENT — copy what you keep"** | a VALUE, held across a second call to the same function | the base and the corner became one quantity, so a census of how far every feature's ends stand off the ground reported **0.00 m for 6 078 features including 424 on hill shoulders** — against session 64's independently measured hedgerow median of 1.04 m. A measurement that reports a perfect world is the loudest symptom there is and it STILL needed a second number to catch, which is §7.7's whole point arriving in the instrument written to find §9 |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:
