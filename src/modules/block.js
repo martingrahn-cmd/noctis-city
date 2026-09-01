@@ -1062,6 +1062,69 @@ export function createBlock(options = {}) {
           }
           splitQuad(xa, za, E, xb, zb, E);
         }
+
+        /**
+         * ═════════════════════════════════════════════════════════════════
+         * AND THEN THE SKIRT — SESSION 64, ITEM 2, THE HORIZON KNIFE EDGE.
+         * ═════════════════════════════════════════════════════════════════
+         *
+         * `TERRAIN.skirtM` carries the measurement and the two arms it
+         * refuses. What is here is the construction: four fans, each running
+         * from one 32 m station of THIS plane's own outer edge to the same
+         * station scaled onto the skirt's square. Every inner vertex is a
+         * vertex the loop above has already emitted, at the same `push`, so
+         * the two share position, normal, tint and porosity exactly and there
+         * is no T-junction anywhere on the join.
+         *
+         * THE SCALING IS WHAT MAKES THE CORNERS MEET. The east fan's last
+         * outer point is `(S, E·S/E) = (S, S)` and the north fan's first is
+         * `(E·S/E, S) = (S, S)` — the same corner, so the ring closes without
+         * a wedge of nothing at each diagonal.
+         *
+         * WINDING, DERIVED AND NOT TRIED, exactly as the plane above and the
+         * road ribbon below derive theirs. `quad` emits `(P0, Q1, Q0)` and
+         * `(P0, P1, Q1)` for an inner pair P at the smaller x and an outer
+         * pair Q at the larger, and both cross to +Y; the fan is that same
+         * pair of triangles with Q moved outward instead of sideways, and each
+         * of the four bands is the east band under a proper rotation about +Y,
+         * which cannot change a winding.
+         */
+        {
+          const S = TERRAIN.skirtM;
+          const tri3 = (p, q, r) => { push(p[0], p[1]); push(q[0], q[1]); push(r[0], r[1]); };
+          /**
+           * AND IT IS SIX RINGS AND NOT ONE, WHICH THE FIRST FRAME SETTLED.
+           *
+           * One fan per station is 2 000 triangles and it looked like a
+           * cathedral floor: each quad is 6 km long, its tint and its height
+           * are interpolated from its two ends, and the countryside came back
+           * as radial stripes converging on the horizon — the crop pattern
+           * smeared along the ray. The rings DOUBLE outward from four times
+           * the terrain station, so the skirt is 128 m near the join where it
+           * fills most of a frame and 4 km at the far end where the
+           * transmittance is under 0.03: 12 000 triangles, still one draw.
+           */
+          const radii = [E];
+          for (let step = TERRAIN.stationM * 4; radii[radii.length - 1] < S; step *= 2) {
+            radii.push(Math.min(S, radii[radii.length - 1] + step));
+          }
+          for (let b = 0; b < 4; b++) {
+            const c = [1, 0, -1, 0][b];
+            const sn = [0, 1, 0, -1][b];
+            const T = (x, z) => [x * c - z * sn, x * sn + z * c];
+            for (let ri = 0; ri < radii.length - 1; ri++) {
+              const rIn = radii[ri];
+              const rOut = radii[ri + 1];
+              const kIn = rIn / E;
+              const kOut = rOut / E;
+              for (let z0 = -E; z0 < E; z0 += TERRAIN.stationM) {
+                const z1 = Math.min(E, z0 + TERRAIN.stationM);
+                tri3(T(rIn, z0 * kIn), T(rOut, z1 * kOut), T(rOut, z0 * kOut));
+                tri3(T(rIn, z0 * kIn), T(rIn, z1 * kIn), T(rOut, z1 * kOut));
+              }
+            }
+          }
+        }
         const arr = new Float32Array(pos);
         groundGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
         groundGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrmA), 3));
@@ -1229,6 +1292,21 @@ export function createBlock(options = {}) {
         roadStationX.push(-CITYGEN_ROAD.startM, CITYGEN_ROAD.startM);
         for (let x = CITYGEN_ROAD.startM + CITYGEN_ROAD.stationM; x < E; x += CITYGEN_ROAD.stationM) roadStationX.push(x);
         roadStationX.push(E);
+        /**
+         * AND OUT OVER THE SKIRT — SESSION 64. The ground runs to
+         * `TERRAIN.skirtM` now, and a road that stops at 4 000 m while the
+         * land goes on is the same edge this session is removing, moved onto
+         * the one object a car is actually looking at. Past `EXIT_ROAD.rimM`
+         * the centreline is straight and the section is constant, so the
+         * stations out here are 256 m rather than 8: 2 x 24 quads = 96
+         * triangles, against 750 a side at the ribbon's own station.
+         */
+        const SKIRT_ROAD_STEP = 256;
+        for (let x = E + SKIRT_ROAD_STEP; x < TERRAIN.skirtM; x += SKIRT_ROAD_STEP) {
+          roadStationX.push(-x, x);
+        }
+        roadStationX.push(-TERRAIN.skirtM, TERRAIN.skirtM);
+        roadStationX.sort((a, b) => a - b);
         for (const x of roadStationX) roadStationY.push(terrainHeightAt(rootSeed, x, exitRoadZ(x)));
       }
       /**
@@ -1410,7 +1488,13 @@ export function createBlock(options = {}) {
          * strip above is built from, so the geometry and the query cannot
          * disagree about where the road is.
          */
-        if (Math.abs(z - exitRoadZ(x)) <= exitRoadHalfM(x) && ax <= cfg.groundExtent) {
+        /**
+         * `TERRAIN.skirtM` AND NOT `groundExtent` SINCE SESSION 64: the ribbon
+         * is drawn out over the skirt, and a query that stopped at the old
+         * extent would answer `earth` for 6 km of drawn road. Both halves read
+         * the same constant, which is the whole point of the branch.
+         */
+        if (Math.abs(z - exitRoadZ(x)) <= exitRoadHalfM(x) && ax <= TERRAIN.skirtM) {
           /**
            * SESSION 63: the ribbon follows the land, in section as well as in
            * plan (brief item 4a), and this is what a car's wheels are told.

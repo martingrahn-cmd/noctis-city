@@ -3024,6 +3024,50 @@ export const TERRAIN = {
    */
   hillCoverToU: 0.60,
   /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE SKIRT — HOW FAR THE GROUND GOES AFTER IT STOPS BEING TERRAIN.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * SESSION 64, ITEM 2, AND THE BRIEF'S TWO PROPOSED FIXES ARE BOTH FALSIFIED
+   * BY MEASUREMENT. The operator named the horizon *"the one thing in the frame
+   * that says DEMO"*, and it is the ground plane's own edge at 4 000 m — not
+   * the haze reach, which has no far plane at all, and not the camera's, which
+   * is further away in the frame that shows it. In the delivered aerial the
+   * band above that edge is 162 rows of 810 (20% of the frame) whose luminance
+   * changes by 2.3% top to bottom: flat to four decimal places, because it is
+   * `sky.js`'s below-horizon fill and that is one constant colour.
+   *
+   *   RAISING THE HAZE ERASES THE CITY. To take the edge to 10% transmittance
+   *   at the 700 m it stands at in that frame, sigma must be 3.735e-3 /m — a
+   *   1 047 m visibility fog, in which the city reads 0.474 at 200 m and 0.005
+   *   at 1 400. The brief says *do not let haze eat the city*; the arithmetic
+   *   says it would eat all of it.
+   *
+   *   AND THE GROUND CANNOT OUTRUN SIGHT AT THE TERRAIN'S OWN STATION. 10%
+   *   transmittance needs about 6 000 m of ground ahead of the camera, and the
+   *   camera stands at 3 300, so the half-extent is 9 300 m: 346 km2 against
+   *   64, at 32 m stations, which is 660 000 triangles against a ceiling with
+   *   40 000 spare.
+   *
+   * WHAT NOBODY COSTED IS A COARSE ONE. Past 4 000 m the transmittance is under
+   * 0.22 and falling; there is no relief to resolve there and no crop to read.
+   * So the ground continues as a RING OF FOUR FANS — one radial quad per 32 m
+   * station of the plane's own edge, out to this radius — which is 1 000 quads
+   * and 2 000 triangles for the whole 8 km to 20 km annulus, at ZERO new draw
+   * calls because it is the same `block:ground` mesh. The inner edge is the
+   * plane's own vertices at the plane's own stations, so there is no T-junction
+   * to crack and no seam to read.
+   *
+   * 10 000 m IS `camera.far` PLUS THE FURTHEST A CAMERA STANDS FROM THE ORIGIN
+   * AND IS STILL OVER GROUND — 6 000 + 4 000. Past that the depth clip cuts the
+   * ground before its edge does, and the clip is already the delivered
+   * behaviour looking west from the countryside (8 370 m to the far corner
+   * against a 6 000 m far plane) where nothing reads as a line: at 6 000 m the
+   * transmittance is 0.068 at eye level and 0.10 from the air, so the clip
+   * removes 7 to 10 percent of a contrast the plane edge removes 76 percent of.
+   */
+  skirtM: 10000,
+  /**
    * `u = r/foot` out to which a hill's pad reaches. A hill is drawn as one dome
    * from ONE base height, so ground that moves under its 110–300 m foot would
    * float its rim on one side and bury it on the other — measured at **11.10 m**
@@ -16078,8 +16122,35 @@ export function generateChunk(rootSeed, cx, cz) {
     if (!nearRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)) {
       const fx = mx + cr.range(-28, 28);
       const fz = mz + cr.range(-28, 28);
+      const fy = terrainHeightAt(rootSeed, fx, fz);
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * THE PLOT IS A FARM AND ONLY THE WORKING YARD IS PAVED — SESSION 64.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * The operator's item 3 is *"the house pads read as parking lots"*, and
+       * this is the pad he is looking at: 68 x 52 m — 3 536 m2 — of
+       * `yardGround`, which `city.js` documents as worn concrete hardstanding,
+       * with a two-storey farmhouse standing in the middle of it. There are
+       * 221 of them and they are the largest single grey shape in the
+       * countryside. `HILLSIDE.driveHalfW` carries the measurement that says
+       * why the eye reads them as car parks: `yardGround`'s saturation is
+       * 0.070 against a crop's 0.40 to 0.52, so it is six to seven times
+       * flatter in chroma than everything it abuts, at almost exactly a
+       * stubble field's luminance.
+       *
+       * SO THE PLOT IS THE GROUND'S OWN MATERIAL AND THE CONCRETE IS WHERE THE
+       * MACHINERY GOES: 36 x 24 m around the barn and its apron — 864 m2, 24%
+       * of what was here — while the house keeps a garden and the silo stands
+       * on grass, which is what a farm looks like from a road. THE HARDSTANDING
+       * TAKES THE PLOT'S DATUM and not the yard's, for session 48's reason: a
+       * surface laid INSIDE another shares an edge with it, and `GROUND_Y.yard`
+       * is 0.14 m under `GROUND_Y.grass`.
+       */
       const yard = { x0: fx - 34, x1: fx + 34, z0: fz - 26, z1: fz + 26,
-        kind: 'yardGround', yKey: 'yard', yAdd: terrainHeightAt(rootSeed, fx, fz) };
+        kind: 'grass', yKey: 'grass', yAdd: fy };
+      const hard = { x0: fx - 2, x1: fx + 34, z0: fz - 6, z1: fz + 18,
+        kind: 'yardGround', yKey: 'grass', yAdd: fy };
       const along = cr.chance(0.5);
       /** The house: TWO STOREYS AT MOST AND ON A LARGE PLOT, which is the
        *  object this city does not contain — every mass inside the extent is a
@@ -16092,7 +16163,9 @@ export function generateChunk(rootSeed, cx, cz) {
           length: 14, depth: 10, height: 6.2, floors: 2, style: 'window',
           albedo: [0.36, 0.33, 0.29], trim: [0.26, 0.24, 0.21] });
         solids.push({ x0: yard.x0, x1: yard.x1, z0: yard.z0, z1: yard.z1 });
-        for (const g of subtractBoxes([yard], solids.slice(0, -1))) ground.push(g);
+        const before = solids.slice(0, -1);
+        for (const g of subtractBoxes([yard], [...before, hard])) ground.push(g);
+        for (const g of subtractBoxes([hard], before)) ground.push(g);
       }
       /** The barn: long, blank and taller than the house, which is what makes
        *  a farmstead read from a road rather than a bungalow with sheds. */
