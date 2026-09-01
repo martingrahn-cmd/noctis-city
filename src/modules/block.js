@@ -30,7 +30,7 @@ import {
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
   EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg,
-  TERRAIN, terrainHeightAt, terrainNormalAt, FARM, farmCrop, farmIndex,
+  TERRAIN, terrainHeightAt, terrainNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -1358,7 +1358,19 @@ export function createBlock(options = {}) {
          * emission and this constant at its query) agreeing only because both
          * were constant.
          */
-        return { y: GROUND.earth + terrainHeightAt(rootSeed, x, z), kind: 'earth', known: true };
+        /**
+         * AND IT IS `groundHeightAt` AND NOT `terrainHeightAt`, WHICH THE FIRST
+         * ARM GOT WRONG AND A FRAME FOUND IN TEN MINUTES. A hill's dome is
+         * drawn as an instanced mesh and is in no `rects` list, so this branch
+         * is the ONLY place in the project that can answer for the ground on a
+         * hill flank. Answering the landform there put every hedge, tree and
+         * post on a hillside forty metres under the dome, showing as a scatter
+         * of thin dark slivers where their tops broke the surface — which is
+         * STATE 62's own carried finding (*"hills are never written into
+         * `rects`, so `worldSurface` answers on a hill flank"*) made visible by
+         * the ground moving under it.
+         */
+        return { y: GROUND.earth + groundHeightAt(rootSeed, x, z), kind: 'earth', known: true };
       };
 
       // ---- buildings ------------------------------------------------------

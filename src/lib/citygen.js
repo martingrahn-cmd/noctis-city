@@ -2619,6 +2619,15 @@ export function hillRiseAt(rootSeed, x, z) {
   for (const m of hillMasses(rootSeed)) {
     const dx = x - m.x;
     const dz = z - m.z;
+    /**
+     * TWO AXIS TESTS BEFORE ANY TRIGONOMETRY — session 63. This is called per
+     * prop per chunk build and once per pedestrian per frame through
+     * `worldSurface`, and 173 hills of sin/cos/hypot on every call is a frame
+     * cost for a question that is `no` almost everywhere. The bound is the
+     * ellipse's long axis, so it can never reject a point inside the footprint.
+     */
+    const reach = m.foot * Math.max(1, m.ecc || 1);
+    if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
     const a = (-(m.bearingDeg || 0) * Math.PI) / 180;
     const c = Math.cos(a);
     const s = Math.sin(a);

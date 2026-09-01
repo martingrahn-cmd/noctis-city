@@ -2284,8 +2284,21 @@ export function createCity(options = {}) {
     let woods = 0;
     for (let i = 0; i < masses.length; i++) {
       const m = masses[i];
-      tmpPos.set(m.x, GROUND.earth, m.z);
-      tmpScale.set(m.foot * (m.ecc || 1), m.h, m.foot / (m.ecc || 1));
+      /**
+       * SESSION 63: THE DOME'S BASE IS ITS OWN `baseY` AND ITS HEIGHT ITS OWN
+       * `drawH`, AND FOR ONE COMMIT THIS LINE STILL READ `GROUND.earth` AND
+       * `m.h` WHILE `hillRiseAt` HAD ALREADY MOVED.
+       *
+       * That is CONTRACT §9 rule 7 exactly — one quantity, two readers, neither
+       * checking the other — committed by the change that was written to close
+       * it, and a frame found it inside ten minutes: a hillside villa placed at
+       * `groundHeightAt` stood on a terrace hanging in the air over a dome that
+       * was still drawn at the old datum. `hillMasses` sinks a hill to the
+       * lowest terrain height around its own rim and raises its drawn height by
+       * the same amount; this is the other half of that sentence.
+       */
+      tmpPos.set(m.x, GROUND.earth + (m.baseY || 0), m.z);
+      tmpScale.set(m.foot * (m.ecc || 1), m.drawH || m.h, m.foot / (m.ecc || 1));
       tmpQuat.setFromAxisAngle(UP_AXIS, ((m.bearingDeg || 0) * Math.PI) / 180);
       tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
       im.setMatrixAt(i, tmpMatrix);
