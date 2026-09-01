@@ -859,27 +859,52 @@ export function createBlock(options = {}) {
          * the other way because the surface it applies to is flat.
          */
         const STEP = TERRAIN.stationM;
-        const splitQuad = (xa, za0, za1, xb, zb0, zb1) => {
-          const zLo = Math.min(za0, zb0);
-          const zHi = Math.max(za1, zb1);
-          const rNear = Math.max(0, Math.min(Math.abs(xa), Math.abs(xb)));
-          /** The whole span is inside the flat disc: one quad, as before. */
-          if (Math.hypot(rNear, Math.max(Math.abs(zLo), Math.abs(zHi))) <= TERRAIN.rampStartM) {
-            quad(xa, za0, za1, xb, zb0, zb1);
-            return;
-          }
-          const n = Math.max(1, Math.ceil((zHi - zLo) / STEP));
-          if (n === 1) { quad(xa, za0, za1, xb, zb0, zb1); return; }
-          let prevA = za0;
-          let prevB = zb0;
+        /**
+         * THE FLAT MIDDLE IS ONE QUAD AND ONLY THE ENDS ARE SPLIT, AND THE
+         * FIRST ARM SPLIT THE WHOLE SPAN.
+         *
+         * The early-out asked whether the ENTIRE span was inside the flat disc.
+         * A cut-walk span runs from −E to +E at every x, so it never is, and
+         * every one of the ~700 x-intervals split its full 8 km height into 250
+         * cells: **measured, `highway_speed` went 2.32 M → 2.57 M, +252 732
+         * triangles**, where the estimate for the countryside alone was 37 000.
+         * The disc is convex, so a span crosses it in exactly ONE interval —
+         * `|z| ≤ sqrt(rampStart² − x²)` — and that interval is flat by
+         * construction and needs no vertex in it at all. Splitting only the two
+         * ends is the same surface for a fraction of the triangles.
+         */
+        const splitRun = (xa, a0, a1, xb, b0, b1) => {
+          const lo = Math.min(a0, b0);
+          const hi = Math.max(a1, b1);
+          const n = Math.max(1, Math.ceil((hi - lo) / STEP));
+          if (n === 1) { quad(xa, a0, a1, xb, b0, b1); return; }
+          let pa = a0;
+          let pb = b0;
           for (let k = 1; k <= n; k++) {
-            const cut = k === n ? 1 : (Math.floor(zLo / STEP) + k) * STEP;
-            const ta = k === n ? za1 : Math.max(za0, Math.min(za1, cut));
-            const tb = k === n ? zb1 : Math.max(zb0, Math.min(zb1, cut));
-            quad(xa, prevA, ta, xb, prevB, tb);
-            prevA = ta;
-            prevB = tb;
+            const cut = (Math.floor(lo / STEP) + k) * STEP;
+            const ta = k === n ? a1 : Math.max(a0, Math.min(a1, cut));
+            const tb = k === n ? b1 : Math.max(b0, Math.min(b1, cut));
+            quad(xa, pa, ta, xb, pb, tb);
+            pa = ta;
+            pb = tb;
           }
+        };
+        const splitQuad = (xa, za0, za1, xb, zb0, zb1) => {
+          const xFar = Math.max(Math.abs(xa), Math.abs(xb));
+          /** The half-height of the flat disc at this x-interval; 0 outside it. */
+          const zFlat = xFar >= TERRAIN.rampStartM
+            ? 0
+            : Math.sqrt(TERRAIN.rampStartM * TERRAIN.rampStartM - xFar * xFar);
+          if (zFlat <= 0) { splitRun(xa, za0, za1, xb, zb0, zb1); return; }
+          /** Snapped to the lattice so the two split ends meet it exactly. */
+          const fLo = Math.max(-zFlat, Math.min(zFlat, Math.ceil(-zFlat / STEP) * STEP));
+          const fHi = Math.max(-zFlat, Math.min(zFlat, Math.floor(zFlat / STEP) * STEP));
+          const cA = (v) => Math.max(za0, Math.min(za1, v));
+          const cB = (v) => Math.max(zb0, Math.min(zb1, v));
+          if (fHi <= fLo || fLo >= za1 || fHi <= za0) { splitRun(xa, za0, za1, xb, zb0, zb1); return; }
+          splitRun(xa, za0, cA(fLo), xb, zb0, cB(fLo));
+          quad(xa, cA(fLo), cA(fHi), xb, cB(fLo), cB(fHi));
+          splitRun(xa, cA(fHi), za1, xb, cB(fHi), zb1);
         };
 
         /**
