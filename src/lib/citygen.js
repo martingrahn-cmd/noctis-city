@@ -1962,6 +1962,61 @@ export const COUNTRYSIDE = {
    *  vertical in this landscape. */
   siloHalfM: 2.5,
   siloHeightM: 14,
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE HILL'S OWN COVER, AS OBJECTS — SESSION 65, ITEM 3.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * The operator on session 64's frame: *"the silhouette is right and the
+   * surface is bare: smooth sand above a hard line where the grass stops."*
+   * The silhouette was session 64's item and it is not reopened; what is left
+   * is that a hill in this world is a coloured patch of ground and nothing
+   * stands on it. `groundTint` paints `HILLS.hillAlbedo` (dry scrub) and
+   * `woodAlbedo` (conifer) over the dome, and NOTHING has ever been planted
+   * in either.
+   *
+   * ── THE LATTICE, AND WHY IT IS THE PLANTING AND NOT A DENSITY ──────────
+   *
+   * A candidate every `hillTreeStepM` = 16 m, jittered inside its own cell so
+   * it is a scatter and not a grid. One candidate per 256 m² is **39 per
+   * hectare** at p = 1, and the two probabilities below scale that.
+   *
+   * ── WHAT A TREE PROP IS, WHICH DECIDES THE NUMBER ─────────────────────
+   *
+   * `PROP_MODELS.tree` is five or six boxes with a crown 2.7 to 5.8 m across
+   * at the delivered `PROP_SCALE`. **At that size a prop is a CLUMP and not a
+   * stem** — closed-canopy conifer is 400 stems a hectare at maturity and
+   * 15 600 of these would be a solid block of geometry, so the quantity this
+   * pair of numbers expresses is clumps per hectare of scrub and thicket:
+   *
+   *     scrub-encroached rough grazing   10-20 clumps/ha   -> p 0.22 = 8.6/ha
+   *     a thin hill wood                 25-50 clumps/ha   -> p 0.62 = 24/ha
+   *
+   * Both are inside the range wood pasture is described at (10-50 stems per
+   * hectare of standing trees over grazed ground), and the lower one is the
+   * scrub half of a `HILLS.woodChance` roll while the upper is the conifer
+   * half — which is the SAME split `groundTint` already paints, so the colour
+   * and the objects cannot disagree about which hill is which.
+   *
+   * ── AND THE DENSITY FALLS ON THE TINT'S OWN RAMP ──────────────────────
+   *
+   * Not on a slope threshold. `groundTint` blends the hill's cover to the crop
+   * over `u` from `TERRAIN.hillCoverToU` to 1.0, and the planting reads the
+   * same `u` through the same smoothstep — so **the trees stop exactly where
+   * the scrub colour stops**, and a hill's foot is a thinning band of clumps
+   * running out into a field rather than a line of trees with an edge. One
+   * description, two consumers: CONTRACT §9 rule 7 in the direction that costs
+   * nothing.
+   *
+   * The brief asked for *"radius and slope"* and the measurement says radius
+   * carries it: `hillProfile` is monotone, the cover band IS the ground no
+   * plough reaches, and outside `u = 1` the ground is a crop parcel by
+   * construction. A slope term would be a second description of the same
+   * region with a number nobody has derived.
+   */
+  hillTreeStepM: 16,
+  hillTreeScrubP: 0.22,
+  hillTreeWoodP: 0.62,
   /** Linear reflectance of a stubble field. See `citygen`'s note: a mown lawn
    *  is [0.062, 0.094, 0.045] here (broadband ~0.08) and cereal stubble
    *  reflects about 2.1x that with straw's chromaticity — red and green nearly
@@ -16597,6 +16652,112 @@ export function generateChunk(rootSeed, cx, cz) {
           props.push({ x: t, z: tz, yawDeg: yaw(), refDeg: 0, kerb: false,
             kind: 'tree', scale, variant: tv, soil: cr.range(0.62, 1.0),
             lean: cr.range(-1, 1), leanAzDeg: cr.range(0, 360) });
+        }
+      }
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE HILLS GET THE SAME TREE — SESSION 65, ITEM 3, AND IT IS A
+     * PLACEMENT AND NOT A MECHANISM.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The brief's premise (iv) is that hill vegetation needs no new mechanism,
+     * only placement. **It is TRUE and this block is the whole of it**: the
+     * same `PROP_MODELS.tree`, the same four variants, the same `PROP_SCALE`,
+     * the same lean, the same `claimAt('prop')` offer to the registry and the
+     * same `propMatrix` base query the roadside line above uses. Nothing new
+     * is drawn, nothing new is declared, and no draw call is added — a tree on
+     * a hill rides the chunk's own box mesh exactly as a tree on a verge does.
+     *
+     * `COUNTRYSIDE.hillTree*` carries the density and its derivation.
+     *
+     * THE CHUNK IS REFUSED BEFORE THE LATTICE IS WALKED, and that is the cost
+     * control. `hillSurfaceAt` loops 179 masses; walking a 64-cell lattice on
+     * every countryside chunk would be 11 000 mass tests on the ~two thirds of
+     * them that touch no hill at all. One AABB pass over the masses answers
+     * that in 179.
+     *
+     * THE BASE IS `worldSurface` THROUGH `propMatrix`, one query per prop, the
+     * same as every other prop in this project — so a tree on a shoulder needs
+     * none of session 65's item-2 pitch. A 5.8 m crown on a 22° shoulder has
+     * its footprint corners 1.2 m apart in height, and a tree is not a rigid
+     * box laid along the ground: a trunk is plumb and a crown is a crown.
+     */
+    {
+      const step = K.hillTreeStepM;
+      /** Does any mass reach this chunk at all? 179 box tests, not 11 000. */
+      let touchesHill = false;
+      for (const m of hillMasses(rootSeed)) {
+        const reach = m.foot * Math.max(1, m.ecc || 1);
+        if (m.x + reach < b.x0 || m.x - reach > b.x1) continue;
+        if (m.z + reach < b.z0 || m.z - reach > b.z1) continue;
+        touchesHill = true;
+        break;
+      }
+      if (touchesHill) {
+        for (let px = Math.ceil(b.x0 / step) * step; px < b.x1; px += step) {
+          for (let pz = Math.ceil(b.z0 / step) * step; pz < b.z1; pz += step) {
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * INSIDE THE FLAT DISC THERE IS NO COVER TO PLANT IN — AND A
+             * MEASUREMENT PUT THIS LINE HERE.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `hillSurfaceAt` is a FOOTPRINT test and `terrainHeightAt`'s
+             * zero-inside guarantee comes from the RAMP, and the two are not
+             * the same statement. Measured over an 8 km grid at 8 m spacing,
+             * **the innermost point at which `hillSurfaceAt` returns non-null
+             * is r = 3 227.5 m** — 4.5 m INSIDE `CITY.extentEdgeM` = 3 232.
+             * The height there is still exactly 0 and nothing about session
+             * 64's guarantee is bent; what would be wrong is the tree.
+             *
+             * `groundTint` returns exactly (1,1,1) inside `TERRAIN.rampStartM`,
+             * so the ground there carries no hill cover at all — it is the
+             * city's own earth. A tree planted on it would stand on grey
+             * ground with nothing under it to explain it, which is session
+             * 42's *"a surface of about the right colour that is not there"*
+             * with the surface and the object the other way round.
+             *
+             * So this reads the same datum the tint reads. It is also what
+             * makes the claim *"no chunk inside the city changed"* true by
+             * construction rather than by 4.5 m of luck.
+             */
+            if (Math.hypot(px, pz) <= TERRAIN.rampStartM) continue;
+            const hs = hillSurfaceAt(rootSeed, px, pz);
+            if (!hs) continue;
+            /**
+             * `groundTint`'s OWN RAMP, spelt the same way it is spelt there:
+             * full cover inside `hillCoverToU`, smoothstepped to nothing at
+             * the footprint edge. The two are one description of *"how much of
+             * this square metre is hill"* and they must not drift, which is
+             * why the expression is identical rather than similar.
+             */
+            const k = Math.min(1, Math.max(0, (hs.u - TERRAIN.hillCoverToU) / (1 - TERRAIN.hillCoverToU)));
+            const cover = 1 - k * k * (3 - 2 * k);
+            if (!cr.chance(cover * (hs.wood ? K.hillTreeWoodP : K.hillTreeScrubP))) continue;
+            const tx = px + cr.range(-step / 2, step / 2);
+            const tz2 = pz + cr.range(-step / 2, step / 2);
+            if (tx < b.x0 || tx >= b.x1 || tz2 < b.z0 || tz2 >= b.z1) continue;
+            const scale = cr.range(PROP_SCALE.min, PROP_SCALE.max);
+            const variants = propVariantCount('tree');
+            const tv = variants > 0 ? cr.int(0, variants - 1) : 0;
+            const pad = propHalfWidth('tree', tv) * scale;
+            const spot = claimAt('prop', tx, tz2, pad, pad, { owner: 'hill:tree' });
+            if (reg.conflict(spot, 0, PROP_SETBACKS)) continue;
+            reg.claim(spot);
+            /**
+             * A CONIFER MASS IS DARKER THAN A HEDGEROW OAK, and `soil` is the
+             * knob that already says so — the roadside line draws 0.62..1.00.
+             * A `wood` hill takes the bottom half of that range and a scrub
+             * hill the top, so the objects sit inside the band `groundTint`
+             * paints under them instead of standing out of it.
+             */
+            props.push({ x: tx, z: tz2, yawDeg: yaw(), refDeg: 0, kerb: false,
+              kind: 'tree', scale, variant: tv,
+              soil: hs.wood ? cr.range(0.55, 0.78) : cr.range(0.70, 1.0),
+              lean: cr.range(-1, 1), leanAzDeg: cr.range(0, 360) });
+          }
         }
       }
     }

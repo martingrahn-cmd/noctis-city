@@ -169,19 +169,25 @@ function presets() {
       fov: 55,
     };
     /**
-     * THE AERIAL, AND ITS SUBJECT IS THE HILL SHOULDER WITH THE HOUSES ON IT.
+     * THE AERIAL, AND ITS SUBJECT IS THE HILL SHOULDER — 180 m, LOOKING OUT.
      *
-     * 180 m over the city's own edge, looking out along the road at the
-     * eastern cluster of `hillsideHouses` — the four the operator's aerial
-     * shows standing with open air beneath them. The target is the cluster's
-     * own centroid, so the frame follows the houses rather than a coordinate.
+     * Anchored on the eastern cluster of `hillsideHouses`, so the frame
+     * follows the houses rather than a coordinate. The camera stands BACK from
+     * the cluster and OUTSIDE the lattice, looking away from the city: the
+     * first arm stood over the city's edge looking back across it and
+     * delivered a frame that was two thirds streets, which answers none of
+     * this session's four items.
+     *
+     * The offsets are in metres from the cluster centroid and they are what
+     * puts the shoulder, its hedgerows, its planting and the horizon in one
+     * frame at 55°.
      */
     const east = hillsideHouses('1337').filter((h) => h.x > 0 && h.z > 0 && h.x < 3600);
     const cx = east.reduce((a, h) => a + h.x, 0) / Math.max(1, east.length);
     const cz = east.reduce((a, h) => a + h.z, 0) / Math.max(1, east.length);
     out['country-air'] = {
-      pos: [CITY.extentEdgeM - 260, 180, -120],
-      target: [cx + 700, 0, cz + 260],
+      pos: [cx - 380, 180, cz + 600],
+      target: [cx + 540, 0, cz - 130],
       fov: 55,
     };
   }
@@ -330,7 +336,17 @@ try {
         `  ${path.basename(file).padEnd(38)} [${shot.pos.map((v) => v.toFixed(1)).join(',')}] → ` +
           `[${shot.target.map((v) => v.toFixed(1)).join(',')}]  fov ${shot.fov}  ` +
           `wet ${Number(info.wetness).toFixed(2)}${wetArg == null ? '' : ' (pinned)'}  ` +
-          `${info.drawCalls} draws  ${info.city ? `${info.city.resident} chunks` : ''}  ` +
+          /**
+           * AND THE TRIANGLE COUNT — session 65. `perfcheck`'s ceiling is
+           * measured on four routes that all run inside the city, so a change
+           * that only adds geometry PAST `CITY.extentEdgeM` costs exactly zero
+           * there and is invisible to every gate (STATE 61 §7, carried since).
+           * This is the only place a countryside frame's own cost is a number,
+           * and a session that plants 6 093 trees out there should be able to
+           * say what they cost in the frame that shows them.
+           */
+          `${info.drawCalls} draws  ${Number(info.triangles || 0).toLocaleString('en-US')} tris  ` +
+          `${info.city ? `${info.city.resident} chunks` : ''}  ` +
           `${arrival.field ? `${arrival.field.ready}/${arrival.field.slots} field in ${waits} wait${waits === 1 ? '' : 's'}` : ''}`
       );
     }
