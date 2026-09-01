@@ -30,7 +30,7 @@ import {
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
   EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg, exitRoadPorosity,
-  TERRAIN, terrainHeightAt, terrainNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
+  TERRAIN, terrainHeightAt, groundNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
   HILLS, hillSurfaceAt,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
@@ -864,12 +864,17 @@ export function createBlock(options = {}) {
         const push = (x, z) => {
           const h = terrainHeightAt(rootSeed, x, z);
           pos.push(x, EY + h, z);
-          if (h === 0) {
-            nrmA.push(0, 1, 0);
-          } else {
-            terrainNormalAt(rootSeed, x, z, nOut);
-            nrmA.push(nOut[0], nOut[1], nOut[2]);
-          }
+          /**
+           * `groundNormalAt` AND NOT `terrainNormalAt` — SESSION 65, AND IT IS
+           * THE SAME TEST THIS LINE ALREADY DID, MOVED SOMEWHERE A SECOND
+           * READER CAN ASK IT. It read `h === 0 ? (0,1,0) : terrainNormalAt`
+           * here; session 65's feature pitch needs the same answer, and two
+           * copies of *"which normal is this ground drawn with"* is CONTRACT §9
+           * rule 7 with 1 328 features standing in the 16 m band where the two
+           * spellings disagree. Byte-identical to what this emitted before.
+           */
+          groundNormalAt(rootSeed, x, z, nOut);
+          nrmA.push(nOut[0], nOut[1], nOut[2]);
           const t = groundTint(x, z);
           colA.push(t[0], t[1], t[2]);
           /**

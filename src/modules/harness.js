@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { TAA, LAMP_BOWL } from '../core/constants.js';
 import { gaitOffset } from '../lib/gait.js';
-import { CITY } from '../lib/citygen.js';
+import { CITY, terrainNormalAt } from '../lib/citygen.js';
 
 /**
  * The traffic-saturation instrument. CONTRACT §8 — an instrument, not content.
@@ -2676,6 +2676,212 @@ export function createHarness(options = {}) {
             });
           });
           return { meshes: rows.length, rows };
+        },
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * HOW FAR A RIGID FEATURE'S ENDS ARE OFF THE GROUND IT STANDS ON —
+         * SESSION 65.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `city.js`'s feature loop takes ONE `worldSurface(f.x, f.z).y` sample
+         * at a feature's centre and composes a yaw and no pitch, so a rigid box
+         * on a slope has its ends `L · g / 2` off the surface. This reports, for
+         * every feature the delivered census recorded, the base the transform
+         * used against the ground under the four corners of its own drawn
+         * footprint.
+         *
+         * IT IS THE PLAYER'S OWN QUERY AND NOT A SECOND DESCRIPTION OF IT —
+         * `city.worldSurfaceAt`, for `surfaceCensus`'s reason one method up. A
+         * census that read `terrainHeightAt` instead would be asking the
+         * generator, which has no opinion about the plot rectangles a villa
+         * stands on, about the ribbon's hoisted stations, or about residency.
+         *
+         * THE CENTRE IS THE DATUM AND THE CORNERS ARE THE MEASUREMENT, which is
+         * the whole shape of the defect: `put` is exact at the centre by
+         * construction and can be arbitrarily wrong at the ends.
+         *
+         * `kinds` is passed IN rather than known here, because which `f.kind`
+         * values the loop serves is a fact about `city.js`'s source and
+         * `tools/featurecensus.mjs` greps it out of that file — so the two
+         * cannot disagree about the list, and a kind added to the loop appears
+         * in the census without this method being touched.
+         */
+        featureGround(kinds) {
+          const city = ctx.get('city');
+          if (!city || !city.placedClaims || !city.worldSurfaceAt) {
+            throw new Error('city.placedClaims()/worldSurfaceAt() is missing');
+          }
+          const want = new Set(kinds || []);
+          const out = [];
+          for (const c of city.placedClaims()) {
+            /**
+             * The feature loop's own record writes `owner` as `kind:edge`; no
+             * other producer in the delivered census uses that shape with a
+             * feature kind in front of the colon, and the kind list is the
+             * caller's, so a `prop` owner like `lamp:column` is refused by the
+             * list rather than by a guess about the string.
+             */
+            if (!c.owner) continue;
+            const kind = String(c.owner).split(':')[0];
+            if (!want.has(kind)) continue;
+            const x = (c.x0 + c.x1) / 2;
+            const z = (c.z0 + c.z1) / 2;
+            /**
+             * COPIED OUT AT ONCE, AND THE FIRST ARM DID NOT — `worldSurface`
+             * fills and returns ONE shared `worldOut` object and its own
+             * comment says *"THE RESULT IS TRANSIENT — copy what you keep."*
+             * Holding the reference and then querying a corner overwrites the
+             * base with the corner, so every difference below came out exactly
+             * **0.00 m** — for 6 078 features including 424 on hill shoulders,
+             * against session 64's independently measured hedge median of
+             * 1.04 m. A measurement that reports a perfect world is the loudest
+             * possible symptom and it still needed a second number to catch.
+             */
+            const base = city.worldSurfaceAt(x, z);
+            const baseY = base.y;
+            const baseKind = base.kind;
+            let err = 0;
+            for (const p of [[c.x0, c.z0], [c.x1, c.z0], [c.x0, c.z1], [c.x1, c.z1]]) {
+              const d = Math.abs(city.worldSurfaceAt(p[0], p[1]).y - baseY);
+              if (d > err) err = d;
+            }
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND WHETHER A PITCH COULD HAVE FIXED IT, WHICH IS A SECOND
+             * QUANTITY AND NOT A RESTATEMENT OF THE FIRST.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * An end off the ground has two causes and only one of them is
+             * this session's:
+             *
+             *   A SLOPE the rigid box cannot follow — `put` composes a yaw and
+             *     no pitch, so a box of plan diagonal `d` on gradient `g` has
+             *     its worst corner `d/2 · g` off a level base. A pitch removes
+             *     this one.
+             *   A STEP in the ground the box straddles — a kerb, a terrace
+             *     edge, a plot boundary. A lamp head's claim spans the
+             *     carriageway and the pavement, so a corner of it is
+             *     `BLOCK.kerbHeight` = 0.160 m up and the COLUMN is perfectly
+             *     vertical. **A pitch would not fix that and must not try**;
+             *     leaning a lamp post into a kerb is a worse frame than the one
+             *     it replaces.
+             *
+             * The predictor is `terrainNormalAt` — the same central difference
+             * `block.js` writes into the ground mesh, which is the surface the
+             * feature is standing on (STATE 64 §1b: `slopeprobe` was wrong twice
+             * by predicting from something that was not what is drawn). Where
+             * `err` and `predicted` agree, a pitch takes it out; where `err` is
+             * much the larger, the ground has a step in it and the transform is
+             * not the defect.
+             */
+            // `String(...)`: `city.js` does the same at its own `rootSeed` — `chunkRng`
+            // hashes its argument and a number and its decimal string are not the
+            // same key, which is CONTRACT §9 with a seed.
+            const n = terrainNormalAt(String(ctx.config.seed), x, z);
+            const grad = Math.hypot(n[0], n[2]) / Math.max(1e-9, n[1]);
+            const diag = Math.hypot(c.x1 - c.x0, c.z1 - c.z0);
+            out.push({
+              kind,
+              owner: c.owner,
+              x: +x.toFixed(1),
+              z: +z.toFixed(1),
+              err: +err.toFixed(4),
+              predicted: +((diag / 2) * grad).toFixed(4),
+              slopeDeg: +((Math.atan(grad) * 180) / Math.PI).toFixed(3),
+              span: +diag.toFixed(2),
+              baseKind,
+            });
+          }
+          return out;
+        },
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * EVERY BOX THAT SITS ON THE GROUND, AND HOW FAR ITS CORNERS ARE FROM
+         * IT — SESSION 65, AND IT IS THE MEASUREMENT `featureGround` IS NOT.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `featureGround` above measures **how much the ground varies under a
+         * feature's footprint**. That is the CAUSE, and it is a property of the
+         * landscape: a pitch in the transform does not change it by one
+         * millimetre, so an A/B on it reports no improvement from a repair that
+         * works. The first arm of session 65's item 2 measured exactly that and
+         * had to be told so by the numbers not moving.
+         *
+         * THIS measures the EFFECT: for every instanced box in the delivered
+         * scene whose bottom face is ON the ground at its own centre, how far
+         * the worst of its four bottom corners is from the ground under that
+         * corner. A level box on a slope reports `d/2 · g`; a box raked with the
+         * ground reports the residual curvature and nothing else.
+         *
+         * THE SELECTION IS STABLE ACROSS THE ARMS, which is what makes the A/B
+         * legible: a box qualifies on its bottom-face CENTRE being within
+         * `nearM` of the surface, and the pitch pivots each feature through its
+         * own base, so a box that qualified before qualifies after. Selecting on
+         * a corner instead would let the repair change the population it is
+         * measured over, which is CONTRACT §7.3's own failure with a filter.
+         *
+         * IT WALKS THE DELIVERED `instanceMatrix` and not a description of it.
+         * The box's four bottom corners come out of its own world matrix — the
+         * same one the GPU is handed — so a transform that composes a pitch the
+         * comment says it composes and a transform that does not are two
+         * different numbers here.
+         */
+        boxGroundCensus(opts = {}) {
+          const city = ctx.get('city');
+          if (!city || !city.worldSurfaceAt) throw new Error('city.worldSurfaceAt() is missing');
+          const nearM = opts.nearM === undefined ? 0.30 : opts.nearM;
+          const rows = [];
+          const m4 = new THREE.Matrix4();
+          const v = new THREE.Vector3();
+          ctx.scene.traverse((o) => {
+            if (!o.isInstancedMesh || !o.instanceMatrix) return;
+            if (opts.name && o.name.indexOf(opts.name) < 0) return;
+            const inst = o.instanceMatrix.array;
+            const n = Math.min(o.count, o.instanceMatrix.count);
+            for (let i = 0; i < n; i++) {
+              m4.fromArray(inst, i * 16).premultiply(o.matrixWorld);
+              const e = m4.elements;
+              /** The box's own half-extents along its three local axes. */
+              const hx = 0.5;
+              const cxw = e[12];
+              const cyw = e[13];
+              const czw = e[14];
+              /** Half the LOCAL −Y face, in world: the columns scaled by ±0.5. */
+              const dy = -0.5;
+              let worst = 0;
+              let centreGap = 0;
+              {
+                v.set(e[4] * dy + cxw, e[5] * dy + cyw, e[6] * dy + czw);
+                centreGap = v.y - city.worldSurfaceAt(v.x, v.z).y;
+              }
+              if (Math.abs(centreGap) > nearM) continue;
+              for (const sx of [-hx, hx]) {
+                for (const sz of [-hx, hx]) {
+                  v.set(
+                    e[0] * sx + e[4] * dy + e[8] * sz + cxw,
+                    e[1] * sx + e[5] * dy + e[9] * sz + cyw,
+                    e[2] * sx + e[6] * dy + e[10] * sz + czw
+                  );
+                  const d = Math.abs(v.y - city.worldSurfaceAt(v.x, v.z).y);
+                  if (d > worst) worst = d;
+                }
+              }
+              rows.push({
+                name: o.name,
+                x: +cxw.toFixed(1),
+                z: +czw.toFixed(1),
+                r: +Math.hypot(cxw, czw).toFixed(0),
+                worst: +worst.toFixed(4),
+                /** The box's plan diagonal, which is what the gradient multiplies. */
+                diag: +Math.hypot(
+                  Math.hypot(e[0], e[2]), Math.hypot(e[8], e[10])
+                ).toFixed(2),
+              });
+            }
+          });
+          return rows;
         },
 
         faults() {

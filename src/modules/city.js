@@ -115,7 +115,11 @@ import {
   distantMasses,
   distantAlbedo,
   /** Session 60 — which recreation a chunk got, for `playAreas()`'s own hours. */
-  recreationVariant
+  recreationVariant,
+  /** Session 65 — the normal the ground MESH is drawn with. See the feature
+   *  loop's pitch, and `citygen.js`'s own note on why it is not
+   *  `terrainNormalAt`. */
+  groundNormalAt
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -589,6 +593,62 @@ export function createCity(options = {}) {
   /** Hoisted for `propMatrix`: chunk build must not allocate per box. */
   const tmpLeanAxis = new THREE.Vector3();
   const tmpLeanQuat = new THREE.Quaternion();
+  /**
+   * Session 65's feature pitch. SEPARATE from `tmpLeanQuat` and not shared with
+   * it: a feature's pitch is computed ONCE per feature and read by every `put`
+   * call inside it, and `setMatrix` — which `put` calls — writes `tmpQuat`. A
+   * pitch held in a temporary the composer touches is one frame of a leaning
+   * hedgerow and a session of wondering why.
+   */
+  const tmpPitchQuat = new THREE.Quaternion();
+  const tmpPitchAxis = new THREE.Vector3();
+  const tmpPitchOff = new THREE.Vector3();
+  const groundNormalOut = [0, 1, 0];
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * WHICH FEATURE KINDS RAKE WITH THE GROUND, AND WHICH STAND PLUMB ON IT —
+   * SESSION 65.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * The feature loop's pitch (see there for the census and the two gates) is
+   * only correct for objects whose FORM follows the surface. It is a physical
+   * property of the kind and not a knob:
+   *
+   *   A FIELD BOUNDARY IS LAID ALONG THE GROUND. A hedgerow, a fence, a
+   *     railing and a low wall are set out by following the fall of the land,
+   *     which is why a hedge on a shoulder looks like a hedge and a level 12 m
+   *     box on the same shoulder has its ends 1.04 m in the air.
+   *   A LAMP COLUMN IS SET PLUMB IN A LEVELLED BASE, and so is a silo, a site
+   *     mast, a tower crane and a steel frame. Raking those is a leaning lamp
+   *     post: a worse frame than the one it replaces, and it is worse in a way
+   *     nobody would attribute to a repair to hedgerows.
+   *   A BUILDING IS CUT AND FILLED. A farmhouse, a barn, a villa and a stadium
+   *     stand on a levelled platform, which in this world is a ground rectangle
+   *     — so gate (1) already refuses them and this row is belt and braces.
+   *
+   * **THE DEFAULT IS PLUMB.** A kind added to the transform later stands
+   * upright until somebody writes it down here, because the failure mode of the
+   * omission is invisible (a floating end at the odd shoulder) and the failure
+   * mode of the wrong default is a leaning city.
+   *
+   * `parked` IS IN IT because a car standing on a slope really does tilt, and
+   * every parked vehicle in this project is on a laid surface so gate (1)
+   * refuses it anyway — it is here so that the day one is parked on a verge the
+   * answer is already right.
+   */
+  const PITCHES_WITH_GROUND = new Set([
+    /** A hedgerow, a fence, a railing, a low wall, a palisade, a mesh panel. */
+    'edge',
+    /** A grave row follows the churchyard's own fall. */
+    'graves',
+    /** A heap of spoil lies on the ground; nothing levels it first. */
+    'spoil',
+    /** A site hoarding is driven into whatever ground is there. */
+    'hoarding',
+    /** A vehicle standing on a slope stands at the slope's angle. */
+    'parked',
+  ]);
   const tmpColor = new THREE.Color();
   const tmpEuler = new THREE.Euler();
 
@@ -894,10 +954,26 @@ export function createCity(options = {}) {
     return matrices.length * BYTES_PER_INSTANCE;
   }
 
-  function setMatrix(x, y, z, sx, sy, sz, yawDeg) {
+  /**
+   * `pitchQuat` — SESSION 65, OPTIONAL, AND BYTE-IDENTICAL WHEN ABSENT.
+   *
+   * Composed on the LEFT of the yaw, which makes its axis a WORLD bearing —
+   * the same choice, in the same direction, that `propMatrix`'s whole-model
+   * `lean` makes twenty lines down, and for the same reason: the ground's fall
+   * line is a world direction and does not turn with the object standing on it.
+   * Composing on the right would make a hedgerow's rake depend on its own yaw,
+   * which is `propMatrix`'s per-box `tilt` and is correct for a tree's canopy
+   * and wrong for this.
+   *
+   * Every one of the ~100 existing callers passes seven arguments and gets
+   * `undefined` here, so `tmpQuat` is untouched and the delivered matrix is the
+   * same float for float.
+   */
+  function setMatrix(x, y, z, sx, sy, sz, yawDeg, pitchQuat) {
     tmpPos.set(x, y, z);
     tmpEuler.set(0, yawDeg * DEG, 0);
     tmpQuat.setFromEuler(tmpEuler);
+    if (pitchQuat) tmpQuat.premultiply(pitchQuat);
     tmpScale.set(sx, sy, sz);
     return tmpMatrix.compose(tmpPos, tmpQuat, tmpScale).clone();
   }
@@ -3809,8 +3885,87 @@ export function createCity(options = {}) {
          * slab 11.6 m above it. Optional and defaulting to 0, so every feature
          * written before this line is byte-identical.
          */
-        const y0 = worldSurface(ctx, f.x, f.z).y + (f.lift || 0);
+        const fSurf = worldSurface(ctx, f.x, f.z);
+        /** `worldSurface` returns ONE shared transient — copy, do not hold. */
+        const fBaseKind = fSurf.kind;
+        const y0 = fSurf.y + (f.lift || 0);
         let fx0 = Infinity; let fx1 = -Infinity; let fz0 = Infinity; let fz1 = -Infinity; let fTop = 0;
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE PITCH — SESSION 65, ITEM 2, AND IT IS THE ONE THING THIS
+         * TRANSFORM HAS NEVER COMPOSED.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `put` below takes ONE `y0` for a whole feature and composes a yaw and
+         * nothing else, so a rigid box on a slope is held level over ground that
+         * is not: its worst corner stands `d/2 · g` off the surface for a plan
+         * diagonal `d`. Session 64 measured one kind of it and declined the
+         * repair as its own session's work — **5 174 hedgerow segments on hill
+         * shoulders, ends a median 1.04 m off the ground on a 1.8 m object.**
+         *
+         * `tools/featurecensus.mjs` is the enumeration that came first, and it
+         * moved this from *"fix the hedges"* to a scope with two numbers in it:
+         *
+         *   20 kinds go through this transform, 118 `put` calls, 269 189
+         *     features over an 8.8 km square — 241 117 of them inside
+         *     `CITY.extentEdgeM`.
+         *   OF THE TOTAL DEPARTURE FROM THE GROUND, ~92% IS `edge` STANDING ON
+         *     `earth` — the terrain mesh itself — and 94-98% of THAT is
+         *     explained by the ground's own gradient at the feature's centre,
+         *     which is exactly what a pitch removes.
+         *
+         * ── TWO GATES, AND EACH ONE IS A MEASUREMENT AND NOT A PREFERENCE ──
+         *
+         * **(1) IT MUST BE STANDING ON THE TERRAIN.** A villa, a farmhouse and a
+         * silo stand on a ground RECTANGLE — a plot, a yard, a terrace — which
+         * `citygen.js` lays FLAT at one `yAdd` because a house's plot IS a
+         * terrace cut into a hillside. **Pitching a house standing on a level
+         * terrace would tip the house.** Those objects' corners hang off the
+         * ground for a different reason — the plate is smaller than the rotated
+         * building — and the brief's own premise that the two are one mechanism
+         * is FALSIFIED by the census: measured, a villa is 78-99% "pitchable" by
+         * the gradient alone and 0% once you ask what it is standing on. So the
+         * gate is `fBaseKind === 'earth'`, which is `block.js`'s answer for the
+         * terrain mesh and for nothing else.
+         *
+         * **(2) THE KIND MUST RAKE RATHER THAN STAND PLUMB.** A field boundary
+         * follows the ground; a lamp column, a silo, a site mast and a crane are
+         * built plumb on a levelled base and leaning them is a worse frame than
+         * the one it replaces. `PITCHES_WITH_GROUND` below is the table, and its
+         * DEFAULT IS PLUMB so a kind added later cannot start leaning by
+         * omission.
+         *
+         * ── AND IT IS A NO-OP IN THE CITY BY CODE PATH, NOT BY DATA ────────
+         *
+         * `groundNormalAt` returns exactly `(0, 1, 0)` wherever
+         * `terrainHeightAt` is 0, which is everywhere inside `CITY.extentEdgeM`
+         * over 512 733 samples — so `n[1] < 1` fails, no quaternion is composed,
+         * and `setMatrix` is called with `undefined` and produces the same float
+         * for float. The brief asked for "no-op" to be a claim about the code
+         * path and not about the data, and that is what this branch is.
+         */
+        let fPitch = null;
+        if (!f.lift && fBaseKind === 'earth' && PITCHES_WITH_GROUND.has(f.kind)) {
+          groundNormalAt(rootSeed, f.x, f.z, groundNormalOut);
+          const ny = groundNormalOut[1];
+          if (ny < 1) {
+            /**
+             * The rotation taking +Y to the ground's normal: `Y × n` is
+             * `(n.z, 0, −n.x)` and the angle is `acos(n.y)`. Derived rather
+             * than tried, the way every winding in this project is: for
+             * `n = (sinθ, cosθ, 0)` the axis is `(0, 0, −1)` and rotating
+             * `(0, 1, 0)` about it by `+θ` gives `(sinθ, cosθ, 0)` = n.
+             */
+            const ax = groundNormalOut[2];
+            const az = -groundNormalOut[0];
+            const L = Math.hypot(ax, az);
+            if (L > 0) {
+              tmpPitchAxis.set(ax / L, 0, az / L);
+              tmpPitchQuat.setFromAxisAngle(tmpPitchAxis, Math.acos(Math.min(1, ny)));
+              fPitch = tmpPitchQuat;
+            }
+          }
+        }
         /**
          * THE OFFSET ROTATES BY THE SAME ANGLE AS THE BOX — SESSION 56, AND
          * UNTIL THEN IT ROTATED BY THE OPPOSITE ONE. Three's rotation about +Y
@@ -3830,10 +3985,26 @@ export function createCity(options = {}) {
         const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
           const c = Math.cos(((f.yawDeg || 0) * Math.PI) / -180);
           const s = Math.sin(((f.yawDeg || 0) * Math.PI) / -180);
-          const wx = f.x + dx * c - dz * s;
-          const wz = f.z + dx * s + dz * c;
-          const m = setMatrix(wx, y0 + dy, wz, sx, sy, sz,
-            (yawDeg === undefined ? (f.yawDeg || 0) : yawDeg));
+          let wx = f.x + dx * c - dz * s;
+          let wz = f.z + dx * s + dz * c;
+          let wy = y0 + dy;
+          /**
+           * THE PITCH TURNS THE OFFSET AND THE BOX, AND IT PIVOTS THROUGH THE
+           * FEATURE'S OWN BASE. `propMatrix` twenty lines up makes the same
+           * choice for a leaning tree and says why: *"a leaning tree still
+           * pivots on the pavement it is planted in rather than about a point
+           * 0.160 m under it."* Rotating each box about its own centre instead
+           * would tilt every box and move none of them, so a raked hedgerow's
+           * segments would each lean and still sit at the same six heights.
+           */
+          if (fPitch) {
+            tmpPitchOff.set(wx - f.x, dy, wz - f.z).applyQuaternion(fPitch);
+            wx = f.x + tmpPitchOff.x;
+            wy = y0 + tmpPitchOff.y;
+            wz = f.z + tmpPitchOff.z;
+          }
+          const m = setMatrix(wx, wy, wz, sx, sy, sz,
+            (yawDeg === undefined ? (f.yawDeg || 0) : yawDeg), fPitch);
           props.push(m);
           propSkin.push({ albedo, roughness: rough });
           /**

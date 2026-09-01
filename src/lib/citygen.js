@@ -3311,6 +3311,46 @@ export function terrainNormalAt(rootSeed, x, z, out = [0, 1, 0]) {
   return out;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE NORMAL THE GROUND MESH IS DRAWN WITH — SESSION 65, AND IT IS ONE
+ * DESCRIPTION BECAUSE IT WAS ABOUT TO BECOME TWO.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `terrainNormalAt` above is the ANALYTIC normal: a central difference at
+ * `stationM / 2` = 16 m. `block.js`'s ground mesh does NOT write it everywhere
+ * — its `push()` has read `h === 0 ? (0, 1, 0) : terrainNormalAt(...)` since
+ * session 63, and the two differ in a band 16 m wide either side of
+ * `TERRAIN.rampStartM`, where the difference straddles the flat disc and
+ * reports a slope on ground that is drawn perfectly level.
+ *
+ * **MEASURED, BEFORE ANYTHING READ IT: 1 328 features stand in that band,
+ * worst 0.476°** (`tools/featurecensus.mjs`). It is small and it is inside the
+ * city, which is exactly where `terrainHeightAt` is guaranteed to be
+ * 0.000000 m over 512 733 samples and where nothing may move.
+ *
+ * So session 65's feature pitch asks THIS, not `terrainNormalAt`, and
+ * `block.js` asks it too instead of spelling the same test a second time. A
+ * feature and the ground under it now read one function: CONTRACT §9 rule 7,
+ * closed at the moment the second reader appeared rather than four sessions
+ * after it.
+ *
+ * IT IS ALSO WHAT MAKES THE PITCH A NO-OP IN THE CITY BY CODE PATH AND NOT BY
+ * DATA. Inside the disc this returns exactly `(0, 1, 0)`, the caller's
+ * `n[1] < 1` test fails, and no quaternion is composed at all — so every one of
+ * the 241 117 features inside `CITY.extentEdgeM` gets a byte-identical matrix.
+ * "No-op" is a claim about the data; this makes it a claim about the branch.
+ */
+export function groundNormalAt(rootSeed, x, z, out = [0, 1, 0]) {
+  if (terrainHeightAt(rootSeed, x, z) === 0) {
+    out[0] = 0;
+    out[1] = 1;
+    out[2] = 0;
+    return out;
+  }
+  return terrainNormalAt(rootSeed, x, z, out);
+}
+
 export function hillMasses(rootSeed) {
   if (hillCacheSeed === rootSeed && hillCacheOut) return hillCacheOut;
   const rng = chunkRng(rootSeed, 0, 0, 'hills');
