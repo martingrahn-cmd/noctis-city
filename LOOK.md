@@ -865,6 +865,52 @@ It is that the street wall is broken.
   which is the bullet above arriving as a licence rather than as a worry, and it
   is why the honest answer to *"how many houses"* is a look decision.
 
+- **AND THE GROUND STOPPED BEING A CONSTANT — SESSION 63, AND IT IS THE LAST OF
+  THE OPERATOR'S FIVE TELLS.** *"The ground dead flat to the horizon"* was the
+  one session 62 measured, costed and refused: a ground RECTANGLE carries one
+  scalar height, two rectangles sharing an edge but not a subdivision
+  T-junction, and holding that crack under this project's own 0.05 m forced
+  λ ≥ 2 000 m at A = 2.5 m — a 0.45° maximum slope, which `quad()`'s hard-coded
+  `(0, 1, 0)` normal then rendered with no shading change at all.
+
+  **BOTH BLOCKS STAND AND NEITHER APPLIES, BECAUSE THE TERRAIN STOPPED BEING A
+  GROUND RECTANGLE.** `block:ground` — the 8 km earth plane this section has
+  been arguing about since session 42 — IS the terrain now: a grid on 32 m
+  stations, per-vertex heights, per-vertex normals, per-vertex colour. Same
+  mesh, same material, **one draw call, because it was already one.**
+
+  ```
+    terrain height inside the disc r <= 3 232 m, 32 017 samples   0.000000000 m
+    relief                                                  30.6 m  [-15.8, 14.8]
+    slope  p50 1.00   p75 1.64   p90 2.08   p99 4.54   max 6.30 degrees
+    cost, on `highway_speed`, the worst route on both counts      +122 378 tris
+                                                                  +0 draw calls
+  ```
+
+  **THE FIRST QUESTION WAS WHETHER A SLOPE SHADES AT ALL, AND IT IS TWENTY
+  MINUTES RATHER THAN A SESSION.** `tools/slopeprobe.mjs` reads the delivered
+  code value across the eight azimuths of ONE hill instance — one albedo, one
+  material, one mesh, so the only thing that differs is the direction the normal
+  points. On the 7.2° shoulder it swings **45.4 of 255** and correlates with
+  `max(0, n·l)` at **r = 0.942**; at midnight, against session 56's directional
+  moon, the two steeper bands still correlate at 0.887 and 0.896. **A
+  non-vertical normal shades, and the moon reaches the countryside.**
+
+  **AND THE CROPS HAD TO LEAVE THE RECTANGLES TO GET THERE**, which is this
+  section's own lesson about surfaces arriving at a new place. A planar parcel
+  of length L on gradient g stands `L·g/2` off the ground; over `FARM`'s own
+  80–320 m parcels and the delivered slope that is **p50 1.96 m, p90 4.37 m,
+  max 7.26 m** — against a 0.05 m join tolerance and a 1.8 m hedge. So the crop
+  is a per-VERTEX tint on the terrain, read from the same `farmCrop` at the same
+  world lattice. The parcel pattern is unchanged; the boundary is soft over one
+  32 m cell now, and **the hedgerow standing on it is what the eye reads as the
+  line** — which is what a field boundary from the air actually is.
+
+  It also closes this section's own §2 debt from session 42 for nothing: the
+  plane's albedo out there was the area-weighted mean of the CITY's surfaces,
+  correct where it stands in for city and wrong where it stands in for land.
+  `tools/shot-out/custom-s63-{air-after,road-after,house4}-t0_42*.png`.
+
   **WHAT THEY DO NOT HAVE IS LIT WINDOWS, AND IT IS A FACT ABOUT THIS PROJECT
   RATHER THAN A CHOICE.** A feature's geometry goes through `put()`, which
   writes an albedo and a roughness into an instanced body mesh; the only

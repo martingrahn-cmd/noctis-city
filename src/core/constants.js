@@ -2891,8 +2891,22 @@ export const HUD = {
     cpuFrameMsP95: 12,
     wallFrameMsP95: 12.5,
     drawCalls: 440,
-    /** Session 37: 2 000 000 -> 2 360 000, derived against a MEASURED broken LOD. budget.json $triangles_s37_LOD_MEASURED. */
-    triangles: 2360000,
+    /**
+     * Session 37: 2 000 000 -> 2 360 000, derived against a MEASURED broken
+     * LOD. Session 63: -> 2 630 000, the OPERATOR's decision per STATE 57
+     * §0.1, re-measured against a defeated LOD on today's city (3 170 000 at
+     * `detailRadius = 5`). `budget.json` → `$triangles_s37_LOD_MEASURED` and
+     * `$triangles_s63_OPERATOR_GRANTED` carry both derivations.
+     *
+     * AND THIS COPY IS WHY THE PAIR IS CHECKED. `perfcheck` asserts
+     * `HUD.budgets` equals `budget.json`'s ceilings — CONTRACT §9.1's own
+     * *"a table in a budget file and a table in a module is exactly the
+     * arrangement in which `pierEvery: 34` sat beside `i % 3 === 0`"* — and
+     * session 63 moved the budget and not the copy. **`gateaudit` failed
+     * inside the same battery**, naming the key and both values, which is that
+     * check doing precisely the job it was written for.
+     */
+    triangles: 2630000,
     textureMemoryMB: 192,
     chunkMemoryMB: 96,
   },
