@@ -1641,7 +1641,7 @@ export function createCity(options = {}) {
      * pavement — so a park reads as a hole in the block at noon and as a very
      * dark hole at night, which is what a park is at both hours.
      */
-    const grassAlbedo = [0.062, 0.094, 0.045];
+    const grassAlbedo = GROUND.cropAlbedo.grass;
     /**
      * A STUBBLE FIELD — SESSION 61, AND IT IS DERIVED FROM THE LINE ABOVE.
      *
@@ -1658,7 +1658,7 @@ export function createCity(options = {}) {
      * as one carpet. `docs/authored-city.md` §1's clumping rule with a surface
      * instead of a prop.
      */
-    const fieldAlbedo = [0.186, 0.176, 0.094];
+    const fieldAlbedo = GROUND.cropAlbedo.field;
     /**
      * PLOUGHED EARTH — SESSION 62, AND IT IS THE THIRD TONE.
      *
@@ -1689,7 +1689,7 @@ export function createCity(options = {}) {
      * between them in level and past both of them in hue — so no pair of the
      * three is separated on one axis only.
      */
-    const tilledAlbedo = [0.119, 0.097, 0.071];
+    const tilledAlbedo = GROUND.cropAlbedo.tilled;
     /** Pale gravel: the same reflectance as the concrete road variant. */
     const pathAlbedo = [0.19, 0.186, 0.176];
     /**

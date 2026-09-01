@@ -2191,9 +2191,23 @@ export const FARM = {
  * `(rootSeed, axis, k)`, so every chunk that touches this line computes the
  * same number and the parcel is one parcel.
  */
+const farmLineCache = new Map();
 export function farmLine(rootSeed, axis, k) {
-  const j = chunkRng(rootSeed, k, 0, `farm:${axis}`).next() - 0.5;
-  return k * FARM.pitchM + j * 2 * FARM.jitter * FARM.pitchM;
+  /**
+   * MEMOISED — SESSION 63, AND IT IS A BUILD-TIME REPAIR. Session 62 called
+   * this a few times per chunk; session 63's terrain mesh asks `farmIndex` at
+   * every one of its ~120 000 vertices, and `farmIndex` walks up to five lines,
+   * each of which built a template string and a `mulberry32`. The key carries
+   * the seed, so two seeds in one process cannot collide.
+   */
+  const key = `${rootSeed}:${axis}:${k}`;
+  let v = farmLineCache.get(key);
+  if (v === undefined) {
+    const j = chunkRng(rootSeed, k, 0, `farm:${axis}`).next() - 0.5;
+    v = k * FARM.pitchM + j * 2 * FARM.jitter * FARM.pitchM;
+    farmLineCache.set(key, v);
+  }
+  return v;
 }
 
 /** The index of the parcel a world coordinate falls in, on one axis. */
@@ -2212,10 +2226,16 @@ export function farmIndex(rootSeed, axis, v) {
  * Which crop parcel `(kx, kz)` carries, and at what tone. A property of the
  * PARCEL, so a parcel spanning four chunks is one field in all four of them.
  */
+const farmCropCache = new Map();
 export function farmCrop(rootSeed, kx, kz) {
+  const ck = `${rootSeed}:${kx}:${kz}`;
+  const hit = farmCropCache.get(ck);
+  if (hit !== undefined) return hit;
   const rng = chunkRng(rootSeed, kx, kz, 'farm:crop');
   const kind = FARM.crops[Math.min(FARM.crops.length - 1, Math.floor(rng.next() * FARM.crops.length))];
-  return { kind, tone: rng.range(FARM.toneMin, FARM.toneMax) };
+  const out = { kind, tone: rng.range(FARM.toneMin, FARM.toneMax) };
+  farmCropCache.set(ck, out);
+  return out;
 }
 
 /**
@@ -2734,7 +2754,17 @@ export function hillsideHouses(rootSeed) {
          * is the yaw that points the house's LONG AXIS at the city and its
          * glass along the hill — the right city and the wrong face.
          */
-        yawDeg: (Math.atan2(-x, -z) * 180) / Math.PI,
+        /**
+         * AND IT IS NOT DEAD ON — SESSION 63, FROM THE OPERATOR'S READ OF
+         * SESSION 62. `tools/landprobe.mjs --houses` reported *"the GLAZED
+         * elevation against the direction to the origin, worst dot product over
+         * all 29: 1.000000"*, which was offered as evidence the yaw was right
+         * and is also the defect: twenty-nine houses aimed at one point read as
+         * a dish farm rather than as houses. A real hillside plot faces the
+         * view GENERALLY and its own approach specifically, so a third of them
+         * take the road's bearing instead and the rest are spread.
+         */
+        yawDeg: (Math.atan2(-x, -z) * 180) / Math.PI + rng.range(-22, 22),
         rise,
         tone: rng.range(0.92, 1.08),
         wall: rng.chance(0.6),
@@ -2892,6 +2922,14 @@ export const TERRAIN = {
    * line.
    */
   stationM: 32,
+  /**
+   * Metres over which the ground's COLOUR reaches its crop value. Half a chunk.
+   * It is not `rampM` because the two are different quantities: the height's
+   * ramp is bounded by the hills (see above) and the colour's is bounded by
+   * nothing, and sharing them left the ground at the city's edge at 6% of its
+   * crop colour. See `block.js` → `groundTint`.
+   */
+  tintRampM: 64,
   /**
    * `u = r/foot` out to which a hill's pad reaches. A hill is drawn as one dome
    * from ONE base height, so ground that moves under its 110–300 m foot would
@@ -15866,9 +15904,10 @@ export function generateChunk(rootSeed, cx, cz) {
           const x0 = Math.max(s.x0, o.x0);
           const x1 = Math.min(s.x1, o.x1);
           if (x1 <= x0) continue;
-          ground.push({ kind: 'grass', yKey: 'grass', x0, x1,
+          const vy = terrainHeightAt(rootSeed, (x0 + x1) / 2, exitRoadZ((x0 + x1) / 2));
+          ground.push({ kind: 'grass', yKey: 'grass', x0, x1, yAdd: vy,
             z0: s.zFar0 - K.vergeM, z1: s.zNear0 });
-          ground.push({ kind: 'grass', yKey: 'grass', x0, x1,
+          ground.push({ kind: 'grass', yKey: 'grass', x0, x1, yAdd: vy,
             z0: s.zNear1, z1: s.zFar1 + K.vergeM });
         }
       }
@@ -15888,7 +15927,7 @@ export function generateChunk(rootSeed, cx, cz) {
       const fx = mx + cr.range(-28, 28);
       const fz = mz + cr.range(-28, 28);
       const yard = { x0: fx - 34, x1: fx + 34, z0: fz - 26, z1: fz + 26,
-        kind: 'yardGround', yKey: 'yard' };
+        kind: 'yardGround', yKey: 'yard', yAdd: terrainHeightAt(rootSeed, fx, fz) };
       const along = cr.chance(0.5);
       /** The house: TWO STOREYS AT MOST AND ON A LARGE PLOT, which is the
        *  object this city does not contain — every mass inside the extent is a
@@ -16035,6 +16074,7 @@ export function generateChunk(rootSeed, cx, cz) {
         solids.push({ x0: hx - 22, x1: hx + 22,
           z0: Math.min(hz - 20, edge), z1: Math.max(hz + 20, edge) });
         const dr = { kind: 'grass', yKey: 'grass',
+          yAdd: terrainHeightAt(rootSeed, hx, hz),
           x0: hx - 22, x1: hx + 22,
           z0: Math.min(hz - 20, edge), z1: Math.max(hz + 20, edge) };
         for (const g of subtractBoxes([dr], [{ x0: hBox.x0, x1: hBox.x1, z0: hBox.z0, z1: hBox.z1 }])) ground.push(g);
@@ -16069,6 +16109,7 @@ export function generateChunk(rootSeed, cx, cz) {
       const layTo = Math.min(lspan.x1, along + 26);
       for (const s2 of exitRoadSpans(layFrom, layTo, EXIT_ROAD.vergeStationM)) {
         ground.push({ kind: 'parkingGround', yKey: 'parking',
+          yAdd: terrainHeightAt(rootSeed, (s2.x0 + s2.x1) / 2, exitRoadZ((s2.x0 + s2.x1) / 2)),
           x0: s2.x0, x1: s2.x1,
           z0: side > 0 ? s2.zNear1 : s2.zFar0 - K.vergeM,
           z1: side > 0 ? s2.zFar1 + K.vergeM : s2.zNear0 });
@@ -16148,8 +16189,28 @@ export function generateChunk(rootSeed, cx, cz) {
      * lines and hash the same crop, so what the frame shows is one field
      * crossing a chunk boundary rather than two fields meeting on one.
      */
-    const xs = [b.x0, ...farmLinesIn(rootSeed, 'x', b.x0, b.x1), b.x1];
-    const zs = [b.z0, ...farmLinesIn(rootSeed, 'z', b.z0, b.z1), b.z1];
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE CROPS ARE NOT RECTANGLES ANY MORE — SESSION 63.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * A planar parcel of length L on gradient g stands `L·g/2` off the ground.
+     * The delivered terrain is p50 1.00° and p90 2.08°, and `FARM` parcels run
+     * 80 to 320 m — so a parcel rides its own ground by **1.8 m at the median
+     * and 3.6 m at the ninetieth percentile**, which no hedgerow hides and no
+     * subdivision fixes without becoming arm B. The crop is a per-VERTEX tint
+     * on the terrain mesh now (`block.js` → `groundTint`), read from this same
+     * `farmCrop` at this same world lattice, so the parcel pattern is unchanged
+     * and only the surface carrying it moved.
+     *
+     * WHAT IS STILL A RECTANGLE IS EVERYTHING SMALL ENOUGH TO BE A TERRACE —
+     * the verge, the lay-by, a farm yard, a house plot — and each of those
+     * takes `yAdd` from the terrain at its own centre, which is session 62's
+     * own finding that this vocabulary expresses a terrace and not a slope,
+     * used where it is exactly right.
+     */
+    const xs = [];
+    const zs = [];
     for (let i = 0; i + 1 < xs.length; i++) {
       for (let j = 0; j + 1 < zs.length; j++) {
         /**

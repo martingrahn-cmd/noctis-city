@@ -752,6 +752,24 @@ export const GROUND = {
    * about the same pair of files.
    */
   coreAlbedo: [0.105, 0.102, 0.096],
+  /**
+   * THE THREE CROPS, MOVED HERE IN SESSION 63 BECAUSE A SECOND FILE NOW READS
+   * THEM. Sessions 61 and 62 derived all three in `city.js`'s `buildGround`,
+   * where they were local constants because one function used them. Session 63
+   * puts the crops on the terrain mesh, which `block.js` builds — so they cross
+   * a module boundary, and a second copy of a reflectance is CONTRACT §9.1's
+   * config-the-code-does-not-read with a colour. The derivations stay in
+   * `city.js` beside `GROUND_ALBEDO`, which is where a reader looks for them.
+   *
+   *   grass   [0.062, 0.094, 0.045]   pasture, luminance 0.0837, R/G 0.66
+   *   field   [0.186, 0.176, 0.094]   cereal stubble, 0.1722, 1.06
+   *   tilled  [0.119, 0.097, 0.071]   ploughed earth,  0.1000, 1.22
+   */
+  cropAlbedo: {
+    grass: [0.062, 0.094, 0.045],
+    field: [0.186, 0.176, 0.094],
+    tilled: [0.119, 0.097, 0.071],
+  },
 };
 
 /**

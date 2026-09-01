@@ -30,6 +30,7 @@ import {
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
   EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg,
+  TERRAIN, terrainHeightAt, terrainNormalAt, FARM, farmCrop, farmIndex,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -418,6 +419,7 @@ export function createBlock(options = {}) {
   root.name = 'block';
 
   let shopLights = [];
+  let groundTriangles = 0;
   let lampLights = [];
   let signLights = [];
   let lampMaterial = null;
@@ -477,6 +479,15 @@ export function createBlock(options = {}) {
        * plane has the river cut out of it. See the ground mesh.
        */
       const riverEnabled = String(ctx.config.river ?? 1) !== '0';
+      /**
+       * The world's seed, as `citygen.js` spells it. Every generator in this
+       * project keys on `String(ctx.config.seed)`, and a Number here would hash
+       * to a different lattice from the one `city.js` draws — CONTRACT §9.1
+       * with a type instead of a value. Declared at the top of `init` because
+       * three things read it: the earth plane's terrain, the exit road's
+       * ribbon, and `blockSurfaceAt`.
+       */
+      const rootSeed = String(ctx.config.seed);
       const rngLayout = ctx.rng('block:layout');
       const rngWindows = ctx.rng('block:windows');
       const rngSigns = ctx.rng('block:signs');
@@ -524,6 +535,13 @@ export function createBlock(options = {}) {
        * and a third redder. Session 42.
        */
       const matGround = surfaceMaterial(ctx, { color: 0xffffff, roughness: 0.95 });
+      /**
+       * SESSION 63: the earth plane carries a per-vertex tint (see `groundTint`
+       * below). `color` keeps `GROUND.earthAlbedo` and three multiplies the
+       * two, so a tint of (1,1,1) — which is every vertex inside the city — is
+       * exactly what shipped before.
+       */
+      matGround.vertexColors = true;
       matGround.color.setRGB(
         GROUND.earthAlbedo[0], GROUND.earthAlbedo[1], GROUND.earthAlbedo[2],
         THREE.LinearSRGBColorSpace,
@@ -720,14 +738,148 @@ export function createBlock(options = {}) {
       {
         const E = cfg.groundExtent;
         const pos = [];
+        /**
+         * The world's seed, as `citygen.js` spells it. Every generator in this
+         * project keys on `String(ctx.config.seed)` and a Number here would
+         * hash to a different lattice from the one `city.js` draws — CONTRACT
+         * §9.1 with a type instead of a value.
+         */
+        /**
+         * A PER-VERTEX TINT ON THE EARTH PLANE — session 63, and it closes the
+         * one item session 62 costed and declined.
+         *
+         * STATE 62 §4: *"The base earth past the city is still
+         * `GROUND.earthAlbedo`, which session 42 derived as the area-weighted
+         * mean of the CITY's own surfaces — correct where it stands in for city
+         * and wrong where it stands in for land. The countryside's own
+         * area-weighted mean is [0.113, 0.115, 0.066], i.e. 44% less blue, and
+         * that blue is most of why the far ground reads as sand. Closing it
+         * means a per-vertex colour on the earth plane, which needs the plane
+         * tessellated in z."* The plane is tessellated in z now, so it closes.
+         *
+         * AND IT IS THE CROP AND NOT A MEAN. The terrain replaces the
+         * countryside's crop rectangles, so the tint is the parcel's own
+         * reflectance and tone out of `FARM` — the same `farmCrop` the
+         * rectangles used, at the same world lattice — divided by the plane's
+         * own `earthAlbedo` because `matGround.color` still carries that and
+         * three multiplies the two. A tint of exactly (1,1,1) inside the ramp
+         * is therefore byte-identical to every frame before this session.
+         */
+        const tintOut = [1, 1, 1];
+        const groundTint = (x, z) => {
+          const r = Math.hypot(x, z);
+          if (r <= TERRAIN.rampStartM) { tintOut[0] = 1; tintOut[1] = 1; tintOut[2] = 1; return tintOut; }
+          /**
+           * THE COLOUR RAMPS FASTER THAN THE HEIGHT, and the first arm shared
+           * the ramp. `TERRAIN.rampM` is 192 m and is set by the HILLS — the
+           * distance the land needs to rise without an escarpment — and using
+           * it for the tint put the ground at the city's edge at 6% of its crop
+           * colour, so a car's eye at x = 3 260 saw the city's own pale grey
+           * where session 62 had a field. Height and colour are two quantities
+           * and only one of them has a geometric constraint: `tintRampM` is 64,
+           * which is half a chunk, so the crop arrives about where the
+           * countryside's own first chunk boundary is.
+           */
+          const u = Math.min(1, (r - TERRAIN.rampStartM) / TERRAIN.tintRampM);
+          const t = u * u * (3 - 2 * u);
+          const c = farmCrop(rootSeed, farmIndex(rootSeed, 'x', x), farmIndex(rootSeed, 'z', z));
+          const alb = GROUND.cropAlbedo[c.kind] || GROUND.cropAlbedo.grass;
+          for (let i = 0; i < 3; i++) {
+            tintOut[i] = 1 + t * ((alb[i] * c.tone) / GROUND.earthAlbedo[i] - 1);
+          }
+          return tintOut;
+        };
         // `GROUND.earth`, not a literal: this plane is the reference the whole
         // datum is stated against (constants.js → GROUND), and it was the same
         // −0.02 in four places across two files until session 19.
         const EY = GROUND.earth;
+        const nrmA = [];
+        const colA = [];
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THIS PLANE IS THE TERRAIN NOW — SESSION 63, AND IT IS THE SAME MESH,
+         * THE SAME MATERIAL AND THE SAME ONE DRAW CALL.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `citygen.js` → `terrainHeightAt` carries the whole derivation and the
+         * measurement. What changes here is that a vertex's `y` is
+         * `GROUND.earth + terrainHeightAt(x, z)` instead of a scalar, that it
+         * carries its own NORMAL from `terrainNormalAt` instead of a hard-coded
+         * `(0, 1, 0)`, and that it carries a per-vertex TINT.
+         *
+         * **THE TERRAIN IS THE EARTH PLANE AND NOT A SURFACE OVER IT**, and
+         * that is what makes session 62's second refusal moot rather than
+         * overturned. Session 62 argued a non-negative field was forced,
+         * because the countryside's quads sit 0.160 m above the plane and *"any
+         * corner that drops further puts `block:ground` through the field"*.
+         * True of terrain laid OVER the plane; this one IS the plane, so there
+         * is nothing underneath to sink through and the land may fall as well
+         * as rise — which is the operator's own test phrase for the session.
+         *
+         * ZERO NEW DRAW CALLS, which is the brief's binding constraint:
+         * `highway_speed` measures **402 of 440** and this mesh is already one
+         * of them.
+         *
+         * THE TINT IS A MULTIPLIER AND NOT A COLOUR, so `matGround.color` stays
+         * `GROUND.earthAlbedo` and a tint of (1,1,1) is byte-identical to every
+         * frame this project has shipped. Inside the city that is what it is.
+         */
+        const nOut = [0, 1, 0];
+        const push = (x, z) => {
+          const h = terrainHeightAt(rootSeed, x, z);
+          pos.push(x, EY + h, z);
+          if (h === 0) {
+            nrmA.push(0, 1, 0);
+          } else {
+            terrainNormalAt(rootSeed, x, z, nOut);
+            nrmA.push(nOut[0], nOut[1], nOut[2]);
+          }
+          const t = groundTint(x, z);
+          colA.push(t[0], t[1], t[2]);
+        };
         const quad = (xa, za0, za1, xb, zb0, zb1) => {
           if (za1 - za0 <= 0 || zb1 - zb0 <= 0) return;
-          pos.push(xa, EY, za0, xb, EY, zb1, xb, EY, zb0);
-          pos.push(xa, EY, za0, xa, EY, za1, xb, EY, zb1);
+          push(xa, za0); push(xb, zb1); push(xb, zb0);
+          push(xa, za0); push(xa, za1); push(xb, zb1);
+        };
+        /**
+         * A QUAD SPLIT ON THE TERRAIN'S OWN STATION LATTICE. A trapezoid from
+         * the cut walk above can span the whole 8 km in z, and a flat quad
+         * cannot carry a landform however good its corners are. This splits it
+         * on multiples of `TERRAIN.stationM` — and ONLY where the terrain is
+         * not zero, because inside `TERRAIN.rampStartM` the surface is exactly
+         * flat and a split there buys nothing and costs two triangles.
+         *
+         * THE SPLIT IS ON THE WORLD LATTICE AND NOT ON A COUNT, so two quads
+         * that meet share their split vertices exactly and no T-junction can
+         * open between them. Where a flat span meets a split one the vertices
+         * differ — and that is harmless for the only reason it can be: both
+         * sides are at exactly `EY` there, so a T-junction on a plane leaves no
+         * gap. It is the same argument session 62 used to refuse arm B, running
+         * the other way because the surface it applies to is flat.
+         */
+        const STEP = TERRAIN.stationM;
+        const splitQuad = (xa, za0, za1, xb, zb0, zb1) => {
+          const zLo = Math.min(za0, zb0);
+          const zHi = Math.max(za1, zb1);
+          const rNear = Math.max(0, Math.min(Math.abs(xa), Math.abs(xb)));
+          /** The whole span is inside the flat disc: one quad, as before. */
+          if (Math.hypot(rNear, Math.max(Math.abs(zLo), Math.abs(zHi))) <= TERRAIN.rampStartM) {
+            quad(xa, za0, za1, xb, zb0, zb1);
+            return;
+          }
+          const n = Math.max(1, Math.ceil((zHi - zLo) / STEP));
+          if (n === 1) { quad(xa, za0, za1, xb, zb0, zb1); return; }
+          let prevA = za0;
+          let prevB = zb0;
+          for (let k = 1; k <= n; k++) {
+            const cut = k === n ? 1 : (Math.floor(zLo / STEP) + k) * STEP;
+            const ta = k === n ? za1 : Math.max(za0, Math.min(za1, cut));
+            const tb = k === n ? zb1 : Math.max(zb0, Math.min(zb1, cut));
+            quad(xa, prevA, ta, xb, prevB, tb);
+            prevA = ta;
+            prevB = tb;
+          }
         };
 
         /**
@@ -782,6 +934,13 @@ export function createBlock(options = {}) {
         xs.add(-E);
         xs.add(E);
         for (const st of rims) for (const s of st) xs.add(s.x);
+        /**
+         * AND THE TERRAIN'S OWN STATIONS IN x, so the plane is a grid rather
+         * than a strip. They cost almost nothing inside the ramp, where every
+         * z-span is still emitted as ONE quad by `splitQuad`'s flat early-out —
+         * two triangles a station a span.
+         */
+        for (let x = -E; x <= E; x += TERRAIN.stationM) xs.add(x);
         const stations = [...xs].filter((x) => x >= -E && x <= E).sort((a, b) => a - b);
 
         for (let i = 0; i < stations.length - 1; i++) {
@@ -811,18 +970,18 @@ export function createBlock(options = {}) {
           let za = -E;
           let zb = -E;
           for (const [ca, cb] of cuts) {
-            quad(xa, za, ca.north, xb, zb, cb.north);
+            splitQuad(xa, za, ca.north, xb, zb, cb.north);
             za = ca.south;
             zb = cb.south;
           }
-          quad(xa, za, E, xb, zb, E);
+          splitQuad(xa, za, E, xb, zb, E);
         }
         const arr = new Float32Array(pos);
         groundGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-        const nrm = new Float32Array(arr.length);
-        for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
-        groundGeo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+        groundGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrmA), 3));
+        groundGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colA), 3));
         groundGeo.computeBoundingSphere();
+        groundTriangles = arr.length / 9;
       }
       const ground = new THREE.Mesh(track(groundGeo), matGround);
       ground.position.y = 0;
@@ -982,8 +1141,20 @@ export function createBlock(options = {}) {
           const za1 = ca + ha;
           const zb0 = cb - hb;
           const zb1 = cb + hb;
-          pos.push(xa, RY, za0, xb, RY, zb1, xb, RY, zb0);
-          pos.push(xa, RY, za0, xa, RY, za1, xb, RY, zb1);
+          /**
+           * SESSION 63: THE RIBBON FOLLOWS THE LAND IN SECTION. The brief's
+           * item 4a — *"this is the one a player meets at car height and the
+           * one that must not step"* — and it does not step because the strip
+           * is already tessellated at `EXIT_ROAD.stationM` = 8 m through the
+           * curve, which is four times finer than the terrain's own 32 m
+           * station. The height is taken at the CENTRELINE and applied across
+           * the carriageway, so the road is level across its width and rides
+           * the land along its length, which is what a road is.
+           */
+          const ya = RY + terrainHeightAt(rootSeed, xa, ca);
+          const yb = RY + terrainHeightAt(rootSeed, xb, cb);
+          pos.push(xa, ya, za0, xb, yb, zb1, xb, yb, zb0);
+          pos.push(xa, ya, za0, xa, ya, za1, xb, yb, zb1);
         }
         const arr = new Float32Array(pos);
         roadGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
@@ -1114,7 +1285,9 @@ export function createBlock(options = {}) {
          * disagree about where the road is.
          */
         if (Math.abs(z - exitRoadZ(x)) <= exitRoadHalfM(x) && ax <= cfg.groundExtent) {
-          return { y: GROUND.carriageway, kind: 'road', known: true };
+          /** SESSION 63: the ribbon follows the land, in section as well as in
+           *  plan (brief item 4a), and this is what a car's wheels are told. */
+          return { y: GROUND.carriageway + terrainHeightAt(rootSeed, x, exitRoadZ(x)), kind: 'road', known: true };
         }
         /**
          * THE BACK OF THE BLOCK — session 51, and it is read off `CORE_QUADS`
@@ -1151,7 +1324,16 @@ export function createBlock(options = {}) {
          */
         const basin = basinSurfaceAt(x, z);
         if (basin) return basin;
-        return { y: GROUND.earth, kind: 'earth', known: true };
+        /**
+         * THE EARTH IS THE TERRAIN — SESSION 63, AND IT IS THE OTHER HALF OF
+         * THE MESH ABOVE. `block:ground`'s vertices are
+         * `GROUND.earth + terrainHeightAt` and this is what a boot standing on
+         * them is told; two datums for one plane is CONTRACT §9 rule 7, and
+         * this file already held both of them (the plane's `EY` at its
+         * emission and this constant at its query) agreeing only because both
+         * were constant.
+         */
+        return { y: GROUND.earth + terrainHeightAt(rootSeed, x, z), kind: 'earth', known: true };
       };
 
       // ---- buildings ------------------------------------------------------
