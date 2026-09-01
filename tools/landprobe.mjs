@@ -59,7 +59,7 @@ const args = new Map(process.argv.slice(2).map((a) => {
 }));
 const SEED = args.get('seed') || BUDGET.capture.params.seed || 1337;
 const S = CITY.chunkSize;
-const ALL = !['road', 'lamps', 'fields', 'hills', 'houses'].some((k) => args.has(k));
+const ALL = !['road', 'lamps', 'fields', 'hills', 'houses', 'terrain'].some((k) => args.has(k));
 const f2 = (n, w = 8) => n.toFixed(2).padStart(w);
 const f1 = (n, w = 7) => n.toFixed(1).padStart(w);
 
@@ -416,6 +416,106 @@ function houses() {
   console.log(`  it is ZERO — no route reaches within 1 696 m of CITY.extentEdgeM.\n`);
 }
 
+// ---------------------------------------------------------------------------
+// 6. THE TERRAIN
+// ---------------------------------------------------------------------------
+function terrain() {
+  console.log('=== 6. THE GROUND AS A FUNCTION OF POSITION — SESSION 63 ===\n');
+  console.log(`  ramp ${TERRAIN.rampStartM} -> ${TERRAIN.rampStartM + TERRAIN.rampM} m`
+    + `   station ${TERRAIN.stationM} m   tint ramp ${TERRAIN.tintRampM} m`);
+  console.log(`  octaves  ${TERRAIN.longAmpM} m / ${TERRAIN.longPeriodM} m  +  ${TERRAIN.shortAmpM} m / ${TERRAIN.shortPeriodM} m\n`);
+
+  /** THE GUARANTEE: exactly zero inside the city, on the DISC and not a square. */
+  let maxIn = 0;
+  let n = 0;
+  for (let x = -CITY.extentEdgeM; x <= CITY.extentEdgeM; x += TERRAIN.stationM) {
+    for (let z = -CITY.extentEdgeM; z <= CITY.extentEdgeM; z += TERRAIN.stationM) {
+      if (Math.hypot(x, z) > CITY.extentEdgeM) continue;
+      n++;
+      maxIn = Math.max(maxIn, Math.abs(groundHeightAt(SEED, x, z)));
+    }
+  }
+  console.log(`  inside the disc r <= ${CITY.extentEdgeM}, over ${n} samples:`);
+  let maxT = 0;
+  for (let x = -CITY.extentEdgeM; x <= CITY.extentEdgeM; x += TERRAIN.stationM) {
+    for (let z = -CITY.extentEdgeM; z <= CITY.extentEdgeM; z += TERRAIN.stationM) {
+      if (Math.hypot(x, z) > CITY.extentEdgeM) continue;
+      maxT = Math.max(maxT, Math.abs(terrainHeightAt(SEED, x, z)));
+    }
+  }
+  console.log(`    terrainHeightAt  ${maxT.toFixed(9)} m`);
+  console.log(`    groundHeightAt   ${maxIn.toFixed(3)} m  — the hills, whose feet reach 182 m`);
+  console.log('      inside the lattice edge (STATE 61) and which this does not move.\n');
+
+  const hs = [];
+  const gs = [];
+  for (let x = -4000; x <= 4000; x += TERRAIN.stationM) {
+    for (let z = -4000; z <= 4000; z += TERRAIN.stationM) {
+      if (Math.hypot(x, z) < TERRAIN.rampStartM) continue;
+      hs.push(terrainHeightAt(SEED, x, z));
+      const nn = terrainNormalAt(SEED, x, z);
+      gs.push((Math.acos(Math.min(1, nn[1])) * 180) / Math.PI);
+    }
+  }
+  hs.sort((a, b) => a - b);
+  gs.sort((a, b) => a - b);
+  const q = (a, p) => a[Math.floor(p * (a.length - 1))];
+  console.log(`  over ${hs.length} stations outside the ramp start:`);
+  console.log(`    relief  ${(q(hs, 1) - q(hs, 0)).toFixed(1)} m   [${q(hs, 0).toFixed(1)}, ${q(hs, 1).toFixed(1)}]`);
+  console.log(`    slope   p50 ${q(gs, 0.5).toFixed(2)}  p75 ${q(gs, 0.75).toFixed(2)}  p90 ${q(gs, 0.9).toFixed(2)}`
+    + `  p99 ${q(gs, 0.99).toFixed(2)}  max ${q(gs, 1).toFixed(2)} deg\n`);
+
+  /** NO DOME RIM MAY FLOAT. The sink's own falsifying case. */
+  const M = hillMasses(SEED);
+  let float = 0;
+  let worstF = 0;
+  const buried = [];
+  for (const m of M) {
+    const ax = m.foot * (m.ecc || 1);
+    const az = m.foot / (m.ecc || 1);
+    const b = ((m.bearingDeg || 0) * Math.PI) / 180;
+    for (let k = 0; k < 48; k++) {
+      const th = (k / 48) * Math.PI * 2;
+      const lx = Math.cos(th) * ax;
+      const lz = Math.sin(th) * az;
+      const px = m.x + lx * Math.cos(b) - lz * Math.sin(b);
+      const pz = m.z + lx * Math.sin(b) + lz * Math.cos(b);
+      const d = m.baseY - terrainHeightAt(SEED, px, pz);
+      if (d > 1e-9) { float++; worstF = Math.max(worstF, d); } else buried.push(-d);
+    }
+  }
+  buried.sort((a, b) => a - b);
+  console.log(`  the sink, over 48 rim samples x ${M.length} hills:`);
+  console.log(`    rims FLOATING above the ground   ${float} of ${48 * M.length}, worst ${worstF.toFixed(4)} m`);
+  console.log('      — against the 0.05 m every join in this project is built with');
+  console.log(`    buried   p50 ${q(buried, 0.5).toFixed(2)}  p90 ${q(buried, 0.9).toFixed(2)}  max ${q(buried, 1).toFixed(2)} m`);
+  const sinks = M.map((m) => m.drawH - m.h).sort((a, b) => a - b);
+  console.log(`    sink     p50 ${q(sinks, 0.5).toFixed(2)}  p90 ${q(sinks, 0.9).toFixed(2)}  max ${q(sinks, 1).toFixed(2)} m`);
+  console.log('');
+  /** WHAT A PLANAR PARCEL WOULD HAVE COST — brief item 4b. */
+  const step = [];
+  const xl = farmLinesIn(SEED, 'x', 25 * S - FARM.pitchM * 2, 34 * S + FARM.pitchM * 2).sort((a, b) => a - b);
+  for (let i = 0; i + 1 < xl.length; i++) {
+    const L = xl[i + 1] - xl[i];
+    const mid = (xl[i] + xl[i + 1]) / 2;
+    for (let z = -4 * S; z < 5 * S; z += 64) {
+      if (Math.hypot(mid, z) < TERRAIN.rampStartM) continue;
+      const nn = terrainNormalAt(SEED, mid, z);
+      step.push((L / 2) * Math.hypot(nn[0], nn[2]) / Math.max(1e-6, nn[1]));
+    }
+  }
+  step.sort((a, b) => a - b);
+  if (step.length) {
+    console.log('  WHY THE CROPS ARE NOT RECTANGLES (brief item 4b): a planar parcel of');
+    console.log('  length L on gradient g stands L*g/2 off the ground. Over the rim\'s own');
+    console.log(`  parcel widths and the delivered gradient, ${step.length} samples:`);
+    console.log(`    p50 ${q(step, 0.5).toFixed(2)}  p90 ${q(step, 0.9).toFixed(2)}  max ${q(step, 1).toFixed(2)} m`);
+    console.log("    against the 0.05 m every join in this project uses, and a 1.8 m hedge.");
+  }
+  console.log('');
+}
+
+if (ALL || args.has('terrain')) terrain();
 if (ALL || args.has('road')) road();
 if (ALL || args.has('lamps')) lamps();
 if (ALL || args.has('fields')) fields();
