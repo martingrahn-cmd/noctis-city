@@ -48,7 +48,7 @@ import { readFile } from 'node:fs/promises';
 import {
   CITY, BLOCK_KEEPOUT, cityExtentAt, chunkBounds, generateChunk,
   EXIT_ROAD, exitRoadZ, exitRoadYawDeg, exitRoadHalfM, exitRoadSpans, exitRoadOwnSpans,
-  FARM, farmLinesIn, HILLSIDE, hillMasses, hillProfile, groundHeightAt, hillsideHouses,
+  FARM, farmLinesIn, HILLSIDE, hillMasses, hillProfile, groundHeightAt, hillsideHouses, hillRiseAt,
   TERRAIN, terrainHeightAt, terrainNormalAt,
 } from '../src/lib/citygen.js';
 
@@ -313,29 +313,19 @@ function hills() {
     }
     return o;
   };
-  const rs = RINGS.map(ringPts);
-  let tris = 0; let up = 0; let minY = 1;
-  const tri = (p, q, r) => {
-    const ux = q[0] - p[0]; const uy = q[1] - p[1]; const uz = q[2] - p[2];
-    const vx = r[0] - p[0]; const vy = r[1] - p[1]; const vz = r[2] - p[2];
-    const ny = uz * vx - ux * vz;
-    const L = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx) || 1;
-    tris++;
-    if (ny / L > 0) up++;
-    minY = Math.min(minY, ny / L);
-  };
-  for (let k = 0; k < rs.length - 1; k++) {
-    const a = rs[k]; const b = rs[k + 1];
-    for (let i = 0; i < RAD; i++) {
-      if (k === 0) { tri(a[i], b[i + 1], b[i]); continue; }
-      tri(a[i], b[i + 1], b[i]);
-      tri(a[i], a[i + 1], b[i + 1]);
-    }
-  }
-  console.log('  WINDING, CHECKED FROM OUTSIDE THE INSTRUMENT (CONTRACT §7.7):');
-  console.log(`    ${tris} triangles a hill,  face normal .y > 0 on ${up} of ${tris},  min .y ${minY.toFixed(4)}`);
-  console.log(`    (the first arm had ${tris} of ${tris} pointing DOWN and rendered as black spikes)\n`);
-
+  /**
+   * THE WINDING CHECK THAT STOOD HERE IS GONE WITH THE MESH IT CHECKED —
+   * SESSION 64. `city:hills` was 173 instances of a 40-triangle lathe and this
+   * read its own ring geometry to prove the faces pointed up, which session 62
+   * needed because the first arm's did not. There is no lathe now: the domes
+   * are a term of `terrainHeightAt` and `block:ground` draws them with the
+   * terrain's own vertex normals, so the question the check asked is answered
+   * by the terrain section above and by `tools/slopeprobe.mjs`, which measures
+   * DELIVERED pixels against `max(0, n.l)` rather than geometry against a sign.
+   *
+   * The band table below survives because it is about `hillProfile`, which is
+   * still the dome's shape and is now read by the terrain instead of a lathe.
+   */
   console.log('  BAND SLOPES, degrees, new profile against the hemisphere it replaces:\n');
   console.log('    hill                      0-0.50   0.50-0.82   0.82-1.00');
   const M = hillMasses(SEED);
@@ -360,7 +350,8 @@ function hills() {
   const ecc = M.map((m) => m.ecc || 1).sort((a, b) => a - b);
   console.log(`\n  masses ${M.length} (${M.filter((m) => !m.wood).length} crowns, ${M.filter((m) => m.wood).length} woods)`);
   console.log(`  plan eccentricity  min ${ecc[0].toFixed(2)}  p50 ${ecc[Math.floor(ecc.length / 2)].toFixed(2)}  max ${ecc[ecc.length - 1].toFixed(2)}`);
-  console.log(`  triangles ${M.length * tris} at ONE draw call\n`);
+  console.log('  triangles 0, draw calls 0 — the domes are terrain since session 64');
+  console.log('    (they were 173 instances of a 40-triangle lathe: 6 920 triangles at one draw)\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -409,7 +400,8 @@ function houses() {
   if (grads.length) {
     console.log(`\n  ground slope at the house, off the delivered surface:`);
     console.log(`    min ${f1(grads[0])}  p50 ${f1(grads[Math.floor(grads.length / 2)])}  max ${f1(grads[grads.length - 1])} deg`);
-    console.log(`    (the placement refuses anything over ${((Math.atan(0.60) * 180) / Math.PI).toFixed(1)} deg)`);
+    console.log(`    (the placement refuses anything over ${((Math.atan(0.18) * 180) / Math.PI).toFixed(1)} deg —`
+      + ' session 64 moved it from 0.60 to the 0.18 its own comment derives)');
   }
   console.log(`\n  cost: 10 boxes = 120 triangles a house, riding the chunk's own`);
   console.log(`  :masses instanced mesh at zero new draw calls. Against the gate routes`);
@@ -465,33 +457,73 @@ function terrain() {
   console.log(`    slope   p50 ${q(gs, 0.5).toFixed(2)}  p75 ${q(gs, 0.75).toFixed(2)}  p90 ${q(gs, 0.9).toFixed(2)}`
     + `  p99 ${q(gs, 0.99).toFixed(2)}  max ${q(gs, 1).toFixed(2)} deg\n`);
 
-  /** NO DOME RIM MAY FLOAT. The sink's own falsifying case. */
+  /**
+   * THE HILLS ARE A TERM OF THE TERRAIN SINCE SESSION 64, so there is no rim to
+   * float and no sink to check. What is worth printing instead is what the
+   * lattice does to a dome: whether its apex survives the sampling, and what
+   * the outermost cell's slope is where it meets the field.
+   */
   const M = hillMasses(SEED);
-  let float = 0;
-  let worstF = 0;
-  const buried = [];
+  const loss = [];
+  const rim = [];
   for (const m of M) {
+    const R = m.foot * Math.max(1, m.ecc || 1);
+    /**
+     * THE MASS'S OWN DOME, NOT hillRiseAt. hillRiseAt is a max over 179 masses,
+     * so a wood sitting on a crown makes the sampled peak EXCEED the crown's
+     * own height and the loss reads negative. The question here is what the
+     * lattice does to ONE dome, so evaluate one dome.
+     */
+    const ang = (-(m.bearingDeg || 0) * Math.PI) / 180;
+    const ca = Math.cos(ang);
+    const sa = Math.sin(ang);
     const ax = m.foot * (m.ecc || 1);
-    const az = m.foot / (m.ecc || 1);
+    const azx = m.foot / (m.ecc || 1);
+    const own = (x, z) => {
+      const lx = (x - m.x) * ca + (z - m.z) * sa;
+      const lz = -(x - m.x) * sa + (z - m.z) * ca;
+      const u = Math.hypot(lx / ax, lz / azx);
+      return u >= 1 ? 0 : m.h * hillProfile(u);
+    };
+    let peak = 0;
+    for (let x = Math.round((m.x - R) / TERRAIN.stationM) * TERRAIN.stationM; x <= m.x + R; x += TERRAIN.stationM) {
+      for (let z = Math.round((m.z - R) / TERRAIN.stationM) * TERRAIN.stationM; z <= m.z + R; z += TERRAIN.stationM) {
+        peak = Math.max(peak, own(x, z));
+      }
+    }
+    if (!m.wood) loss.push((m.h - peak) / m.h);
+    /** The outermost non-zero facet along the SHORT axis — the tightest case. */
     const b = ((m.bearingDeg || 0) * Math.PI) / 180;
-    for (let k = 0; k < 48; k++) {
-      const th = (k / 48) * Math.PI * 2;
-      const lx = Math.cos(th) * ax;
-      const lz = Math.sin(th) * az;
-      const px = m.x + lx * Math.cos(b) - lz * Math.sin(b);
-      const pz = m.z + lx * Math.sin(b) + lz * Math.cos(b);
-      const d = m.baseY - terrainHeightAt(SEED, px, pz);
-      if (d > 1e-9) { float++; worstF = Math.max(worstF, d); } else buried.push(-d);
+    const ux = -Math.sin(b);
+    const uz = Math.cos(b);
+    const az = m.foot / Math.max(1, m.ecc || 1);
+    let prev = null;
+    for (let r = Math.ceil((az * 1.2) / TERRAIN.stationM) * TERRAIN.stationM; r >= 0; r -= TERRAIN.stationM) {
+      const h = hillRiseAt(SEED, m.x + ux * r, m.z + uz * r);
+      if (prev !== null && h > 0 && prev === 0) {
+        rim.push((Math.atan2(h, TERRAIN.stationM) * 180) / Math.PI);
+        break;
+      }
+      prev = h;
     }
   }
-  buried.sort((a, b) => a - b);
-  console.log(`  the sink, over 48 rim samples x ${M.length} hills:`);
-  console.log(`    rims FLOATING above the ground   ${float} of ${48 * M.length}, worst ${worstF.toFixed(4)} m`);
-  console.log('      — against the 0.05 m every join in this project is built with');
-  console.log(`    buried   p50 ${q(buried, 0.5).toFixed(2)}  p90 ${q(buried, 0.9).toFixed(2)}  max ${q(buried, 1).toFixed(2)} m`);
-  const sinks = M.map((m) => m.drawH - m.h).sort((a, b) => a - b);
-  console.log(`    sink     p50 ${q(sinks, 0.5).toFixed(2)}  p90 ${q(sinks, 0.9).toFixed(2)}  max ${q(sinks, 1).toFixed(2)} m`);
+  loss.sort((a, b) => a - b);
+  rim.sort((a, b) => a - b);
+  console.log(`  the hills, as a term of the field — ${M.length} masses, ${M.filter((m) => !m.wood).length} crowns:`);
+  console.log(`    apex loss on the lattice (centres snapped)   p50 ${(q(loss, 0.5) * 100).toFixed(2)}%`
+    + `  p90 ${(q(loss, 0.9) * 100).toFixed(2)}%  max ${(q(loss, 1) * 100).toFixed(2)}%`);
+  console.log(`    the outermost ${TERRAIN.stationM} m facet, short axis  p10 ${q(rim, 0.1).toFixed(1)}`
+    + `  p50 ${q(rim, 0.5).toFixed(1)}  p90 ${q(rim, 0.9).toFixed(1)}  max ${q(rim, 1).toFixed(1)} deg`);
+  console.log('      — this is what meets the field, against terrain that is itself p90 2.08 deg');
+  let inside = 0;
+  for (const m of M) {
+    if (Math.hypot(m.x, m.z) - m.foot * Math.max(1, m.ecc || 1) < CITY.extentEdgeM) inside++;
+  }
+  console.log(`    footprints whose bounding reach crosses extentEdgeM  ${inside} of ${M.length}`);
+  console.log('      (a bound on the long axis regardless of bearing; the DELIVERED height');
+  console.log('       inside the disc is the 0.000000 m printed above, which is the real test)');
   console.log('');
+
   /** WHAT A PLANAR PARCEL WOULD HAVE COST — brief item 4b. */
   const step = [];
   const xl = farmLinesIn(SEED, 'x', 25 * S - FARM.pitchM * 2, 34 * S + FARM.pitchM * 2).sort((a, b) => a - b);

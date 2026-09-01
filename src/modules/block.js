@@ -1206,17 +1206,56 @@ export function createBlock(options = {}) {
        * (0, dx·(za1 − za0), 0), also +Y. Both front faces point up, which is
        * what `matAsphalt`'s FrontSide needs.
        */
-      const roadGeo = new THREE.BufferGeometry();
+      /**
+       * THE RIBBON'S OWN STATIONS, HOISTED — SESSION 64, AND THE REASON IS
+       * MEASURED. The strip below samples `terrainHeightAt` at these stations
+       * and draws straight lines between them; anything else that wants to know
+       * how high the road is here must read the SAME piecewise-linear surface,
+       * not the smooth function it was sampled from. Over the 200 m of exit
+       * road that carries paint, the smooth function departs from the drawn
+       * facet by p50 0.0041 m, p90 0.0097 m and 0.0149 m at worst — against a
+       * paint thickness of 0.004 m, so a mark placed at the analytic height is
+       * BURIED on a crest and floating in a dip. `blockSurfaceAt` had the same
+       * disagreement with the mesh from session 63, which is what a wheel and
+       * a boot were standing on.
+       *
+       * So the stations are the ONE description and everything reads them.
+       */
+      const roadStationX = [];
+      const roadStationY = [];
       {
         const E = cfg.groundExtent;
+        for (let x = -E; x < -CITYGEN_ROAD.startM; x += CITYGEN_ROAD.stationM) roadStationX.push(x);
+        roadStationX.push(-CITYGEN_ROAD.startM, CITYGEN_ROAD.startM);
+        for (let x = CITYGEN_ROAD.startM + CITYGEN_ROAD.stationM; x < E; x += CITYGEN_ROAD.stationM) roadStationX.push(x);
+        roadStationX.push(E);
+        for (const x of roadStationX) roadStationY.push(terrainHeightAt(rootSeed, x, exitRoadZ(x)));
+      }
+      /**
+       * THE HEIGHT OF THE DRAWN ROAD AT x, ABOVE `GROUND.carriageway`. The
+       * stations are sorted and almost uniform, but not quite — there is one
+       * long span across the straight middle — so this bisects rather than
+       * indexes, which is ~11 steps over 993 stations and is called once per
+       * pedestrian per frame.
+       */
+      const roadRiseAt = (x) => {
+        const X = roadStationX;
+        if (x <= X[0]) return roadStationY[0];
+        if (x >= X[X.length - 1]) return roadStationY[X.length - 1];
+        let lo = 0;
+        let hi = X.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (X[mid] <= x) lo = mid; else hi = mid;
+        }
+        const t = (x - X[lo]) / (X[hi] - X[lo]);
+        return roadStationY[lo] + (roadStationY[hi] - roadStationY[lo]) * t;
+      };
+      const roadGeo = new THREE.BufferGeometry();
+      {
         const RY = GROUND.carriageway;
         const pos = [];
-        /** The stations, west rim to east rim, in increasing x. */
-        const xs = [];
-        for (let x = -E; x < -CITYGEN_ROAD.startM; x += CITYGEN_ROAD.stationM) xs.push(x);
-        xs.push(-CITYGEN_ROAD.startM, CITYGEN_ROAD.startM);
-        for (let x = CITYGEN_ROAD.startM + CITYGEN_ROAD.stationM; x < E; x += CITYGEN_ROAD.stationM) xs.push(x);
-        xs.push(E);
+        const xs = roadStationX;
         for (let i = 0; i < xs.length - 1; i++) {
           const xa = xs[i];
           const xb = xs[i + 1];
@@ -1238,8 +1277,8 @@ export function createBlock(options = {}) {
            * the carriageway, so the road is level across its width and rides
            * the land along its length, which is what a road is.
            */
-          const ya = RY + terrainHeightAt(rootSeed, xa, ca);
-          const yb = RY + terrainHeightAt(rootSeed, xb, cb);
+          const ya = RY + roadStationY[i];
+          const yb = RY + roadStationY[i + 1];
           pos.push(xa, ya, za0, xb, yb, zb1, xb, yb, zb0);
           pos.push(xa, ya, za0, xa, ya, za1, xb, yb, zb1);
         }
@@ -1372,9 +1411,13 @@ export function createBlock(options = {}) {
          * disagree about where the road is.
          */
         if (Math.abs(z - exitRoadZ(x)) <= exitRoadHalfM(x) && ax <= cfg.groundExtent) {
-          /** SESSION 63: the ribbon follows the land, in section as well as in
-           *  plan (brief item 4a), and this is what a car's wheels are told. */
-          return { y: GROUND.carriageway + terrainHeightAt(rootSeed, x, exitRoadZ(x)), kind: 'road', known: true };
+          /**
+           * SESSION 63: the ribbon follows the land, in section as well as in
+           * plan (brief item 4a), and this is what a car's wheels are told.
+           * SESSION 64: off the STATIONS and not off the smooth function, so
+           * the answer is the facet actually drawn — see `roadRiseAt`.
+           */
+          return { y: GROUND.carriageway + roadRiseAt(x), kind: 'road', known: true };
         }
         /**
          * THE BACK OF THE BLOCK — session 51, and it is read off `CORE_QUADS`
@@ -2819,9 +2862,48 @@ export function createBlock(options = {}) {
         const mq = new THREE.Quaternion();
         const mp = new THREE.Vector3();
         const ms = new THREE.Vector3();
-        /** `length` is the box's local X, `width` its local Z; yaw takes X onto the road. */
+        /**
+         * `length` is the box's local X, `width` its local Z; yaw takes X onto
+         * the road.
+         *
+         * ═════════════════════════════════════════════════════════════════
+         * THE PAINT IS ON WHATEVER SURFACE IS UNDER IT — SESSION 64, ITEM 4.
+         * ═════════════════════════════════════════════════════════════════
+         *
+         * THE OPERATOR SAW ONE WHITE DASH FLOATING IN MID-AIR. This line said
+         * `GROUND.carriageway`, a constant, and it was right for sixty-two
+         * sessions because every road in this block was at that constant.
+         * SESSION 63 MOVED THE ROAD AND NOT THE PAINT: the ribbon's vertices
+         * and `blockSurfaceAt` both became
+         * `carriageway + terrainHeightAt(x, exitRoadZ(x))`, the datum stopped
+         * being a number and became a function, and this call site kept the
+         * number. CONTRACT §9 rule 7 — MEASURED FROM WHAT, AND DOES THE OTHER
+         * SIDE AGREE — with the two sides three hundred lines apart.
+         *
+         * IT IS NOT ONE DASH. Of the 221 marks this block places, 187 are
+         * inside `BLOCK_KEEPOUT`, where `terrainHeightAt` is 0.000000 m by the
+         * zero-inside guarantee and the constant was right. The other 34 are
+         * the exit road's centre line running from 3 232 to 3 432 m — the first
+         * 200 m of the ramp, where the terrain lifts fastest — and 32 of those
+         * are off their road by more than the 0.05 m every join in this project
+         * uses, at a median of 5.31 m and a worst of 9.34 m.
+         *
+         * AND ASKING THE QUESTION FOUND A SECOND ONE, OLDER. The cross street
+         * is laid 0.005 m over the main one where they meet, and its own centre
+         * line and edge lines were being placed at `carriageway + 0.002` —
+         * 3 mm INSIDE the asphalt they belong to. That is not visible as a
+         * float; it is visible as paint that z-fights or disappears, which is
+         * why nobody reported it.
+         *
+         * SO THE HEIGHT COMES FROM `blockSurfaceAt` AND NOT FROM A THIRD COPY
+         * OF ITS BRANCHES. That function already answers the walk, the cross
+         * street, the bending main street, the core and the terrain, each from
+         * the same expression the geometry is built from; a fourth datum here
+         * would be the §9.1 the comment over it is emphatic about. A mark asks
+         * what it is lying on and lies on it.
+         */
         const put = (x, z, length, width, yawDeg) => {
-          mp.set(x, GROUND.carriageway + ROAD_PAINT.thicknessM / 2, z);
+          mp.set(x, blockSurfaceAt(x, z).y + ROAD_PAINT.thicknessM / 2, z);
           mq.setFromEuler(new THREE.Euler(0, yawDeg * DEG, 0));
           ms.set(length, ROAD_PAINT.thicknessM, width);
           marks.push(new THREE.Matrix4().compose(mp, mq, ms));

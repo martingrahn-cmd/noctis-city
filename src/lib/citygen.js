@@ -2594,6 +2594,35 @@ export const HILLSIDE = {
   houseL: 21,
   houseD: 10,
   houseH: 7.2,
+  /**
+   * THE DRIVE — SESSION 64, ITEM 3, AND IT IS THE ONLY PAVED THING UP HERE.
+   *
+   * The operator: *"the house pads read as parking lots"*. They did, and the
+   * word was in the file: the plot was `yardGround`, whose albedo `city.js`
+   * documents as **worn concrete hardstanding**, laid 28 x 26 m = 728 m2 over
+   * a hill shoulder. Measured against the crops it abuts, LEVEL is not the
+   * tell — `yardGround`'s luminance is 0.169 against a stubble field's 0.172,
+   * within 2%. CHROMA is: its saturation is 0.070 against grass 0.521, field
+   * 0.495 and tilled 0.403, so it is six to seven times flatter than anything
+   * around it, and a big flat grey rectangle in farmland is a car park.
+   *
+   * So the plot is `grass` — the ground's own material, and at 0.0837
+   * luminance it is within 4% of `HILLS.hillAlbedo`'s 0.0871, which is the
+   * scrub the terrain paints on the shoulder it sits on. It disappears.
+   *
+   * AND THE PAVING BECOMES WHAT PAVING IS FOR. 3.6 m wide, running the
+   * downhill half of the plot from the house to the boundary on the
+   * city-facing side, offset 8 m so it arrives at a flank rather than through
+   * the middle of the hall: 50 m2 against 728, and it is a drive.
+   *
+   * IT TAKES THE LAWN'S DATUM AND NOT THE YARD'S, which is session 48's rule
+   * for a hard court and holds for the same reason: `GROUND_Y.yard` is the
+   * carriageway's 0 and `GROUND_Y.grass` is 0.14, so a drive at the yard datum
+   * would be a 0.14 m trench cut through its own garden. `subtractBoxes` takes
+   * it out of the lawn so the two are adjacent and never overlap.
+   */
+  driveHalfW: 1.8,
+  driveOffsetM: 8,
 };
 
 /** The hill profile `city.js` draws, as a pure function. ONE description. */
@@ -2763,11 +2792,28 @@ export function hillsideHouses(rootSeed) {
        *   stand on. 0.18 is 10.2 degrees, which is the outer band's own 7.1 at
        *   the median hill with the faceting's own step allowed for.
        */
-      const own = (m.baseY || 0) + (m.drawH || m.h) * hillProfile(u);
+      /**
+       * SESSION 64: `m.baseY` and `m.drawH` were the sunk dome's own datum and
+       * height, and the dome is a term of the terrain now, so the mass's height
+       * IS `m.h`. The optional-chaining fallbacks that stood here read the
+       * right numbers by accident, which is the worst way for a line to be
+       * right — see CONTRACT §9.1.
+       */
+      const own = m.h * hillProfile(u);
       if (groundHeightAt(rootSeed, x, z) > own + 6.0) continue;
       const gx = (groundHeightAt(rootSeed, x + 8, z) - groundHeightAt(rootSeed, x - 8, z)) / 16;
       const gz = (groundHeightAt(rootSeed, x, z + 8) - groundHeightAt(rootSeed, x, z - 8)) / 16;
-      if (Math.hypot(gx, gz) > 0.60) continue;
+      /**
+       * AND THE NUMBER IS THE ONE THE PARAGRAPH ABOVE DERIVES — SESSION 64.
+       * It read `0.60` for two sessions while the text over it said 0.18, which
+       * is CONTRACT §9.1 exactly: a comment that claims a check. 0.60 is 31.0
+       * degrees and nobody builds on that; measured over the merged terrain it
+       * admitted 39 houses whose flat plates missed their own ground by up to
+       * 20.67 m corner to corner. At the derived 0.18 — 10.2 degrees — it
+       * admits 21 and the worst plate misses by 6.78 m, which is the 2.5 m of
+       * cut and 2.5 m of fill the paragraph above costs and calls a platform.
+       */
+      if (Math.hypot(gx, gz) > 0.18) continue;
       /**
        * THE PLATFORM IS AT THE PLOT'S CENTRE HEIGHT — cut at the back, filled
        * at the front, which is what a cut-and-fill platform is and is the only
@@ -15942,8 +15988,32 @@ export function generateChunk(rootSeed, cx, cz) {
      */
     const mx = (b.x0 + b.x1) / 2;
     const mz = (b.z0 + b.z1) / 2;
-    const onHill = (x, z, pad) => hillMasses(rootSeed)
-      .some((h) => !h.wood && Math.hypot(x - h.x, z - h.z) < h.foot + pad);
+    /**
+     * IS THIS POINT ON A HILL — AND IT ASKS THE ELLIPSE, SESSION 64.
+     *
+     * It asked a CIRCLE of radius `foot`. A hill's plan has been an ellipse
+     * with semi-axes `foot·ecc` and `foot/ecc` since session 62 and `ecc` runs
+     * to 1.444, so along the long axis this was blind to 44% of the footprint
+     * and along the short axis it refused ground that is not hill at all.
+     * MEASURED: a farm silo at (-2439.8, -3010.9) stands at ellipse u = 0.972,
+     * comfortably inside the hill at (-2253.4, -2830.5) — and its circular
+     * `r/foot` is 1.135, so this returned false and let it through.
+     *
+     * The expression is `hillRiseAt`'s, with the pad added to both semi-axes
+     * rather than to a radius, so the two cannot disagree about where a hill
+     * is. CONTRACT §9 rule 7: the same shape, described once.
+     */
+    const onHill = (x, z, pad) => hillMasses(rootSeed).some((h) => {
+      if (h.wood) return false;
+      const dx = x - h.x;
+      const dz = z - h.z;
+      const ang = (-(h.bearingDeg || 0) * Math.PI) / 180;
+      const c = Math.cos(ang);
+      const sn = Math.sin(ang);
+      const lx = dx * c + dz * sn;
+      const lz = -dx * sn + dz * c;
+      return Math.hypot(lx / (h.foot * (h.ecc || 1) + pad), lz / (h.foot / (h.ecc || 1) + pad)) < 1;
+    });
 
     /** Everything the fields must be cut around, in this chunk's own coordinates. */
     const solids = [];
@@ -16094,11 +16164,38 @@ export function generateChunk(rootSeed, cx, cz) {
         { y0: 0, y1: HS.houseH + 3, owner: 'hill:house' });
       if (reg.conflict(hBox)) continue;
       reg.claim(hBox);
-      /** The terrace the house stands on, cut round nothing: it is the topmost
-       *  surface on this ground and the fields below it are 5 m down. */
-      ground.push({ kind: 'yardGround', yKey: 'yard', yAdd: hh.rise,
+      /**
+       * The terrace the house stands on, cut round nothing: it is the topmost
+       * surface on this ground and the fields below it are 5 m down. IT IS A
+       * GARDEN WITH A DRIVE IN IT AND NOT A SLAB — session 64, item 3; see
+       * `HILLSIDE.driveHalfW` for the measurement that says why.
+       *
+       * The drive runs downhill, and downhill on a city-facing shoulder is
+       * toward the origin, so its axis is whichever of x and z the vector to
+       * the origin is longer along. That is the same `toCity` the house's own
+       * arc is chosen on, resolved onto the ground vocabulary's two axes.
+       */
+      const dcx = -hh.x;
+      const dcz = -hh.z;
+      const alongX = Math.abs(dcx) >= Math.abs(dcz);
+      const dSgn = (alongX ? dcx : dcz) >= 0 ? 1 : -1;
+      const dW = HS.driveHalfW;
+      const dO = HS.driveOffsetM;
+      const drive = alongX
+        ? { x0: hh.x + (dSgn > 0 ? 0 : -HS.plotHalfX), x1: hh.x + (dSgn > 0 ? HS.plotHalfX : 0),
+          z0: hh.z + dO - dW, z1: hh.z + dO + dW }
+        : { x0: hh.x + dO - dW, x1: hh.x + dO + dW,
+          z0: hh.z + (dSgn > 0 ? 0 : -HS.plotHalfZ), z1: hh.z + (dSgn > 0 ? HS.plotHalfZ : 0) };
+      const plot = {
         x0: hh.x - HS.plotHalfX, x1: hh.x + HS.plotHalfX,
-        z0: hh.z - HS.plotHalfZ, z1: hh.z + HS.plotHalfZ });
+        z0: hh.z - HS.plotHalfZ, z1: hh.z + HS.plotHalfZ,
+      };
+      for (const piece of subtractBoxes([plot], [drive])) {
+        ground.push({ kind: 'grass', yKey: 'grass', yAdd: hh.rise,
+          x0: piece.x0, x1: piece.x1, z0: piece.z0, z1: piece.z1 });
+      }
+      ground.push({ kind: 'yardGround', yKey: 'grass', yAdd: hh.rise,
+        x0: drive.x0, x1: drive.x1, z0: drive.z0, z1: drive.z1 });
       /**
        * NO `lift`, AND THE FIRST ARM HAD ONE. `city.js` computes a feature's
        * base as `worldSurface(f.x, f.z).y + (f.lift || 0)`, and `worldSurface`
