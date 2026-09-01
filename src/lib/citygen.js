@@ -2595,7 +2595,7 @@ export function hillProfile(u) {
  * and `city.js` reads `hillProfile` for its own vertex ring heights.
  */
 export function hillRiseAt(rootSeed, x, z) {
-  let best = 0;
+  let best = -Infinity;
   for (const m of hillMasses(rootSeed)) {
     const dx = x - m.x;
     const dz = z - m.z;
@@ -2609,10 +2609,40 @@ export function hillRiseAt(rootSeed, x, z) {
     const az = m.foot / (m.ecc || 1);
     const u = Math.hypot(lx / ax, lz / az);
     if (u >= 1) continue;
-    const y = m.h * hillProfile(u);
+    /**
+     * SESSION 63: THE DOME'S OWN BASE IS IN IT. A hill is sunk to the lowest
+     * terrain height around its rim and its drawn height raised by the same
+     * amount (see `hillMasses`), so its surface is `baseY + drawH · profile`
+     * and not `h · profile`. Returning the second was correct while the ground
+     * was flat and is a CONTRACT §9 rule 7 datum error the moment it is not.
+     */
+    const y = (m.baseY || 0) + (m.drawH || m.h) * hillProfile(u);
     if (y > best) best = y;
   }
-  return best;
+  return best === -Infinity ? null : best;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHERE THE GROUND IS AT A WORLD POINT — THE ONE FUNCTION EVERY CALLER ASKS.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Metres above `GROUND.earth`, signed, and it is the sum of everything that
+ * shapes the ground rather than a term of it: the landform, and a hill's dome
+ * where one stands. **THE BRIEF'S ITEM 2b, and the reason is CONTRACT §9
+ * rule 7** — one quantity measured from two datums with neither side checking
+ * the other, found at least eight times in this project, and never more exposed
+ * than the moment a constant becomes a function. Any caller that keeps its own
+ * constant is the defect; this is what makes that visible.
+ *
+ * A MAXIMUM AND NOT A SUM, for the reason `city.js`'s `worldSurface` gives
+ * about its own three modules: *"the topmost surface is the one you stand on"*.
+ * A hill's dome already carries the terrain in its own base.
+ */
+export function groundHeightAt(rootSeed, x, z) {
+  const t = terrainHeightAt(rootSeed, x, z);
+  const hill = hillRiseAt(rootSeed, x, z);
+  return hill === null ? t : Math.max(t, hill);
 }
 
 /**
@@ -2674,10 +2704,10 @@ export function hillsideHouses(rootSeed) {
        *   stand on. 0.18 is 10.2 degrees, which is the outer band's own 7.1 at
        *   the median hill with the faceting's own step allowed for.
        */
-      const own = m.h * hillProfile(u);
-      if (hillRiseAt(rootSeed, x, z) > own + 6.0) continue;
-      const gx = (hillRiseAt(rootSeed, x + 8, z) - hillRiseAt(rootSeed, x - 8, z)) / 16;
-      const gz = (hillRiseAt(rootSeed, x, z + 8) - hillRiseAt(rootSeed, x, z - 8)) / 16;
+      const own = (m.baseY || 0) + (m.drawH || m.h) * hillProfile(u);
+      if (groundHeightAt(rootSeed, x, z) > own + 6.0) continue;
+      const gx = (groundHeightAt(rootSeed, x + 8, z) - groundHeightAt(rootSeed, x - 8, z)) / 16;
+      const gz = (groundHeightAt(rootSeed, x, z + 8) - groundHeightAt(rootSeed, x, z - 8)) / 16;
       if (Math.hypot(gx, gz) > 0.60) continue;
       /**
        * THE PLATFORM IS AT THE PLOT'S CENTRE HEIGHT — cut at the back, filled
@@ -2690,7 +2720,7 @@ export function hillsideHouses(rootSeed) {
        * ground beside it. A house whose terrace is at the height of the field
        * below it is not on the hill.
        */
-      const rise = hillRiseAt(rootSeed, x, z);
+      const rise = groundHeightAt(rootSeed, x, z);
       out.push({
         x,
         z,
@@ -2737,16 +2767,216 @@ let hillCacheOut = null;
 let houseCacheSeed = null;
 let houseCacheOut = null;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE GROUND BECOMES A FUNCTION OF POSITION — SESSION 63.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SESSION 62 REFUSED THIS AND THE REFUSAL IS NOT REOPENED. Its two blocks were
+ * that a ground RECTANGLE carries one scalar height, so two rectangles sharing
+ * an edge but not a subdivision T-junction; and that `quad()` writes a
+ * hard-coded `(0, 1, 0)` normal, so a displaced ground surface would not shade.
+ * Both stand. **What changes is that the terrain stops being a ground
+ * rectangle.** The operator chose arm A: terrain SEPARATED from claims, the
+ * occupancy registry planar and untouched, and one continuous mesh supplying
+ * `h(x, z)` that everything needing a ground height asks.
+ *
+ * AND THE SECOND BLOCK WAS MEASURED BEFORE ANY OF THIS WAS BUILT.
+ * `tools/slopeprobe.mjs` reads the delivered code value across the eight
+ * azimuths of ONE hill instance — one albedo, one material, one mesh, so the
+ * only thing that differs is the direction the normal points. On the 7.2°
+ * shoulder it swings **45.4 of 255** and correlates with `max(0, n·l)` at
+ * **r = 0.942**. A non-vertical normal shades.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE BRIEF'S PREMISE (ii), AND THE AMPLITUDE IS THE FREE VARIABLE.
+ *
+ * The brief fixes **A = 2.5 m** and asks what station spacing 7° needs: *"128 m
+ * stations → λ ≈ 512 m → 1.8°... matching 7.1° at the same amplitude wants
+ * stations near 32 m, and a uniform 32 m grid over 8 km is ~250 000 triangles,
+ * which eats the new ceiling in one item."* The arithmetic is right and the
+ * premise inside it is not: **A is not fixed.** For a field of amplitude `A` and
+ * period `λ` the maximum gradient is `2πA/λ`, so a given SLOPE is a ratio
+ * `A/λ` — and buying it with a larger amplitude over a longer period costs
+ * COARSER stations, not finer ones:
+ *
+ *     slope 7.0° = gradient 0.1228 = 2πA/λ      ->      λ = 51.2 · A
+ *     A =  2.5 m   λ =   128 m   stations ≤  32 m
+ *     A =  8   m   λ =   410 m   stations ≤ 102 m
+ *     A = 13   m   λ =   666 m   stations ≤ 166 m
+ *     A = 20   m   λ = 1 024 m   stations ≤ 256 m
+ *
+ * at four stations to a wavelength. Eight stations to a wavelength — which is
+ * what a surface needs to read as a surface rather than as a diamond lattice —
+ * halves the right-hand column and still leaves 128 m at A = 20.
+ *
+ * **SO THE SLOPE IS NOT WHAT SETS THE STATION HERE.** At the amplitudes a real
+ * landscape wants, 7° is affordable at stations four times coarser than the
+ * brief's estimate. What sets the station is the FIELD PATTERN — see `TERRAIN
+ * .stationM`.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * IT IS SIGNED, AND SESSION 62's REASON FOR REFUSING THAT IS GONE.
+ *
+ * Session 62 argued a non-negative field was forced, because the countryside's
+ * quads sit 0.160 m above the earth plane and *"any corner that drops further
+ * puts `block:ground` through the field"*. That was true of a terrain laid OVER
+ * the plane. This one IS the plane — `block.js`'s 8 km `block:ground` is the
+ * terrain mesh now, same mesh, same material, same ONE draw call — so there is
+ * nothing underneath for it to sink through, and the land can fall as well as
+ * rise. Which is the operator's own test phrase for the session.
+ *
+ * ZERO INSIDE THE CITY, RAMPED, AND THE RAMP IS NOT A GUESS. It starts at
+ * `CITY.extentEdgeM` — the one number the lattice, the lamps, the traffic, the
+ * countryside and the exit road are all already gated on — and reaches full
+ * amplitude over `rampM`. Inside it the plane is at exactly `GROUND.earth` and
+ * every vertex is byte-identical to what `block.js` emitted before this session.
+ */
+export const TERRAIN = {
+  /** Where the ground starts to move. `CITY.extentEdgeM`, and nothing else. */
+  rampStartM: CITY.extentEdgeM,
+  /**
+   * Metres over which the amplitude goes 0 → 1, smoothstepped, and it is
+   * bounded from BOTH sides.
+   *
+   * From below: a ramp of zero length is a cliff round the whole city, and the
+   * amplitude here is ±18 m. From above: **every metre of ramp is a metre the
+   * hills have to be pushed outward**, because a hill straddling it cannot be
+   * both flat underneath and zero inside the extent (see `hillMasses`). The
+   * world is 4 000 m and the extent is 3 232, so there are 768 m for the ramp,
+   * the hill ring and the countryside together.
+   *
+   * **192 IS FORCED FROM ABOVE BY THE ELLIPSE.** A hill's footprint reaches
+   * `foot · ecc` = 300 × 1.45 = **435 m**, and it must clear the ramp, so
+   * `rampStart + rampM + 435 ≤ HILLS.rMaxM` = 3 950 gives `rampM ≤ 283`; the
+   * push then has to leave the ring a band to live in, and 192 puts the
+   * largest hills at r = 3 859 against a world rim of 4 000.
+   *
+   * Its own gradient is `amplitude / rampM` = 18/192 = 0.094, i.e. **5.4°**, so
+   * the ramp is a slope of the same order as the land it ramps into rather than
+   * an escarpment round the city.
+   */
+  rampM: 192,
+  /**
+   * The two octaves. The long one carries the landform and the short one breaks
+   * its contours, which is `densityAt`'s own arrangement one field over
+   * (`CITY.densityPeriodLong` / `Short` at a 0.68 / 0.32 split).
+   *
+   * `longAmpM` 13 over `longPeriodM` 1 024 is a maximum gradient of
+   * `2π·13/1024` = 0.0798, i.e. **4.56°**; the short octave adds `2π·5/384` =
+   * 0.0818, **4.68°**. They cannot both peak in the same place at the same
+   * bearing, so the delivered maximum is measured rather than summed —
+   * `tools/landprobe.mjs --terrain` prints the distribution.
+   *
+   * TOTAL RELIEF IS 36 m PEAK TO TROUGH, against hills that stand 15 to 107 m
+   * over their own feet. Land that moves a third of a hill's height is rolling
+   * country; land that moves 2 m is a putting green, and session 62 measured
+   * that 2.5 m at the wavelength a rectangle vocabulary forced was invisible.
+   */
+  longPeriodM: 1024,
+  longAmpM: 13,
+  shortPeriodM: 384,
+  shortAmpM: 5,
+  /**
+   * Metres between mesh stations OUTSIDE the ramp start. **It is set by the
+   * FIELD PATTERN and not by the slope**, which is the finding above: 7° is
+   * affordable at 128 m at this amplitude, and the crops are not.
+   *
+   * Session 62's `FARM` parcels are 80 to 320 m across and their crop is a
+   * per-parcel constant. A parcel cannot RIDE this surface — a planar rectangle
+   * of length L on gradient g stands `L·g/2` off it, which at L = 320 and the
+   * delivered gradient is metres — so out here the crop moves onto this mesh as
+   * a per-VERTEX colour, and the station is how crisp a field boundary can be.
+   * At 32 m a boundary is one cell wide, and the hedgerow that stands on it
+   * (session 62, one segment per 12 m) is what the eye actually reads as the
+   * line.
+   */
+  stationM: 32,
+  /**
+   * `u = r/foot` out to which a hill's pad reaches. A hill is drawn as one dome
+   * from ONE base height, so ground that moves under its 110–300 m foot would
+   * float its rim on one side and bury it on the other — measured at **11.10 m**
+   * before this existed, which is session 62's *"domes resting on the plane"*
+   * arriving from underneath.
+   *
+   * **THE PAD RUNS PAST THE FOOTPRINT AND THE FIRST ARM STOPPED AT IT.** Flat
+   * to `u = 0.75` and blended to `u = 1` puts the blend UNDER the dome, so the
+   * ground at the rim is the landform again and the rim floats by exactly what
+   * the landform does there. Flat to `u = 1` and blended from 1 to 1.35 puts
+   * the rim on the pad — which is what "the dome meets the ground" means — and
+   * the transition on open ground outside the hill, where it reads as the
+   * apron a hill's foot has anyway.
+   */
+  hillFlatToU: 1.35,
+};
+
+/**
+ * HOW FAR THE GROUND HAS MOVED AT A WORLD POINT, in metres, signed, relative to
+ * `GROUND.earth`. **THIS IS THE ONE DESCRIPTION.** `block.js`'s mesh, its
+ * `blockSurfaceAt`, `city.js`'s `worldSurface`, the exit road's ribbon, the
+ * hills' base and every countryside placement read this and nothing else — the
+ * brief's own item 2b, and the reason is CONTRACT §9 rule 7, which this project
+ * has found at least eight times and which is at its most exposed the moment a
+ * constant becomes a function.
+ *
+ * PURE, and it must be: `citygen.js` runs in the streaming worker as well as on
+ * the main thread (CONTRACT §8.1) and a terrain that disagreed between the two
+ * would put the drawn ground and the walked ground in different places.
+ */
+export function terrainHeightAt(rootSeed, x, z) {
+  const T = TERRAIN;
+  const r = Math.hypot(x, z);
+  if (r <= T.rampStartM) return 0;
+  const base = (px, pz) => (
+    (smoothNoise(rootSeed, px, pz, T.longPeriodM, 71) - 0.5) * 2 * T.longAmpM
+    + (smoothNoise(rootSeed, px, pz, T.shortPeriodM, 72) - 0.5) * 2 * T.shortAmpM
+  );
+  const h = base(x, z);
+  /**
+   * THE RAMP IS THE LAST THING APPLIED. `h = 0` inside `rampStartM` is then
+   * true of every term by construction rather than of each term separately —
+   * which the first arm got wrong by ramping a hill's pad at the hill's own
+   * centre and returning it for a query point inside the city, lifting the
+   * city's ground by a measured **12.99 m** where the design guarantees zero.
+   */
+  const t = Math.min(1, (r - T.rampStartM) / T.rampM);
+  return h * (t * t * (3 - 2 * t));
+}
+
+/**
+ * THE SURFACE NORMAL AT A WORLD POINT, by central difference over half a
+ * station. It is what `city.js` writes into the mesh's `normal` attribute, and
+ * item 1 measured that the lighting reads it: a 7.2° facet swings 45.4 code
+ * values across its azimuths at r = 0.942 against Lambert.
+ *
+ * A CENTRAL DIFFERENCE AND NOT THE FACE NORMAL OF THE TWO TRIANGLES, so that
+ * one vertex has ONE normal and the surface shades as a surface rather than as
+ * a lattice of facets. `stationM/2` is the interval: half a cell, so the
+ * derivative is estimated over the scale the mesh can express and not over one
+ * the vertices cannot.
+ */
+export function terrainNormalAt(rootSeed, x, z, out = [0, 1, 0]) {
+  const d = TERRAIN.stationM / 2;
+  const gx = (terrainHeightAt(rootSeed, x + d, z) - terrainHeightAt(rootSeed, x - d, z)) / (2 * d);
+  const gz = (terrainHeightAt(rootSeed, x, z + d) - terrainHeightAt(rootSeed, x, z - d)) / (2 * d);
+  const L = Math.hypot(gx, 1, gz) || 1;
+  out[0] = -gx / L;
+  out[1] = 1 / L;
+  out[2] = -gz / L;
+  return out;
+}
+
 export function hillMasses(rootSeed) {
   if (hillCacheSeed === rootSeed && hillCacheOut) return hillCacheOut;
   const rng = chunkRng(rootSeed, 0, 0, 'hills');
   const out = [];
   for (let i = 0; i < HILLS.count; i++) {
     const a = rng.range(0, Math.PI * 2);
-    const r = rng.range(HILLS.rMinM, HILLS.rMaxM);
+    const rRaw = rng.range(HILLS.rMinM, HILLS.rMaxM);
+    const foot = rng.range(HILLS.footMinM, HILLS.footMaxM);
+    const r = rRaw;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
-    const foot = rng.range(HILLS.footMinM, HILLS.footMaxM);
     const far = (r - HILLS.rMinM) / (HILLS.rMaxM - HILLS.rMinM);
     const h = rng.range(HILLS.heightMinM, HILLS.heightMaxM) * (0.7 + 0.6 * far);
     /**
@@ -2792,6 +3022,53 @@ export function hillMasses(rootSeed) {
         bearingDeg: rng.range(0, 180),
       });
     }
+  }
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * A HILL SINKS TO ITS OWN LOWEST RIM — SESSION 63, AND IT IS WHAT REPLACED
+   * THREE ARMS OF FLATTENING THE GROUND UNDER IT.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * A dome is one instance drawn from ONE base height, so ground that moves
+   * under its 110–435 m footprint floats its rim on one side and buries it on
+   * the other. Three arms tried to flatten the ground instead, and each failed
+   * on a different geometry the ring already has — measured, in order: the ramp
+   * varying under a pad (**12.99 m of |h| inside the city**, where the design
+   * guarantees zero); a wood taking a pad from its own crown (**6.34 m of
+   * spread inside one footprint**); the pad's blend running UNDER the dome so
+   * the rim sat on the landform after all; the push using `foot` where the
+   * ellipse reaches `foot · ecc` (**17.6 m**); and finally the massif union
+   * collapsing 128 crowns into 2, which is the whole ring on one level.
+   *
+   * **THE GROUND WAS THE WRONG THING TO MOVE.** A hill in rolling country does
+   * not stand on a platform — it is cut into the slope, buried on the uphill
+   * side and standing clear on the downhill one. So the DOME moves: its base is
+   * the LOWEST terrain height around its own rim, and its drawn height is
+   * raised by the sink so that it still stands `h` above the ground at its own
+   * centre. Its rim is then at or below the ground at every azimuth by
+   * construction and can never float, which is the only property session 62's
+   * shoulder needs to survive.
+   *
+   * 64 RIM SAMPLES A HILL, once, inside a function memoised on the root seed.
+   * At 24 the discretisation left **83 of 8 304 rim points floating, worst
+   * 0.118 m** — the minimum of a sampled rim is not the minimum of the rim —
+   * and 64 takes that to the number printed by `tools/landprobe.mjs --terrain`.
+   */
+  for (const m of out) {
+    let lo = Infinity;
+    const ax = m.foot * (m.ecc || 1);
+    const az = m.foot / (m.ecc || 1);
+    const b = ((m.bearingDeg || 0) * Math.PI) / 180;
+    for (let k = 0; k < 64; k++) {
+      const th = (k / 64) * Math.PI * 2;
+      const lx = Math.cos(th) * ax;
+      const lz = Math.sin(th) * az;
+      const px = m.x + lx * Math.cos(b) - lz * Math.sin(b);
+      const pz = m.z + lx * Math.sin(b) + lz * Math.cos(b);
+      lo = Math.min(lo, terrainHeightAt(rootSeed, px, pz));
+    }
+    m.baseY = lo;
+    m.drawH = m.h + Math.max(0, terrainHeightAt(rootSeed, m.x, m.z) - lo);
   }
   hillCacheSeed = rootSeed;
   hillCacheOut = out;

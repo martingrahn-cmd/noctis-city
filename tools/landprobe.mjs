@@ -48,7 +48,8 @@ import { readFile } from 'node:fs/promises';
 import {
   CITY, BLOCK_KEEPOUT, cityExtentAt, chunkBounds, generateChunk,
   EXIT_ROAD, exitRoadZ, exitRoadYawDeg, exitRoadHalfM, exitRoadSpans, exitRoadOwnSpans,
-  FARM, farmLinesIn, HILLSIDE, hillMasses, hillProfile, hillRiseAt, hillsideHouses,
+  FARM, farmLinesIn, HILLSIDE, hillMasses, hillProfile, groundHeightAt, hillsideHouses,
+  TERRAIN, terrainHeightAt, terrainNormalAt,
 } from '../src/lib/citygen.js';
 
 const BUDGET = JSON.parse(await readFile(new URL('./budget.json', import.meta.url), 'utf8'));
@@ -401,8 +402,8 @@ function houses() {
   console.log(`    worst dot product over all ${hs.length}: ${worstDot.toFixed(6)}   (1.000000 is dead on)`);
   /** The slope every house actually stands on, off the delivered surface. */
   const grads = hs.map((h) => {
-    const gx = (hillRiseAt(SEED, h.x + 8, h.z) - hillRiseAt(SEED, h.x - 8, h.z)) / 16;
-    const gz = (hillRiseAt(SEED, h.x, h.z + 8) - hillRiseAt(SEED, h.x, h.z - 8)) / 16;
+    const gx = (groundHeightAt(SEED, h.x + 8, h.z) - groundHeightAt(SEED, h.x - 8, h.z)) / 16;
+    const gz = (groundHeightAt(SEED, h.x, h.z + 8) - groundHeightAt(SEED, h.x, h.z - 8)) / 16;
     return (Math.atan(Math.hypot(gx, gz)) * 180) / Math.PI;
   }).sort((a, b) => a - b);
   if (grads.length) {
