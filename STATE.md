@@ -330,7 +330,55 @@ are 39 spare.
 ---
 ## 8. GATE STATE
 
-<!--GATES-->
+```
+  gate            exit   verdict   seconds  load1 in     out
+  parsecheck         0     GREEN       3.4      3.22    3.45    120 files, contract-clean
+  faultcheck         0     GREEN      26.6      3.45    3.78
+  lookcheck          1       RED      49.8      3.78    5.16    THE IDENTICAL THREE
+  windcheck          0     GREEN      39.7      5.16    5.32
+  inputcheck         0     GREEN      17.1      5.32    5.78
+  gateaudit          1       RED      77.4      5.78    5.43    the carried `control failed`
+  citycheck          1       RED     124.2      5.43    5.43    IDENTICAL TO SESSIONS 57-63
+  perfcheck          1       RED    1089.2      5.43    4.47    AND IT FINISHED
+
+  4 of 8 RED — the same four as sessions 53-63. NOT ONE NEW RED GATE.
+```
+
+**`perfcheck` RAN TO COMPLETION FOR THE FIRST TIME IN FOUR SESSIONS**, 1 089 s over all four
+routes, where sessions 61, 62 and 63 each had it die in the browser and had to hand-run one route.
+§7 has the numbers. Nothing was done to make that happen and no conclusion is drawn from it; it is
+recorded because three STATEs in a row have said *"re-run per route"* and this one does not have to.
+
+**`lookcheck` IS RED ON THE IDENTICAL THREE** — `distinct:midnight|dusk` **0.02838**, sessions 62's
+and 63's figure to five decimal places, plus `facadeAlbedo` and `facadeNeighbours` at dusk. Both
+eyes stand inside 400 m of the origin, where the terrain is exactly zero by the guarantee in §1, so
+**the ground moving 121.9 m could not have moved this band and did not.**
+
+**`gateaudit`'s only failure is `control failed`** — the three above, reported as the unperturbed
+frames failing their own gate. Every falsify suite at full coverage.
+
+**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–63 ON ALL FOUR REDS** — clumping CV **0.393**, **5**
+delivered forbidden overlaps, **2 of 2 647** signs inside a building, **1 004 of 284 918** bare
+walkable samples. And on its counts: **18 799 generator claims, 19 087 delivered** — the occupancy
+registry is untouched and arm A stands, which is the brief's own constraint. Two counts moved and
+both are this session by construction: **344 instanced meshes against session 61's 345**, which is
+`city:hills` gone, and `block_markings` **252**.
+
+**EVERY `perfcheck` VIOLATION IS CARRIED OR IS A TIMING ABSOLUTE FROM A LOADED MACHINE.**
+
+- Every CPU and wall-clock red, at `load1` **5.43** against CONTRACT §0.2's bar of 1.6 — including
+  the `N frames over 33 ms` counts, which are counts OF a timing and are contaminated the same way.
+  `highway_speed`'s wall p95 reads 13.10 in the battery and 12.90 hand-run, against a 12.5 ceiling.
+- The vehicle silhouette bars, which LOOK.md §4 names in as many words. They also move run to run
+  because the vehicles in frame differ: the hand-run pass measured 75 vehicles and the battery 65,
+  and the failing bars are not the same two.
+- `night_rain`'s frame entropy **4.954**, against session 61's 4.913 and session 60's 4.916 — the
+  same red, slightly better.
+- `downtown_dense`'s frame entropy **4.951**, and **STATE 54 already recorded this one as a
+  straddle**: 4.880 in session 53, 5.215 in session 54, against a floor of 5. It is a third sample
+  of the same straddle and not a new finding. Nothing this session changed is inside
+  `downtown_dense`'s frustum — the hills, the skirt, the farmsteads and the villas are all past
+  3 232 m, and the one change inside the city is 3 mm of paint on the origin block's cross street.
 
 ---
 ## 9. WHAT TO DO FIRST NEXT TIME

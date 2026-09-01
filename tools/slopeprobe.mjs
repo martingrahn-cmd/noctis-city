@@ -31,11 +31,29 @@
  * shoulder angle, so the probe answers for the angle asked rather than for
  * whichever hill happens to be biggest.
  *
- * ONE HILL, ONE INSTANCE COLOUR, EIGHT AZIMUTHS. `city:hills` carries a
- * per-instance albedo, so two facets of ONE hill differ in exactly one thing:
- * the direction their normal points. That is the controlled experiment, and no
- * other pair of surfaces in this world gives it — a field beside a hill differs
- * in albedo, in porosity, in material and in mesh.
+ * ONE HILL, ONE ALBEDO, EIGHT AZIMUTHS — AND SESSION 64 MOVED WHERE THAT
+ * ALBEDO COMES FROM, SO THIS PARAGRAPH IS RE-STATED RATHER THAN LEFT.
+ *
+ * It read: *"`city:hills` carries a per-instance albedo, so two facets of ONE
+ * hill differ in exactly one thing"*. THERE IS NO `city:hills`. The dome is a
+ * term of `terrainHeightAt` and `block:ground` draws it, per-vertex, so the
+ * control has to be re-argued on the surface that is actually there:
+ *
+ *   INSIDE `TERRAIN.hillCoverToU` = 0.60 THE CONTROL STILL HOLDS EXACTLY. The
+ *   ground's tint there is `HILLS.hillAlbedo x hs.tone` with `hs.tone` constant
+ *   over one mass, so the inner two bands are still one albedo and the only
+ *   thing that differs across azimuth is the normal.
+ *
+ *   OUTSIDE IT THE TINT BLENDS TO THE CROP, which varies by parcel. So the
+ *   0.82-1.00 band's correlation is a FLOOR and not a measurement of the
+ *   shading alone: albedo variation can only add scatter, never manufacture
+ *   agreement with `n.l`. Read the inner bands as the answer and the outer as
+ *   a bound.
+ *
+ * CONTRACT §7.7 — an instrument written to detect a failure mode is where that
+ * failure mode hides — and the mode here is exactly the one this file exists
+ * for: a probe still reporting a correlation after its own controlled variable
+ * has quietly become two.
  *
  * THE CAMERA IS A NADIR, AND THAT IS WHAT MAKES THE BINNING EXACT. Looking
  * straight down from `alt`, a pixel's AZIMUTH about the image centre is the
