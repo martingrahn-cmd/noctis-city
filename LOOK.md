@@ -920,6 +920,72 @@ It is that the street wall is broken.
   emissive-with-no-candela is every window"* has a sibling: **there is no
   emissive path for a feature at all.**
 
+  ---
+
+  **SESSION 64 — A HILL STOPPED BEING AN OBJECT, AND THE WORLD STOPPED
+  ENDING.**
+
+  The operator, on session 63's countryside: *"the land reads as land"* — and
+  then, of the hills standing on it, *"it sits ON the fields rather than in
+  them"*. Two sessions had been spent matching the rim: 43.6° to 7.1° in 62,
+  then each dome sunk to its own lowest rim in 63, ending at **43 floating
+  samples of 8 304, worst 0.0386 m**, inside the 0.05 m every join in this
+  project uses. The frame was unmoved, and the reason is worth this section:
+  **THE EYE WAS NOT READING THE GAP. IT WAS READING THAT THERE WERE TWO
+  THINGS.** A different geometry, a different material and a different albedo
+  meeting the ground along a line is a line, at any tolerance. The repair is
+  not a smaller gap; it is one object. `hillRiseAt` is a term of
+  `terrainHeightAt` now and `city:hills` is deleted — **−6 920 triangles and a
+  draw call back** — and the hills' own albedo blends into the ground's tint
+  over the outer two fifths of a footprint, so a hill's foot is a band of scrub
+  running into the fields.
+
+  **AND THE HORIZON WAS THE GROUND'S OWN EDGE, WHICH IS THE SAME LESSON AT 4 km.**
+  The operator named it *"the one thing in the frame that says DEMO"*. Measured
+  in the delivered pixels rather than argued: below the sky's own horizon
+  smoothstep there were **162 rows of 810 — a fifth of the frame — whose
+  luminance changed by 0.0056 top to bottom**, and then a 49% fall. The flat
+  band is `sky.js`'s below-horizon fill, which is one constant colour; the fall
+  is the ground plane stopping at 4 000 m with nothing whatsoever drawn past it.
+
+  Both obvious repairs are refused by arithmetic, and both refusals belong in
+  this file because both are look decisions someone will propose again.
+  **RAISING THE HAZE ERASES THE CITY**: 10% transmittance at that edge's own
+  700 m needs a 1 047 m visibility fog, in which a street at 500 m reads 0.155
+  of its own contrast against today's 0.799. **AND THE GROUND CANNOT OUTRUN
+  SIGHT AT THE TERRAIN'S STATION**: 9 300 m of half-extent is 346 km² against
+  64 and about 660 000 triangles. What works is a COARSE continuation — six
+  rings doubling outward to 10 000 m, **12 000 triangles at zero new draw
+  calls** — because past 4 km there is no relief to resolve and no crop to
+  read. Delivered, the worst step in that band halves and its ratio to the
+  band's own mean gradient goes **11.0× → 4.9×**: the land recedes instead of
+  stopping.
+
+  **WHAT IS LEFT IS A NUMBER THIS SECTION SHOULD CARRY UNTIL SOMEBODY SPENDS
+  IT.** The below-horizon fill is `ATM.groundAlbedo × groundLightingLux / π`.
+  The countryside's own area-weighted albedo is **Y 0.108** against the fill's
+  **Y 0.144**, and `groundLightingLux` is the STREET LAMPS' contribution to a
+  landscape session 62 correctly took every lamp out of. So the sky below the
+  horizon is lit city road, painted across unlit farmland, **1.34× too bright
+  before the illuminance is even argued about**. It cannot simply be changed:
+  `sky.js` says of that same line *"through PMREM it is the only thing
+  illuminating every downward-facing surface in the scene"*, so the backdrop
+  and the ambient are one quantity and splitting them moves every soffit in the
+  city. It is a look decision with a gate consequence and it is written down
+  rather than taken.
+
+  **AND TWO GREY RECTANGLES CAME OFF THE LAND.** *"The house pads read as
+  parking lots"* — and the word was already in the file: the plot was
+  `yardGround`, which `city.js` documents as **worn concrete hardstanding**.
+  What makes it read is not level, which is within 2% of a stubble field; it is
+  **CHROMA**: saturation 0.070 against a crop's 0.40–0.52, six to seven times
+  flatter than everything it abuts. The villa's plot is grass now, within 4% of
+  the scrub the terrain paints under it, with a 3.6 m drive where the paving
+  belongs — and the frame then showed that the plates he was looking at were the
+  **FARMSTEADS**: 3 536 m² of concrete apiece with a farmhouse in the middle,
+  221 of them. The concrete is 864 m² around the barn now and the house has a
+  garden. `tools/shot-out/s64-{car,air4}-t0_42-wet.png`.
+
 ---
 
 ## 3. Light

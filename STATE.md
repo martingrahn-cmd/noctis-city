@@ -1,438 +1,368 @@
 # NOCTIS — STATE
 
-*End of session 63. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 13 d 10 h of
-uptime — the same boot as sessions 47–62. Every gate that reads a pixel printed
+*End of session 64. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 13 d 15 h of
+uptime — the same boot as sessions 47–63. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` NEVER FELL BELOW 3.74 AND RAN AT 4.0–4.9 THROUGH THE BATTERY***, with
-`mediaanalysisd` and its XPC helper on two cores for the whole session — over CONTRACT §0.2's bar
-of 1.6, so **no millisecond here is a verdict**, for the third session running. Every number below
-is a count, a length, an angle, a reflectance or a ratio.
+***`load1` RAN 2.4–6.0 THROUGH THIS SESSION***, with `mediaanalysisd` and its XPC access helper
+holding two cores the whole time — over CONTRACT §0.2's bar of 1.6, for the fourth session running.
+**No millisecond below is a verdict.** Every number here is a count, a length, an angle, a
+reflectance, a ratio or a pixel.
 
-Branch `claude/noctis-63-the-ground`, off session 62's head, pushed as each item landed.
-
----
-## 0. ITEM 1 FIRST, BECAUSE IF A SLOPE DOES NOT SHADE NOTHING ELSE IS VISIBLE
-
-**A NON-VERTICAL NORMAL SHADES.** Session 62 refused terrain on two independent blocks and the
-second was that `buildGround`'s `quad()` writes a hard-coded `(0, 1, 0)` normal, so a displaced
-ground surface *"renders with no shading change at all"*. Session 63's mesh does not go through
-`quad()` — but *"the lighting will read a real normal"* was an assumption about `lights.js`, not a
-measurement of it.
-
-`tools/slopeprobe.mjs` measures it **without adding anything to the scene**, because the subject is
-already there at the angle the question is about: session 62's hill profile delivers band slopes of
-14.8° / 18.9° / **7.2°** on the instance it picks, and `city:hills` carries a per-instance albedo,
-so two facets of ONE hill differ in exactly one thing — the direction their normal points. No other
-pair of surfaces in this world gives that: a field beside a hill differs in albedo, in porosity, in
-material and in mesh.
-
-```
-  t = 0.42, wet, against the SUN.   flat ground beside it reads 108.07
-  band          slope    delivered code value          swing   Pearson r
-  crown         14.8°    99.4 .. 134.7                  40.5     0.906
-  flank         18.9°    90.8 .. 138.1                  47.3     0.974
-  SHOULDER       7.2°    94.2 .. 139.6                  45.4     0.942
-
-  t = 0, wet, against the MOON.     flat ground reads 12.14
-  crown         14.8°    10.8 .. 11.8                    1.0     0.887
-  flank         18.9°    11.0 .. 12.3                    1.3     0.896
-  SHOULDER       7.2°    11.1 .. 14.6                    3.5     0.683
-```
-
-**45.4 code values of 255 across the eight azimuths of one instance, correlating with
-`max(0, n·l)` at r = 0.942.** And session 56's directional moon reaches the countryside and shapes
-it: the two steeper bands correlate at 0.887 and 0.896 at midnight against the MOON's own bearing.
-The shallowest slope at the darkest hour is where the shading is thinnest — 3.5 code values on a
-12-value surface — which is the honest qualification rather than a blocker.
-
-**AND THE CORRELATION CAUGHT A DEFECT IN THE INSTRUMENT ITSELF.** The first arm aimed 0.5 m off a
-true nadir, on the argument that `lookAt` is singular when up is parallel to the view and 0.048° of
-tilt is negligible. Both halves true, conclusion wrong: at that tilt the basis is not negligibly
-wrong, it is ILL-CONDITIONED, and three's fallback orientation is not the one the probe then
-assumed. The delivered curve peaked at sector 2 and the prediction at sector 4 — a **90° phase
-offset** — at r = 0.001 / 0.219 / 0.384 on swings of 48.0, 38.7 and 40.5 code values. **A swing
-that large with no correlation is not "the normal is not read"; it is an instrument reading the
-right pixels and calling them by the wrong name.** CONTRACT §7.7 in as many words, inside the probe
-written to answer a question about geometry. The basis is `lookAt`'s own arithmetic now and the
-ground point a ray-plane intersection, which assumes nothing about which way is right.
-
-`harness.info()` gains `moonAzimuthDeg`: the sun's pair has been there since session 3 and the moon
-had only its elevation, so an instrument predicting a night surface's shading had to build a second
-solar model to get the bearing.
+Branch `claude/noctis-64-hills-as-land`, off session 63's head, pushed as each item landed.
 
 ---
-## 1. THE FRAMES, AND WHETHER THE LAND RISES AND FALLS
+## 0. THE FRAME THE SESSION EXISTS TO ANSWER
+
+**`tools/shot-out/s64-car-t0_42-wet.png`** — the car's eye, 1.6 m, on the exit road at
+x = 3 260 looking east down it, `t = 0.42`, wet pinned.
+
+**THE HILL ON THE RIGHT IS LAND.** It rises out of the fields with no line where it starts, no
+facet on its flank, no separate colour and no seam at its foot. There is nothing in that frame that
+distinguishes the hill from the ground it is part of, because there is nothing to distinguish: the
+dome is a term of `terrainHeightAt` and `block:ground` draws it with the terrain's own vertex
+normals. **`city:hills` does not exist any more.**
+
+**AND THE WORLD DOES NOT END.** The land runs to a haze horizon. The knife edge the operator named
+as *"the one thing in the frame that says DEMO"* is gone, and §3 has the delivered pixels either
+side of where it was.
+
+Second frame, **`tools/shot-out/s64-air4-t0_42-wet.png`**, aerial from 180 m — the same land from
+above, with the hill's shoulder, the houses on it, the farmsteads and the horizon in one shot.
+
+---
+## 1. ITEM 1 — THE HILLS BECAME TERRAIN
+
+**THE OPERATOR'S READ IS THAT THE SEAM WAS NEVER THE DEFECT, AND THE MEASUREMENTS AGREE WITH HIM.**
+Session 62 took a hill's rim from 43.6° to 7.1°. Session 63 sank each dome to its own lowest rim
+and got 43 floating rim samples out of 8 304, worst **0.0386 m**, inside the 0.05 m every join in
+this project uses. His frame still showed a hill that *"sits ON the fields rather than in them"* —
+because what reads as a knife is a **MESH BOUNDARY**: a different geometry, a different material
+and a different albedo meeting the ground along a line. No amount of rim-matching removes a line
+between two objects. Removing one of the objects does.
 
 ```
-  tools/shot-out/
-    custom-s62-air-before-t0_42-wet.png   session 61, kept for the record
-    custom-s63-air-after-t0_42-wet.png    session 63 at session 62's own pose — the
-                                          ground is a function of position, the crops
-                                          are ON it, and a hill rises out of it
-    custom-s63-road-after-t0_42.png       a car's eye at (3 260, 1.6, 0) looking east:
-                                          THE ROAD RISES AND FALLS WITH THE LAND. Dry,
-                                          because at wet = 1 the lower half of that pose
-                                          is a mirror and shows no road surface at all —
-                                          which STATE 62 already recorded about that pose
-    custom-s63-house4-t0_42.png           a hillside villa on ground that moves, with
-                                          the city's skyline on the horizon behind it
-    slope-t0_42-wet.png / slope-t0-wet.png   §0's own nadir frames
+  city:hills deleted                    -173 instances, -6 920 triangles, -1 draw call
+  raising h(x,z) where they stood       +0 triangles — the 32 m grid already covered it
+  terrainHeightAt inside r <= 3 232     0.000000 m over 512 733 samples at 8 m spacing
+  relief                                30.6 -> 121.9 m
+  slope   p50 1.00 -> 1.63    p90 2.08 -> 20.82    max 6.30 -> 56.12 deg
+  share of the outer annulus that is hill                            31.3%
 ```
+
+**THE ZERO-INSIDE GUARANTEE SURVIVES BY CONSTRUCTION AND NOT BY LUCK.** A hill is the ground now,
+so a footprint reaching inside `CITY.extentEdgeM` would lift the lattice's planar roads. 42 of 173
+masses reached inside, worst by 297 m. `hillMasses` pushes every crown clear by `foot·ecc` — the
+ellipse's LONG axis, which session 63 learned the hard way is not `foot` — and the ring now runs
+3 354 to 4 010 m.
+
+**AND A DOME'S SUMMIT FELL BETWEEN LATTICE POINTS.** The mesh samples where the grid is, so a peak
+between stations is never drawn: measured, peak loss p50 1.7%, p90 8.1%, **27.1% at worst**. Hill
+centres are snapped to the terrain's own station lattice, which costs nothing and takes the loss to
+**p50 0.00%, p90 0.00%, max 0.00%** — zero by construction, not by measurement.
+
+The hills' albedo moved with them: `HILLS.hillAlbedo` and `woodAlbedo` blend into the ground's
+per-vertex tint over the outer two fifths of a footprint, so a hill's foot is a band of scrub
+running into the fields and there is no line for the eye to find.
+
+### 1a. THE FIRST WET FRAME FOUND A COUNTRYSIDE MADE OF WATER
+
+`noctisRough` is a vec2 — a roughness override and the porosity every wet term in `lights.js`
+reads — and a mesh without the attribute reads the generic default `(0, 0)`. **Porosity 0 is
+IMPERVIOUS**, correct for tarmac, and `block:ground` has silently claimed it since session 1.
+
+It never mattered. Inside the city that plane is under the streamed ground; past the extent it was
+under session 61's crop RECTANGLES, which carried a sward's 1.0. **SESSION 63 MADE THAT PLANE THE
+VISIBLE COUNTRYSIDE AND INHERITED THE OMISSION**, and the first `--wet=1` frame of this session came
+back with farmland reflecting the sky like a lake. It is session 55's own *"a lamp post reflecting
+in a lawn"* arriving at the one surface session 55 could not reach. The porosity is the crop's now,
+out of the same `farmCrop` the tint reads: grass 1.0, field and tilled 0.85, hill 1.0.
 
 ---
 ## 2. THE BRIEF'S FOUR PREMISES
 
-### 2.1 *"the city assumes a fixed ground height"* — **TRUE IN SUBSTANCE, AND ITS ESCAPE CLAUSE FIRES WITHOUT DELIVERING**
+### 2.1 *"32 m stations carry a 7° shoulder at A = 20 m"* — **TRUE, AND IN THE OPPOSITE DIRECTION FROM THE WORRY**
 
-There ARE already two per-record ground offsets and the brief did not know it: `g.yAdd` (session
-62) and `f.lift` (session 48). Measured over cx, cz ∈ [−5, 5] at seed 1337:
+The worry is that the shoulder band is too narrow to resolve, and it is: the band is 0.18 of a
+footprint, which at `foot` 110–300 is 20 to 54 m, so **123 of 173 hills have under one cell in it.**
 
-```
-  ground records carrying a non-zero `yAdd`            0 of 4 193
-  features carrying a non-zero `lift`                  0 of 9 623
-  registry claims with y0 === 0 exactly           20 270 of 22 221   91.2%
-```
-
-Both carry zero everywhere inside the city, and **`yAdd` — the one that applies to GROUND — is an
-offset above a sixteen-entry CONSTANT TABLE rather than above a query.** So it is a second constant
-terrain has to move, not a hook terrain can hang on. The premise stands, and the amplitude ramps
-from zero at `CITY.extentEdgeM`. A 1 m rise of the ground rects alone would take the kerb from
-0.16 m to 1.16 m, because the riser reads the rect at the top and a constant at the bottom.
-
-### 2.2 *the slope arithmetic* — **RIGHT, EXCEPT ONE NUMBER AND THE CONCLUSION DRAWN FROM IT**
-
-`1.757°` at A = 2.5 / λ = 512 (brief: 1.8), `31.53 m` for 7.1° (brief: ~32), `29 450` for the
-annulus (brief: ~29 500) — all confirmed independently. **But a uniform 32 m grid over 8 km is
-125 000 triangles and not ~250 000: exactly 2× too high, and the brief contradicts itself, because
-its own annulus figure back-scales to 125 000.** The conclusion *"eats the new ceiling in one
-item"* came from the doubled number.
-
-**AND THE AMPLITUDE IS THE FREE VARIABLE, WHICH IS THE LARGER CORRECTION.** For a field of
-amplitude A and period λ the maximum gradient is `2πA/λ`, so a given SLOPE is a RATIO — and buying
-7° with a larger amplitude over a longer period costs COARSER stations, not finer:
+But a cell straddling the footprint edge averages the dome's toe with the flat ground outside it,
+so the sampling delivers a **SOFTER** rim than the analytic dome, not a harder one. The outermost
+32 m facet, measured along the SHORT axis — the tightest case, and the first arm of this measurement
+sampled along `+x` at `u·foot` when the semi-axis is `foot·ecc` and reported a 17.6° rim that does
+not exist:
 
 ```
-  A =  2.5 m   λ =   128 m   stations ≤  32 m      (the brief's case)
-  A =  8   m   λ =   410 m   stations ≤ 102 m
-  A = 20   m   λ = 1 024 m   stations ≤ 256 m
+  delivered   p10 0.1   p50 1.8   p90  7.2   max 24.9 deg
+  analytic    p10 4.0   p50 8.6   p90 15.7   max 26.6 deg
 ```
 
-So the slope is not what sets the station here. **The FIELD PATTERN is** — §5.
+against terrain that is itself p90 2.08°. **Nothing needed refining.**
 
-**A CAVEAT NEITHER OF US STATED:** `2πA/λ` is one-dimensional. A field summing two orthogonal
-octaves reaches `√2` times it on the diagonal — and, in the other direction, a piecewise-linear
-mesh never delivers the analytic gradient, only the chord. Both are why the delivered distribution
-is measured below rather than predicted.
+### 2.2 *"raising h and deleting the masses is net triangle-negative"* — **TRUE FOR ITEM 1, AND ITEM 2 SPENT IT**
 
-### 2.3 *"draws, not triangles, bind after the ceiling rises"* — **NEITHER, AND FOR TWO DIFFERENT REASONS**
+−6 920 triangles and −1 draw call for the deletion, +0 for the amplitude. §7 has the delivered route
+figures and what the horizon cost.
 
-The terrain is **zero new draw calls**, because `block:ground` — the 8 km earth plane — IS the
-terrain mesh: same mesh, same material, same one call. And past `CITY.extentEdgeM` neither budget
-binds at all: `wantedChunks` builds five chunks around the CAMERA and no gate route reaches within
-1 696 m of that line, so **the countryside's own draw count is unmeasured by anything in this
-project.** What the terrain does spend is triangles, and it spends them on every route, because the
-earth plane is resident everywhere — §5.
+### 2.3 *"the horizon line is fog reach, not ground extent"* — **FALSE. IT IS THE GROUND EXTENT.**
 
-### 2.4 *"a mesh with real vertex normals shades"* — **YES, r = 0.942.** §0.
+There is no `THREE.Fog` anywhere in this project. The only atmospheric term is the analytic
+exponential-height haze integral in `lights.js`, which has **no far plane at all**. The camera's far
+plane is 6 000 m. The ground plane's half-extent is 4 000 m, and **nothing whatsoever is drawn past
+it** — 3 963 distant boxes, none further than 2 639 m from the origin; the hills stop at 3 950 m.
+§3.
+
+### 2.4 *"the floating dash is one instance, not a class of 94"* — **FALSE BOTH WAYS. IT IS A CLASS OF 34.**
+
+§5.
 
 ---
-## 3. ITEM 0 — THE RE-BASELINE, PER ROUTE, AND WHICH ROUTE THE CEILING IS ABOUT
+## 3. ITEM 2 — THE WORLD STOPS ENDING
 
-The battery cannot complete on this machine (§8), so every route was run separately:
+**MEASURED FIRST, AND IN THE DELIVERED PIXELS.** Column-averaged linear luminance over the middle
+half of the operator's own aerial, 1440 × 810:
 
 ```
-  route            draws   triangles   instances   note
-  downtown_dense     324      1.97 M     267 191
-  highway_speed      402      2.32 M     348 006   THE WORST CASE ON BOTH COUNTS
-  night_rain         323      1.94 M     326 641
-  player               —           —           —   times out past 10 min at this load
+  the sky's own horizon smoothstep    rows 105..128    0.6967 -> 0.2497
+  THE FLAT BAND UNDER IT              rows 128..290    0.2456 -> 0.2400   d/row 0.00003
+                                      162 of 810 rows = 20% of the frame
+  THE PLANE'S EDGE                    rows 290..325    0.2400 -> 0.1220   a 49% fall
 ```
 
-**`highway_speed` is the number STATE quotes and the number the ceiling is against, and nothing
-before this session said which route either figure came from.** The twenty-day-old log the brief
-cites (1.44 M / 431 draws) is not a different world and nothing was eaten unseen: it predates
-session 60's flank glazing and session 61's road markings. Session 62's 2.32 M / 402 reproduces
-here to three digits and to the instance.
+The band is `sky.js`'s below-horizon fill and it is **ONE CONSTANT COLOUR**:
+`ATM.groundAlbedo × groundLightingLux / π`, with the pollution dome and the airglow both multiplied
+by `aboveHorizon` so neither reaches it. Twenty percent of the frame, flat to four decimal places.
+
+**AND THAT CONSTANT IS STANDING IN FOR GROUND IT DOES NOT DESCRIBE.** The countryside's own
+area-weighted albedo, over 54 588 samples of the delivered crop and hill tints, is
+**[0.109, 0.112, 0.066], Y 0.108** against the fill's **Y 0.144** — 1.34× too bright before the
+illuminance is even argued about, because `groundLightingLux` is the **street lamps'** contribution
+and session 62 correctly removed every lamp out there. One quantity doing two jobs, CONTRACT §9.
+
+**BOTH OF THE BRIEF'S PROPOSED ARMS ARE FALSIFIED BY ARITHMETIC.**
+
+*Raising the haze erases the city.* To reach 10% transmittance at the 700 m that edge stands at in
+this frame, σ must be 3.735e-3 /m — a **1 047 m visibility fog**, in which the city reads 0.474 at
+200 m and 0.005 at 1 400 m against today's 0.914 and 0.533. The brief says *do not let haze eat the
+city*; the arithmetic says it would eat all of it.
+
+*And the ground cannot outrun sight at the terrain's own station.* 10% transmittance needs about
+6 000 m of ground ahead of a camera that stands at 3 300, so a half-extent of 9 300 m: **346 km²
+against 64**, at 32 m stations, about **660 000 triangles** against a ceiling with 187 622 spare.
+
+**WHAT NOBODY COSTED IS A COARSE ONE.** Past 4 km the transmittance is under 0.22 and falling; there
+is no relief to resolve and no crop to read. So the ground continues as **four fans out to
+`TERRAIN.skirtM` = 10 000 m** — `camera.far` plus the furthest a camera stands from the origin and is
+still over ground — with the inner edge on the plane's OWN 32 m stations, so no T-junction can crack
+and no seam can read, and with the outer square scaled by `S/E` so the four corners meet exactly.
+
+```
+  one ring per station        2 000 triangles   AND IT LOOKED LIKE A CATHEDRAL FLOOR.
+                                                Each quad is 6 km long and interpolates its
+                                                tint and its height from two ends, so the
+                                                crops came back as radial stripes converging
+                                                on the horizon.
+  six rings, doubling out    12 000 triangles   128 m at the join, 4 km at the far end.
+                                                STILL ONE DRAW CALL.
+```
+
+**DELIVERED, same camera, same seed, same hour, rows 132..330:**
+
+```
+                                before      after
+  worst 4-row fall            0.02947     0.01525     -48%
+  as % of the brighter side     12.8%       9.8%
+  worst step / mean step        11.0x       4.9x      -55%
+```
+
+**A knife is one big step in an otherwise flat band.** The band is not flat any more and the step is
+half what it was: the land recedes continuously from the near field into haze. **The residual is the
+fill's own 1.34×**, and removing it means splitting the sky LUT's lower hemisphere from the IBL it
+also feeds — `sky.js` says of that same line *"through PMREM it is the only thing illuminating every
+downward-facing surface in the scene"* — which moves every soffit in the city. Measured, named, and
+not this session. §9.
+
+**THE RIBBON WENT WITH IT.** A road stopping at 4 000 m while the land runs on is the same edge moved
+onto the one object a car is looking at. Past `EXIT_ROAD.rimM` the centreline is straight and the
+section constant, so the stations out there are 256 m: **96 triangles**. `blockSurfaceAt` reads
+`TERRAIN.skirtM` too, or the query would answer `earth` over 6 km of drawn road.
 
 ---
-## 4. ITEM 2 — THE CALLERS, ENUMERATED BEFORE THE FUNCTION WAS WRITTEN
+## 4. ITEM 3 — THE PAD'S MATERIAL WAS IN THE FILE ALL ALONG
 
-CONTRACT §9 rule 7 — one quantity measured from two datums with neither side checking the other —
-has been found at least eight times, and this item is the most exposed surface in the project for
-it. **90 distinct sites read or write a world ground height:**
+A hillside villa's plot was `kind: 'yardGround'`, which `city.js` documents in words as **worn
+concrete hardstanding**, laid 28 × 26 m = 728 m² on a hill shoulder.
 
-```
-  (a) already go through a query function, and follow for free            41
-      city.js 15, streetlife.js 8, block.js 6, player.js 4, tools 5, traffic.js 2, harness 1
-  (b) read a CONSTANT, and are latent defects                             49
-      city.js 11, block.js 10, weather.js 10, river.js 7, traffic.js 5,
-      camera.js 2, citygen.js 2, moving.js 1, occupancy.js 1
-  (c) genuinely absolute and must not change                              11
-      aircraft.js, altitudes drawn from a fixed 150–900 m band
-```
+**LEVEL IS NOT THE TELL.** `yardGround`'s luminance is 0.169 against a stubble field's 0.172 —
+within 2%. **CHROMA IS**: saturation `(max−min)/max` is 0.070 against grass 0.521, field 0.495 and
+tilled 0.403, so the pad is **six to seven times flatter in chroma** than everything it abuts, at
+almost exactly a crop's brightness. A big flat grey rectangle in farmland is a car park.
 
-**THE SINGLE CHOKE POINT** for every ground rectangle in the streamed city is one line —
-`city.js` → `const y = (Y[g.yKey] ...) + (g.yAdd || 0);` — fed by 51 `yKey` sites.
+The plot is `grass` now — Y 0.0837 against `HILLS.hillAlbedo`'s 0.0871, **within 4%** of the scrub
+the terrain paints under it, so it disappears. The paving becomes 3.6 m wide and 50 m², running the
+downhill half of the plot on the city-facing side: **a drive**. It takes the LAWN's datum and not
+the yard's, which is session 48's rule for a hard court — `GROUND_Y.yard` is 0 and `GROUND_Y.grass`
+is 0.14, so a drive at the yard datum is a trench through its own garden.
 
-**THE THREE WORST OF THE 49, NAMED SO THE NEXT SESSION DOES NOT HAVE TO FIND THEM.**
+**AND THE FRAME SAID THAT WAS NOT THE PAD HE WAS LOOKING AT.** After the villa plots went green the
+grey plates were still there: they are the **FARMSTEADS**. 68 × 52 m = **3 536 m²** of hardstanding
+with a two-storey farmhouse standing in the middle of it, **221 of them**, the largest single grey
+shape in the countryside. The plot is grass now and the concrete is 36 × 24 m around the barn and
+its apron — **864 m², 24% of what was there** — so the house keeps a garden and the silo stands on
+grass, which is what a farm looks like from a road.
 
-- **`traffic.js` writes every vehicle body, wheel and lamp at a y measured from zero with no ground
-  query anywhere** — four y-writes, zero queries, where the signal MAST in the same file does call
-  `groundYAt`. Latent only because traffic runs on lattice lines where the terrain is zero.
-- **`weather.js` has its own shadow datum**, `const GROUND_Y = GROUND.carriageway`, with nine
-  readers placing splashes, spray and streak recycling. Rain lands at y = 0 across the whole 8 km.
-- **`player.js` has a SEVENTH ground query with a fallback of literal `0`**, distinct from
-  `GROUND_Y.earth`'s −0.02 — two datums for "no ground here", in the module that walks on it.
+### 4a. AND THE GUARD DOES WHAT ITS OWN COMMENT DERIVES
 
-**AND GROUND HEIGHT ALREADY CROSSED THE PURE BOUNDARY**, which nobody had written down: `citygen.js`
-is `three`-free but not unit-free in y. `basinSurfaceAt` returns world-absolute metres, −10.90 at
-the basin floor to −0.60 at its rim.
+`hillsideHouses` tested `> 0.60` while the paragraph over it derived **0.18** and said so in words.
+CONTRACT §9.1 exactly — a comment that claims a check. 0.60 is **31.0°** and nobody builds on that;
+over the merged terrain it admitted 39 houses whose flat plates missed their own ground by up to
+**20.67 m corner to corner**. At the derived 0.18 — 10.2° — it admits 23 and the worst plate misses
+by **6.78 m**, which is the 2.5 m of cut and 2.5 m of fill the paragraph itself calls a platform.
+Delivered slope at the house: p50 4.9°, max 10.2°.
 
-What this session wired: `block.js`'s earth branch and its main-street branch — the two constants
-that held a second datum for a surface this same file emits.
+### 4b. AND `onHill` ASKS THE ELLIPSE
 
----
-## 5. ITEM 3 — THE MESH. THE EARTH PLANE IS THE TERRAIN
-
-`block:ground` is a grid on `TERRAIN.stationM` = 32 m now, with per-vertex heights from
-`terrainHeightAt`, per-vertex normals from `terrainNormalAt`, and a per-vertex tint.
-**One mesh, one material, ONE DRAW CALL — met by not adding a mesh at all.**
-
-```
-  ramp 3 232 -> 3 424 m      station 32 m      tint ramp 64 m
-  octaves 13 m / 1 024 m  +  5 m / 384 m
-
-  terrainHeightAt inside the disc r <= 3 232, 32 017 samples   0.000000000 m
-  relief                                                       30.6 m  [-15.8, 14.8]
-  slope   p50 1.00   p75 1.64   p90 2.08   p99 4.54   max 6.30 deg
-```
-
-**IT IS SIGNED, AND SESSION 62's REASON FOR REFUSING THAT IS GONE.** Session 62 argued a
-non-negative field was forced because the countryside's quads sit 0.160 m above the plane and *"any
-corner that drops further puts `block:ground` through the field"*. True of terrain laid OVER the
-plane. This one IS the plane, so there is nothing underneath to sink through and the land may fall
-as well as rise — which is the operator's own test phrase for the session.
-
-**THE T-JUNCTION QUESTION, WHICH KILLED ARM B, ANSWERED.** `splitQuad` splits on the WORLD station
-lattice, so two quads that meet share their split vertices exactly. Where a flat span meets a split
-one the vertices differ — harmless for the only reason it can be: **both sides are at exactly `EY`
-there**, because the split only happens outside `rampStartM` and inside it the surface is flat.
-That is session 62's own argument running the other way, because the surface it applies to is flat.
-
-**THE COST, AND THE FIRST ARM WAS 2.1× IT.** The flat early-out asked whether the ENTIRE span was
-inside the flat disc — and a cut-walk span runs from −E to +E at every x, so it never is. Every one
-of the ~700 x-intervals split its full 8 km height into 250 cells: **2.32 M → 2.57 M, +252 732
-triangles**, where the countryside alone wanted 37 000. The disc is convex, so a span crosses it in
-exactly ONE interval and that interval is flat by construction and needs no vertex in it.
-
-```
-  highway_speed, delivered      before     2 320 000     402 draws
-                 first arm      2 572 732      +252 732
-                 SHIPS          2 442 378      +122 378   402 draws, unchanged
-  ceiling (the operator's, §7)             2 630 000
-  headroom left                                187 622   7.7%
-```
-
-**THE HILLS: THE GROUND WAS THE WRONG THING TO MOVE.** A dome is one instance from ONE base height,
-so ground that moves under its 110–435 m footprint floats its rim on one side and buries it on the
-other. Four arms tried flattening the ground under it and each failed on a different geometry the
-ring already has — the ramp varying under a pad (**12.99 m of |h| inside the city**, where the
-design guarantees zero); a wood taking a pad from its own crown (**6.34 m**); the pad's blend
-running UNDER the dome so the rim sat on the landform after all; the push using `foot` where the
-ellipse reaches `foot·ecc` (**17.60 m**); and a massif union that collapsed 128 crowns into 2.
-
-**A hill in rolling country is cut into the slope — buried uphill, standing clear downhill.** So
-the DOME moves: its base is the LOWEST terrain height around its own rim (64 samples) and its drawn
-height is raised by the sink, so it still stands `h` above the ground at its own centre and its rim
-can never float.
-
-```
-  rims FLOATING above the ground   43 of 8 304, worst 0.0386 m
-                                   — under the 0.05 m every join here is built with
-  buried                           p50 2.14   p90 8.65   max 17.87 m
-  sink (drawH − h)                 p50 2.71   p90 6.93   max 8.93 m, against h p50 39.2
-```
-
-That deleted the massif union, the pad and a hill re-phase with it: `hillMasses` draws the same
-numbers in the same order as session 62 and the population is unchanged.
+It tested a **CIRCLE** of radius `foot` while a hill's plan has had semi-axes `foot·ecc` and
+`foot/ecc` since session 62, with `ecc` running to 1.60 — **blind to 44% of the long axis** and
+over-refusing on the short one. Measured: a farm silo at (−2439.8, −3010.9) stands at ellipse
+u = 0.972, comfortably inside its hill, with a circular `r/foot` of 1.135 that let it through. It is
+`hillRiseAt`'s own expression now, with the pad added to both semi-axes rather than to a radius.
 
 ---
-## 6. ITEM 4 — RECONCILING THE PLANAR CLAIMS. THREE POPULATIONS, THREE ANSWERS
+## 5. ITEM 4 — ONE FLOATING DASH IS THIRTY-FOUR, AND IT IS NOT NINETY-FOUR
 
-**(a) THE ROAD FOLLOWS THE LAND IN SECTION AS WELL AS IN PLAN.** The ribbon is already tessellated
-at `EXIT_ROAD.stationM` = 8 m through the curve, four times finer than the terrain's 32 m station,
-so it does not step. The height is taken at the CENTRELINE and applied across the carriageway, so
-the road is level across its width and rides the land along its length — which is what a road is.
-`blockSurfaceAt`'s main-street branch answers the same number, so the drawn road and the walked one
-cannot disagree.
-
-**(b) THE 49 FIELD PARCELS CANNOT RIDE IT, AND THE NUMBER SAYS SO.** A planar parcel of length L on
-gradient g stands `L·g/2` off the ground. Over the rim's own parcel widths (80–320 m) and the
-delivered gradient, 126 samples:
+`block.js`'s `put` — the **one** y-source for every mark in `block:markings` — set
+`GROUND.carriageway`, a constant. It was right for sixty-two sessions because every road in this
+block was at that constant. **SESSION 63 MOVED THE ROAD AND NOT THE PAINT**: the ribbon's vertices
+and `blockSurfaceAt` both became a function of position, the datum stopped being a number, and this
+call site kept the number. CONTRACT §9 rule 7, with the two sides three hundred lines apart.
 
 ```
-  p50 1.96 m     p90 4.37 m     max 7.26 m
+  221 marks this block places
+  187 inside BLOCK_KEEPOUT     max |terrain| 0.000000 m — the constant was right there
+   34 on the exit road, 3 232 to 3 432 m
+      32 of them off their road by more than 0.05 m
+      p50 5.31   p90 8.34   max 9.34 m, and every one of them FLOATING
 ```
 
-against the 0.05 m every join in this project uses, and a 1.8 m hedge. **So the crops moved onto the
-mesh** as a per-vertex tint, read from the same `farmCrop` at the same world lattice — the parcel
-pattern is unchanged and only the surface carrying it moved. **The boundary is now soft over one
-32 m cell, and the hedgerow standing on it is what the eye reads as the line.** What stays a
-rectangle is everything small enough to be a terrace — verge, lay-by, farm yard, house plot — each
-taking `yAdd` from the terrain at its own centre, which is session 62's own *"this vocabulary
-expresses a terrace and not a slope"* used where it is exactly right.
+**THE OPERATOR SEES ONE BECAUSE THE OTHER 33 ARE SUB-PIXEL OR BEHIND HIM.** From the car's eye,
+fifteen are ahead; one subtends 29 px and sits ~177 px above the tarmac it is painted on; the next
+is 8.6 px, and the remaining twelve are under 2.3 px and pile up on the horizon.
 
-**AND IT CLOSED SESSION 62's DEFERRED ITEM 3a FOR NOTHING.** STATE 62 §4 recorded that the base
-earth past the city was `GROUND.earthAlbedo` — the area-weighted mean of the CITY's surfaces,
-*"correct where it stands in for city and wrong where it stands in for land"* — and that closing it
-*"means a per-vertex colour on the earth plane, which needs the plane tessellated in z"*. It is.
+**ASKING THE QUESTION FOUND A SECOND ONE, OLDER AND INVISIBLE.** The cross street is laid 0.005 m
+over the main one where they meet, and its own centre line and edge lines were being placed at
+`carriageway + 0.002` — **three millimetres INSIDE the asphalt they belong to**. Not a float: paint
+that z-fights or disappears, which is why nobody has ever reported it.
 
-**THE COLOUR RAMPS FASTER THAN THE HEIGHT, AND THE FIRST ARM SHARED THE RAMP.** `rampM` is 192 m
-and is set by the hills; using it for the tint put the ground at the city's edge at **6%** of its
-crop colour, so a car's eye at x = 3 260 saw the city's own pale grey where session 62 had a field.
-Height and colour are two quantities and only one has a geometric constraint: `tintRampM` is 64.
+The height comes from `blockSurfaceAt` now, not from a third copy of its branches. A mark asks what
+it is lying on and lies on it.
 
-**(c) THE HOUSE PADS ARE WHERE THE TERRACE IS RIGHT**, and they take `yAdd` from `groundHeightAt`.
+### 5a. AND THE OBVIOUS FIX WAS WRONG, WHICH A MEASUREMENT CAUGHT
 
-**(d) THE VILLAS' YAW GAINS ±22°.** *"Worst dot product over all 29: 1.000000"* was offered by
-session 62 as evidence the facing was right and is also the defect — twenty-nine houses aimed at
-one point read as a dish farm rather than as houses.
-
-**AND THE EMISSIVE PATH IS COSTED AND NOT BUILT**, which the brief permits. `put()` writes an
-albedo and a roughness into an instanced body mesh and `materials.facade` never sets an emissive,
-so `instanceColor × black = 0` and a feature physically cannot glow. Three options, measured:
-
-```
-  (a) push the villa's glass into the chunk's own `windows` array   +1 per villa chunk, up to +6
-      — every villa chunk has zero buildings, so that mesh does not exist and pushing creates one
-  (b) a second emissive body mesh per chunk                          strictly worse than (a)
-  (c) push it into `flankQuads`, which merges CITY-WIDE into
-      `city:flank` on `materials.window` — the identical 220-nit
-      tungsten emitter                                               +1 FOR THE WHOLE COUNTRYSIDE
-```
-
-**(c) is the answer and it is two array pushes.** And the draw budget the brief named does not bind
-it: no gate route makes a villa resident, so 402 of 440 is the wrong budget to spend against.
+Reading `terrainHeightAt` at the mark would have put the paint on the **SMOOTH** function while the
+ribbon draws **STRAIGHT LINES** between 8 m stations. Over the 200 m that carries paint those two
+differ by p50 **0.0041**, p90 **0.0097**, max **0.0149 m** against a paint thickness of 0.004 —
+buried on a crest, floating in a dip. So the ribbon's stations are hoisted, the strip is built from
+them, `roadRiseAt` bisects and lerps them, and `blockSurfaceAt` answers out of the same array. **A
+wheel, a boot, a vertex and a dash now read one description.**
 
 ---
-## 7. THE TRIANGLE CEILING — 2 630 000, AND IT IS THE OPERATOR'S DECISION
+## 6. ITEM 1e — THE PLANAR CLAIMS ON THE SHOULDERS, AND THE ONE THAT IS STILL OPEN
 
-**RECORDED WITH THAT PROVENANCE SO NO FUTURE READER THINKS A SESSION MOVED ITS OWN CEILING.**
-STATE 57 §0.1 derived 2 630 000 and session 57 refused to apply it to itself under CONTRACT rule 5;
-sessions 58–62 each carried it as *"still awaiting the operator"*. The session-63 brief grants it
-in as many words. The same is true of arm A over arm B: the operator chose it, not this session.
+Three populations sit on ground the merge moved.
 
-**IT DOES NOT BREAK THE DETECTOR THE OLD NUMBER WAS CALIBRATED AS, AND THAT WAS MEASURED RATHER
-THAN ASSUMED.** 2 360 000 was the geometric mean of a working city (2 086 042) and one with
-`CITY.detailRadius = 5` (2 666 516) — a LOD-failure detector, equidistant in RATIO from a false red
-and a false green. Re-measured this session in a worktree at HEAD, same route, same seed:
+**THE VILLA PADS — 26 rectangles, and they are the only planar ground on a hill.** 1 118
+countryside ground rectangles in the walked ring; 26 have their centre inside a hill footprint;
+every one is a villa plot. No verge, lay-by, farm yard or house garden is up there — `onHill`
+already refuses those, and §4b makes that refusal correct for the first time. §4a takes their worst
+corner span from 20.67 m to 6.78 m.
+
+**THE PROPS — 733 in the ring, 0 on a hill.** Nothing to do.
+
+**THE HEDGES — 5 174 SEGMENTS, AND THIS IS THE OPEN ONE.** A hedgerow segment is a rigid 12 m box
+placed at one `worldSurface` height, so on a slope its ends leave the ground. Measured against the
+surface `city.js` actually draws, over 662 hill chunks:
 
 ```
-  working                       2 442 378 tris    402 draws
-  detailRadius = 5 (defeated)   3 170 000         416
-  ratio                             1.298                (session 37 measured 1.278)
-  geometric mean of the pair    2 782 500
-  the operator's number         2 630 000    1.077x working, 1.205x below defeated
+  edge:hedge   5 174 on a hill    end off the ground   p50 1.04   p90 2.59   p99 4.24   max 6.84 m
+                                                       over 0.05 m: 5 094 of 5 174
+  every other rigid feature    9 on a hill             p50 0.47   p90 0.87   max 1.16 m
 ```
 
-**So the granted number is STRICTER than session 37's own symmetry rule would give.** The
-`drawCalls` ceiling of 440 also still discriminates: 402 working against 416 defeated.
+A hedge is 1.8 m tall. **At the median its end is over half its own height off the ground**, and at
+the worst it is nearly four hedges up. The repair is a PITCH on the feature's base transform —
+`put` composes a yaw and nothing else, so a hedge on a slope cannot lean with it — and that is a
+change to the shared transform every feature kind in this project goes through. It is named, costed
+as one session's work, and not done here. §9.
+
+---
+## 7. THE COST
+
+`highway_speed`, the worst case on both counts, run on its own because the battery's `perfcheck`
+has died in the browser for four sessions running:
+
+```
+                   session 63     session 64
+  draw calls          402            401       of 440
+  triangles       2 442 378         2.45 M     of 2 630 000
+  instances         348 006         347 833
+```
+
+`perfcheck` prints the triangle figure rounded to two decimals, so the exact delta is given by
+construction rather than read off the tool: **−6 920** for `city:hills`, **+12 000** for the skirt's
+six rings, **+96** for the ribbon over it — **+5 176**, which is 2 447 554 and prints as 2.45 M.
+About **182 000 of headroom** left under the ceiling the operator granted in session 63.
+
+**THE DRAW CALL CAME BACK AND NOTHING SPENT IT.** 401 of 440, the lowest this project has run since
+the merged lamp meshes in session 62. Both new surfaces — the hills and the skirt — are vertices in
+`block:ground`, which was already one call.
+
+**WHAT I CANNOT TELL YOU IS FRAME TIME.** `highway_speed` read cpu p95 11.50 ms and wall p95
+12.90 ms with a 0.8 ms spread over three runs, at `load1` near 6.0 with `mediaanalysisd` on two
+cores and a browser on two more. CONTRACT §0.2's bar is 1.6. **A red wall-clock absolute from this
+machine is not a verdict** and is recorded as unresolved, exactly as sessions 62 and 63 recorded
+theirs. The mechanism named in STATE 63 §8 is unchanged and now carries more geometry:
+`block:ground` is `frustumCulled = false`, so the whole 20 km of ground is submitted and
+vertex-shaded every frame including what is behind the camera. Tiling it costs draw calls and there
+are 39 spare.
 
 ---
 ## 8. GATE STATE
 
-```
-  gate            exit   verdict   seconds  load1 in   out
-  parsecheck         0     GREEN       3.5     4.64    4.67    120 files, contract-clean
-  faultcheck         0     GREEN      16.9     4.67    4.70
-  lookcheck          1       RED      47.9     4.70    4.03    THE IDENTICAL THREE
-  windcheck          0     GREEN      37.0     4.03    4.25
-  inputcheck         0     GREEN      15.5     4.25    4.05
-  gateaudit          1       RED      75.1     4.05    3.80    the carried control + ONE OF MINE
-  citycheck          1       RED     120.1     3.80    3.61    IDENTICAL TO SESSIONS 57-62
-  perfcheck          2       RED      27.7     3.61    3.80    the browser died — re-run per route
-
-  4 of 8 RED — the same four as sessions 53-62. NOT ONE NEW RED GATE.
-```
-
-**`lookcheck` IS RED ON THE IDENTICAL THREE** — `distinct:midnight|dusk` **0.02838**, session 62's
-figure to five decimal places, plus `facadeAlbedo` and `facadeNeighbours` at dusk. Both eyes stand
-inside 400 m of the origin, where the terrain is exactly zero, so **the ground moving could not have
-moved this band and did not.**
-
-**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–62** on all four reds — clumping CV **0.393**,
-**5** delivered overlaps, **2 of 2 647** signs inside a building, **1 004 of 284 918** bare
-walkable samples.
-
-**AND `gateaudit` CAUGHT MY OWN THRESHOLD CHANGE, INSIDE THE SAME BATTERY.** Moving
-`budget.json`'s ceiling to 2 630 000 and not the copy in `HUD.budgets` failed
-`perfcheck --falsify`'s good fixture, naming the key and both values:
-
-```
-  ✗ HUD.budgets disagrees with budget.json ceilings on 1 of 6 keys —
-    triangles: HUD 2360000 vs budget 2630000
-```
-
-That check exists because CONTRACT §9.1 records *"a table in a budget file and a table in a module
-is exactly the arrangement in which `pierEvery: 34` sat beside `i % 3 === 0`"*. **It is the one
-check in this project written for exactly this drift and it fired on the first change that could
-cause it.** The copy is in step and `gateaudit` re-run afterwards is back to its single carried
-`control failed`, with `perfcheck --falsify` at 74/74.
-
-**`perfcheck` DID NOT FINISH — the browser death, for the third session running**, at 27.7 s.
-Re-run per route, as sessions 62 and 63 have both had to:
-
-```
-  highway_speed   402 draws   2 442 378 tris   348 006 inst   THE WORST CASE ON BOTH
-```
-
-**THE TRIANGLE CEILING IS NO LONGER BREACHED**: 2 442 378 against 2 630 000, 187 622 of headroom.
-`drawCalls` is unmoved at 402 of 440 — the terrain is the earth plane and the earth plane was
-already one call.
-
-**WHAT I CANNOT TELL YOU IS WHETHER IT COST FRAME TIME.** `highway_speed`'s wall p95 read 12.60 and
-12.70 ms earlier in this session and 14.80 in the final run, at `load1` 3.3–3.9 with a 1.5 ms
-run-to-run spread. **+2.1 ms against a 1.5 ms spread is barely over the noise and CONTRACT §0.2
-says a red absolute from this load is not a verdict** — so it is recorded as unresolved rather than
-as a cost or as nothing. **There is a mechanism it could be**, and it is written down rather than
-left: `block:ground` is `frustumCulled = false`, on the argument that *"the bound is the whole
-world; culling it is a wasted test that can only ever answer visible."* That was right at 2 154
-triangles. At 124 532 it means **the whole 8 km of terrain is submitted and vertex-shaded every
-frame, including the four fifths of it behind the camera.** Making it cullable means splitting it
-into tiles, which costs draw calls — 38 spare — and is the first thing to measure on a quiet
-machine.
+<!--GATES-->
 
 ---
 ## 9. WHAT TO DO FIRST NEXT TIME
 
-1. **THE 2 ms, ON A QUIET MACHINE, AND THE `frustumCulled = false` THAT MIGHT EXPLAIN IT (§8).**
-   It is the only number this session could not resolve, and the mechanism is named. If the terrain
-   costs frame time, tiling the plane is the repair and the trade is draw calls.
-2. **THE 49 CONSTANT-READING GROUND SITES (§4), AND THREE OF THEM ARE NAMED.** `traffic.js` writes
-   four vehicle y values with no ground query at all; `weather.js` carries its own shadow
-   `GROUND_Y` with nine readers; `player.js` has a seventh ground query whose fallback is a literal
-   `0`. All three are latent — traffic and rain live where the terrain is zero — and all three
-   become defects the moment terrain reaches inside `CITY.extentEdgeM`.
-3. **THE EMISSIVE PATH FOR A FEATURE, COSTED AT +1 DRAW CALL FOR THE WHOLE COUNTRYSIDE (§6).**
-   `flankQuads` merges city-wide into `city:flank` on `materials.window`, the identical 220-nit
-   tungsten emitter. Two array pushes. The 29 villas are dead at night and that was the point of
-   putting them there.
-4. **NOTHING PAST 3 232 m IS INSIDE ANY GATE, AND THERE IS NOW A GREAT DEAL MORE OF IT.** STATE 61
-   §7 asked for a third `lookcheck` eye on the exit road and sessions 62 and 63 both built an
-   instrument instead (`landprobe`, `slopeprobe`). The terrain, the crops, the hills' sink and the
-   villas are all outside every assertion in this project.
-5. **THE PEDESTRIANS FOLLOW THE CAMERA ONTO A HILLSIDE.** `custom-s63-house4-t0_42.png` shows the
-   crowd standing on a hill flank 3.6 km from the city, correctly on the ground for the first time
-   — which is the ground query working and the crowd's own residency rule not. It was invisible
-   while they were buried.
-6. **THE FIELD BOUNDARY IS SOFT OVER ONE 32 m CELL (§6b).** The hedgerow carries the line today.
-   A crisper boundary wants per-triangle colour on a non-indexed mesh, which this geometry already
-   is — the vertices of one quad could share a parcel's colour — at the price of a 32 m staircase
-   instead of a 32 m gradient. It is a look decision nobody has taken.
-7. **CARRIED, UNCHANGED**: the height law reads nothing at all (STATE 61 §4); the traffic has no
-   lane that is not a lattice line while `EXIT_ROAD` is exactly the polyline it needs (STATE 61
-   §5); `city.js`'s `unitHash` puts the multiplier inside the sine; the three chunk seams; the 53
-   holograms; the school yard's 8 trees and the church square's 98.
-8. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**
+1. **THE 5 174 HEDGES ON THE SHOULDERS (§6).** The largest single population of rigid geometry
+   standing off the ground in this project, median 1.04 m on a 1.8 m object. The repair is a pitch
+   in the shared feature transform, which every feature kind reads, so it needs its own falsifying
+   case and its own session.
+2. **THE BELOW-HORIZON FILL IS 1.34× THE GROUND IT STANDS IN FOR (§3).** It is the residual of item
+   2 and it is one quantity doing two jobs: the visible backdrop past the plane edge, and — through
+   PMREM — the only thing lighting every downward-facing surface in the city. Splitting them is
+   right and it moves the city's look, so it is a look decision with a gate consequence, not a
+   repair.
+3. **THE FRAME TIME AND THE `frustumCulled = false`, CARRIED FROM STATE 63 §8 AND NOW LARGER (§7).**
+   `block:ground` carries the skirt as well as the terrain and is still submitted whole every frame.
+   Tiling costs draw calls. First thing to measure on a quiet machine.
+4. **A VILLA STILL HANGS OFF ITS OWN TERRACE.** The pad is axis-aligned at 14 × 13 while the house
+   is rotated and its drawn extent reaches `|cos|·14 + |sin|·15` — **up to 7.16 m past the plate**
+   at 45°. Sizing the pad to the rotated extent fixes the overhang and takes the plate to 1 119 m²
+   and an 11.15 m corner span, which contradicts the derivation that sized it a platform and not a
+   plateau. Both numbers are here; the trade has not been taken.
+5. **NOTHING PAST 3 232 m IS INSIDE ANY GATE, AND THERE IS NOW 6× MORE GROUND OUT THERE.** Carried
+   from STATE 61 §7, 62 and 63. The terrain, the crops, the hills, the villas, the farmsteads and
+   now the skirt are all outside every assertion in this project. `landprobe` and `slopeprobe` are
+   probes and say so in their own headers.
+6. **THE 49 CONSTANT-READING GROUND SITES, CARRIED FROM STATE 63 §4.** `traffic.js` writes four
+   vehicle y values with no ground query; `weather.js` carries its own shadow `GROUND_Y` with nine
+   readers; `player.js` has a fallback of literal `0`. All latent while terrain is zero inside the
+   extent. **`block.js`'s markings were the fiftieth and it stopped being latent in one session**
+   (§5) — that is what these look like when they fire.
+7. **THE PEDESTRIANS FOLLOW THE CAMERA ONTO A HILLSIDE**, carried from STATE 63 §9.
+8. **CARRIED, UNCHANGED**: the height law reads nothing at all (STATE 61 §4); the traffic has no
+   lane that is not a lattice line; `city.js`'s `unitHash` puts the multiplier inside the sine; the
+   three chunk seams; the 53 holograms; the school yard's 8 trees and the church square's 98.
+9. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**
