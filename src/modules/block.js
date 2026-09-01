@@ -31,6 +31,7 @@ import {
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
   EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg,
   TERRAIN, terrainHeightAt, terrainNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
+  HILLS, hillSurfaceAt,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -765,6 +766,21 @@ export function createBlock(options = {}) {
          * three multiplies the two. A tint of exactly (1,1,1) inside the ramp
          * is therefore byte-identical to every frame before this session.
          */
+        /**
+         * The crop's own porosity, keyed the same way `groundTint` is keyed.
+         * `city.js` → `porosityFor` is the table this mirrors: a sward and a
+         * standing crop take 1.0 and bare soil takes 0.85, because loam
+         * infiltrates 9 mm/h against this city's 10 mm/h full rain. Inside the
+         * ramp it is 0 — the plane there is under the city's own surfaces and
+         * is the impervious thing it has always been.
+         */
+        const groundPorosity = (x, z) => {
+          const r = Math.hypot(x, z);
+          if (r <= TERRAIN.rampStartM) return 0;
+          if (hillSurfaceAt(rootSeed, x, z)) return 1;
+          const c = farmCrop(rootSeed, farmIndex(rootSeed, 'x', x), farmIndex(rootSeed, 'z', z));
+          return c.kind === 'grass' ? 1 : 0.85;
+        };
         const tintOut = [1, 1, 1];
         const groundTint = (x, z) => {
           const r = Math.hypot(x, z);
@@ -784,8 +800,27 @@ export function createBlock(options = {}) {
           const t = u * u * (3 - 2 * u);
           const c = farmCrop(rootSeed, farmIndex(rootSeed, 'x', x), farmIndex(rootSeed, 'z', z));
           const alb = GROUND.cropAlbedo[c.kind] || GROUND.cropAlbedo.grass;
+          /**
+           * AND A HILL WEARS ITS OWN COVER — SESSION 64. `city:hills` carried
+           * `HILLS.hillAlbedo` (dry scrub) and `woodAlbedo` (conifer) on its own
+           * material; the mesh is gone and the ground carries them. The blend is
+           * on the dome's own `u`, full cover inside `hillCoverToU` and crop by
+           * the footprint edge — so a hill's foot is a band of scrub running out
+           * into the fields, which is what a hill's foot is, and there is no
+           * line anywhere for the eye to read as an edge.
+           */
+          const hs = hillSurfaceAt(rootSeed, x, z);
+          let w = 0;
+          let ha = null;
+          if (hs) {
+            const k = Math.min(1, Math.max(0, (hs.u - TERRAIN.hillCoverToU) / (1 - TERRAIN.hillCoverToU)));
+            w = 1 - k * k * (3 - 2 * k);
+            ha = hs.wood ? HILLS.woodAlbedo : HILLS.hillAlbedo;
+          }
           for (let i = 0; i < 3; i++) {
-            tintOut[i] = 1 + t * ((alb[i] * c.tone) / GROUND.earthAlbedo[i] - 1);
+            const crop = alb[i] * c.tone;
+            const target = ha ? crop + (ha[i] * hs.tone - crop) * w : crop;
+            tintOut[i] = 1 + t * (target / GROUND.earthAlbedo[i] - 1);
           }
           return tintOut;
         };
@@ -795,6 +830,7 @@ export function createBlock(options = {}) {
         const EY = GROUND.earth;
         const nrmA = [];
         const colA = [];
+        const rghA = [];
         /**
          * ═══════════════════════════════════════════════════════════════════
          * THIS PLANE IS THE TERRAIN NOW — SESSION 63, AND IT IS THE SAME MESH,
@@ -836,6 +872,31 @@ export function createBlock(options = {}) {
           }
           const t = groundTint(x, z);
           colA.push(t[0], t[1], t[2]);
+          /**
+           * ═══════════════════════════════════════════════════════════════════
+           * AND THE POROSITY, WHICH THIS PLANE HAS NEVER CARRIED AND WHICH THE
+           * FIRST WET FRAME OF SESSION 64 FOUND — A COUNTRYSIDE MADE OF WATER.
+           * ═══════════════════════════════════════════════════════════════════
+           *
+           * `noctisRough` is a vec2 — a roughness override and the porosity the
+           * §5 wet terms read — and session 55's own note says an absent
+           * attribute reads the generic default `(0, 0)`. Porosity 0 is
+           * IMPERVIOUS, which is correct for tarmac and is what this plane has
+           * silently claimed since session 1. It never mattered: inside the city
+           * the plane is under the streamed ground, and past the extent it was
+           * under session 61's crop rectangles, which carried 1.0 for a sward.
+           *
+           * **SESSION 63 MADE THIS PLANE THE VISIBLE COUNTRYSIDE AND INHERITED
+           * THE OMISSION.** At `wet = 1` every field out there became a mirror.
+           * It is session 55's own defect — *"a lamp post reflecting in a
+           * lawn"* — arriving at the one surface session 55 could not reach.
+           *
+           * The porosity is the crop's, out of the same `farmCrop` the tint
+           * reads, so the two cannot disagree about what a square metre is; a
+           * hill's own cover takes a sward's 1.0, because scrub and conifer over
+           * undisturbed soil is the sward's case and not the stubble's.
+           */
+          rghA.push(0, groundPorosity(x, z));
         };
         const quad = (xa, za0, za1, xb, zb0, zb1) => {
           if (za1 - za0 <= 0 || zb1 - zb0 <= 0) return;
@@ -1005,6 +1066,7 @@ export function createBlock(options = {}) {
         groundGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
         groundGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrmA), 3));
         groundGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colA), 3));
+        groundGeo.setAttribute('noctisRough', new THREE.BufferAttribute(new Float32Array(rghA), 2));
         groundGeo.computeBoundingSphere();
         groundTriangles = arr.length / 9;
       }

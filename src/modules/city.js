@@ -89,8 +89,6 @@ import {
   TRADES,
   tradeOpen,
   HILLS,
-  hillMasses,
-  hillProfile,
   viaductStationSegment,
   VIADUCT_STATION,
   VIADUCT_RAIL_RISE_M,
@@ -582,7 +580,6 @@ export function createCity(options = {}) {
    * and once every 5.3 s at `highway_speed`'s 24 m/s.
    */
   let distantMesh = null;
-  let hillsMesh = null;
   let distantAt = null;
 
   const tmpMatrix = new THREE.Matrix4();
@@ -594,8 +591,6 @@ export function createCity(options = {}) {
   const tmpLeanQuat = new THREE.Quaternion();
   const tmpColor = new THREE.Color();
   const tmpEuler = new THREE.Euler();
-  /** +Y. The axis a hill's plan bearing turns about (session 62). */
-  const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
   // -------------------------------------------------------------------------
 
@@ -747,12 +742,6 @@ export function createCity(options = {}) {
         m.emissiveIntensity = DISTANT.nightNits;
         return m;
       })(),
-      /**
-       * THE HILLS — session 56. The distant recipe minus the one thing a hill
-       * must not do: emit. A hill at night is lit by the sky and, since this
-       * session, keyed by the moon; a glowing ridge would be a second city.
-       */
-      hills: surface({ color: [1, 1, 1], roughness: 0.96, linear: true }),
     };
   }
 
@@ -2127,204 +2116,26 @@ export function createCity(options = {}) {
    * to a frustum that cannot contain them.
    */
   /**
-   * THE HILLS RING — session 56, world-fixed, built exactly once. It rides
-   * this function's first call rather than its own hook because everything
-   * it needs (materials, root) is ready here, and unlike the distant shell
-   * it never rebuilds: `hillMasses` reads the world origin, not the camera.
-   * A hemisphere at 8x3 segments is 40 triangles; ~200 instances is
-   * ~8 000 triangles at ONE draw call. It was 10x4 until the ceiling spoke.
-   */
-  /**
    * ═══════════════════════════════════════════════════════════════════════════
-   * A HILL MEETS THE GROUND — SESSION 62, FOR ZERO TRIANGLES.
+   * THE HILLS ARE NOT HERE ANY MORE — SESSION 64, AND THIS NOTE IS THE MARKER.
    * ═══════════════════════════════════════════════════════════════════════════
    *
-   * The operator, on session 61's aerial: *"the hills are three smooth domes
-   * resting on the plane without meeting it."* Measured over all 179 delivered
-   * masses at seed 1337, off the geometry above:
+   * `city:hills` was a world-fixed `InstancedMesh` of 173 domes on their own
+   * material — session 56 built it, session 62 gave it a shoulder and an
+   * elliptical plan, session 63 sank each one to its own lowest rim. The
+   * operator's read of session 63's frames is that none of that was the defect:
+   * a hill *"sits ON the fields rather than in them"* because it is a DIFFERENT
+   * MESH with a DIFFERENT MATERIAL meeting the ground along a line, and no
+   * amount of sinking fixes a mass that was never made of the same stuff as the
+   * land.
    *
-   *   `SphereGeometry(1, 8, 3, 0, 2pi, 0, pi/2)` puts its four vertex rings at
-   *   `phi` = 0, 30, 60, 90 degrees, i.e. at `r/foot` = 0, 0.500, 0.866, 1.000
-   *   and `y/h` = 1, 0.866, 0.500, 0. **The outermost band drops half the
-   *   hill's height over 13.4% of its radius**, so it arrives at the plane at a
-   *   median 43.6 degrees and stops — a crease, and exactly what "resting on"
-   *   describes.
-   *
-   * A HEMISPHERE IS THE WRONG SOLID AND THE RING COUNT IS NOT THE PROBLEM.
-   * What a hill has and a dome does not is a SHOULDER: the surface arrives at
-   * the surrounding ground tangentially, with zero slope, because that is what
-   * the material at its foot has done for as long as it has been falling off
-   * it. So the profile is replaced and the ring count is not — the geometry is
-   * still 8 x 3, still 40 triangles, still one draw call, and this costs
-   * **exactly zero** against a ceiling with 40 000 spare.
-   *
-   * THE PROFILE IS SMOOTHSTEP'S COMPLEMENT, `y/h = 1 - 3u^2 + 2u^3`, whose
-   * derivative `-6u(1 - u)` is ZERO AT BOTH ENDS — a round top and a tangential
-   * foot, which are the two properties a dome has one of. The rings are placed
-   * to spread the slope instead of piling it at the rim, and the delivered band
-   * slopes at the median hill (foot 195 m, h 51 m) are:
-   *
-   *     u      0     0.50    0.82    1.00     band       new     hemisphere
-   *     y/h    1.000 0.500   0.0855  0        0   -0.50   14.7      4.0
-   *                                           0.50-0.82   18.7     14.7
-   *                                           0.82-1.00    7.1     44.3  <- rim
-   *
-   * — at the median hill, in degrees, and the two columns are the whole change:
-   * the hemisphere put its steepest band at the RIM and this puts it in the
-   * MIDDLE, which is what the difference between a dome and a hill is. All
-   * three sizes agree: at foot 268 / h 107 it is 21.8 / 27.3 / 10.7 against
-   * 6.1 / 21.8 / 56.1, and at foot 110 / h 25 it is 12.8 / 16.4 / 6.2 against
-   * 3.5 / 12.8 / 40.3. It is 8-sided in plan and stays so:
-   * this project is flat-shaded on purpose (LOOK.md §5) and the octagon's sag
-   * is `foot * (1 - cos 22.5)` = 14.8 m on a 195 m foot, which is 7.6% of a
-   * silhouette three kilometres away.
-   *
-   * AND THE PLAN IS AN ELLIPSE AT A YAW, WHICH IS ALSO FREE. Three identical
-   * circular domes read as three copies of one object — LOOK.md §4's *"any
-   * object placed at intervals needs FORM variation, not colour variation"*,
-   * which `HILLS.tone` was answering with colour. The instance matrix already
-   * carries a quaternion and two independent horizontal scales, so an
-   * eccentricity and a bearing cost nothing but the roll: `hillMasses` draws
-   * both.
+   * So `citygen.js` → `terrainHeightAt` carries the domes and `block:ground`
+   * draws them, on the grid session 63 already paid for. **This returns 173
+   * instances, 6 920 triangles and ONE DRAW CALL**, and it deletes
+   * `hillGeometry`, `buildHillsMesh`, `materials.hills` and the winding
+   * derivation that went with them.
    */
-  function hillGeometry() {
-    const RAD = 8;
-    /** `u` = r/foot at each ring, chosen to spread the band slopes. */
-    const RINGS = [0, 0.50, 0.82, 1.0];
-    /**
-     * THE PROFILE IS `citygen.js`'s AND NOT A COPY. `hillRiseAt` answers how
-     * far up a hill a point is — which is what a hillside house's terrace
-     * stands on — and a second expression here would be CONTRACT §9.1 with a
-     * surface: the geometry would draw one hill and the placement would stand
-     * on another, and the two would agree until somebody edited one.
-     */
-    const prof = hillProfile;
-    const pos = [];
-    const nrm = [];
-    const ring = (k) => {
-      const u = RINGS[k];
-      const y = prof(u);
-      const out = [];
-      for (let i = 0; i <= RAD; i++) {
-        const a = (i / RAD) * Math.PI * 2;
-        out.push([Math.cos(a) * u, y, Math.sin(a) * u]);
-      }
-      return out;
-    };
-    const rs = RINGS.map((_, k) => ring(k));
-    /**
-     * WINDING, DERIVED — AND THE FIRST DERIVATION WAS BACKWARDS AND A FRAME
-     * SAID SO IN ONE RENDER. It read *"(a[i], b[i], b[i+1]) ... points away
-     * from the axis and upward"* and the hills came out as black spikes,
-     * because that order gives the INSIDE. The arithmetic, done properly this
-     * time and checked against the delivered attribute by
-     * `tools/landprobe.mjs --hills`:
-     *
-     * A ring vertex `i` is at `(cos t_i * u, y, sin t_i * u)` with
-     * `t_i = 2 pi i / RAD`. Take the apex band, `a[i] = (0, 1, 0)`, and `i = 0`,
-     * so `b0 = (u, y, 0)` and `b1 = (u cos d, y, u sin d)` with `d = 45`
-     * degrees. For the order (a, b0, b1):
-     *
-     *     e1 = b0 - a = (u, y - 1, 0)
-     *     e2 = b1 - a = (u cos d, y - 1, u sin d)
-     *     (e1 x e2).y = 0 * u cos d - u * u sin d = -u^2 sin d   < 0
-     *
-     * — DOWNWARD, i.e. into the solid. Reversing the last two gives
-     * `+u^2 sin d`, which is up and out. `t` increases from +X toward +Z and
-     * +Z is SOUTH (CONTRACT §3.1), so a ring runs clockwise seen from above and
-     * the outward face is the reverse of the naive order; that is the whole of
-     * why the first version was wrong, and it is the same right-handedness the
-     * earth plane's own quad derivation in `block.js` turns on.
-     *
-     * `windcheck` reads authored normal against triangle facing over every
-     * generated mesh, so this is derived rather than tried — and the normals
-     * here are the FACE normals of the emitted triangles, computed from the
-     * same three vertices, so the two statements cannot disagree.
-     */
-    const tri = (p, q, r) => {
-      const ux = q[0] - p[0];
-      const uy = q[1] - p[1];
-      const uz = q[2] - p[2];
-      const vx = r[0] - p[0];
-      const vy = r[1] - p[1];
-      const vz = r[2] - p[2];
-      let nx = uy * vz - uz * vy;
-      let ny = uz * vx - ux * vz;
-      let nz = ux * vy - uy * vx;
-      const L = Math.hypot(nx, ny, nz) || 1;
-      nx /= L; ny /= L; nz /= L;
-      for (const v of [p, q, r]) {
-        pos.push(v[0], v[1], v[2]);
-        nrm.push(nx, ny, nz);
-      }
-    };
-    for (let k = 0; k < rs.length - 1; k++) {
-      const a = rs[k];
-      const b = rs[k + 1];
-      for (let i = 0; i < RAD; i++) {
-        /** The apex ring is a point, so its band is a fan of triangles. */
-        if (k === 0) { tri(a[i], b[i + 1], b[i]); continue; }
-        tri(a[i], b[i + 1], b[i]);
-        tri(a[i], a[i + 1], b[i + 1]);
-      }
-    }
-    const g = new THREE.BufferGeometry();
-    const arr = new Float32Array(pos);
-    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrm), 3));
-    g.computeBoundingSphere();
-    return g;
-  }
-
-  function buildHillsMesh() {
-    const masses = hillMasses(rootSeed);
-    if (!masses.length) return;
-    const geo = track(hillGeometry());
-    const im = new THREE.InstancedMesh(geo, materials.hills, masses.length);
-    let woods = 0;
-    for (let i = 0; i < masses.length; i++) {
-      const m = masses[i];
-      /**
-       * SESSION 63: THE DOME'S BASE IS ITS OWN `baseY` AND ITS HEIGHT ITS OWN
-       * `drawH`, AND FOR ONE COMMIT THIS LINE STILL READ `GROUND.earth` AND
-       * `m.h` WHILE `hillRiseAt` HAD ALREADY MOVED.
-       *
-       * That is CONTRACT §9 rule 7 exactly — one quantity, two readers, neither
-       * checking the other — committed by the change that was written to close
-       * it, and a frame found it inside ten minutes: a hillside villa placed at
-       * `groundHeightAt` stood on a terrace hanging in the air over a dome that
-       * was still drawn at the old datum. `hillMasses` sinks a hill to the
-       * lowest terrain height around its own rim and raises its drawn height by
-       * the same amount; this is the other half of that sentence.
-       */
-      tmpPos.set(m.x, GROUND.earth + (m.baseY || 0), m.z);
-      tmpScale.set(m.foot * (m.ecc || 1), m.drawH || m.h, m.foot / (m.ecc || 1));
-      tmpQuat.setFromAxisAngle(UP_AXIS, ((m.bearingDeg || 0) * Math.PI) / 180);
-      tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
-      im.setMatrixAt(i, tmpMatrix);
-      const a = m.wood ? HILLS.woodAlbedo : HILLS.hillAlbedo;
-      if (m.wood) woods++;
-      tmpColor.setRGB(a[0] * m.tone, a[1] * m.tone, a[2] * m.tone, THREE.LinearSRGBColorSpace);
-      im.setColorAt(i, tmpColor);
-    }
-    im.instanceMatrix.needsUpdate = true;
-    im.instanceColor.needsUpdate = true;
-    im.castShadow = false;
-    im.receiveShadow = false;
-    im.name = 'city:hills';
-    im.userData.noctisCensus = {
-      hills: masses.length - woods,
-      woods,
-      $ring: `r ${HILLS.rMinM}-${HILLS.rMaxM} m on the earth plane, valleys at the road and the river`,
-    };
-    im.frustumCulled = true;
-    im.computeBoundingSphere();
-    root.add(im);
-    hillsMesh = im;
-  }
-
   function rebuildDistantMesh(ctx) {
-    if (!hillsMesh) buildHillsMesh();
     const s = CITY.chunkSize;
     const ccx = Math.floor(ctx.camera.position.x / s);
     const ccz = Math.floor(ctx.camera.position.z / s);

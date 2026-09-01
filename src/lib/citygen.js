@@ -2604,18 +2604,16 @@ export function hillProfile(u) {
 }
 
 /**
- * HOW FAR A POINT IS UP A HILL, in metres above the earth plane. The maximum
- * over every mass, because that is what `city.js` draws: the domes are
- * instanced and overlap, and the surface is the highest of them.
+ * HOW FAR A POINT IS UP A HILL, in metres, and ZERO where no hill stands. It is
+ * a TERM OF THE TERRAIN since session 64 rather than a description of a mesh:
+ * `terrainHeightAt` adds it and `block:ground` draws the sum, so there is one
+ * surface and one description of it.
  *
- * IT IS THE SAME ELLIPSE `city.js` COMPOSES, transformed the other way — a
- * point is taken into the hill's own frame by the negative of its bearing and
- * then divided by the two half-extents. Two descriptions of one solid would be
- * CONTRACT §9.1, so the profile above and the ellipse here are the only ones
- * and `city.js` reads `hillProfile` for its own vertex ring heights.
+ * THE MAXIMUM over every mass, because domes overlap — every wood sits on a
+ * crown by construction — and the surface is the highest of them.
  */
 export function hillRiseAt(rootSeed, x, z) {
-  let best = -Infinity;
+  let best = 0;
   for (const m of hillMasses(rootSeed)) {
     const dx = x - m.x;
     const dz = z - m.z;
@@ -2638,17 +2636,43 @@ export function hillRiseAt(rootSeed, x, z) {
     const az = m.foot / (m.ecc || 1);
     const u = Math.hypot(lx / ax, lz / az);
     if (u >= 1) continue;
-    /**
-     * SESSION 63: THE DOME'S OWN BASE IS IN IT. A hill is sunk to the lowest
-     * terrain height around its rim and its drawn height raised by the same
-     * amount (see `hillMasses`), so its surface is `baseY + drawH · profile`
-     * and not `h · profile`. Returning the second was correct while the ground
-     * was flat and is a CONTRACT §9 rule 7 datum error the moment it is not.
-     */
-    const y = (m.baseY || 0) + (m.drawH || m.h) * hillProfile(u);
+    const y = m.h * hillProfile(u);
     if (y > best) best = y;
   }
-  return best === -Infinity ? null : best;
+  return best;
+}
+
+/**
+ * WHICH HILL A POINT IS ON, AND HOW FAR OUT — SESSION 64, for the COLOUR.
+ *
+ * `city:hills` carried `HILLS.hillAlbedo`, `woodAlbedo` and a per-mass `tone`
+ * on its own material. The mesh is gone, so the ground has to carry them, and
+ * `block.js` → `groundTint` is where. It returns the DOMINANT mass — the one
+ * giving the maximum height, which is the same rule `hillRiseAt` uses, so the
+ * surface and its colour cannot disagree about which hill they are on.
+ *
+ * `null` where no hill stands, which is most of the world.
+ */
+export function hillSurfaceAt(rootSeed, x, z) {
+  let best = 0;
+  let bestM = null;
+  let bestU = 1;
+  for (const m of hillMasses(rootSeed)) {
+    const dx = x - m.x;
+    const dz = z - m.z;
+    const reach = m.foot * Math.max(1, m.ecc || 1);
+    if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
+    const a = (-(m.bearingDeg || 0) * Math.PI) / 180;
+    const c = Math.cos(a);
+    const sn = Math.sin(a);
+    const lx = dx * c + dz * sn;
+    const lz = -dx * sn + dz * c;
+    const u = Math.hypot(lx / (m.foot * (m.ecc || 1)), lz / (m.foot / (m.ecc || 1)));
+    if (u >= 1) continue;
+    const y = m.h * hillProfile(u);
+    if (y > best) { best = y; bestM = m; bestU = u; }
+  }
+  return bestM === null ? null : { u: bestU, tone: bestM.tone, wood: bestM.wood, h: best };
 }
 
 /**
@@ -2669,9 +2693,15 @@ export function hillRiseAt(rootSeed, x, z) {
  * A hill's dome already carries the terrain in its own base.
  */
 export function groundHeightAt(rootSeed, x, z) {
-  const t = terrainHeightAt(rootSeed, x, z);
-  const hill = hillRiseAt(rootSeed, x, z);
-  return hill === null ? t : Math.max(t, hill);
+  /**
+   * SESSION 64: THIS IS NOW `terrainHeightAt` AND NOTHING ELSE, because the
+   * hills are a term of it. It is kept as a name rather than collapsed at every
+   * call site because the NAME is the one every caller should ask — *"where is
+   * the ground"* — and the day something else shapes the ground it goes in here
+   * and every caller follows. That is the brief's item 2b from session 63 and
+   * it is cheaper to keep than to re-establish.
+   */
+  return terrainHeightAt(rootSeed, x, z);
 }
 
 /**
@@ -2940,6 +2970,14 @@ export const TERRAIN = {
    */
   tintRampM: 64,
   /**
+   * `u = r/foot` inside which a hill wears its own cover rather than the crop
+   * under it. 0.60 puts the transition in the outer two fifths of the
+   * footprint — a band 44 to 174 m wide depending on the hill — which is the
+   * apron of scrub a hill's foot has, and it is wide enough that no station
+   * lattice can turn it into a line. See `block.js` → `groundTint`.
+   */
+  hillCoverToU: 0.60,
+  /**
    * `u = r/foot` out to which a hill's pad reaches. A hill is drawn as one dome
    * from ONE base height, so ground that moves under its 110–300 m foot would
    * float its rim on one side and bury it on the other — measured at **11.10 m**
@@ -2987,7 +3025,36 @@ export function terrainHeightAt(rootSeed, x, z) {
    * city's ground by a measured **12.99 m** where the design guarantees zero.
    */
   const t = Math.min(1, (r - T.rampStartM) / T.rampM);
-  return h * (t * t * (3 - 2 * t));
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * AND THE HILLS ARE IN IT — SESSION 64, WHICH IS THE WHOLE ITEM.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The operator's frame: the hill *"sits ON the fields rather than in them"*,
+   * a pyramid with a base that cuts the field like a knife. Session 62 had
+   * already taken its rim from 43.6° to 7.1° and session 63 had sunk it to its
+   * own lowest rim, so **the angle was not the defect and neither was the
+   * seam**: what reads as a knife is a MESH boundary — a different geometry, a
+   * different material and a different albedo meeting the ground along a line.
+   *
+   * So the dome is the ground. `city:hills` is deleted, its 173 instances and
+   * 6 920 triangles come back, and one draw call with them; the mesh that draws
+   * the hills is `block:ground`, which was already paid for.
+   *
+   * ADDED AFTER THE RAMP AND NOT BEFORE IT. The landform ramps from zero at
+   * `CITY.extentEdgeM` so the city's planar ground is untouched; a dome must not
+   * be scaled by that ramp or a hill straddling it would be squashed. It does
+   * not need to be, because `hillMasses` now pushes every footprint clear of
+   * `CITY.extentEdgeM` — so the guarantee that `terrainHeightAt` is exactly zero
+   * inside the city survives with the domes in, and is asserted by
+   * `tools/landprobe.mjs --terrain`.
+   *
+   * A MAXIMUM AND NOT A SUM. Domes overlap — every wood sits on a crown by
+   * construction — and the surface is the highest of them, which is the same
+   * sentence `city.js`'s `worldSurface` uses about its own three modules. A sum
+   * would build a spire wherever two hills met.
+   */
+  return h * (t * t * (3 - 2 * t)) + hillRiseAt(rootSeed, x, z);
 }
 
 /**
@@ -3021,9 +3088,47 @@ export function hillMasses(rootSeed) {
     const a = rng.range(0, Math.PI * 2);
     const rRaw = rng.range(HILLS.rMinM, HILLS.rMaxM);
     const foot = rng.range(HILLS.footMinM, HILLS.footMaxM);
-    const r = rRaw;
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * A HILL IS THE GROUND NOW, SO ITS FOOTPRINT MAY NOT REACH INSIDE THE CITY
+     * — SESSION 64.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * STATE 61 measured that *"THE HILLS ALREADY REACH 182 m INSIDE THE LATTICE
+     * EDGE"* and recorded it as a finding with nothing depending on it. Session
+     * 63 could leave it alone because a dome was a separate instanced mesh: it
+     * simply stood over the lattice. Session 64 puts the dome INTO
+     * `terrainHeightAt`, so ground that reaches inside `CITY.extentEdgeM` would
+     * lift the lattice's roads and pavements, which are planar rectangles at a
+     * fixed y. Measured before this line existed: **42 of 173 masses reached
+     * inside, the worst by 297 m.**
+     *
+     * The reach is `foot · ecc` — the ellipse's long axis, which session 63
+     * learned the hard way is not `foot`. It is a `max` and not a rejection,
+     * because rejecting would empty the ring: at `rMinM` 3 300 every foot over
+     * 68 m already crosses and `footMinM` is 110. Pushed, the ring runs 3 303
+     * to 3 667 m against a world rim of 4 000, and the two valley tests below
+     * pass MORE often rather than less, because `|z| = |sin a| · r` grows with r.
+     *
+     * THE ROLLS MOVE ABOVE THE RADIUS so `ecc` is available to it, which
+     * re-phases the hill stream. That is the price of the constraint and it is
+     * the session's own subject, so it is paid rather than worked around.
+     */
+    const ecc = rng.range(1.0, 1.45);
+    const bearingDeg = rng.range(0, 180);
+    const r = Math.max(rRaw, CITY.extentEdgeM + foot * ecc);
+    /**
+     * AND THE CENTRE IS SNAPPED TO THE TERRAIN'S OWN STATION LATTICE, which
+     * costs nothing and buys the apex exactly. A dome's summit falls between
+     * lattice points otherwise, and the mesh then samples its shoulders instead
+     * of its top: measured over the 173 masses at a 32 m station, the peak loss
+     * was **p50 1.7%, p90 8.1% and 27.1% at worst** — a small hill losing a
+     * quarter of its height to where its own apex happened to land. Snapped,
+     * the apex IS a vertex and the loss is zero by construction.
+     */
+    const snap = (v) => Math.round(v / TERRAIN.stationM) * TERRAIN.stationM;
+    const x = snap(Math.cos(a) * r);
+    const z = snap(Math.sin(a) * r);
     const far = (r - HILLS.rMinM) / (HILLS.rMaxM - HILLS.rMinM);
     const h = rng.range(HILLS.heightMinM, HILLS.heightMaxM) * (0.7 + 0.6 * far);
     /**
@@ -3052,15 +3157,13 @@ export function hillMasses(rootSeed) {
      * 1.45x the short one, which is a ridge rather than a dome and is under the
      * 1.5 at which a hemisphere starts to read as a wall.
      */
-    const ecc = rng.range(1.0, 1.45);
-    const bearingDeg = rng.range(0, 180);
     out.push({ x, z, foot, h, wood: false, tone, ecc, bearingDeg });
     if (rng.chance(HILLS.woodChance)) {
       /** The wood sits on the flank, downhill of the crown, flatter and darker. */
       const wa = rng.range(0, Math.PI * 2);
       out.push({
-        x: x + Math.cos(wa) * foot * 0.4,
-        z: z + Math.sin(wa) * foot * 0.4,
+        x: snap(x + Math.cos(wa) * foot * 0.4),
+        z: snap(z + Math.sin(wa) * foot * 0.4),
         foot: foot * rng.range(0.35, 0.55),
         h: h * rng.range(0.30, 0.45),
         wood: true,
@@ -3072,51 +3175,21 @@ export function hillMasses(rootSeed) {
   }
   /**
    * ═══════════════════════════════════════════════════════════════════════════
-   * A HILL SINKS TO ITS OWN LOWEST RIM — SESSION 63, AND IT IS WHAT REPLACED
-   * THREE ARMS OF FLATTENING THE GROUND UNDER IT.
+   * THE SINK IS GONE — SESSION 64, AND SO IS THE QUESTION IT ANSWERED.
    * ═══════════════════════════════════════════════════════════════════════════
    *
-   * A dome is one instance drawn from ONE base height, so ground that moves
-   * under its 110–435 m footprint floats its rim on one side and buries it on
-   * the other. Three arms tried to flatten the ground instead, and each failed
-   * on a different geometry the ring already has — measured, in order: the ramp
-   * varying under a pad (**12.99 m of |h| inside the city**, where the design
-   * guarantees zero); a wood taking a pad from its own crown (**6.34 m of
-   * spread inside one footprint**); the pad's blend running UNDER the dome so
-   * the rim sat on the landform after all; the push using `foot` where the
-   * ellipse reaches `foot · ecc` (**17.6 m**); and finally the massif union
-   * collapsing 128 crowns into 2, which is the whole ring on one level.
+   * Session 63 sank each dome to the lowest terrain height around its own rim
+   * and raised its drawn height by the same amount, so that a mass drawn from
+   * ONE base height could never float over ground that moves. It worked — 43 of
+   * 8 304 rim samples floated, worst 0.0386 m, inside the project's own 0.05 m.
    *
-   * **THE GROUND WAS THE WRONG THING TO MOVE.** A hill in rolling country does
-   * not stand on a platform — it is cut into the slope, buried on the uphill
-   * side and standing clear on the downhill one. So the DOME moves: its base is
-   * the LOWEST terrain height around its own rim, and its drawn height is
-   * raised by the sink so that it still stands `h` above the ground at its own
-   * centre. Its rim is then at or below the ground at every azimuth by
-   * construction and can never float, which is the only property session 62's
-   * shoulder needs to survive.
-   *
-   * 64 RIM SAMPLES A HILL, once, inside a function memoised on the root seed.
-   * At 24 the discretisation left **83 of 8 304 rim points floating, worst
-   * 0.118 m** — the minimum of a sampled rim is not the minimum of the rim —
-   * and 64 takes that to the number printed by `tools/landprobe.mjs --terrain`.
+   * **THE OPERATOR'S READ IS THAT THE SEAM WAS NEVER THE DEFECT.** His frame
+   * shows a hill that *"sits ON the fields rather than in them"*, and no amount
+   * of sinking fixes a mass that was never made of the same stuff as the land.
+   * So the dome stops being a mass: `terrainHeightAt` carries it, `block:ground`
+   * draws it, and `baseY`, `drawH`, the 64 rim samples and the four failed
+   * flattening arms of session 62 all cease to be questions at once.
    */
-  for (const m of out) {
-    let lo = Infinity;
-    const ax = m.foot * (m.ecc || 1);
-    const az = m.foot / (m.ecc || 1);
-    const b = ((m.bearingDeg || 0) * Math.PI) / 180;
-    for (let k = 0; k < 64; k++) {
-      const th = (k / 64) * Math.PI * 2;
-      const lx = Math.cos(th) * ax;
-      const lz = Math.sin(th) * az;
-      const px = m.x + lx * Math.cos(b) - lz * Math.sin(b);
-      const pz = m.z + lx * Math.sin(b) + lz * Math.cos(b);
-      lo = Math.min(lo, terrainHeightAt(rootSeed, px, pz));
-    }
-    m.baseY = lo;
-    m.drawH = m.h + Math.max(0, terrainHeightAt(rootSeed, m.x, m.z) - lo);
-  }
   hillCacheSeed = rootSeed;
   hillCacheOut = out;
   return out;
