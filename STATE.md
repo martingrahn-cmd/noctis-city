@@ -387,8 +387,8 @@ ceiling's own numbers are unchanged by construction, and `highway_speed` says so
 
 `block:road:main` gains no triangle at all — a `noctisRough` vec2 over 1 446 vertices is 11.6 kB of
 buffer and nothing else. The pitch gains none: it is a quaternion composed into a matrix that was
-already being composed. **About 180 000 of headroom is still under the ceiling** and this session
-spent none of it where the ceiling is measured.
+already being composed. **About 182 000 of headroom is still under the ceiling** — session 64's
+2 447 554 exactly, unmoved — and this session spent none of it where the ceiling is measured.
 
 **THE CEILING LIVES IN TWO PLACES AND BOTH ARE UNTOUCHED.** `budget.json` and `HUD.budgets` are
 byte-identical and `perfcheck --falsify` still runs its 74 cases at 100% coverage.
