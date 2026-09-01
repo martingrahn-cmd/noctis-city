@@ -2565,6 +2565,119 @@ export function createHarness(options = {}) {
           };
         },
 
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * WHAT EVERY MESH IN THE SCENE CLAIMS ABOUT WATER — SESSION 65.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `lights.js` → `noctisRough` is a **vec2**: `.x` is a roughness
+         * override and `.y` is the POROSITY every wet term reads. Its own
+         * comment says the safe default is zero *"twice over"* — a geometry
+         * with NO attribute reads the generic `(0,0)`, and a geometry with the
+         * one-component `float` every mesh carried before session 55 reads
+         * `(x,0)`. **Both give porosity 0, and porosity 0 is IMPERVIOUS**,
+         * which is a full mirror under `wet = 1`.
+         *
+         * That default is correct for tarmac and silent everywhere else, and it
+         * has now been found twice by looking at a frame: session 64 found it on
+         * `block:ground` after session 63 made that plane the visible
+         * countryside, and session 65 found it on the 8 km exit-road ribbon —
+         * one surface away, the same omission, one session later. **Finding
+         * this class one frame at a time is what this method exists to stop.**
+         *
+         * IT IS A CENSUS AND NOT A CHECK, and it must stay one: it reports what
+         * every mesh delivers and asserts nothing at all. `tools/roughcensus.mjs`
+         * is the reader; `sceneCensus` above is the same arrangement with
+         * instance counts.
+         *
+         * THE POROSITY IS READ OFF THE DELIVERED BUFFER and not off the code
+         * that wrote it — CONTRACT §9 rule 2, and it is the whole point. A
+         * value the generator chose and the attribute does not carry is exactly
+         * the disagreement this is looking for, so nothing here may consult a
+         * table.
+         */
+        roughCensus() {
+          const rows = [];
+          const sph = new THREE.Sphere();
+          ctx.scene.traverse((o) => {
+            if (!o.isMesh || !o.geometry) return;
+            const g = o.geometry;
+            const pos = g.getAttribute('position');
+            if (!pos) return;
+            const a = g.getAttribute('noctisRough');
+            const drawn = o.isInstancedMesh ? o.count : 1;
+            const idx = g.getIndex();
+            const triangles = Math.floor(((idx ? idx.count : pos.count) / 3)) * drawn;
+            /**
+             * THE HISTOGRAM IS OVER `.y` AND ONLY EXISTS WHEN THERE IS A `.y`.
+             * `itemSize` is the finding: 0 means the attribute is absent and
+             * the mesh reads the generic default; 1 means it carries the
+             * pre-session-55 float, whose `.y` is also the generic default.
+             * Neither is a porosity this mesh chose, and printing a 0 for both
+             * would hide which of the two it is.
+             */
+            let poros = null;
+            if (a && a.itemSize >= 2) {
+              const bins = new Map();
+              let lo = Infinity;
+              let hi = -Infinity;
+              for (let i = 0; i < a.count; i++) {
+                const y = a.getY(i);
+                if (y < lo) lo = y;
+                if (y > hi) hi = y;
+                const k = y.toFixed(3);
+                bins.set(k, (bins.get(k) || 0) + 1);
+              }
+              poros = {
+                min: a.count ? +lo.toFixed(4) : null,
+                max: a.count ? +hi.toFixed(4) : null,
+                vertices: a.count,
+                /** Sorted descending by vertex count; the tail is truncated. */
+                bins: [...bins.entries()]
+                  .sort((p, q) => q[1] - p[1])
+                  .slice(0, 8)
+                  .map(([v, n]) => [Number(v), n]),
+                distinct: bins.size,
+              };
+            }
+            /**
+             * WHERE IT IS, IN WORLD METRES, so a reader can say which rows are
+             * countryside without a table of names. The bounding sphere is
+             * three's own and is computed here rather than trusted, because a
+             * geometry that has never been culled may not have one.
+             */
+            if (o.isInstancedMesh) {
+              /**
+               * AN INSTANCED MESH'S GEOMETRY BOUND IS ONE UNIT BOX, NOT THE
+               * FIELD — and the first arm of this method read the geometry's
+               * for every row, so `city:distant`, 47 556 triangles spread over
+               * kilometres, reported a reach of **1 m**. three keeps a separate
+               * `InstancedMesh.boundingSphere` over the instance matrices and
+               * that is the one that answers "where is this mesh".
+               */
+              if (!o.boundingSphere) o.computeBoundingSphere();
+              sph.copy(o.boundingSphere).applyMatrix4(o.matrixWorld);
+            } else {
+              if (!g.boundingSphere) g.computeBoundingSphere();
+              sph.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+            }
+            rows.push({
+              name: o.name || '(unnamed)',
+              instanced: !!o.isInstancedMesh,
+              drawn,
+              triangles,
+              itemSize: a ? a.itemSize : 0,
+              porosity: poros,
+              centre: [+sph.center.x.toFixed(1), +sph.center.y.toFixed(1), +sph.center.z.toFixed(1)],
+              radius: +sph.radius.toFixed(1),
+              /** How far the mesh reaches from the origin in plan. */
+              reachM: +(Math.hypot(sph.center.x, sph.center.z) + sph.radius).toFixed(1),
+              visible: o.visible,
+            });
+          });
+          return { meshes: rows.length, rows };
+        },
+
         faults() {
           return ctx.faults;
         },

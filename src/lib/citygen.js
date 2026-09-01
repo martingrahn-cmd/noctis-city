@@ -2285,6 +2285,97 @@ export const EXIT_ROAD = {
     { lengthM: 300, dir: -1 },
   ],
   /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * WHAT THE TWO ENDS OF THIS ROAD ARE MADE OF — SESSION 65, AND IT IS A
+   * MEAN TEXTURE DEPTH IN MILLIMETRES AND NOT A POROSITY.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * The operator's car-height frame at `wet = 1`: the carriageway returned a
+   * full inverted image of a roadside tree. Not wet asphalt — polished water.
+   * `block.js` had never given this ribbon a `noctisRough` at all, so it read
+   * the generic `(0, 0)`, and porosity 0 is IMPERVIOUS: `lights.js` →
+   * `sheen = 1 - porosity` at 1, the pond term unattenuated, `roughnessFactor`
+   * mixed to `SURFACE.puddleRoughness` = 0.045 wherever the puddle field is
+   * high. That is a mirror, and it is the same omission session 64 found on
+   * `block:ground` ONE SURFACE AWAY.
+   *
+   * ── WHY THE NUMBER IS A TEXTURE DEPTH ──────────────────────────────────
+   *
+   * Session 55 derived every porosity in this project as `min(1, K / R)` — an
+   * infiltration capacity over `weather.js` → `RAIN_FULL_MMH` = 10 mm/h. That
+   * derivation returns **0.00 for every sealed surface**, because asphalt,
+   * concrete and paving are all definitionally zero, so **it cannot separate a
+   * city arterial from a rural chip seal at all.** It does not disagree here;
+   * it is silent here.
+   *
+   * Session 55 wrote the other derivation down in the same comment and set it
+   * aside: *"A road film is a few tenths of a millimetre against dense
+   * asphalt's 0.4-0.8 mm mean texture depth, so it bridges most of the relief;
+   * the same film against a 20-50 mm sward bridges none of it."* Its stated
+   * reason for setting it aside is *"two derivations for one constant is one
+   * too many"* — which is a rule about a constant BOTH of them answer, and
+   * this is one only the second can.
+   *
+   * ── THE ARITHMETIC, AND THE TERM THAT CANCELS ──────────────────────────
+   *
+   * The mirror is the water-air interface, and it is a mirror where the water
+   * forms a continuous sheet ON TOP of the texture rather than sitting down
+   * inside it. Under steady rain that sheet has a depth `d` set by drainage,
+   * and for `d` under the texture depth the plan fraction standing proud goes
+   * as `d / MTD` — MTD being the sand-patch mean texture depth, the mean depth
+   * of the voids (ISO 13473-1 / ASTM E965). Taken as a RATIO against a
+   * reference surface under the same rain,
+   *
+   *     sheen(MTD) / sheen(MTD_ref)  =  MTD_ref / MTD
+   *
+   * and **`d` cancels**. That is the property that makes this usable: `d` is
+   * the number that would have to be defended (a Manning sheet-flow depth over
+   * this road's own 3.5 m half-width at 2.5% crossfall is 0.22 mm, and nothing
+   * below depends on it), while MTD is a number the standards go out and
+   * measure.
+   *
+   * Anchored on session 55's own two ends, `porosity = 1 - MTD_ref / MTD`:
+   *
+   *     surface                        MTD mm    sheen    porosity
+   *     dense-graded city asphalt      0.4-0.8    1.00       0.00   <- the anchor
+   *     surface dressing, rural        1.5-2.5    0.30       0.70   <- this road
+   *     a mown sward                    20-50     0.017      0.98   <- the CHECK
+   *
+   * **THE SWARD IS A CHECK AND NOT A FIT.** Session 55 set turf to 1.00 from
+   * infiltration alone, independently and ten sessions before this line
+   * existed; this model puts it at 0.983, within 1.7%. Two derivations, one
+   * number, and neither was made to agree with the other (CONTRACT §9 rule 2).
+   * Where they DO diverge is bare soil — infiltration gives 0.85, relief gives
+   * about 0.95 at a tilled seedbed's 10-20 mm of random roughness — so this
+   * model is used for the SEALED class only, where the other one has no
+   * resolution, and session 55's table keeps everything else.
+   *
+   * ── SENSITIVITY, BECAUSE 2.0 IS A CLASS AND NOT A MEASUREMENT ──────────
+   *
+   * Across the surface-dressing class: MTD 1.5 -> porosity 0.60, MTD 2.5 ->
+   * 0.76. **The answer is 0.60 to 0.76 and 0.70 is the centre of the class**,
+   * not a point somebody liked inside a range.
+   *
+   * ── AND IT DARKENS, WHICH IS THE OTHER HALF OF THE BRIEF'S SENTENCE ────
+   *
+   * Porosity does not touch the darkening: `lights.js` writes
+   * `diffuseColor.rgb *= mix(1.0, uNoctisSurface.z, gNoctisWetFilm)` off the
+   * FILM and not the sheen, deliberately, because wet asphalt and wet grass are
+   * both darker than dry. So the country road still goes to
+   * `SURFACE.wetDarkening` = 0.5 of its dry diffuse in the rain. **It darkens
+   * and it does not mirror.** And 0.30 of sheen is not zero — the film still
+   * smooths it and the low spots still pond at 30% — so what is delivered is a
+   * glossy, damp, dark road rather than a matt one.
+   */
+  textureDepthCityMM: 0.6,
+  /**
+   * Surface dressing: 6/10 or 10/14 chippings rolled into a binder. The class
+   * measures 1.5-2.5 mm by sand patch and is specified at >= 1.5 mm on
+   * high-speed rural sites; 2.0 is the centre of it. See the block above for
+   * where the ratio comes from and what it is checked against.
+   */
+  textureDepthCountryMM: 2.0,
+  /**
    * Metres between stations of the tabulated polyline. The sagitta a chord
    * subtends on the tightest arc this road contains is
    * `R (1 − cos(s / 2R))` = 357.6 · (1 − cos(0.01119)) = **0.022 m**, which is
@@ -2401,6 +2492,56 @@ export function exitRoadHalfM(x) {
   if (ax <= EXIT_ROAD.startM) return EXIT_ROAD.halfCityM;
   const t = Math.min(1, (ax - EXIT_ROAD.startM) / EXIT_ROAD.taperM);
   return EXIT_ROAD.halfCityM + (EXIT_ROAD.halfCountryM - EXIT_ROAD.halfCityM) * t;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHERE THE TARMAC CHANGES — SESSION 65, AND IT IS THE CITY'S EDGE AND NOT
+ * THE TAPER, WHICH THE FIRST ARM GOT WRONG AND A FRAME AND A RULE BOTH SAID SO.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `lights.js` → `noctisRough.y`, the porosity every wet term reads, for a point
+ * on this ribbon. `EXIT_ROAD`'s `textureDepth*` block carries the derivation of
+ * the VALUE and its sensitivity; what is decided HERE is where along 20 km of
+ * one mesh the answer changes, and only that.
+ *
+ * ── THE FIRST ARM RAMPED IT OVER `taperM`, AND THAT IS CONTRACT §9 ─────────
+ *
+ * It read *"the surface changes where the section changes"* and interpolated on
+ * `exitRoadHalfM`'s own `t`, so that one number would describe how far out of
+ * the city a station is. That is the right instinct about a datum and the wrong
+ * quantity to borrow: **`taperM` = 200 m is `4.0 m × 50`, the standard 1:50
+ * rate for narrowing a carriageway.** It is a rate of change of WIDTH. Nothing
+ * about a lane-narrowing standard says where one authority's surfacing ends and
+ * the next one's begins — a length derived for one quantity used to schedule
+ * another, which is §9's own shape and rule 7's *"measured from what"* answered
+ * with the nearest number to hand.
+ *
+ * **AND THE FRAME AGREED.** The operator stands at x = 3 260, which is 28 m
+ * past `startM`: on a 200 m ramp that is `t` = 0.14 and a porosity of **0.098**,
+ * so the near half of the frame he complained about was still city asphalt and
+ * still a mirror. The delivered `country-car-s65-road` frame shows exactly
+ * that. A schedule whose own subject cannot see it is a schedule chosen for
+ * something other than the thing it describes.
+ *
+ * ── WHAT IT IS INSTEAD ────────────────────────────────────────────────────
+ *
+ * A resurfacing changes at a JOINT, and a joint is where the maintaining
+ * authority changes: `EXIT_ROAD.startM` is `CITY.extentEdgeM`, the line the
+ * lattice stops at and this road becomes the only one. That is one datum, it is
+ * already the datum the whole road is measured from, and it needs no second
+ * number.
+ *
+ * IT IS A STEP AND THE STEP IS A REAL THING. A resurfacing joint is a line
+ * across a carriageway that you can see from a car, so nothing here is
+ * softening it for the eye's sake. What the ribbon can express is one station —
+ * `stationM` = 8 m — because the attribute is per-vertex and the vertices are
+ * 8 m apart, so the joint is drawn 8 m wide. That is the mesh's resolution
+ * stated as a limit rather than a design.
+ */
+export function exitRoadPorosity(x) {
+  const country = 1 - EXIT_ROAD.textureDepthCityMM / EXIT_ROAD.textureDepthCountryMM;
+  return Math.abs(x) <= EXIT_ROAD.startM ? 0 : country;
 }
 
 /**

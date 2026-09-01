@@ -29,7 +29,7 @@ import {
   riverBankStations, BUS_STOP, riverEdges,
   sunkenLandmarks, basinRimStations, basinSurfaceAt,
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
-  EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg,
+  EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg, exitRoadPorosity,
   TERRAIN, terrainHeightAt, terrainNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
   HILLS, hillSurfaceAt,
 } from '../lib/citygen.js';
@@ -1365,6 +1365,65 @@ export function createBlock(options = {}) {
         const nrm = new Float32Array(arr.length);
         for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
         roadGeo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND THE POROSITY, WHICH THIS RIBBON HAS NEVER CARRIED — SESSION 65,
+         * AND IT IS THE SAME OMISSION SESSION 64 FOUND ONE SURFACE AWAY.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The operator's car-height frame at `wet = 1`: the carriageway
+         * returned a full inverted image of a roadside tree. **This geometry
+         * set `position` and `normal` and nothing else**, so it read
+         * `lights.js`'s generic vertex default `(0, 0)` — and porosity 0 is
+         * IMPERVIOUS, which takes `sheen` to 1, leaves the pond term
+         * unattenuated and mixes `roughnessFactor` to
+         * `SURFACE.puddleRoughness` = 0.045 wherever the puddle field is high.
+         * Polished water, exactly as he described it.
+         *
+         * It is `block:ground`'s defect of last session, one surface over. That
+         * plane was under the streamed city and then under session 61's crop
+         * rectangles, and only became visible when session 63 made it the
+         * countryside; this ribbon has been visible the whole time and had
+         * never been asked. `tools/roughcensus.mjs` is the answer to finding
+         * this class one frame at a time: it walks every mesh in the delivered
+         * scene and prints what each one claims, and it says this ribbon was
+         * the ONLY surface out here with no chosen porosity.
+         *
+         * THE VALUE IS `citygen.js` → `exitRoadPorosity`, which reads the
+         * TAPER'S OWN `t` — so the surface changes where the section changes
+         * and there is one description of how far out of the city a station is.
+         * The whole derivation, the sensitivity and the check against session
+         * 55's independently-set sward are in `EXIT_ROAD.textureDepth*`.
+         *
+         * `.x` STAYS 0, which is `lights.js`'s *"no per-vertex roughness
+         * override, use the material's"*. `matAsphalt` is untouched and the DRY
+         * road is byte-identical to every frame this project has shipped —
+         * this attribute is read only inside `if (gNoctisWetFilm > 0.0)`.
+         *
+         * ONE VALUE PER STATION, APPLIED ACROSS THE CARRIAGEWAY, exactly as the
+         * height above is: a road is one material across its width. The six
+         * vertices of a station pair are pushed in the same order as `pos`, so
+         * the two arrays cannot fall out of step — which is the failure
+         * `city.js`'s kerb `riser` records in its own comment, where a porosity
+         * pushed to three parallel arrays and a position to four made every
+         * vertex after the first kerb read a value two floats out of place.
+         */
+        {
+          const rgh = new Float32Array((arr.length / 3) * 2);
+          const xs2 = roadStationX;
+          let k = 0;
+          for (let i = 0; i < xs2.length - 1; i++) {
+            const pa = exitRoadPorosity(xs2[i]);
+            const pb = exitRoadPorosity(xs2[i + 1]);
+            // The same six vertices, in the same order: a,b,b then a,a,b.
+            for (const p of [pa, pb, pb, pa, pa, pb]) {
+              rgh[k] = 0;
+              rgh[k + 1] = p;
+              k += 2;
+            }
+          }
+          roadGeo.setAttribute('noctisRough', new THREE.BufferAttribute(rgh, 2));
+        }
         roadGeo.computeBoundingSphere();
       }
       const roadMain = new THREE.Mesh(track(roadGeo), matAsphalt);

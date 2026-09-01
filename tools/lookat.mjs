@@ -27,7 +27,10 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { LANDMARKS, landmarkAABB, viaductArc } from '../src/lib/citygen.js';
+import {
+  LANDMARKS, landmarkAABB, viaductArc,
+  CITY, EXIT_ROAD, exitRoadZ, terrainHeightAt, hillsideHouses,
+} from '../src/lib/citygen.js';
 import { startServer, launchBrowser, openPage, readRendererString } from './lib/page.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -124,6 +127,61 @@ function presets() {
     out[`${name}-street`] = {
       pos: [snapX, eye, l.z + Math.sign(d) * Math.hypot(d, d * 0.72) * 0.86],
       target: [l.x, Math.max(4, l.height * 0.45), l.z],
+      fov: 55,
+    };
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE TWO COUNTRYSIDE POSES, DERIVED AND RECORDED — SESSION 65.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Session 64 delivered `tools/shot-out/s64-{car,air4}-t0_42-wet.png` and
+   * session 65's brief asks for *"session 64's two poses exactly, so the pair
+   * is comparable"*. **THE POSES WERE NOT WRITTEN DOWN ANYWHERE.** STATE 64
+   * describes the first in words — *"the car's eye, 1.6 m, on the exit road at
+   * x = 3 260 looking east down it"* — which is enough to rebuild it, and the
+   * second as *"aerial from 180 m"*, which is not. That is
+   * `landmarkcensus.mjs`'s own opening complaint arriving at a camera: a frame
+   * produced by a command in a shell nobody kept is a frame the next session
+   * cannot retake.
+   *
+   * So both are here, derived from the road's own functions rather than typed,
+   * and neither can drift: `exitRoadZ` is the ribbon's centreline and
+   * `terrainHeightAt` is the surface under it, so a change to either moves the
+   * camera with the world instead of leaving it in a field.
+   *
+   * THE EYE IS ON THE SMOOTH FUNCTION AND THE ROAD IS DRAWN ON ITS STATIONS,
+   * and the two differ by up to 0.0149 m (STATE 64 §5a). Said rather than
+   * hidden: 15 mm of camera height is not a datum anybody reads, which is
+   * exactly what could NOT be said of the paint that measurement was made for.
+   */
+  {
+    const CAR_X = 3260;
+    /** How far down the road the eye is aimed. Level — the target sits at the
+     *  same height as the eye — because a driver's frame is level and a target
+     *  on the carriageway would pitch the horizon with every dip. */
+    const AHEAD = 900;
+    const carY = terrainHeightAt('1337', CAR_X, exitRoadZ(CAR_X)) + 1.6;
+    out['country-car'] = {
+      pos: [CAR_X, carY, exitRoadZ(CAR_X)],
+      target: [CAR_X + AHEAD, carY, exitRoadZ(CAR_X + AHEAD)],
+      fov: 55,
+    };
+    /**
+     * THE AERIAL, AND ITS SUBJECT IS THE HILL SHOULDER WITH THE HOUSES ON IT.
+     *
+     * 180 m over the city's own edge, looking out along the road at the
+     * eastern cluster of `hillsideHouses` — the four the operator's aerial
+     * shows standing with open air beneath them. The target is the cluster's
+     * own centroid, so the frame follows the houses rather than a coordinate.
+     */
+    const east = hillsideHouses('1337').filter((h) => h.x > 0 && h.z > 0 && h.x < 3600);
+    const cx = east.reduce((a, h) => a + h.x, 0) / Math.max(1, east.length);
+    const cz = east.reduce((a, h) => a + h.z, 0) / Math.max(1, east.length);
+    out['country-air'] = {
+      pos: [CITY.extentEdgeM - 260, 180, -120],
+      target: [cx + 700, 0, cz + 260],
       fov: 55,
     };
   }
