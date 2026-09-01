@@ -986,6 +986,83 @@ It is that the street wall is broken.
   221 of them. The concrete is 864 m² around the barn now and the house has a
   garden. `tools/shot-out/s64-{car,air4}-t0_42-wet.png`.
 
+- **A COUNTRY ROAD IS NOT CITY ASPHALT WHEN WET, AND THIS IS THE ONE PLACE
+  SECTION 0's OWN DEVICE IS WRONG — SESSION 65.**
+
+  Section 0 and section 4 both lean on wet roads doubling every light, and out
+  here that is a mirror in the middle of farmland. The operator's car-height
+  frame at `wet = 1`: *"the carriageway reflects the sky and returns a full
+  inverted image of a roadside tree. Not wet asphalt — polished water."*
+
+  **MEASURED, on the delivered pixels at the `country-car` preset**, rows
+  555–645 averaged and a straight line fitted across x 940–1200 — a road that
+  carries no image is a smooth ramp and one that does has a hole in it:
+
+  ```
+                         worst residual against the trend       sd of residual
+    before                −33.3 code values, 35.0% of trend          17.12
+    after                 −2.2 at the window's own edge, 1.4%         0.51
+  ```
+
+  **THE VALUE IS 0.70 AND IT IS A TEXTURE DEPTH, NOT AN INFILTRATION RATE.**
+  Session 55's `min(1, K/R)` returns 0.00 for every sealed surface, so it cannot
+  tell a city arterial from a rural chip seal at all. Session 55's OWN relief
+  paragraph can, and it was set aside there only because the two agreed:
+  `sheen` scales as `MTD_ref / MTD`, the sheet depth cancels, and a surface
+  dressing at 2.0 mm against dense-graded asphalt's 0.6 mm gives 0.70. The
+  sward is the check and not the fit — session 55 set turf to 1.00 from
+  infiltration alone and this model gives 0.983.
+
+  **AND IT DARKENS.** Porosity does not touch `SURFACE.wetDarkening`, which
+  reads the film: the country road still goes to 0.5 of its dry diffuse in the
+  rain. What 0.30 of remaining sheen buys is glossy and damp instead of
+  polished. The city's own arterial is untouched — the change steps at
+  `CITY.extentEdgeM`, which is where the maintaining authority changes, and the
+  first arm ramped it over the 1:50 WIDTH taper and delivered a frame that was
+  still a mirror where the operator was standing. `tools/shot-out/country-car-s65-{before,road2}-t0_42-wet.png`.
+
+- **AND A HILL WITH NOTHING ON IT IS A COLOURED PATCH OF GROUND — SESSION 65.**
+
+  *"The silhouette is right and the surface is bare: smooth sand above a hard
+  line where the grass stops."* **The line is not the hill's own cover
+  boundary**: scanning down through a hill foot in the delivered aerial, Y runs
+  99.4 → 83.4 → 106.5 with no step over 3 code values per 10 px and saturation
+  runs 0.330 → 0.402 monotone. `groundTint` blends cover to crop over
+  `u` 0.60–1.00 and it works.
+
+  What the frame does have a line at is the near-field crop boundary — eight
+  pixels carrying Y 123.8 → 157.6 and saturation 0.128 → 0.220. **And it is
+  LUMINANCE**: `HILLS.hillAlbedo` Y 0.0876 against `field` Y 0.1722 is 1.97× in
+  albedo, ACES predicts 1.28× in code values and the frame measures 1.28×.
+  Their saturations are 0.348 and 0.495 — 1.42×, where session 64's grey pad
+  was six to seven times flatter than everything it abutted. **Session 64's
+  chroma instrument answered its own question and does not answer this one, and
+  there is no colour here to repair.** What was missing is the vegetation:
+  6 093 more of the tree this world already has, at 8.6 clumps a hectare on
+  scrub and 24 on a wooded mass, thinning to nothing on `groundTint`'s own ramp
+  so the planting stops exactly where the scrub colour does.
+  `tools/shot-out/country-{car,air}-s65-trees-t0_42-wet.png`.
+
+- **THE LONG SOFT BANDS ACROSS AN AERIAL ARE THE LAND — SESSION 65, MEASURED
+  AND NOT FIXED.**
+
+  There are no shadow cascades in this project: one `DirectionalLight`, one
+  ±170 m orthographic shadow camera against a ground plane running to 10 000 m,
+  and `block:ground` never casts at all. The skirt's rings are concentric
+  circles at 4128, 4384, 4896, 5920 and 7968 m and the bands appear inside
+  4 000 m. What they are is `TERRAIN`'s own 1 024 m landform, shaded — in one
+  fixed strip of the delivered aerial with nothing changed but the clock, the
+  band amplitude runs **sd/mean 0.2244 at a sun of 18.8°, 0.0289 at 48.9° and
+  0.0172 at 57.9°**. A 14.2× fall, monotone in sun elevation; an albedo pattern
+  does not do that.
+
+  So the operator's *"they do not read as terrain"* is a look judgement and it
+  is a fair one: 13 m of relief over 1 024 m is **1.3% of its own wavelength**,
+  which at 180 m gives no silhouette cue at all and a 2.9% shading cue at
+  `t = 0.42`. At `t = 0.30` it reads unmistakably as land. The land is not
+  broken; the hour is doing all the work, and anything that changed it would be
+  a change to the LANDFORM's amplitude rather than to a renderer.
+
 ---
 
 ## 3. Light

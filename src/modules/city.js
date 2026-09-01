@@ -2094,6 +2094,16 @@ export function createCity(options = {}) {
             const gx = axis === 'x' ? e : mid;
             const gz = axis === 'x' ? mid : e;
             const lo = GROUND.earth + terrainHeightAt(rootSeed, gx, gz);
+            /**
+             * `GROUND.crossingBias` AS THE EPSILON, AND IT IS THE RIGHT
+             * QUANTITY RATHER THAN THE NEAREST ONE. It is the separation this
+             * project puts between two surfaces that would otherwise be
+             * coplanar, so a gap under it is a gap between surfaces this
+             * project already calls coincident — there is nothing to close.
+             * Anything above it IS a hole, and the face is drawn however small
+             * it is: a 0.07 m slot under a verge's edge is half a kerb and is
+             * exactly what a car's eye at 1.6 m looks along.
+             */
             if (y - lo <= GROUND.crossingBias) continue;
             riser(axis, e, s0, s1, lo, y, dir, GROUND.earthAlbedo);
           }

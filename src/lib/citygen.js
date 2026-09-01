@@ -16802,30 +16802,29 @@ export function generateChunk(rootSeed, cx, cz) {
      * takes `yAdd` from the terrain at its own centre, which is session 62's
      * own finding that this vocabulary expresses a terrace and not a slope,
      * used where it is exactly right.
+     *
+     * ── AND THE CODE THAT DREW THEM IS GONE, WHICH IT WAS NOT — SESSION 65 ──
+     *
+     * Session 63 moved the crops to the tint and left the loop that had drawn
+     * them, over two arrays it stopped filling:
+     *
+     *     const xs = [];
+     *     const zs = [];
+     *     for (let i = 0; i + 1 < xs.length; i++) { ... }
+     *
+     * **Thirty lines that cannot execute**, including a `farmCrop` call, a
+     * `subtractBoxes` call and a paragraph explaining how the crop is hashed
+     * from a parcel's index pair — all of it true of the tint and none of it
+     * reachable from here. It is §9.1's *"a comment that claims a check"* with
+     * a whole routine instead of a comment: a reader looking for where the
+     * parcels are drawn finds this, and it is not where they are drawn.
+     *
+     * Removed rather than repaired. The behaviour is unchanged BY
+     * CONSTRUCTION — a loop with an empty bound emits nothing — and the chunk
+     * hash over 4 761 chunks is identical either side, which is the check
+     * rather than the argument. The paragraph above it is kept, because WHY
+     * the crops stopped being rectangles is the part worth having.
      */
-    const xs = [];
-    const zs = [];
-    for (let i = 0; i + 1 < xs.length; i++) {
-      for (let j = 0; j + 1 < zs.length; j++) {
-        /**
-         * THE CROP IS HASHED FROM THE PARCEL'S OWN INDEX PAIR, taken at the
-         * cell's centre. Session 61's `(ci++ + cx + cz) % 2` was a parity over
-         * a loop counter, and the measurement found what that costs: on all 28
-         * four-way-split chunks it put the two same-crop cells at the same `j`,
-         * so the colour made two full-width bands and **the x split line
-         * carried no change of crop at all**. Half of every four-way split was
-         * invisible.
-         */
-        const kx = farmIndex(rootSeed, 'x', (xs[i] + xs[i + 1]) / 2);
-        const kz = farmIndex(rootSeed, 'z', (zs[j] + zs[j + 1]) / 2);
-        const c = farmCrop(rootSeed, kx, kz);
-        for (const g of subtractBoxes(
-          [{ x0: xs[i], x1: xs[i + 1], z0: zs[j], z1: zs[j + 1],
-            kind: c.kind, yKey: 'grass', tone: c.tone }],
-          solids
-        )) ground.push(g);
-      }
-    }
 
     /**
      * THE HEDGEROWS. One run on each of the two split lines, and one along
