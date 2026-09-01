@@ -66,6 +66,39 @@ The hills' albedo moved with them: `HILLS.hillAlbedo` and `woodAlbedo` blend int
 per-vertex tint over the outer two fifths of a footprint, so a hill's foot is a band of scrub
 running into the fields and there is no line for the eye to find.
 
+### 1b. AND IT SHADES — BUT THE INSTRUMENT SAID IT DID NOT, AND THE INSTRUMENT WAS WRONG
+
+Item 1d is *vertex normals, not face normals*, and `tools/slopeprobe.mjs` is session 63's answer to
+it: one hill, one albedo, eight azimuths, the delivered code value against `max(0, n·l)`. Run
+unchanged against the merged terrain it reported **r = 0.003 / 0.052 / −0.073** where session 63
+read 0.906 / 0.974 / 0.942, and printed ***NOT ESTABLISHED***.
+
+**THE SURFACE WAS FINE AND THE PREDICTION HAD STOPPED DESCRIBING IT.** The delivered code value was
+still swinging **17.6, 28.4 and 34.1 of 255** across the eight azimuths of one albedo, which is a
+surface shading by orientation and nothing else; and the measured peak sat two sectors round from
+the predicted one, which is the signature. `hillRiseAt` is a maximum over 179 masses and
+`terrainHeightAt` adds two octaves — 13 m over 1 024 m and 5 m over 384 m — **on top of it**. On a
+259 m footprint those are comparable to the dome's own band relief. The analytic dome is one term
+of the surface a pixel is on; the probe was predicting from that one term.
+
+The prediction samples `terrainNormalAt` now — the same central difference at `stationM / 2` that
+`block.js` writes into the mesh — averaged over each sector's own annulus. **That is not a softer
+test; it is the same test against the surface that is there, and it can still fail.**
+
+```
+  band                slope    swing of 255    Pearson r
+  crown  0.00-0.50    15.0°        17.6          0.968
+  flank  0.50-0.82    19.1°        28.4          0.946
+  SHOULDER 0.82-1.0    7.3°        34.1          0.822
+```
+
+**A NON-VERTICAL NORMAL SHADES**, on the 7.3° shoulder the brief asks about. CONTRACT §7.7 in its
+own file: an instrument written to detect a shading failure had become a place one could hide, and
+it would have reported a perfectly good surface as broken. Its control paragraph is restated in the
+file rather than left — it opened *"`city:hills` carries a per-instance albedo"* and there is no
+`city:hills`; inside `TERRAIN.hillCoverToU` the control holds exactly, and outside it the tint
+blends to the crop, so the outer band's r is a floor and not a measurement.
+
 ### 1a. THE FIRST WET FRAME FOUND A COUNTRYSIDE MADE OF WATER
 
 `noctisRough` is a vec2 — a roughness override and the porosity every wet term in `lights.js`
@@ -413,4 +446,9 @@ both are this session by construction: **344 instanced meshes against session 61
 8. **CARRIED, UNCHANGED**: the height law reads nothing at all (STATE 61 §4); the traffic has no
    lane that is not a lattice line; `city.js`'s `unitHash` puts the multiplier inside the sine; the
    three chunk seams; the 53 holograms; the school yard's 8 trees and the church square's 98.
-9. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**
+9. **AND WHEN A PROBE'S ANSWER CHANGES, ASK WHETHER ITS QUESTION STILL HOLDS (§1b).** `slopeprobe`
+   went from r = 0.94 to r = −0.07 in one session and the surface was fine — its prediction had
+   quietly become one term of a sum. It is the second instrument this session that had to be
+   restated rather than re-run: `landprobe`'s winding check measured a lathe that no longer exists.
+   Both were written for a world in which a hill was an object.
+10. **`decodePNG` RETURNS THREE BYTES PER PIXEL.**

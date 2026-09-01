@@ -74,7 +74,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { startServer, launchBrowser, openPage, readRendererString, ROOT } from './lib/page.mjs';
 import { decodePNG } from './lib/png.mjs';
-import { hillMasses, hillProfile } from '../src/lib/citygen.js';
+import { hillMasses, hillProfile, terrainNormalAt } from '../src/lib/citygen.js';
 import { dirFromAzEl, DEG as SOLAR_DEG } from '../src/lib/solar.js';
 
 const args = new Map(process.argv.slice(2).map((a) => {
@@ -175,6 +175,62 @@ const CY = cross(CZ, CX);
  * CONTRACT §9 row 14's *"a negative x scale used to turn a plane round"* with a
  * scale instead of a mirror, so it is written out rather than assumed.
  */
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * AND SINCE SESSION 64 THE PREDICTION IS THE DELIVERED NORMAL — `facetNormal`
+ * BELOW IS KEPT AS THE ANALYTIC DOME AND IS NO LONGER WHAT IS COMPARED.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * MEASURED, AND IT IS THE WHOLE REASON THIS PARAGRAPH EXISTS. Run unchanged
+ * against the merged terrain, this probe reported r = 0.003 / 0.052 / −0.073
+ * where session 63 read 0.906 / 0.974 / 0.942 — and the delivered code value
+ * still swung 17.6, 28.4 and 34.2 of 255 across the eight azimuths of one
+ * albedo, so the surface was shading perfectly well and the PREDICTION had
+ * stopped describing it. The measured peak sat two sectors round from the
+ * predicted one, which is the signature.
+ *
+ * WHY. `hillRiseAt` is a maximum over 179 masses and `terrainHeightAt` adds two
+ * octaves of 13 m over 1 024 m and 5 m over 384 m ON TOP OF IT. On a 259 m
+ * footprint those octaves are comparable to the dome's own band relief, and a
+ * neighbouring mass can raise a whole sector. The surface a pixel is on is the
+ * SUM; the analytic dome is one term of it.
+ *
+ * So the prediction samples `terrainNormalAt` — the same central difference at
+ * `stationM / 2` that `block.js` writes into the mesh — over the sector's own
+ * annulus in the hill's own frame, and averages it. That is not a softer test:
+ * it is the same test against the surface that is actually there, and it can
+ * still fail. CONTRACT §7.7 in its own file: this instrument was written to
+ * detect a shading failure and it had become a place where one could hide.
+ */
+function deliveredNormal(band, sector) {
+  const u0 = RINGS[band];
+  const u1 = RINGS[band + 1];
+  const t0 = (sector / RAD) * Math.PI * 2;
+  const t1 = ((sector + 1) / RAD) * Math.PI * 2;
+  const n = [0, 1, 0];
+  let ax = 0;
+  let ay = 0;
+  let az = 0;
+  const N = 7;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const u = u0 + ((i + 0.5) / N) * (u1 - u0);
+      const t = t0 + ((j + 0.5) / N) * (t1 - t0);
+      /** The hill's own frame out to world — `hillRiseAt`'s inverse, exactly. */
+      const lx = Math.cos(t) * AX * u;
+      const lz = Math.sin(t) * AZ * u;
+      const x = pick.x + lx * Math.cos(BEAR) - lz * Math.sin(BEAR);
+      const z = pick.z + lx * Math.sin(BEAR) + lz * Math.cos(BEAR);
+      terrainNormalAt(SEED, x, z, n);
+      ax += n[0];
+      ay += n[1];
+      az += n[2];
+    }
+  }
+  const L = Math.hypot(ax, ay, az) || 1;
+  return [ax / L, ay / L, az / L];
+}
+
 function facetNormal(band, sector) {
   const u0 = RINGS[band];
   const u1 = RINGS[band + 1];
@@ -200,7 +256,12 @@ function facetNormal(band, sector) {
   return [wx / L, n[1] / L, wz / L];
 }
 
-/** The band's own slope in degrees at this instance's proportions. */
+/**
+ * The band's own slope in degrees at this instance's proportions — THE
+ * ANALYTIC DOME'S, and since session 64 that is one term of the delivered
+ * surface rather than all of it. It is printed to say what shape was ASKED
+ * for; `deliveredNormal` above is what is compared against.
+ */
 function bandSlopeDeg(band) {
   const dy = (hillProfile(RINGS[band]) - hillProfile(RINGS[band + 1])) * pick.h;
   const dr = (RINGS[band + 1] - RINGS[band]) * pick.foot;
@@ -353,7 +414,7 @@ let verdict = null;
 for (let b = 0; b < BANDS.length; b++) {
   const meas = cells[b].map((c) => mean(c));
   const pred = Array.from({ length: RAD }, (_, s) => {
-    const n = facetNormal(BANDS[b].band, s);
+    const n = deliveredNormal(BANDS[b].band, s);
     return Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
   });
   const ok = meas.filter((v) => Number.isFinite(v));
@@ -384,7 +445,7 @@ if (verdict) {
   const shades = verdict.swing > 2 && verdict.r > 0.7;
   console.log(`  THE ANSWER, ON THE ${bandSlopeDeg(2).toFixed(1)}° SHOULDER — the angle the brief asks about:`);
   console.log(`    the delivered code value swings ${verdict.swing.toFixed(1)} of 255 (${verdict.ratio.toFixed(2)}x) across the eight`);
-  console.log(`    azimuths of ONE instance, i.e. at one albedo, one material and one mesh,`);
+  console.log(`    azimuths of ONE HILL, i.e. at one albedo, one material and one mesh,`);
   console.log(`    against a ${LIGHT_NAME} Lambert prediction that swings ${verdict.pred.toFixed(3)} in max(0, n·l),`);
   console.log(`    and the two curves correlate at r = ${verdict.r.toFixed(3)} over the eight sectors.`);
   console.log(`    ${shades ? 'A NON-VERTICAL NORMAL SHADES.' : '*** NOT ESTABLISHED AT THIS HOUR — see the r column. ***'}`);
