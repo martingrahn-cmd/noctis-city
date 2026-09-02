@@ -1947,6 +1947,36 @@ in the open, with the reason and the date written down.
 The occupancy registry is a different matter and keeps its authority: nothing
 may stand inside anything else, whatever it looks like.
 
+### THE FRAMES ARE NOT REPRODUCIBLE AND THE METRICS ARE — SESSION 69, 2026-09-02
+
+**Two `npm run gates` runs at a source that did not change by one byte deliver
+different look frames**, of 17 280 000 bytes each:
+
+```
+  midnight  416 580     dusk  458 947     noon  978 114
+  dawn      880 415     midnight-wet 649 496     dusk-wet 702 630
+```
+
+2.4% to 5.7%, and **`distinct:midnight|dusk` read 0.02845 on both**. The cause
+is CONTRACT §9's newest row: `harness.waitForCity` polls a worker in blocks of
+ten frames, so the number of frames rendered before a capture is a wall-clock
+race — 2 808 to 3 038 over 35 runs on one machine — and `post.js` draws each
+frame at `JITTER[frameIndex % 8]`. `harness.settle()`'s fixed 44 frames preserve
+that phase rather than normalising it, because `TAA.settleFrames` is 32 and
+32 ≡ 0 (mod 8). `lookcheck` prints the variable in its own log —
+*"city streamed in over 1014 frames"*.
+
+**WHAT THIS PERMITS AND WHAT IT FORBIDS.** The look bands are means and cluster
+statistics over 5.76 million pixels, and a sub-pixel offset averages out of them:
+measured, `distinct:midnight|dusk` is stable to 1e-5 across two runs whose
+midnight frames differ by 416 580 bytes. So the thresholds in
+`tools/look-budget.json` are not in question and no number here moves.
+**What is forbidden is reading a look frame's BYTES as evidence.** A
+frame-to-frame byte comparison — `lookdiff.mjs`'s neighbourhood, and anything
+built on `tools/framebytes.mjs` — is evidence only when both frames were
+captured at the same frame count. `tools/stepprobe.mjs --pin` is how, until the
+phase is normalised in `settle()` itself.
+
 ### `distinct:midnight|dusk` — RE-DERIVED IN THE OPEN, SESSION 53, 2026-08-29
 
 **The band is L15 and it has been red or straddling since session 45.** Session 53
