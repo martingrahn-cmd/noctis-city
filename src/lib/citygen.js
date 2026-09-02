@@ -6111,6 +6111,41 @@ export const SEA = {
   cellM: 128,
   /**
    * ═══════════════════════════════════════════════════════════════════════
+   * THE STRAND — SESSION 66, ITEM 2, AND CHROMA IS THE TELL.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Metres of height above the level over which the ground is shingle rather
+   * than the countryside's own cover. The brief asked which instrument applies
+   * — session 64's CHROMA, which found the grey pads, or session 65's
+   * LUMINANCE, which found the hill's grass line — and said to measure both
+   * rather than assume. Measured, against `GROUND.earthAlbedo`:
+   *
+   *     strand vs   luminance      chroma
+   *     grass         1.45x      10.50x flatter
+   *     field         0.70x       9.97x flatter
+   *     tilled        1.21x       8.13x flatter
+   *
+   * **CHROMA, overwhelmingly.** The strand is 8 to 10 times flatter than
+   * everything it abuts — harder than the 6 to 7 that found the farmsteads —
+   * while its LUMINANCE ratio spans 1.0 and therefore carries no consistent
+   * sign at all: a shingle bank is brighter than grass and darker than
+   * stubble. Session 65's tell does not apply here and session 64's does.
+   *
+   * AND THE COLOUR IS `GROUND.earthAlbedo`, SO NO NEW NUMBER IS AUTHORED.
+   * Session 42 calibrated it as *"a field beside a city"* — bare soil, Y 0.1212,
+   * saturation 0.050 — which is a wet shingle strand already. Session 65 tried
+   * the same borrowing for a cut face and the frame refused it, because a pale
+   * neutral line along a country road is a kerb; a pale neutral BAND at the
+   * water's edge is a beach.
+   *
+   * 3.0 m OF HEIGHT, AND THE WIDTH IS THE TERRAIN'S. Measured over the harbour
+   * reach, that is a strand 8 to 24 m wide: narrow where the shore is steep and
+   * wide where it is gentle, which is what a coast does and is the whole reason
+   * item 2a specifies a HEIGHT rather than a width.
+   */
+  strandM: 3.0,
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
    * METRES OF BASIN A CELL NEEDS BEFORE IT COUNTS AS SEA — AND THIS NUMBER
    * IS THE SESSION'S ONE HONEST COMPROMISE, MEASURED AND NOT ARGUED.
    * ═══════════════════════════════════════════════════════════════════════
@@ -17458,6 +17493,50 @@ export function generateChunk(rootSeed, cx, cz) {
             rows: H.stackRows, high: H.stackHigh,
           });
         }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND IT IS LIT — SESSION 66, ITEM 5, AT ZERO NEW DRAW CALLS.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Item 5a asked whether an emissive path exists that a feature can
+         * reach, because STATE 62 says *"there is NO EMISSIVE PATH FOR A
+         * FEATURE IN THIS PROJECT AT ALL"* while session 20 delivered aircraft
+         * navigation lights. **Both cannot be true and the enumeration settles
+         * it: session 62 is right about `put()` and wrong about the project.**
+         *
+         *   `put()` writes into `props`/`propSkin`, which land in the chunk's
+         *     `masses` mesh on `materials.facade`, whose `emissive` is black.
+         *     `lights.js` injects `totalEmissiveRadiance *= vColor`, so an
+         *     `instanceColor` over 1.0 there is multiplied by ZERO — not
+         *     clamped. Session 62's sentence is exactly right about that path.
+         *   BUT `city.js`'s feature loop ALREADY pushes into a second array for
+         *     `f.kind === 'lamp'`: the bowl goes into the city-wide `city:bowls`
+         *     mesh on `materials.lampBowl`, which has a real emissive, and the
+         *     head takes a clustered light slot from the same pool a street lamp
+         *     does. A feature has been able to glow since session 40.
+         *
+         * So the harbour is lit with the kind that already works, and the cost
+         * is **zero new draw calls and zero new materials** — the bowls merge
+         * into a mesh that exists whether or not this pushes into it.
+         *
+         * WHAT IT DOES NOT BUY, said out loud: a lamp bowl is one global
+         * `emissiveIntensity` uniform with no per-instance channel, so every
+         * bowl in the world is the same sodium at the same brightness. Warm
+         * harbour floods against the city's cold — LOOK.md's own sentence — need
+         * a per-instance emissive, which `materials.window` has and this does
+         * not. That is item 5's real cost and it is in STATE's §8.
+         */
+        for (let i = 0; i < 8; i++) {
+          const lx = H.x0 + 24 + i * ((H.x1 - H.x0 - 48) / 7);
+          const lz = H.quayZ + 6;
+          if (lx < b.x0 || lx >= b.x1 || lz < b.z0 || lz >= b.z1) continue;
+          features.push({ kind: 'lamp', x: lx, z: lz, yawDeg: 0, height: 11.0 });
+        }
+        for (const q of [[H.x0 + 40, H.yardZ - 14], [H.x1 - 40, H.yardZ - 14]]) {
+          if (q[0] < b.x0 || q[0] >= b.x1 || q[1] < b.z0 || q[1] >= b.z1) continue;
+          features.push({ kind: 'flood', x: q[0], z: q[1], height: 14.0, aimX: (H.x0 + H.x1) / 2, aimZ: H.quayZ });
+        }
+
         /**
          * TWO WAREHOUSES, and they are `shed` — session 49's own kind, which
          * the farmsteads and the country houses already use. Premise (ii) said

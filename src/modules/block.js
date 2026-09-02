@@ -31,6 +31,7 @@ import {
   ROAD_MARKING, BLOCK_KEEPOUT, CITY as CITYGEN,
   EXIT_ROAD as CITYGEN_ROAD, exitRoadZ, exitRoadHalfM, exitRoadYawDeg, exitRoadPorosity,
   TERRAIN, terrainHeightAt, groundNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
+  SEA, isSeaAt,
   HILLS, hillSurfaceAt,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
@@ -774,15 +775,23 @@ export function createBlock(options = {}) {
          * ramp it is 0 — the plane there is under the city's own surfaces and
          * is the impervious thing it has always been.
          */
-        const groundPorosity = (x, z) => {
+        const groundPorosity = (x, z, h) => {
           const r = Math.hypot(x, z);
           if (r <= TERRAIN.rampStartM) return 0;
+          /**
+           * A STRAND IS SHINGLE AND SHINGLE NEVER PONDS — session 66. Session
+           * 55's own table puts crushed stone at over 100 mm/h against this
+           * city's 10 mm/h full rain, so `min(1, K/R)` is 1.0 and the number is
+           * borrowed rather than restated. Below the level it is moot: the water
+           * plane is over it.
+           */
+          if (h !== undefined && h < SEA.levelY + SEA.strandM) return 1;
           if (hillSurfaceAt(rootSeed, x, z)) return 1;
           const c = farmCrop(rootSeed, farmIndex(rootSeed, 'x', x), farmIndex(rootSeed, 'z', z));
           return c.kind === 'grass' ? 1 : 0.85;
         };
         const tintOut = [1, 1, 1];
-        const groundTint = (x, z) => {
+        const groundTint = (x, z, h) => {
           const r = Math.hypot(x, z);
           if (r <= TERRAIN.rampStartM) { tintOut[0] = 1; tintOut[1] = 1; tintOut[2] = 1; return tintOut; }
           /**
@@ -817,9 +826,34 @@ export function createBlock(options = {}) {
             w = 1 - k * k * (3 - 2 * k);
             ha = hs.wood ? HILLS.woodAlbedo : HILLS.hillAlbedo;
           }
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AND THE STRAND — SESSION 66, ITEM 2. THE LAST `SEA.strandM`
+           * METRES ABOVE THE WATER ARE SHINGLE.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * `SEA.strandM` carries the measurement that says chroma is the tell
+           * and luminance is not. The target is `GROUND.earthAlbedo`, which is
+           * this mesh's own base colour — so the tint there is exactly (1,1,1)
+           * and the strand costs no multiply at all at the waterline.
+           *
+           * SMOOTHSTEPPED OVER ITS OWN HEIGHT, so the beach runs into the
+           * vegetation instead of ending at a contour line — which is session
+           * 64's own lesson about the hills, applied before the frame rather
+           * than after it.
+           */
+          let strand = 0;
+          if (h !== undefined) {
+            const u = (h - SEA.levelY) / SEA.strandM;
+            if (u < 1) {
+              const k = Math.max(0, Math.min(1, u));
+              strand = 1 - k * k * (3 - 2 * k);
+            }
+          }
           for (let i = 0; i < 3; i++) {
             const crop = alb[i] * c.tone;
-            const target = ha ? crop + (ha[i] * hs.tone - crop) * w : crop;
+            const cover = ha ? crop + (ha[i] * hs.tone - crop) * w : crop;
+            const target = cover + (GROUND.earthAlbedo[i] - cover) * strand;
             tintOut[i] = 1 + t * (target / GROUND.earthAlbedo[i] - 1);
           }
           return tintOut;
@@ -875,7 +909,7 @@ export function createBlock(options = {}) {
            */
           groundNormalAt(rootSeed, x, z, nOut);
           nrmA.push(nOut[0], nOut[1], nOut[2]);
-          const t = groundTint(x, z);
+          const t = groundTint(x, z, h);
           colA.push(t[0], t[1], t[2]);
           /**
            * ═══════════════════════════════════════════════════════════════════
@@ -901,7 +935,7 @@ export function createBlock(options = {}) {
            * hill's own cover takes a sward's 1.0, because scrub and conifer over
            * undisturbed soil is the sward's case and not the stubble's.
            */
-          rghA.push(0, groundPorosity(x, z));
+          rghA.push(0, groundPorosity(x, z, h));
         };
         const quad = (xa, za0, za1, xb, zb0, zb1) => {
           if (za1 - za0 <= 0 || zb1 - zb0 <= 0) return;

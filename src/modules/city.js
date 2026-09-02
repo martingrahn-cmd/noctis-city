@@ -4883,12 +4883,26 @@ export function createCity(options = {}) {
            * THE BOOM, over the water, and the backreach behind. A container
            * crane's boom is the horizontal line a harbour is recognised by, so
            * it is one long box rather than a truss nobody can resolve.
+           *
+           * IT SPRINGS FROM THE PORTAL BEAM AND THE FIRST ARM LEFT IT IN THE
+           * AIR. It was drawn at `hgt + 3.6` while the legs stop at `hgt` and
+           * the beam is 2.8 m deep about `hgt + 1.4` — so a 34 m boom hung
+           * 2.7 m clear of everything holding it, which the `sea-road` frame
+           * showed as a yellow bar floating between two masts. At the beam's own
+           * height the two overlap and the boom is carried.
            */
-          put(0, hgt + 3.6, -(g + f.reach / 2), 3.4, 1.8, f.reach, beam, 0.55);
-          put(0, hgt + 3.6, g + 7.0, 3.0, 1.6, 14.0, beam, 0.55);
-          /** The A-frame the boom hangs from, and its two stays. */
-          put(0, hgt + 9.0, 1.0, 2.2, 12.0, 2.2, leg, 0.6);
-          put(0, hgt + 12.0, -(g + f.reach * 0.35), 1.0, 1.0, f.reach * 0.8, leg, 0.5);
+          put(0, hgt + 1.4, -(g + f.reach / 2), 3.4, 2.0, f.reach, beam, 0.55);
+          put(0, hgt + 1.4, g + 7.0, 3.0, 1.8, 14.0, beam, 0.55);
+          /**
+           * THE MAST, and there is no stay. A fan of stays wants a box with a
+           * PITCH and `put` composes a yaw and a pitch that reads the GROUND —
+           * session 65's, for a hedgerow on a slope — neither of which will
+           * lean a bar from a masthead to a boom tip. The first arm drew the
+           * stay as a horizontal box 8.4 m over the boom, which is a second bar
+           * floating in the air rather than a stay. One mast reads; two floating
+           * bars do not, and `good beats perfect` is this session's instruction.
+           */
+          put(0, hgt + 8.0, 1.0, 2.2, 13.2, 2.2, leg, 0.6);
         } else if (f.kind === 'containers') {
           /**
            * A CONTAINER BLOCK — the cheapest volume in the project, and the

@@ -30,6 +30,7 @@ import path from 'node:path';
 import {
   LANDMARKS, landmarkAABB, viaductArc,
   CITY, EXIT_ROAD, exitRoadZ, terrainHeightAt, hillsideHouses,
+  SEA, harbourSite, riverCentreAt,
 } from '../src/lib/citygen.js';
 import { startServer, launchBrowser, openPage, readRendererString } from './lib/page.mjs';
 
@@ -188,6 +189,51 @@ function presets() {
     out['country-air'] = {
       pos: [cx - 380, 180, cz + 600],
       target: [cx + 540, 0, cz - 130],
+      fov: 55,
+    };
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE THREE SEA POSES — SESSION 66, DERIVED AND RECORDED.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Session 65 could not retake session 64's frames because the commands were
+   * in a shell nobody kept, so both were made into presets. These three are the
+   * same discipline before the fact: every one of them is a function of
+   * `harbourSite` and the river's own centreline, so a change to the harbour or
+   * the estuary moves the camera with it.
+   *
+   * AND THE THIRD ONE IS SHOT FROM THE WATER, WHICH IS SESSION 57's OWN
+   * LESSON. That session shot three empty river frames before finding its
+   * barges, occluded by the quay wall from every camera on the bank — and the
+   * quay in question is this harbour's. So `sea-harbour` stands OFF the quay,
+   * out in the fairway, looking back at it.
+   */
+  {
+    const H = harbourSite('1337');
+    /** The city's edge, on the north bank, looking down the river to the sea. */
+    out['sea-edge'] = {
+      pos: [CITY.extentEdgeM - 82, 40, riverCentreAt(CITY.extentEdgeM - 82) - 5],
+      target: [H.x1 + 1600, 0, riverCentreAt(H.x1) - 280],
+      fov: 55,
+    };
+    /** A car's eye where the branch road arrives on the harbour's yard. */
+    out['sea-road'] = {
+      pos: [H.branchX + 4, H.yardY + 1.6, H.yardZ + 40],
+      target: [H.branchX - 120, H.apronY + 8, H.quayZ - 30],
+      fov: 60,
+    };
+    /** Off the quay, in the fairway, looking back at the whole berth. */
+    out['sea-harbour'] = {
+      pos: [H.x0 + 96, 26, H.quayZ - 106],
+      target: [H.x1 - 70, H.apronY + 6, H.quayZ + 10],
+      fov: 60,
+    };
+    /** 180 m over the mouth, the same altitude session 64 and 65 used. */
+    out['sea-air'] = {
+      pos: [CITY.extentEdgeM - 132, 180, riverCentreAt(CITY.extentEdgeM) + 230],
+      target: [H.x1 + 900, 0, riverCentreAt(H.x1) - 620],
       fov: 55,
     };
   }

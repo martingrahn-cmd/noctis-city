@@ -359,9 +359,17 @@ export function createRiver(options = {}) {
       if (c.x + c.long / 2 < x0 || c.x - c.long / 2 > x1) continue;
       const F = c.freeboard;
       const D = c.draught;
-      const hull = [0.17 * c.tone, 0.175 * c.tone, 0.185 * c.tone];
-      const deck = [0.24 * c.tone, 0.235 * c.tone, 0.22 * c.tone];
-      const house = [0.36 * c.tone, 0.355 * c.tone, 0.34 * c.tone];
+      /**
+       * A SHIP'S HULL IS DARK AND ITS HOUSE IS WHITE, and the first arm made
+       * both of them concrete. At 0.17 against a quay wall's 0.22 the hull
+       * disappeared INTO the wall it was moored to — the `sea-harbour` frame
+       * showed a coaster reading as part of the apron. A working hull is black
+       * or near it (0.045 broadband is a painted steel topside), and the
+       * contrast against the white accommodation block is what says vessel.
+       */
+      const hull = [0.048 * c.tone, 0.052 * c.tone, 0.064 * c.tone];
+      const deck = [0.20 * c.tone, 0.196 * c.tone, 0.185 * c.tone];
+      const house = [0.52 * c.tone, 0.515 * c.tone, 0.50 * c.tone];
       /** The hull: `D` under the water and `F` over it. The waterline is on it. */
       push('craft', c.x, y + (F - D) / 2, c.z, c.long, F + D, c.wide, c.yawDeg, 0, hull, 0.6);
       push('craft', c.x, y + F, c.z, c.long * 0.99, 0.16, c.wide * 1.04, c.yawDeg, 0, deck, 0.55);
