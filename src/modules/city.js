@@ -4841,6 +4841,81 @@ export function createCity(options = {}) {
           for (let k = 1; k * 12 < f.mast; k++) {
             put(0, k * 12, 0, 2.4, 0.35, 2.4, [0.52, 0.34, 0.09], 0.62);
           }
+        } else if (f.kind === 'gantry') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * A PORTAL CRANE — SESSION 66, ITEM 3b, AND THE TRIANGLES GO HERE.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"Cranes are the landmark. They are tall, they are legible from
+           * the city, and they are the silhouette that says harbour from two
+           * kilometres. Spend the triangles here rather than on quayside detail
+           * nobody stands next to."* So this is eleven boxes and the quay
+           * bollards are none.
+           *
+           * IT IS A PORTAL AND NOT A TOWER, which is the difference between
+           * this and the `crane` branch above: a tower crane is a mast with a
+           * slewing jib and belongs on a building site, and a container crane
+           * is a gantry on rails whose boom reaches OVER THE WATER. The boom is
+           * what reads at distance and it is the one thing a tower crane cannot
+           * fake, so it is drawn at `f.reach` past the seaward leg.
+           *
+           * THE SEAWARD SIDE IS -Z. The quay faces north into the estuary
+           * (CONTRACT §3.1: -Z is north) and the feature is placed at
+           * `quayZ + gauge/2`, so the water is at -gauge/2 in the local frame
+           * and the boom goes that way.
+           */
+          const g = f.gauge / 2;
+          const hgt = f.height;
+          const leg = [0.30, 0.31, 0.33];
+          const beam = [0.62, 0.55, 0.13];
+          /** Four legs on two rails, and the sill beams that carry them. */
+          for (const sz of [-g, g]) {
+            for (const sx of [-6.5, 6.5]) {
+              put(sx, hgt / 2, sz, 1.5, hgt, 1.5, leg, 0.62);
+            }
+            put(0, 0.7, sz, 17.0, 1.4, 2.6, leg, 0.7);
+          }
+          /** The portal beam, and the machinery house that rides it. */
+          put(0, hgt + 1.4, 0, 5.2, 2.8, f.gauge + 3.0, beam, 0.55);
+          put(0, hgt + 4.2, 3.0, 6.0, 3.0, 9.0, leg, 0.6);
+          /**
+           * THE BOOM, over the water, and the backreach behind. A container
+           * crane's boom is the horizontal line a harbour is recognised by, so
+           * it is one long box rather than a truss nobody can resolve.
+           */
+          put(0, hgt + 3.6, -(g + f.reach / 2), 3.4, 1.8, f.reach, beam, 0.55);
+          put(0, hgt + 3.6, g + 7.0, 3.0, 1.6, 14.0, beam, 0.55);
+          /** The A-frame the boom hangs from, and its two stays. */
+          put(0, hgt + 9.0, 1.0, 2.2, 12.0, 2.2, leg, 0.6);
+          put(0, hgt + 12.0, -(g + f.reach * 0.35), 1.0, 1.0, f.reach * 0.8, leg, 0.5);
+        } else if (f.kind === 'containers') {
+          /**
+           * A CONTAINER BLOCK — the cheapest volume in the project, and the
+           * brief says so. `f.rows` x `f.high` boxes of the ISO 40-foot box:
+           * 12.19 x 2.44 x 2.59 m, which is a real dimension and not a guess,
+           * stacked with 0.1 m of clearance so the courses read apart.
+           *
+           * THE COLOUR IS THE POINT. A container yard reads by being a grid of
+           * saturated blocks, so each box takes one of six liveries off its own
+           * index and the block's — the same `unitHash` instinct the city's
+           * windows use, without the hash, because eighteen boxes do not need
+           * one.
+           */
+          const LIV = [
+            [0.29, 0.10, 0.08], [0.09, 0.20, 0.14], [0.10, 0.14, 0.28],
+            [0.32, 0.24, 0.06], [0.24, 0.24, 0.25], [0.20, 0.08, 0.14],
+          ];
+          const L = 12.19;
+          const W = 2.44;
+          const Hh = 2.59;
+          for (let r = 0; r < f.rows; r++) {
+            for (let k = 0; k < f.high; k++) {
+              const c = LIV[(f.chroma + r * 2 + k * 3) % LIV.length];
+              put(0, Hh / 2 + k * (Hh + 0.1), (r - (f.rows - 1) / 2) * (W + 0.35),
+                L, Hh, W, c, 0.72);
+            }
+          }
         }
         /**
          * A FEATURE INSIDE A STRUCTURE IS CLAIMED BY THE STRUCTURE — session 48,

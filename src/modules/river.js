@@ -66,6 +66,7 @@ import {
   // the world — and `seaCells` is the flood fill that says which water is sea.
   SEA,
   seaCells,
+  harbourCraft,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -335,6 +336,59 @@ export function createRiver(options = {}) {
    * is the one thing a box cannot fake: the hull sits IN the water, so its
    * bottom is below the surface and only `freeboardM` of it shows.
    */
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE HARBOUR'S OWN CRAFT — SESSION 66, ITEM 4, AND IT IS THE SAME THREE
+   * LINES `pushCraft` BELOW ALREADY HAD.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `y` IS `SEA.levelY` AND NOT A GROUND QUERY, which is the whole of item 4a.
+   * `city.js`'s feature `put()` takes one `worldSurface` sample at a feature's
+   * centre; the water at these berths is 10.4 to 55.8 m deep, so a hull placed
+   * through it would sit on the bed. These are drawn here instead, from the
+   * same constant the water plane is built at.
+   *
+   * THE HULL IS SUNK BY ITS OWN DRAUGHT and the box is `draught + freeboard`
+   * tall, so the waterline is ON the box at exactly `SEA.levelY` and freeboard
+   * is what shows. Session 57 established that for a barge; a coaster differs
+   * only in the two numbers.
+   */
+  function pushHarbourCraft(x0, x1, push) {
+    const y = SEA.levelY;
+    for (const c of harbourCraft(rootSeed)) {
+      if (c.x + c.long / 2 < x0 || c.x - c.long / 2 > x1) continue;
+      const F = c.freeboard;
+      const D = c.draught;
+      const hull = [0.17 * c.tone, 0.175 * c.tone, 0.185 * c.tone];
+      const deck = [0.24 * c.tone, 0.235 * c.tone, 0.22 * c.tone];
+      const house = [0.36 * c.tone, 0.355 * c.tone, 0.34 * c.tone];
+      /** The hull: `D` under the water and `F` over it. The waterline is on it. */
+      push('craft', c.x, y + (F - D) / 2, c.z, c.long, F + D, c.wide, c.yawDeg, 0, hull, 0.6);
+      push('craft', c.x, y + F, c.z, c.long * 0.99, 0.16, c.wide * 1.04, c.yawDeg, 0, deck, 0.55);
+      if (c.kind === 'coaster') {
+        const sgn = c.cabinAft ? 1 : -1;
+        /** A hatch coaming down the hold, and the accommodation block aft. */
+        push('craft', c.x - sgn * c.long * 0.12, y + F + 0.55, c.z,
+          c.long * 0.56, 1.1, c.wide * 0.72, c.yawDeg, 0, deck, 0.68);
+        push('craft', c.x + sgn * c.long * 0.34, y + F + 3.2, c.z,
+          c.long * 0.16, 6.4, c.wide * 0.82, c.yawDeg, 0, house, 0.5);
+        push('craft', c.x + sgn * c.long * 0.34, y + F + 6.9, c.z,
+          c.long * 0.14, 1.0, c.wide * 0.62, c.yawDeg, 0, deck, 0.45);
+        /** The funnel, which is the one thing that says ship at a kilometre. */
+        push('craft', c.x + sgn * c.long * 0.40, y + F + 8.4, c.z,
+          2.2, 3.6, 2.2, c.yawDeg, 0, house, 0.5);
+        /** Two derricks, forward. */
+        for (const k of [-0.30, -0.06]) {
+          push('craft', c.x + sgn * c.long * k, y + F + 4.0, c.z,
+            0.5, 8.0, 0.5, c.yawDeg, 0, deck, 0.45);
+        }
+      } else {
+        push('craft', c.x + c.long * 0.14, y + F + 0.75, c.z,
+          c.long * 0.30, 1.5, c.wide * 0.66, c.yawDeg, 0, house, 0.5);
+      }
+    }
+  }
+
   function pushCraft(x0, x1, push) {
     /**
      * `SEA.levelY` AND NOT `-RIVER.depth` — SESSION 66. They are the same
@@ -613,6 +667,8 @@ export function createRiver(options = {}) {
      */
     const kinds = {};
     const steelKinds = {};
+    /** Per-INSTANCE kind labels, parallel to `boxes`. See `push`. */
+    const boxKinds = [];
 
     /**
      * ONE SIGNATURE, ELEVEN ARGUMENTS, NO OPTIONAL TAIL.
@@ -627,6 +683,20 @@ export function createRiver(options = {}) {
       boxes.push(setMatrix(x, y, z, sx, sy, sz, yawDeg, pitchRad));
       skin.push({ albedo, roughness: rough });
       kinds[kind] = (kinds[kind] || 0) + 1;
+      /**
+       * AND THE KIND PER INSTANCE — SESSION 66, for `harness.waterlineCensus`.
+       *
+       * `kinds` above is a per-mesh TALLY and `sceneCensus` checks it sums; this
+       * is the per-instance label, which is a different quantity and is why it
+       * is a second array rather than a use of the first. It exists because
+       * `tools/waterprobe.mjs` tried to tell a hull from a quay wall by their
+       * waterline signatures and could not: the wall's toe is
+       * `RIVER.depth + 0.8` under GRADE, which is **0.80 m** under the water,
+       * and a launch draws 0.80 m. Two populations, one signature, and the
+       * probe's own §7.3 control said so by coming back empty. A label the
+       * emitter already has beats a discriminator the reader has to invent.
+       */
+      boxKinds.push(kind);
     };
     const pushSteel = (kind, x, y, z, sx, sy, sz, yawDeg, pitchRad) => {
       steel.push(setMatrix(x, y, z, sx, sy, sz, yawDeg, pitchRad));
@@ -636,6 +706,7 @@ export function createRiver(options = {}) {
 
     pushQuays(x0, x1, push);
     pushCraft(x0, x1, push);
+    pushHarbourCraft(x0, x1, push);
 
     bridgeRecords = [];
     for (const s of bridgesTouching(rootSeed, x0, x1)) {
@@ -652,6 +723,7 @@ export function createRiver(options = {}) {
 
     replaceInstanced('river:structure', materials.structure, boxes, skin, kinds, (m) => {
       structureMesh = m;
+      if (m) m.userData.noctisBoxKinds = boxKinds;
     });
     replaceInstanced('river:steel', materials.steel, steel, steelSkin, steelKinds, (m) => {
       steelMesh = m;

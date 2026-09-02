@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { TAA, LAMP_BOWL } from '../core/constants.js';
 import { gaitOffset } from '../lib/gait.js';
-import { CITY, terrainNormalAt } from '../lib/citygen.js';
+import { CITY, terrainNormalAt, SEA } from '../lib/citygen.js';
 
 /**
  * The traffic-saturation instrument. CONTRACT §8 — an instrument, not content.
@@ -2882,6 +2882,69 @@ export function createHarness(options = {}) {
             }
           });
           return rows;
+        },
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * WHERE EVERY BOX IN THE RIVER MODULE SITS RELATIVE TO THE WATER —
+         * SESSION 66, ITEM 4d.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * *"VERIFY WITH AN INDEPENDENTLY MEASURED NUMBER, NOT A CENSUS OF YOUR
+         * OWN PLACEMENT."* Session 65 held `worldSurfaceAt`'s shared transient
+         * across a call and a census reported 0.00 m of error for 6 078
+         * features that were genuinely wrong — this project's first false pass
+         * — so an instrument that says yes now deserves the suspicion one that
+         * says no gets.
+         *
+         * TWO THINGS MAKE THIS INDEPENDENT OF THE PLACEMENT CODE:
+         *
+         *   IT READS THE DELIVERED `instanceMatrix`, the buffer the GPU is
+         *     handed, and not `harbourCraft`'s return value. A hull the
+         *     generator described correctly and the module drew at the wrong y
+         *     shows up here and nowhere else.
+         *   IT CARRIES A TWO-SIDED CONTROL (CONTRACT §7.3). A hull's signature
+         *     is a bottom just under the level and a top just over it; a QUAY
+         *     WALL's is a bottom metres under and a top metres over; a BRIDGE
+         *     DECK's is both far over. The three populations are reported apart,
+         *     so an instrument that has stopped discriminating says so by
+         *     returning one population where there should be three.
+         */
+        waterlineCensus() {
+          const rows = [];
+          const m4 = new THREE.Matrix4();
+          ctx.scene.traverse((o) => {
+            if (!o.isInstancedMesh || !o.instanceMatrix) return;
+            if (o.name.indexOf('river:') !== 0) return;
+            const inst = o.instanceMatrix.array;
+            const n = Math.min(o.count, o.instanceMatrix.count);
+            /**
+             * The per-instance label `river.js` records as it emits. It is a
+             * LABEL and the geometry is the MEASUREMENT — the two are reported
+             * side by side and never derived from each other, which is what
+             * lets a reader see a `craft` box that is not afloat.
+             */
+            const lab = o.userData.noctisBoxKinds || null;
+            for (let i = 0; i < n; i++) {
+              m4.fromArray(inst, i * 16).premultiply(o.matrixWorld);
+              const e = m4.elements;
+              /** The box's own half-height in world y, off the matrix. */
+              const hy = (Math.abs(e[1]) + Math.abs(e[5]) + Math.abs(e[9])) / 2;
+              rows.push({
+                kind: lab ? lab[i] : null,
+                name: o.name,
+                x: +e[12].toFixed(1),
+                z: +e[14].toFixed(1),
+                bottom: +(e[13] - hy - SEA.levelY).toFixed(3),
+                top: +(e[13] + hy - SEA.levelY).toFixed(3),
+                /** The box's longest horizontal dimension — a hull is long. */
+                long: +Math.max(
+                  Math.hypot(e[0], e[2]), Math.hypot(e[8], e[10])
+                ).toFixed(2),
+              });
+            }
+          });
+          return { level: SEA.levelY, boxes: rows.length, rows };
         },
 
         faults() {

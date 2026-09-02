@@ -6314,6 +6314,197 @@ export function seaDepthAt(rootSeed, x, z) {
   return SEA.levelY - terrainHeightAt(rootSeed, x, z);
 }
 
+/* ──────────────────────────────── the harbour ─────────────────────────── */
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE HARBOUR — SESSION 66, ITEM 3, AND IT INHERITS EVERYTHING.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The brief's premise (ii) is that session 57's quay and barges are reusable as
+ * they stand. **They are, and more so than stated**: `river.js` already draws a
+ * hull that sits IN the water — `RIVER_CRAFT.freeboardM` = 0.75 m shows and the
+ * box's bottom is 0.50 m under — from an explicit `y` that is now `SEA.levelY`.
+ * So the harbour's craft are river craft moored at a different wall, in the same
+ * mesh, at the same datum, and item 4a's worry never arises: **nothing here goes
+ * through `city.js`'s feature `put()`, which has one ground query and would put
+ * a hull on the seabed.**
+ *
+ * ── WHERE, AND IT IS MEASURED ─────────────────────────────────────────────
+ *
+ * The south shore of the estuary is regular from x = 3 884 to 4 396: the coast
+ * sits at z = -193 to -214, the water 60 m out is 25 to 28 m deep, and the exit
+ * road runs 168 to 184 m inland of it at z about -30. That is a quay, a
+ * turning basin and a road, already there.
+ *
+ * ── THE LEVELS ARE DERIVED FROM THE TERRAIN AND NOT TYPED ─────────────────
+ *
+ * A quay apron is LEVEL and the ground it is cut into is not, so a typed `yAdd`
+ * is a number that works at seed 1337 and buries itself at 1338. `harbourSite`
+ * samples the terrain along each platform's LANDWARD edge — the edge that
+ * governs, because the seaward edge is under water — and takes the maximum plus
+ * a clearance. Session 65's cut face then draws the wall down to the bed on the
+ * seaward side and a low retaining edge on the landward one, which is what a
+ * dock is, and item 3d asked for exactly that mechanism rather than a new one.
+ */
+export const HARBOUR = {
+  /** The quay's own run, in world x. 448 m — a small commercial berth. */
+  x0: 3904,
+  x1: 4352,
+  /**
+   * The quay face, in world z. North of every point of the measured coast over
+   * that run (-193 at its northernmost), so the wall stands IN the water for
+   * its whole length and no stretch of it is stranded on land.
+   */
+  quayZ: -224,
+  /** The apron's landward edge: 36 m of working quay, two crane rails wide. */
+  apronZ: -188,
+  /** The yard's landward edge: 56 m more for containers and sheds. */
+  yardZ: -132,
+  /**
+   * Metres a platform stands above the highest ground along its own landward
+   * edge. 0.4 m is a kerb's worth — enough that the terrain cannot poke through
+   * a level plate, and small enough that the retaining edge behind the yard is
+   * a step and not a wall.
+   */
+  clearM: 0.4,
+  /** The road branch, from the exit road to the yard. Metres, half-width. */
+  branchHalfM: 5.0,
+  /** Portal cranes on the quay. Three at 140 m centres over a 448 m run. */
+  cranes: 3,
+  craneEveryM: 140,
+  /**
+   * A portal crane: the rail gauge, the height to the portal beam and the
+   * boom's reach over the water. A small container gantry is 30 m of gauge and
+   * lifts to 35 m; the boom reaches a Panamax beam, about 32 m. These are the
+   * SILHOUETTE the brief asks the triangles to be spent on — they are what says
+   * harbour from two kilometres.
+   */
+  craneGaugeM: 30,
+  craneHeightM: 38,
+  craneReachM: 34,
+  /** Container blocks on the yard, and how many boxes each stacks. */
+  stacks: 6,
+  stackRows: 3,
+  stackHigh: 3,
+};
+
+/**
+ * Is this point on the harbour? The keep-out every countryside scatter asks
+ * before planting, so a hedgerow does not run across a container yard and a
+ * tree does not grow on a quay.
+ *
+ * IT IS NOT A REGISTRY CLAIM AND THAT IS DELIBERATE. The brief's constraint is
+ * that the occupancy registry stays byte-identical, so the harbour refuses the
+ * scatters the way `onHill` does — a predicate the scatter asks — rather than
+ * by claiming ground. `onHill` is the precedent and the shape is identical.
+ */
+export function inHarbourAt(x, z, pad = 0) {
+  return x > HARBOUR.x0 - pad && x < HARBOUR.x1 + pad
+    && z > HARBOUR.quayZ - pad && z < HARBOUR.yardZ + pad;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHAT IS MOORED AT THE HARBOUR — SESSION 66, ITEM 4, AND IT IS `riverCraft`
+ * WITH A DIFFERENT WALL.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Pure in the root seed, the same shape `riverCraft` returns, so `river.js`
+ * draws it with the same three lines: **a hull box whose bottom is under the
+ * water and whose top stands `freeboard` above it.** Item 4c — *"a hull sits IN
+ * the water, not on it"* — was already true in session 57 and this inherits it
+ * rather than restating it.
+ *
+ * ITEM 4a, ANSWERED BY ROUTING AND NOT BY CARE. `city.js`'s feature `put()`
+ * gained a pitch in session 65 and takes ONE ground query at the feature's
+ * centre; a hull placed through it would sit on the seabed, 12 to 18 m down.
+ * **Nothing here goes through it.** These are drawn by `river.js`'s own `push`,
+ * which takes an explicit `y`, and that `y` is `SEA.levelY` — the same constant
+ * the water plane is built at. One datum, one function, and the two cannot
+ * disagree because there is only one of them.
+ */
+export function harbourCraft(rootSeed) {
+  const H = harbourSite(rootSeed);
+  const out = [];
+  const rng = chunkRng(rootSeed, 0, 0, 'harbourCraft');
+  /**
+   * ALONGSIDE, and the offset is a fender's worth off the quay face plus half
+   * the beam — `RIVER_CRAFT.berthOffM` is session 57's own number for exactly
+   * this and is borrowed rather than restated.
+   */
+  const berths = 3;
+  for (let i = 0; i < berths; i++) {
+    const long = rng.range(64, 92);
+    const wide = rng.range(11, 14.5);
+    const x = H.x0 + 70 + i * ((H.x1 - H.x0 - 140) / Math.max(1, berths - 1));
+    if (!rng.chance(0.8)) continue;
+    out.push({
+      x, z: H.quayZ - RIVER_CRAFT.berthOffM - wide / 2, long, wide,
+      /** A coaster's freeboard laden, and the draught that goes with it. */
+      freeboard: 3.6, draught: 3.4, kind: 'coaster',
+      yawDeg: 0, tone: rng.range(0.75, 1.15), cabinAft: rng.chance(0.8),
+    });
+  }
+  /** Workboats inside the harbour, and two at anchor out in the fairway. */
+  for (let i = 0; i < 6; i++) {
+    const long = rng.range(9, 16);
+    const wide = rng.range(3.0, 4.6);
+    const anchored = i >= 4;
+    const x = H.x0 + rng.range(20, H.x1 - H.x0 - 20);
+    const z = anchored
+      ? H.quayZ - rng.range(180, 420)
+      : H.quayZ - RIVER_CRAFT.berthOffM - wide / 2 - rng.range(0, 6);
+    out.push({
+      x, z, long, wide, freeboard: 1.0, draught: 0.8, kind: 'launch',
+      yawDeg: anchored ? rng.range(-40, 40) : 0,
+      tone: rng.range(0.7, 1.2), cabinAft: rng.chance(0.7),
+    });
+  }
+  return out;
+}
+
+let harbourCacheSeed = null;
+let harbourCacheOut = null;
+
+/**
+ * The harbour's derived levels and lines. Pure in the root seed and cached, the
+ * arrangement `hillMasses` and `seaCells` both have.
+ *
+ * PRINTED BY `tools/landprobe.mjs --sea`, because CONTRACT §9 rule 4 says a
+ * number derived from another is printed beside it at the moment of derivation
+ * and these two are derived from a hundred terrain samples each.
+ */
+export function harbourSite(rootSeed) {
+  if (harbourCacheSeed === rootSeed && harbourCacheOut) return harbourCacheOut;
+  const H = HARBOUR;
+  /** The highest ground along one landward edge, which is what a level plate
+   *  has to clear. Sampled at the terrain's own station so it cannot miss one. */
+  const edgeMax = (z) => {
+    let m = -Infinity;
+    for (let x = H.x0; x <= H.x1; x += TERRAIN.stationM / 2) {
+      const h = terrainHeightAt(rootSeed, x, z);
+      if (h > m) m = h;
+    }
+    return m;
+  };
+  const apronY = edgeMax(H.apronZ) + H.clearM;
+  const yardY = edgeMax(H.yardZ) + H.clearM;
+  harbourCacheSeed = rootSeed;
+  harbourCacheOut = {
+    ...H,
+    apronY: +apronY.toFixed(3),
+    yardY: +yardY.toFixed(3),
+    /** How high the quay stands over the water — the number a frame shows. */
+    quayAboveWaterM: +(apronY - SEA.levelY).toFixed(3),
+    /** Where the road branch leaves the exit road, and where it arrives. */
+    branchX: Math.round((H.x0 + H.x1) / 2),
+    branchZ0: exitRoadZ(Math.round((H.x0 + H.x1) / 2)),
+    branchZ1: H.yardZ,
+  };
+  return harbourCacheOut;
+}
+
 /**
  * The two banks at a world x. `north` is the smaller z (CONTRACT §3.1: −Z is
  * north), `south` the larger.
@@ -17049,6 +17240,7 @@ export function generateChunk(rootSeed, cx, cz) {
              * construction rather than by 4.5 m of luck.
              */
             if (Math.hypot(px, pz) <= TERRAIN.rampStartM) continue;
+            if (inHarbourAt(px, pz, 24)) continue;
             const hs = hillSurfaceAt(rootSeed, px, pz);
             if (!hs) continue;
             /**
@@ -17152,6 +17344,138 @@ export function generateChunk(rootSeed, cx, cz) {
      */
 
     /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE HARBOUR — SESSION 66, ITEM 3, AND IT ADDS NO VOCABULARY.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `HARBOUR` and `harbourSite` carry the plan and the derived levels; this
+     * only asks which of it stands on THIS chunk, which is the same arrangement
+     * `hillsideHouses` has one block down and for the same reason: the harbour
+     * is pure in the root seed and it spans four chunks.
+     *
+     * **NOTHING HERE DRAWS A ROLL.** The harbour's position, its levels and its
+     * contents are all functions of the seed through `harbourSite`, so this
+     * block consumes no `cr` and every chunk downstream of it — the hedgerows,
+     * the fields, the hill trees — is byte-identical to a world without a
+     * harbour in it. That is the property that made the change safe to make
+     * last in the session rather than first.
+     *
+     * **AND IT CLAIMS NOTHING.** The brief's constraint is that the occupancy
+     * registry stays byte-identical at 18 799/19 087, and no `reg.claim` is
+     * called here. The harbour is 3.9 km out and `citycheck`'s region is 100
+     * chunks about the origin, so it could not reach those counts even if it
+     * did — but the rule is that water and its works are not claims, and this
+     * keeps it. If a later session wants the warehouses in the registry that is
+     * a decision to take on its own.
+     */
+    {
+      const H = harbourSite(rootSeed);
+      const ov = (a0, a1, b0, b1) => Math.min(a1, b1) > Math.max(a0, b0);
+      if (ov(H.x0, H.x1, b.x0, b.x1) && ov(H.quayZ, -100, b.z0, b.z1)) {
+        /** A rect clipped to this chunk, so two chunks never draw the same quad. */
+        const plate = (px0, px1, pz0, pz1, kind, y) => {
+          const cx0 = Math.max(px0, b.x0);
+          const cx1 = Math.min(px1, b.x1);
+          const cz0 = Math.max(pz0, b.z0);
+          const cz1 = Math.min(pz1, b.z1);
+          if (cx1 <= cx0 || cz1 <= cz0) return;
+          ground.push({ kind, yKey: 'yard', yAdd: y, x0: cx0, x1: cx1, z0: cz0, z1: cz1 });
+        };
+        /**
+         * TWO LEVELS AND NOT ONE, because the ground rises 11 m across the site
+         * and a single plate would either bury its landward half or stand ten
+         * metres over the water. The apron is the working quay and the yard is
+         * behind it, and session 65's cut face draws the wall between them and
+         * the wall down to the bed without a line of new code.
+         */
+        plate(H.x0, H.x1, H.quayZ, H.apronZ, 'yardGround', H.apronY);
+        plate(H.x0, H.x1, H.apronZ, H.yardZ, 'yardGround', H.yardY);
+        /**
+         * THE ROAD BRANCH — item 3c, *"a harbour with no road to it is a
+         * diorama."* It climbs from the exit road to the yard in `TERRAIN`'s own
+         * station, each segment a level plate at its own height, which is the
+         * verge's arrangement and gets the same cut faces at its sides. The
+         * ramp is linear from the ground at the junction to the yard's level.
+         */
+        {
+          const zA = H.branchZ0;
+          const zB = H.yardZ;
+          const yA = terrainHeightAt(rootSeed, H.branchX, zA);
+          const n = Math.max(1, Math.ceil((zA - zB) / TERRAIN.stationM));
+          for (let i = 0; i < n; i++) {
+            const t0 = i / n;
+            const t1 = (i + 1) / n;
+            const zs0 = zA + (zB - zA) * t1;
+            const zs1 = zA + (zB - zA) * t0;
+            const y = yA + (H.yardY - yA) * ((t0 + t1) / 2);
+            plate(H.branchX - H.branchHalfM, H.branchX + H.branchHalfM, zs0, zs1, 'road', y);
+          }
+        }
+        /**
+         * THE CRANES, AND THEY ARE THE ITEM. Item 3b: *"they are the silhouette
+         * that says harbour from two kilometres"*, so the triangles go here
+         * rather than into quayside detail nobody stands next to. One feature
+         * per crane, drawn by `city.js`'s `gantry` branch through the same
+         * `put()` every other feature uses — no new mesh and no new draw call.
+         */
+        /**
+         * NO `lift` ON ANY OF THEM, AND THE FIRST ARM HAD ONE ON ALL THREE.
+         * `city.js` computes a feature's base as `worldSurface(f.x, f.z).y +
+         * (f.lift || 0)`, and `worldSurface` reads the ground rectangles this
+         * same block has just emitted — including the apron and the yard, whose
+         * `yAdd` IS the level. So a lift of `apronY - terrain` would have put
+         * every crane at twice the quay's height, which is session 62's own
+         * villa finding — *"`lift: rise` put the house at TWICE the terrace
+         * height"* — arriving at a different object four sessions later. The
+         * plate is the surface and the feature stands on it.
+         */
+        const mid = (H.x0 + H.x1) / 2;
+        for (let i = 0; i < H.cranes; i++) {
+          const cx = mid + (i - (H.cranes - 1) / 2) * H.craneEveryM;
+          const cz = H.quayZ + H.craneGaugeM / 2;
+          /** BOTH axes, and the first arm checked only x — so the chunk row at
+           *  cz = -1 emitted a second copy of every crane 128 m from the first,
+           *  which the count caught at 6 gantries against a declared 3. */
+          if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+          features.push({
+            kind: 'gantry', x: cx, z: cz, yawDeg: 0,
+            gauge: H.craneGaugeM, height: H.craneHeightM, reach: H.craneReachM,
+          });
+        }
+        /**
+         * CONTAINER BLOCKS. The cheapest volume in the project, and stacked
+         * rather than scattered because a container terminal reads by its
+         * stacks. One feature is one block of `stackRows` x `stackHigh`; the
+         * colours come off the feature's own index so a row of blocks is not
+         * one block repeated.
+         */
+        for (let i = 0; i < H.stacks; i++) {
+          const cx = H.x0 + 40 + (i % 3) * 150;
+          const cz = H.apronZ + 16 + Math.floor(i / 3) * 26;
+          if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+          features.push({
+            kind: 'containers', x: cx, z: cz, yawDeg: 0, chroma: i,
+            rows: H.stackRows, high: H.stackHigh,
+          });
+        }
+        /**
+         * TWO WAREHOUSES, and they are `shed` — session 49's own kind, which
+         * the farmsteads and the country houses already use. Premise (ii) said
+         * the harbour needs no new geometry vocabulary and this is the half of
+         * it that is simply true.
+         */
+        for (const w of [[H.x0 + 90, -152, 96, 34], [H.x1 - 120, -150, 78, 30]]) {
+          if (w[0] < b.x0 || w[0] >= b.x1 || w[1] < b.z0 || w[1] >= b.z1) continue;
+          features.push({
+            kind: 'shed', x: w[0], z: w[1], yawDeg: 0,
+            length: w[2], depth: w[3], height: 12.5, floors: 1, style: 'dock',
+            albedo: [0.30, 0.295, 0.28], trim: [0.23, 0.225, 0.215],
+          });
+        }
+      }
+    }
+
+    /**
      * THE HEDGEROWS. One run on each of the two split lines, and one along
      * each side of the road where the road crosses — which is the frontage a
      * driver actually sees. Every segment is offered to the registry, so the
@@ -17202,6 +17526,8 @@ export function generateChunk(rootSeed, cx, cz) {
       const sn = Math.abs(Math.sin((yd * Math.PI) / 180));
       const halfX = (cs * K.hedgeSegM + sn * 2 * K.hedgeHalfT) / 2;
       const halfZ = (sn * K.hedgeSegM + cs * 2 * K.hedgeHalfT) / 2;
+      /** Not across a quay: session 66's harbour is a keep-out, not a claim. */
+      if (inHarbourAt(x, z, K.hedgeSegM / 2)) return;
       const box = claimAt('feature', x, z, halfX, halfZ,
         { y0: 0, y1: K.hedgeHeightM * 1.2, owner: 'country:hedge' });
       if (reg.conflict(box)) return;
