@@ -67,6 +67,7 @@ import {
   SEA,
   seaCells,
   harbourCraft,
+  isSeaAt,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -478,6 +479,27 @@ export function createRiver(options = {}) {
       const a = st[i];
       const b = st[i + 1];
       for (const bank of [-1, 1]) {
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * A BANK UNDER WATER IS NOT A BANK — SESSION 67, AND REMOVING THE
+         * DROWNED BRIDGE IS WHAT REVEALED IT.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `riverBankStations` runs the whole window and this walled every
+         * station of it, which was right for fifty sessions because the only
+         * water was a 100 m river in a cut channel. Session 66 put an estuary at
+         * the mouth; session 67 took out the two crossings that had no abutment
+         * to stand on, and the frame then showed **two quay walls running out
+         * into open water and stopping** — the same defect one object along, and
+         * hidden behind the bridge until the bridge went.
+         *
+         * A wall is built where there is land to retain. `isSeaAt` is session
+         * 66's single query for that and it is asked 8 m BEHIND the wall face,
+         * which is the ground the wall holds back rather than the water it
+         * stands in.
+         */
+        const landZ = bank < 0 ? a.north - 8 : a.south + 8;
+        if (isSeaAt(rootSeed, a.x, landZ)) continue;
         // −1 is the north bank (smaller z), where the land is on the −z side
         // and the wall sits at [north − t, north]; +1 is the south bank.
         const za = bank < 0 ? a.north - t / 2 : a.south + t / 2;

@@ -6750,6 +6750,53 @@ export function riverTouchesChunk(cx, cz) {
 }
 
 /** Crossings whose deck reaches into `[x0, x1]` — lattice and extras. */
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * DOES THIS CROSSING HAVE TWO BANKS TO LAND ON? — SESSION 67, ITEM 5.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The operator's aerial: *"the road runs onto a bridge, crosses two pylons, and
+ * stops in the middle of the estuary."* His premise was that this is one of
+ * session 66's 90 cut edges, and that if it were, the reported *"nearest 2 016 m
+ * from the harbour, 0 within 2 km"* would need restating.
+ *
+ * **IT IS NOT A CUT EDGE. IT IS A BRIDGE STANDING IN OPEN WATER**, and the
+ * reported distance stands. Measured:
+ *
+ *     crossing        x       north bank            south bank
+ *     arch          2 048    h  0.00  land        h  0.00  land
+ *     girder        2 560    h  0.00  land        h  0.00  land
+ *     arch          3 072    h  0.00  land        h  0.00  land
+ *     cable         3 584    h -17.34  SEA        h -15.84  SEA
+ *     girder        4 096    h -62.67  SEA        h -55.83  SEA
+ *
+ * `bridgeX` puts a crossing every `bridgeEvery · chunkSize` = 512 m for as far
+ * as anything asks, and **nothing had ever asked whether there was a bank
+ * there.** It did not matter for fifty sessions because the only water was a
+ * 100 m river in a cut channel; session 66 put an estuary at the mouth and
+ * drowned the two outermost crossings. The 4 096 one has no land within 3 km of
+ * its north abutment.
+ *
+ * THE BRIEF'S OWN INSTRUCTION IS THE REPAIR: *"Either the bridge reaches the far
+ * bank or it does not exist. A severed span is worse than no span."* So a
+ * crossing exists when both its abutments stand on ground, and this is the ONE
+ * predicate that says so — `bridgesTouching` filters on it and `onBridgeDeck`
+ * returns false for it, which is what keeps the drawn deck and the walkability
+ * mask from disagreeing about whether you can stand there.
+ *
+ * IT ASKS `isSeaAt`, which is session 66's single query for *"is this the
+ * sea"*, rather than comparing a height against a level a second time.
+ */
+export function crossingIsLanded(rootSeed, x) {
+  const e = riverEdges(x);
+  /**
+   * 20 m BACK FROM THE BANK, which is where an abutment stands: `river.js`
+   * builds it `halfW * 2 + 1.2` wide astride the bank line, so the bank itself
+   * is under the deck and the ground that carries the load is behind it.
+   */
+  return !isSeaAt(rootSeed, x, e.north - 20) && !isSeaAt(rootSeed, x, e.south + 20);
+}
+
 export function bridgesTouching(rootSeed, x0, x1) {
   const step = RIVER.bridgeEvery * CITY.chunkSize;
   const out = [];
@@ -6757,9 +6804,11 @@ export function bridgesTouching(rootSeed, x0, x1) {
   const i1 = Math.ceil(x1 / step) + 1;
   for (let i = i0; i <= i1; i++) {
     const s = bridgeSpec(rootSeed, i);
+    if (!crossingIsLanded(rootSeed, s.x)) continue;
     if (s.x + s.deckHalf > x0 && s.x - s.deckHalf < x1) out.push(s);
   }
   for (const ex of RIVER.extraCrossingsX) {
+    if (!crossingIsLanded(rootSeed, ex)) continue;
     const s = bridgeSpecAtX(rootSeed, ex);
     if (s.x + s.deckHalf > x0 && s.x - s.deckHalf < x1) out.push(s);
   }
@@ -6860,6 +6909,15 @@ export function riverCraft(rootSeed, x0, x1) {
  * gate being relaxed.
  */
 export function onBridgeDeck(rootSeed, x, z, pad = 0) {
+  /**
+   * SESSION 67 — A CROSSING WITH NO BANK IS NOT A DECK YOU CAN STAND ON, and
+   * this is the second half of `crossingIsLanded`'s job. `bridgesTouching`
+   * stops DRAWING it; this stops the walkability mask, the road clip, the
+   * craft placement and the promenade lamps from believing in it. A drawn deck
+   * and a walkable deck that disagree is CONTRACT §9.1's own arrangement, and
+   * the two halves are twenty lines apart here on purpose.
+   */
+  if (!crossingIsLanded(rootSeed, nearestCrossingX(x))) return false;
   const s = bridgeSpecAtX(rootSeed, nearestCrossingX(x));
   return (
     x > s.x - s.deckHalf - pad && x < s.x + s.deckHalf + pad &&
