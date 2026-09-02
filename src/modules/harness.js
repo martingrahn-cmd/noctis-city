@@ -169,6 +169,36 @@ export function createHarness(options = {}) {
            * positions the machine happened to have averaged — CONTRACT §8.
            */
           await step(TAA.settleFrames);
+          /**
+           * THEN NORMALISE THE SUB-PIXEL OFFSET — session 70, and it is the
+           * other half of the sentence above.
+           *
+           * `post.js` draws frame n at `JITTER[n % 8]`, and n is the absolute
+           * count of frames this page has rendered — which `waitForCity` sets
+           * by polling a WORKER in blocks of ten. So the offset the captured
+           * frame was drawn at was chosen by how long the bake took in
+           * wall-clock milliseconds. `TAA.settleFrames` is 32 and 32 is a
+           * MULTIPLE of 8, so the settle above discharges CONTRACT §8 for the
+           * temporal ACCUMULATION and preserves the jitter PHASE exactly.
+           *
+           * Measured, STATE 69: two captures of one unmodified source at two
+           * phases differ by 57 801 to 78 979 of 3 499 200 bytes, and by 0 when
+           * they share one. That is the noise floor every frame-to-frame
+           * comparison in this project has been read against as though it were
+           * zero.
+           *
+           * Pad to a fixed residue so the frame that is CAPTURED — the last of
+           * the `frames` below — is always drawn at `JITTER[0]`, whatever the
+           * worker did. It only ever ADDS frames, so the accumulation the
+           * paragraph above guarantees is a floor and not a target: 32 becomes
+           * 32 to 39 and 0.92^32 = 7% becomes 7% to 3.8%.
+           */
+          const post = ctx.get('post');
+          if (post && typeof post.frameIndex === 'number') {
+            const period = post.jitterPeriod || TAA.jitterSamples;
+            const pad = (((-(post.frameIndex + frames - 1)) % period) + period) % period;
+            if (pad > 0) await step(pad);
+          }
           // The exposure meter reads the resolved buffer, which has just moved.
           // Snap once more so the frame that is captured is metered on itself.
           if (exposure) exposure.snap();

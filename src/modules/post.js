@@ -1064,6 +1064,28 @@ void main() {
           return jitterScale;
         },
         /**
+         * WHICH OF THE EIGHT HALTON OFFSETS THE NEXT FRAME WILL BE DRAWN AT.
+         *
+         * Read-only, and it is read by exactly one caller: `harness.settle()`,
+         * which pads to a fixed residue of it so that every capture in this
+         * project draws its final frame at the same sub-pixel offset. Session
+         * 70; the defect it repairs is STATE 69's whole subject.
+         *
+         * A GETTER AND NOT A SETTER, and the asymmetry is the point. A counter
+         * a caller may write is two descriptions of one quantity — CONTRACT
+         * §9.1 — and the second description would be the one the jitter table
+         * is actually indexed by. `settle()` reaches the same residue by
+         * rendering frames, which is the only way the rest of the pipeline
+         * (history, exposure, motion) stays consistent with the number.
+         */
+        get frameIndex() {
+          return frameIndex;
+        },
+        /** The period the offset repeats over. `JITTER.length`, not a literal. */
+        get jitterPeriod() {
+          return JITTER.length;
+        },
+        /**
          * The two arms of the session-13 shimmer A/B. `null` restores the
          * shipped value, which is the constant at the top of this file — never
          * a literal here, so the arm and the ship cannot drift apart.
