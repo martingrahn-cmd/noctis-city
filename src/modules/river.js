@@ -277,6 +277,26 @@ export function createRiver(options = {}) {
       const S = seaCells(rootSeed);
       const C = S.cell;
       const h = C / 2;
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * ONE MILLIMETRE UNDER THE RIVER'S OWN STRIP, AND THE FIRST ARM WAS
+       * COPLANAR WITH IT.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * The strip above runs to x = 4 000 and the sea's cells start at
+       * `SEA.mouthM` = 3 300, so **700 m of the two overlap at exactly the same
+       * y** — two coplanar surfaces in one buffer, which is z-fighting, and the
+       * `sea-air` frame showed it as a single 128 m quad of a different shade
+       * floating on the estuary.
+       *
+       * `GROUND.crossingBias` is this project's own answer and its comment says
+       * so in as many words: *"where a north-south strip crosses an east-west
+       * one, one of them has to win."* The river wins, because it is the one
+       * with quay walls to hide its edges under. A millimetre is nothing to the
+       * hulls and the shoreline, which read `SEA.levelY` itself — the DATUM is
+       * unmoved and only this one emission is offset.
+       */
+      const seaY = y - GROUND.crossingBias;
       let emitted = 0;
       for (let i = 0; i < S.nx; i++) {
         for (let j = 0; j < S.nz; j++) {
@@ -293,8 +313,8 @@ export function createRiver(options = {}) {
           const cx = S.x0 + i * C;
           const cz = S.z0 + j * C;
           // The same winding the strip above derives: (A0, B1, B0), (A0, A1, B1).
-          pos.push(cx - h, y, cz - h, cx + h, y, cz + h, cx + h, y, cz - h);
-          pos.push(cx - h, y, cz - h, cx - h, y, cz + h, cx + h, y, cz + h);
+          pos.push(cx - h, seaY, cz - h, cx + h, seaY, cz + h, cx + h, seaY, cz - h);
+          pos.push(cx - h, seaY, cz - h, cx - h, seaY, cz + h, cx + h, seaY, cz + h);
           emitted++;
         }
       }
@@ -814,6 +834,19 @@ export function createRiver(options = {}) {
       const b = riverBudget();
       const w = waterWaves();
       const env = riverEnvelope();
+      /**
+       * SESSION 66, CONTRACT §9 rule 4 — the sea's cost printed beside the
+       * number it comes from, at the moment of derivation. It is ZERO draw
+       * calls because it is this mesh, and it is NOT zero triangles: this mesh
+       * is `frustumCulled = false`, so every one of these quads is submitted
+       * from everywhere in the world including inside the city, where
+       * `perfcheck` measures.
+       */
+      console.log(
+        `[noctis] sea: ${seaQuads} quads of ${SEA.cellM} m = ${seaQuads * 2} triangles at `
+        + `y ${SEA.levelY.toFixed(3)} (the river's own surface), submitted always `
+        + '(frustumCulled = false, as this mesh already was)'
+      );
       console.log(
         `[noctis] river: width ${b.widthMin}–${b.widthMax} m about a mean of ${b.meanWidth} ` +
         `(= chunkSize ${CITY.chunkSize} − 2·CORRIDOR ${CORRIDOR} = ${b.island}); ` +
