@@ -1177,6 +1177,20 @@ tools/
                          elsewhere, or sub-pixel — and a picture distinguishes
                          none of them while three printed lines distinguish all
                          three.
+  lampprobe.mjs          NOT A GATE. SESSION 68. IS THE LAMP HEAD OVER THE
+                         THING IT LIGHTS? It exists because a street lamp's yaw
+                         is `(axis === 'x' ? 0 : -90) + (side < 0 ? 180 : 0)` —
+                         CARDINAL, off the chunk lattice, with no road tangent
+                         in it — so a heading measured against a tangent ALSO
+                         derived from that lattice would agree with itself and
+                         prove nothing. It reads the two DELIVERED matrices,
+                         `city:lamps` and `city:bowls`, and judges them with
+                         `inRiver`, a predicate no lamp has ever consulted. Its
+                         two-sided control is that `columnsOverWater` must be 0
+                         — the generator has refused those since session 19 —
+                         and that `aimed` must be most of `bowls`, because a run
+                         that paired nothing would report "0 heads over water"
+                         and read as a pass.
   albedoprobe.mjs        NOT A GATE. SESSION 67. WHAT IS THE GROUND'S
                          REFLECTANCE, AND WHAT DOES THE SKY THINK IT IS? It
                          exists because `ATM.groundAlbedo` and
@@ -1715,6 +1729,12 @@ featureGround(kinds): Array     SESSION 65. For every feature the delivered cens
                                 explains. `kinds` is passed IN, grepped out of
                                 `city.js`'s own loop by the tool, so the two sides
                                 cannot hold different lists.
+lampAimCensus(): object         SESSION 68. Every delivered lamp column and
+                                bowl, paired by plan distance, with the arm
+                                bearing, and each head tested against `inRiver`
+                                and `cityExtentAt`. Reports `unpairedBowls`
+                                separately: a post-top park lamp has no arm and
+                                must not be counted as an aimed one.
 groundAlbedoCensus(opts)        SESSION 67. The area-weighted albedo of every
                                 mesh in the scene, by PLAN footprint, off the
                                 delivered vertex colour times the material
@@ -1941,7 +1961,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 72 so far** — and that numeral is now **generated against, not
+**The 75 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1969,8 +1989,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      72        72
-  every pipe-leading line to EOF        72         —   ← the snippet’s quantity
+  contiguous rows after the header      75        75
+  every pipe-leading line to EOF        75         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -2047,6 +2067,9 @@ runs on every invocation.
 | 65 | `city.worldSurfaceAt`, whose own comment says **"THE RESULT IS TRANSIENT — copy what you keep"** | a VALUE, held across a second call to the same function | the base and the corner became one quantity, so a census of how far every feature's ends stand off the ground reported **0.00 m for 6 078 features including 424 on hill shoulders** — against session 64's independently measured hedgerow median of 1.04 m. A measurement that reports a perfect world is the loudest symptom there is and it STILL needed a second number to catch, which is §7.7's whole point arriving in the instrument written to find §9 |
 | 66 | a quay wall's TOE, `RIVER.depth + 0.8` under street GRADE | how far under the WATER it is, in an instrument built to tell a hull from a wall | the water is `RIVER.depth` under grade, so the wall's toe is **0.80 m** under it — and a harbour launch draws **0.80 m**. Two populations with one signature, and `waterprobe`'s first arm classified them by exactly that: a box straddling the waterline by under 12 m was a hull, over 12 m was a wall. **The wall population came back EMPTY**, which is the §7.3 control firing rather than a defect being found by a frame. The repair is not a better threshold: `river.js` records the KIND per instance now and the probe reads the label, with the geometry as the measurement and the two never derived from each other. It is session 65's own first false pass — a census that reported a perfect world — caught this time by the control that session's lesson put there |
 | 67 | `GROUND.earthAlbedo`, the area-weighted mean of the city's own drawn ground, DERIVED in session 42 | the same sentence written a second time as `ATM.groundAlbedo`, with **no derivation at all**, in the file that lights the sky | two constants for one quantity, sixty-six sessions apart, disagreeing by **1.21x in luminance and 4.0x in saturation** — and the undirived one is the copy that feeds the below-horizon hemisphere and, through PMREM, every downward-facing surface in the city. It took a 30.4 km2 sea to make it visible, because a rough water surface integrates that hemisphere and came back the colour of an over-saturated ground. **The CHANNEL ORDER was never wrong** and three sessions of STATE had called the level 1.34x, which was the right measurement of the wrong pair: 1.34x is against the COUNTRYSIDE and the constant's own first word is *"Urban"*. Against the surface it names it is 1.21x. Session 42's derivation meanwhile survived twenty-five sessions and agrees with the delivered city to **1.7% on every channel** |
+| 68 | `crossingIsLanded`, session 67's *"is there ground behind this bank"*, asked over BOTH banks at a 20 m setback at any x | the same property written again twenty lines away inside `pushQuays` — ONE bank, an 8 m setback, lattice stations only, and gating a 16 m SEGMENT off a test at ONE END | the last of those is not a style difference but a defect: two wall segments, north and south at x 3 504–3 520, were drawn with their seaward ends in **4.52 m and 4.83 m of water**. Session 67 did not remove those walls, it shortened them. **And a THIRD reader had no test at all** — `river.surfaceAt` answered `parapet` and `walk` over open water, 644 band samples on the sea, the deepest under **56.80 m** of it, which is STATE 67 §6's own sentence about a drawn deck and a walkable deck reproduced one object along in the session that wrote it. `bankIsLanded` is the primitive now and both compositions read it; the two setbacks survive, NAMED, because an abutment and a quay wall ask about two different pieces of ground |
+| 68 | `WATER_BODY` = [0.019, 0.026, 0.023], derived in session 42 for an URBAN RIVER and naming its own opposite in its own comment — *"silt rather than **the deep-ocean blue**"* | 30.4 km² of open ocean, added in session 66 into the same mesh on the same material, handed the silt | the constant that says what it is NOT was given the thing it said it was not, two dozen sessions later, by a session that never read its comment. Measured with a §7.3 control at [0.900, 0.020, 0.020]: the open sea goes to saturation **0.654**, so the diffuse reaches the far water and reaches it hard. `SEA_OPEN_TINT` is spent through the same footprint gate as the reflected term, so the river keeps its silt and only water whose waves have gone sub-pixel gets an ocean |
+| 68 | a bounding sphere, which for a static mesh describes the object | a bounding sphere computed from the matrices a moving mesh happened to hold **at build time**, which describes one instant | `replaceInstanced` computes it from what it is handed, and the harbour's moving plant was handed a sentinel pose at y = −1e5. `frustumCulled` then threw the whole thing away: **the mesh existed, cost nothing, and drew nothing, and the draw count did not move to say so.** A silent zero — the same shape as session 45's sign pool shipping with 16 slots, 0 candidates and a byte-identical frame. The sphere is the CIRCUIT's now, over every position the plant can reach, so it culls correctly at every instant instead of at one |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:

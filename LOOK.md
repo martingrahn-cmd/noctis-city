@@ -78,6 +78,63 @@ goes red because an unlit wall stopped being 0/255 is a band measuring a city
 that no longer exists, and the re-derivation discipline in §7 — reason, number,
 date, and the falsifying case — is what it costs to say so.
 
+### 0.1 THE OPEN SEA IS BLUE, AND IT IS THE OPERATOR'S DECISION — SESSION 68
+
+**THIS IS THE FIRST TIME THIS SECTION HAS BEEN USED, and it is recorded in his
+name so that no later session repairs it back.** §0 above says games lie
+deliberately and *"the lies have names"*, and lists three — a moonlight above
+the real figure, a floor under the black, and **a cast toward blue**. It then
+says: *"This project has the physical number for all three and has never made
+the choice."* Session 68 made one of them.
+
+> **THE OPERATOR, SESSION 68: BLUE IS NICER EVEN IF BROWN IS MORE ACCURATE.**
+> And the governing principle is this section's own: where faithful luminance
+> and legibility conflict, legibility wins.
+
+**AND THE LIE IS SMALLER THAN IT LOOKS, WHICH IS WHY IT WAS TAKEN THIS WAY.**
+Session 67 walked the chain and every step of it is correct: past a pixel
+footprint of 2.4 m the wave field cannot be resolved, so the shader turns the
+unresolved slope variance into GGX roughness, reaching `WATER.cutoffRoughness`
+= 0.62; a 0.62 lobe at a grazing view spills well below the horizon; and what
+the environment map holds below the horizon is `ATM.groundAlbedo` — **the
+city's own ground**, integrated over open water kilometres offshore. The
+integration is right and the FILL is wrong. A downward ray ten kilometres out
+to sea lands on more sea.
+
+So what shipped is a CHROMATICITY substitution and not a tint: `SEA_OPEN_TINT`
+is spent only on the share of the lobe that has gone below the horizon, and
+**the luminance is preserved exactly**. That last property is what keeps it
+inside this section's own refusal of a global lift — it cannot raise the frame,
+it cannot blow a highlight, it cannot crush a shadow, and `exposure.js`, which
+meters the whole frame, cannot see it.
+
+**AND IT IS GATED ON THE FOOTPRINT RATHER THAN ON A DISTANCE**, which is what
+lets the operator's second sentence hold for free — *"the open sea reads as sea
+from the city's edge, AND THE HARBOUR WATER KEEPS CARRYING THE HARBOUR'S
+LIGHT."* A fragment of basin thirty metres off the quay has a footprint of
+centimetres and is not touched by one bit. Nothing had to be told where the
+harbour is. Measured on water-only pixels at the city's edge, `t = 0.42`:
+
+```
+  rows       before  sat / hue      after   sat / hue
+  380-423    0.240 /  30            0.059 / 334      open sea
+  423-466    0.234 /  31            0.085 / 250      open sea
+  466-509    0.202 /  31            0.122 / 234      open sea
+  509-552    0.107 / 219            0.120 / 219      the estuary
+  767-810    0.230 / 211            0.230 / 211      the river — BYTE-IDENTICAL
+  ------------------------------------------------------------------------
+  Y is unchanged in every band. The viaduct soffit pair — session 67's own
+  city-interior frame — is byte-identical at 0 of 3 499 200 bytes.
+```
+
+**WHAT WOULD MAKE THIS A DEFECT AGAIN, so a later session knows what it is
+allowed to change.** If the below-horizon half of the environment map ever
+stops carrying the city's ground — a second sky LUT for the open sea, say, or a
+horizon-aware fill — then this term is substituting for something that is no
+longer wrong, and it should go. Until then it is repairing a real error and
+also making the operator's picture, which is the rare case where §0 does not
+have to choose.
+
 ---
 
 ## 1. The city
