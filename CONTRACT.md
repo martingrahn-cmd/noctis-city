@@ -1177,6 +1177,22 @@ tools/
                          elsewhere, or sub-pixel — and a picture distinguishes
                          none of them while three printed lines distinguish all
                          three.
+  albedoprobe.mjs        NOT A GATE. SESSION 67. WHAT IS THE GROUND'S
+                         REFLECTANCE, AND WHAT DOES THE SKY THINK IT IS? It
+                         exists because `ATM.groundAlbedo` and
+                         `GROUND.earthAlbedo` were two constants carrying the
+                         same sentence — *"the area-weighted mean of the city's
+                         own drawn ground"* — one with a derivation and one
+                         without, disagreeing by 1.21x in luminance and 4.0x in
+                         saturation. It reads the DELIVERED vertex colour times
+                         the material colour, area-weighted by PLAN footprint
+                         because the question is what a ray pointing down sees,
+                         and it runs two §7.3 controls 5.1x apart BEFORE it
+                         reports anything: `block:markings` must return
+                         `ROAD_PAINT.albedo`, and `block:ground` inside the flat
+                         disc must return `GROUND.earthAlbedo` — the second
+                         exercising the vertex-colour multiply the first does
+                         not.
   waterprobe.mjs         NOT A GATE. SESSION 66. DOES A HULL SIT IN THE
                          WATER? It reads the DELIVERED `instanceMatrix` and not
                          the generator's return value, because a hull the
@@ -1699,6 +1715,13 @@ featureGround(kinds): Array     SESSION 65. For every feature the delivered cens
                                 explains. `kinds` is passed IN, grepped out of
                                 `city.js`'s own loop by the tool, so the two sides
                                 cannot hold different lists.
+groundAlbedoCensus(opts)        SESSION 67. The area-weighted albedo of every
+                                mesh in the scene, by PLAN footprint, off the
+                                delivered vertex colour times the material
+                                colour — which is what three multiplies and
+                                therefore what the frame shows. `minR`/`maxR`
+                                cut it by radius so the city, the countryside
+                                and the sea can be read apart.
 waterlineCensus(): object       SESSION 66. Every box in the river module's
                                 meshes with its bottom and top in metres
                                 RELATIVE TO `SEA.levelY`, off its own delivered
@@ -1918,7 +1941,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 71 so far** — and that numeral is now **generated against, not
+**The 72 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -1946,8 +1969,8 @@ runs on every invocation.
 
 ```
                                   counted  declared
-  contiguous rows after the header      71        71
-  every pipe-leading line to EOF        71         —   ← the snippet’s quantity
+  contiguous rows after the header      72        72
+  every pipe-leading line to EOF        72         —   ← the snippet’s quantity
 ```
 
 | session | what was computed | what it was used as | how far off |
@@ -2023,6 +2046,7 @@ runs on every invocation.
 | 65 | `EXIT_ROAD.taperM` = 200 m, which is **`4.0 m × 50`** — the standard 1:50 rate for narrowing a carriageway, i.e. a rate of change of WIDTH | the schedule on which the road's **SURFACING** changes from city asphalt to a rural chip seal | my own first arm, and it reads exactly like the good instinct it came from: *the surface changes where the section changes*, so that one number describes how far out of the city a station is. A lane-narrowing standard says nothing about where one authority's tarmac ends. **The frame caught it**: the operator stands 28 m past the edge, where a 200 m ramp delivers a porosity of **0.098**, so the near half of the frame he complained about was still a mirror after the repair. The datum is the city's own edge — a resurfacing joint is where the maintaining authority changes — and it needed no second number at all |
 | 65 | `city.worldSurfaceAt`, whose own comment says **"THE RESULT IS TRANSIENT — copy what you keep"** | a VALUE, held across a second call to the same function | the base and the corner became one quantity, so a census of how far every feature's ends stand off the ground reported **0.00 m for 6 078 features including 424 on hill shoulders** — against session 64's independently measured hedgerow median of 1.04 m. A measurement that reports a perfect world is the loudest symptom there is and it STILL needed a second number to catch, which is §7.7's whole point arriving in the instrument written to find §9 |
 | 66 | a quay wall's TOE, `RIVER.depth + 0.8` under street GRADE | how far under the WATER it is, in an instrument built to tell a hull from a wall | the water is `RIVER.depth` under grade, so the wall's toe is **0.80 m** under it — and a harbour launch draws **0.80 m**. Two populations with one signature, and `waterprobe`'s first arm classified them by exactly that: a box straddling the waterline by under 12 m was a hull, over 12 m was a wall. **The wall population came back EMPTY**, which is the §7.3 control firing rather than a defect being found by a frame. The repair is not a better threshold: `river.js` records the KIND per instance now and the probe reads the label, with the geometry as the measurement and the two never derived from each other. It is session 65's own first false pass — a census that reported a perfect world — caught this time by the control that session's lesson put there |
+| 67 | `GROUND.earthAlbedo`, the area-weighted mean of the city's own drawn ground, DERIVED in session 42 | the same sentence written a second time as `ATM.groundAlbedo`, with **no derivation at all**, in the file that lights the sky | two constants for one quantity, sixty-six sessions apart, disagreeing by **1.21x in luminance and 4.0x in saturation** — and the undirived one is the copy that feeds the below-horizon hemisphere and, through PMREM, every downward-facing surface in the city. It took a 30.4 km2 sea to make it visible, because a rough water surface integrates that hemisphere and came back the colour of an over-saturated ground. **The CHANNEL ORDER was never wrong** and three sessions of STATE had called the level 1.34x, which was the right measurement of the wrong pair: 1.34x is against the COUNTRYSIDE and the constant's own first word is *"Urban"*. Against the surface it names it is 1.21x. Session 42's derivation meanwhile survived twenty-five sessions and agrees with the delivered city to **1.7% on every channel** |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:
