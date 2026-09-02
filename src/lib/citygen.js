@@ -6787,14 +6787,70 @@ export function riverTouchesChunk(cx, cz) {
  * IT ASKS `isSeaAt`, which is session 66's single query for *"is this the
  * sea"*, rather than comparing a height against a level a second time.
  */
-export function crossingIsLanded(rootSeed, x) {
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * IS THERE GROUND BEHIND THIS BANK, ON THIS SIDE? SESSION 68, ITEM 4.
+ * ════════════════════════════════════════════════════════════════════════════
+ *
+ * ONE PRIMITIVE, THREE READERS, AND UNTIL THIS SESSION IT WAS TWO PRIMITIVES
+ * AND ONE READER WITH NOTHING AT ALL.
+ *
+ * Session 67 gave `crossingIsLanded` to the bridges and, in the same session,
+ * gave `river.js`'s `pushQuays` a SECOND test for the same property. They
+ * shared the `isSeaAt` primitive and nothing else:
+ *
+ *   crossingIsLanded         pushQuays (session 67)
+ *   AND over BOTH banks      one bank, independently
+ *   20 m setback             8 m setback
+ *   any x                    lattice stations only
+ *   gates a POINT            gates a 16 m SEGMENT, tested at ONE END
+ *
+ * CONTRACT §9 rule 2's own arrangement, written twenty lines apart. And the
+ * last row of that table is not a style difference, it is a defect: a segment
+ * whose landward station is dry and whose seaward station is not was DRAWN,
+ * and at seed 1337 exactly two were — the north and south walls from x 3 504
+ * to 3 520, ending in **4.52 m and 4.83 m of water**. Session 67 did not
+ * remove those two walls. It shortened them.
+ *
+ * THE TWO SETBACKS ARE BOTH KEPT AND BOTH NAMED, because they are two
+ * different structures asking about two different pieces of ground: an
+ * abutment carries a deck 20 m back from the bank line, and a quay wall
+ * retains the fill immediately behind its own face. A single setback would be
+ * one number asked to mean two things, which is the failure this function
+ * exists to end rather than to repeat.
+ */
+export function bankIsLanded(rootSeed, x, bank, setbackM) {
   const e = riverEdges(x);
-  /**
-   * 20 m BACK FROM THE BANK, which is where an abutment stands: `river.js`
-   * builds it `halfW * 2 + 1.2` wide astride the bank line, so the bank itself
-   * is under the deck and the ground that carries the load is behind it.
-   */
-  return !isSeaAt(rootSeed, x, e.north - 20) && !isSeaAt(rootSeed, x, e.south + 20);
+  return !isSeaAt(rootSeed, x, bank < 0 ? e.north - setbackM : e.south + setbackM);
+}
+
+/**
+ * 20 m BACK FROM THE BANK, which is where an abutment stands: `river.js`
+ * builds it `halfW * 2 + 1.2` wide astride the bank line, so the bank itself
+ * is under the deck and the ground that carries the load is behind it.
+ */
+export const ABUTMENT_SETBACK_M = 20;
+
+/**
+ * 8 m back from the bank line, which is `RIVER.wallThickness` plus most of
+ * `RIVER.promenade` — the fill the wall is there to retain, rather than the
+ * water it stands in. Session 67's figure, kept and named.
+ */
+export const QUAY_SETBACK_M = 8;
+
+export function crossingIsLanded(rootSeed, x) {
+  return bankIsLanded(rootSeed, x, -1, ABUTMENT_SETBACK_M)
+    && bankIsLanded(rootSeed, x, +1, ABUTMENT_SETBACK_M);
+}
+
+/**
+ * AND THE QUAY'S OWN COMPOSITION: a wall SEGMENT needs land at BOTH ends.
+ * Session 67 asked at the landward station only, which is why two segments
+ * survived with their seaward ends in open water.
+ */
+export function quaySegmentIsLanded(rootSeed, xa, xb, bank) {
+  return bankIsLanded(rootSeed, xa, bank, QUAY_SETBACK_M)
+    && bankIsLanded(rootSeed, xb, bank, QUAY_SETBACK_M);
 }
 
 export function bridgesTouching(rootSeed, x0, x1) {

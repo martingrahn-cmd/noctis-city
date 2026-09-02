@@ -68,6 +68,9 @@ import {
   seaCells,
   harbourCraft,
   isSeaAt,
+  quaySegmentIsLanded,
+  bankIsLanded,
+  QUAY_SETBACK_M,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -493,13 +496,28 @@ export function createRiver(options = {}) {
          * into open water and stopping** — the same defect one object along, and
          * hidden behind the bridge until the bridge went.
          *
-         * A wall is built where there is land to retain. `isSeaAt` is session
-         * 66's single query for that and it is asked 8 m BEHIND the wall face,
-         * which is the ground the wall holds back rather than the water it
-         * stands in.
+         * A wall is built where there is land to retain.
+         *
+         * ══════════════════════════════════════════════════════════════════
+         * AND IT IS ASKED AT BOTH ENDS NOW — SESSION 68, ITEM 4.
+         * ══════════════════════════════════════════════════════════════════
+         *
+         * Session 67 wrote this test inline, one bank, 8 m behind the face,
+         * AT STATION `a` ONLY — and the segment it gates runs `a` to `b`,
+         * sixteen metres away. So a segment whose landward station was dry
+         * and whose seaward station was not got drawn anyway. At seed 1337
+         * exactly two did, the north and south walls from x 3 504 to 3 520,
+         * ending in **4.52 m and 4.83 m of water**. That session did not
+         * remove those walls; it shortened them.
+         *
+         * `quaySegmentIsLanded` is the composition and `bankIsLanded` is the
+         * primitive underneath it, shared with `crossingIsLanded` — which
+         * until this session was a SECOND expression of the same property,
+         * twenty lines away, with a different setback and a different
+         * composition. CONTRACT §9 rule 2, and the two setbacks survive it
+         * because they are named now and are about two different structures.
          */
-        const landZ = bank < 0 ? a.north - 8 : a.south + 8;
-        if (isSeaAt(rootSeed, a.x, landZ)) continue;
+        if (!quaySegmentIsLanded(rootSeed, a.x, b.x, bank)) continue;
         // −1 is the north bank (smaller z), where the land is on the −z side
         // and the wall sits at [north − t, north]; +1 is the south bank.
         const za = bank < 0 ? a.north - t / 2 : a.south + t / 2;
@@ -959,21 +977,48 @@ export function createRiver(options = {}) {
            * on that the flood fill has always counted as promenade. Recorded in
            * STATE.md; it makes `citycheck`'s walk 7.7 m wide where it is 6.4.
            */
+          /**
+           * ══════════════════════════════════════════════════════════════════
+           * AND THIS IS THE THIRD READER, WHICH HAD NO TEST AT ALL —
+           * SESSION 68, ITEM 4.
+           * ══════════════════════════════════════════════════════════════════
+           *
+           * STATE 67 §6 wrote, of the bridge: *"A drawn deck and a walkable
+           * deck that disagree is §9.1's own arrangement."* This function is
+           * that sentence one object along, in the same session that wrote it.
+           * `pushQuays` stopped DRAWING a wall in the sea; nothing stopped
+           * this from REPORTING one, so past the last landed station it
+           * answered `parapet` and `walk` over open water — a promenade you
+           * can stand on with the seabed 56.8 m below.
+           *
+           * The bridge branch above already consults `onBridgeDeck` for
+           * exactly this reason. The quay gets the same courtesy, through the
+           * same predicate `pushQuays` draws with, so the drawn wall and the
+           * walkable wall cannot disagree again.
+           *
+           * ASKED PER BANK AND NOT PER SEGMENT. `surfaceAt` is a point query
+           * and `bankIsLanded` is the point primitive; the segment
+           * composition belongs to the thing that draws segments.
+           */
           const cope = 0.12;
           if (z >= e.north - t - cope && z <= e.north + cope) {
-            return { y: RIVER.parapet, kind: 'parapet', known: true };
+            return bankIsLanded(rootSeed, x, -1, QUAY_SETBACK_M)
+              ? { y: RIVER.parapet, kind: 'parapet', known: true } : null;
           }
           if (z >= e.south - cope && z <= e.south + t + cope) {
-            return { y: RIVER.parapet, kind: 'parapet', known: true };
+            return bankIsLanded(rootSeed, x, +1, QUAY_SETBACK_M)
+              ? { y: RIVER.parapet, kind: 'parapet', known: true } : null;
           }
           // Promenade: a band `RIVER.promenade` wide behind each quay wall.
           const northOuter = e.north - t;
           const southOuter = e.south + t;
           if (z <= northOuter && z >= northOuter - RIVER.promenade) {
-            return { y: GROUND.pavement, kind: 'walk', known: true };
+            return bankIsLanded(rootSeed, x, -1, QUAY_SETBACK_M)
+              ? { y: GROUND.pavement, kind: 'walk', known: true } : null;
           }
           if (z >= southOuter && z <= southOuter + RIVER.promenade) {
-            return { y: GROUND.pavement, kind: 'walk', known: true };
+            return bankIsLanded(rootSeed, x, +1, QUAY_SETBACK_M)
+              ? { y: GROUND.pavement, kind: 'walk', known: true } : null;
           }
           return null;
         },
