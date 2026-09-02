@@ -13,6 +13,13 @@
  */
 
 import { bowlRadianceNits, bowlZoneAreaM2 } from '../lib/luminaire.js';
+/**
+ * SESSION 67 — the reflectance of this city's ground, which the atmosphere's
+ * bounce term and this file's own earth plane are two readers of. It lives
+ * there because `src/lib` may not import `src/core` (CONTRACT §2.2) and this
+ * direction is the one the contract allows. See `GROUND.earthAlbedo`.
+ */
+import { ATM } from '../lib/atmosphere.js';
 
 /** Where the block is. Chosen, not arbitrary — see WHY_LATITUDE below. */
 export const SITE = {
@@ -729,7 +736,30 @@ export const GROUND = {
    * to be a ploughed one. Past the geometry ring nothing is drawn and that is
    * the residency ring working, not a gap to be filled with a colour.
    */
-  earthAlbedo: [0.1229, 0.1211, 0.1168],
+  /**
+   * ── AND IT IS ONE VALUE WITH THE SKY'S NOW — SESSION 67 ─────────────────
+   *
+   * `ATM.groundAlbedo` in `lib/atmosphere.js` was a SECOND constant for this
+   * same quantity, carrying the same sentence — *"Urban ground"* — and no
+   * derivation at all. Measured in session 67 against the delivered ground with
+   * two controls 5.1x apart, the two disagreed by **1.21x in luminance and 4.0x
+   * in saturation**, and the sky's copy was the wrong one: it lights every
+   * downward-facing surface in the city through PMREM and it painted the whole
+   * below-horizon hemisphere, so a 30.4 km2 sea reflected it and came back the
+   * colour of the land.
+   *
+   * The value lives in `atmosphere.js` and this reads it, and the arrow points
+   * that way because CONTRACT §2.2 forbids `src/lib` importing `src/core` —
+   * `parsecheck` said so in one line when the first arm tried it. `core` may
+   * import `lib` and already does.
+   *
+   * **AND THE VALUE IS UNCHANGED BY THE MOVE.** `ATM.groundAlbedo` was set to
+   * this triple, not the other way round: session 42's derivation below is the
+   * one that survived, and session 67 re-measured it at **1.7% on every
+   * channel** against the delivered city over 34.40 km2 of plan area — through
+   * session 45's carriageway change and five sessions of countryside.
+   */
+  earthAlbedo: ATM.groundAlbedo,
 
   /**
    * THE BACK OF A BLOCK, LINEAR — SESSION 51, AND IT IS A MOVE RATHER THAN A

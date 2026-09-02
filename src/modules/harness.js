@@ -2947,6 +2947,123 @@ export function createHarness(options = {}) {
           return { level: SEA.levelY, boxes: rows.length, rows };
         },
 
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE AREA-WEIGHTED ALBEDO OF EVERY GROUND SURFACE THE SCENE DRAWS —
+         * SESSION 67, AND IT IS THE QUANTITY TWO CONSTANTS BOTH CLAIM TO BE.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `ATM.groundAlbedo` = [0.155, 0.145, 0.125] feeds the sky's bounce
+         * term and, through PMREM, the lower half of the environment map — the
+         * only thing filling shadows from below. It carries NO derivation.
+         * `GROUND.earthAlbedo` = [0.1229, 0.1211, 0.1168] carries one, and it is
+         * the same sentence: *"the area-weighted mean of the city's own drawn
+         * ground"*, session 42. **Two constants, one quantity, and they differ
+         * by 1.19x in luminance and 3.9x in saturation.**
+         *
+         * Session 42 is twenty-five sessions ago and the city has moved: session
+         * 45 took a third of its carriageways from 0.19 to 0.1171, sessions
+         * 61-66 added a countryside, hills, a coast and 30.4 km2 of sea. So
+         * neither constant is trusted here — the DELIVERED surface is measured.
+         *
+         * ── PLAN AREA AND NOT SURFACE AREA ────────────────────────────────
+         *
+         * The quantity is *"what does a ray pointing down see"*, so a triangle
+         * counts for its footprint and not for its slope. A 45-degree hillside
+         * subtends half the sky a flat field of the same surface area does, and
+         * weighting by true area would let the hills vote twice.
+         *
+         * ── IT READS THE DELIVERED VERTEX COLOUR TIMES THE MATERIAL COLOUR ──
+         *
+         * which is what three multiplies and therefore what the frame shows.
+         * `block:ground` carries `GROUND.earthAlbedo` on the material and a
+         * per-vertex TINT; `city:ground` carries white and the albedo itself.
+         * Reading either alone would be wrong for the other, and reading the
+         * generator instead of the buffer would be a second description.
+         */
+        groundAlbedoCensus(opts = {}) {
+          const rows = new Map();
+          const m4 = new THREE.Matrix4();
+          const v0 = new THREE.Vector3();
+          const v1 = new THREE.Vector3();
+          const v2 = new THREE.Vector3();
+          const col = new THREE.Color();
+          ctx.scene.traverse((o) => {
+            if (!o.isMesh || !o.geometry) return;
+            if (opts.name && o.name.indexOf(opts.name) < 0) return;
+            const g = o.geometry;
+            const pos = g.getAttribute('position');
+            if (!pos) return;
+            const vc = g.getAttribute('color');
+            const mat = o.material;
+            if (!mat || !mat.color) return;
+            const idx = g.getIndex();
+            const tris = Math.floor((idx ? idx.count : pos.count) / 3);
+            if (!tris) return;
+            const inst = o.isInstancedMesh ? o.instanceMatrix.array : null;
+            const n = inst ? Math.min(o.count, o.instanceMatrix.count) : 1;
+            let rec = rows.get(o.name);
+            if (!rec) {
+              rec = { name: o.name, area: 0, r: 0, g: 0, b: 0, tris: 0,
+                vertexColours: !!(vc && mat.vertexColors) };
+              rows.set(o.name, rec);
+            }
+            for (let k = 0; k < n; k++) {
+              if (inst) m4.fromArray(inst, k * 16).premultiply(o.matrixWorld);
+              else m4.copy(o.matrixWorld);
+              for (let t = 0; t < tris; t++) {
+                const ia = idx ? idx.getX(t * 3) : t * 3;
+                const ib = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+                const ic = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+                v0.fromBufferAttribute(pos, ia).applyMatrix4(m4);
+                v1.fromBufferAttribute(pos, ib).applyMatrix4(m4);
+                v2.fromBufferAttribute(pos, ic).applyMatrix4(m4);
+                /** THE PLAN AREA: the cross product's y component, halved. */
+                const ax = v1.x - v0.x;
+                const az = v1.z - v0.z;
+                const bx = v2.x - v0.x;
+                const bz = v2.z - v0.z;
+                const plan = Math.abs(ax * bz - az * bx) / 2;
+                if (plan <= 0) continue;
+                const cx = (v0.x + v1.x + v2.x) / 3;
+                const cz = (v0.z + v1.z + v2.z) / 3;
+                const rad = Math.hypot(cx, cz);
+                if (opts.maxR !== undefined && rad > opts.maxR) continue;
+                if (opts.minR !== undefined && rad < opts.minR) continue;
+                let cr = mat.color.r;
+                let cg = mat.color.g;
+                let cb = mat.color.b;
+                if (vc && mat.vertexColors) {
+                  const mr = (vc.getX(ia) + vc.getX(ib) + vc.getX(ic)) / 3;
+                  const mg = (vc.getY(ia) + vc.getY(ib) + vc.getY(ic)) / 3;
+                  const mb = (vc.getZ(ia) + vc.getZ(ib) + vc.getZ(ic)) / 3;
+                  cr *= mr; cg *= mg; cb *= mb;
+                }
+                if (o.isInstancedMesh && o.instanceColor) {
+                  col.fromBufferAttribute(o.instanceColor, k);
+                  cr *= col.r; cg *= col.g; cb *= col.b;
+                }
+                rec.area += plan;
+                rec.r += cr * plan;
+                rec.g += cg * plan;
+                rec.b += cb * plan;
+                rec.tris++;
+              }
+            }
+          });
+          const out = [...rows.values()]
+            .filter((r) => r.area > 0)
+            .map((r) => ({
+              name: r.name,
+              planM2: +r.area.toFixed(0),
+              triangles: r.tris,
+              vertexColours: r.vertexColours,
+              albedo: [+(r.r / r.area).toFixed(4), +(r.g / r.area).toFixed(4), +(r.b / r.area).toFixed(4)],
+            }))
+            .sort((a, b) => b.planM2 - a.planM2);
+          return { meshes: out.length, rows: out };
+        },
+
         faults() {
           return ctx.faults;
         },

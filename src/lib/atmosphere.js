@@ -113,11 +113,69 @@ export const ATM = {
   multiScatterPathNeutral: 0.0,
 
   /**
-   * Urban ground. Feeds the sky's bounce term and, through PMREM, the lower
-   * half of the environment map — which is the only thing filling shadows from
-   * below. Too dark and every shadow at noon goes navy, lit purely by blue sky.
+   * ═══════════════════════════════════════════════════════════════════════════
+   * URBAN GROUND — AND IT IS `GROUND.earthAlbedo` NOW, BECAUSE THAT CONSTANT
+   * IS THE SAME QUANTITY AND IS THE ONE WITH A DERIVATION. SESSION 67.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * It feeds the sky's bounce term and, through PMREM, the lower half of the
+   * environment map — which is the only thing filling shadows from below. Too
+   * dark and every shadow at noon goes navy, lit purely by blue sky.
+   *
+   * **IT WAS `[0.155, 0.145, 0.125]` AND IT CARRIED NO DERIVATION**, which
+   * CONTRACT §9 rule 5 calls a guess. `GROUND.earthAlbedo` carries one and it
+   * is word for word the same sentence — *"the area-weighted mean of the city's
+   * own drawn ground"*, session 42. **Two constants, one quantity**, and it is
+   * session 66's `SEA.levelY` finding one term over: the river and the sea were
+   * two literal −4.990 m until somebody asked.
+   *
+   * ── WHAT THE DUPLICATION COST, MEASURED (`node tools/albedoprobe.mjs`) ────
+   *
+   * The DELIVERED ground, area-weighted by plan footprint off the vertex colour
+   * times the material colour, with two controls 5.1x apart that both hold:
+   *
+   *     region                          albedo                     Y      sat
+   *     the city, r <= 1 280        [0.1178, 0.1168, 0.1118]    0.1167   0.051
+   *     the city, r <= 3 232        [0.1208, 0.1192, 0.1148]    0.1192   0.049
+   *     the countryside 3232-4000   [0.0986, 0.1024, 0.0760]    0.0997   0.258
+   *     ---------------------------------------------------------------------
+   *     GROUND.earthAlbedo          [0.1229, 0.1211, 0.1168]    0.1212   0.050
+   *     the old ATM.groundAlbedo    [0.1550, 0.1450, 0.1250]    0.1442   0.194
+   *
+   * **SESSION 42's DERIVATION SURVIVED TWENTY-FIVE SESSIONS**: `earthAlbedo`
+   * agrees with the delivered city to **1.7% on every channel**, through session
+   * 45's carriageway change and sessions 61–66's countryside. The other constant
+   * was **1.21x too bright and 4.0x too saturated.**
+   *
+   * ── THE TWO ERRORS, KEPT APART, BECAUSE THEY ARE TWO QUANTITIES ──────────
+   *
+   * THE CHANNEL ORDER WAS NEVER WRONG. Both triples are r > g > b and so is the
+   * delivered city. Session 66 measured the sea's hue as this term's *"channel
+   * order and all"* and that was correct and is not the defect.
+   * **The defect is the SATURATION — 0.194 against 0.049, a factor of 4.0.**
+   *
+   * AND THE LEVEL IS 1.21x, NOT THE 1.34x THREE STATEs HAVE CARRIED. Session 64
+   * measured 1.34x against the COUNTRYSIDE's albedo, and this constant's own
+   * first word is *"Urban"*. Against the surface it names it is 1.21x. The
+   * larger number was the right measurement of the wrong pair.
+   *
+   * ── ONE SCALAR, ONE SOURCE, AND IT IS HERE BECAUSE THE CONTRACT SAYS SO ──
+   *
+   * The first arm made this read `GROUND.earthAlbedo` and **`parsecheck` refused
+   * it in one line**: *"src/lib must not import outside src/lib — it is pure
+   * helpers only."* That is CONTRACT §2.2 and it is not routed around. So the
+   * dependency runs the other way, which is legal because `core/constants.js`
+   * already imports `lib/luminaire.js`: **the value lives here and
+   * `GROUND.earthAlbedo` reads it.** One source, and the arrow points the way
+   * the contract allows rather than the way that first occurred to me.
+   *
+   * A reflectance in the atmosphere model is not a misfiling: it is the ground
+   * boundary condition of the scattering integral, which is exactly what the
+   * bounce term below uses it as. What `constants.js` then says is *"the earth
+   * plane is painted the colour the atmosphere believes the ground is"*, and
+   * that sentence is true and was not true before.
    */
-  groundAlbedo: [0.155, 0.145, 0.125],
+  groundAlbedo: [0.1229, 0.1211, 0.1168],
 
   /** 0.268° — the disc, not the aureole. */
   sunAngularRadius: 0.004675,
