@@ -262,6 +262,20 @@ try {
     if (pinned.frame !== PIN) throw new Error(`pin missed: asked ${PIN}, got ${pinned.frame}`);
   }
 
+  /**
+   * `--jitter=0` IS THE MECHANISM'S OWN CONTROL, and it is the second side of
+   * the pin. If the difference between two capture frame counts is the TAA
+   * sub-pixel offset, then taking the offset away must collapse every frame
+   * count to ONE image; if something else is moving, it will not. `post.js`
+   * offers this arm in as many words — *"the jitter off, the accumulation
+   * still on"* — and `harness.setJitterScale` is how a tool reaches it.
+   */
+  if (args.has('jitter')) {
+    const got = await page.evaluate((v) => window.__NOCTIS_HARNESS__.setJitterScale(v), Number(args.get('jitter')));
+    record.jitterScale = got;
+    if (got !== Number(args.get('jitter'))) throw new Error(`setJitterScale refused: asked ${args.get('jitter')}, got ${got}`);
+  }
+
   await page.evaluate((tt) => window.__NOCTIS_HARNESS__.setTimeOfDay(tt), T);
   await stage('after setTimeOfDay');
   await page.evaluate(() => window.__NOCTIS_HARNESS__.settle(4));
