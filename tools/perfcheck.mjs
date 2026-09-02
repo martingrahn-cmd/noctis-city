@@ -2467,7 +2467,17 @@ try {
       `cpu p95 ${checked.metrics.cpuP95.toFixed(2)}ms [${checked.metrics.cpuP95PerRun.join(' ')}]  ` +
       `wall p95 ${checked.metrics.wallP95 ? checked.metrics.wallP95.toFixed(2) + 'ms' : '  —  '} ` +
       `[${checked.metrics.wallP95PerRun.join(' ')}] spread ${checked.metrics.wallSpread ?? '—'}  ` +
-      `${checked.metrics.drawCalls} draws  ${(checked.metrics.triangles / 1e6).toFixed(2)}M tris  ` +
+      /**
+       * THE EXACT COUNT, NOT TWO DECIMALS OF A MEGATRIANGLE — SESSION 67.
+       * At 2.45M this printed to the nearest 10 000, so a feature under
+       * 10 000 triangles landed and left without moving the digit. Sessions 62
+       * to 66 added a countryside, hills, a harbour, cranes, container stacks
+       * and boats and the line read 2.45M throughout. A budget is checked
+       * against `triangles` either way — this changes what a READER can see,
+       * which is §7.7's own subject, and it cannot weaken a gate because it is
+       * not a threshold.
+       */
+      `${checked.metrics.drawCalls} draws  ${checked.metrics.triangles.toLocaleString('en-US')} tris  ` +
       `${checked.metrics.visibleInstances} inst  ${checked.metrics.distinctMaterials} mats  ` +
       `rt ${checked.metrics.targetMemoryMB}MB  chunks ${checked.metrics.chunkMemoryMB ?? '—'}MB  ` +
       `${checked.metrics.metresTravelled}m  ` +
