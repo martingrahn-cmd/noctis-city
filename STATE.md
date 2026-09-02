@@ -41,8 +41,9 @@ sixty-five seconds, got the same phase three times, wrote down zero, and read th
 ---
 ## 1. THE MECHANISM, NAMED RATHER THAN GUESSED
 
-**`post.js` jitters the projection matrix by `JITTER[frameIndex % 8]` — the Halton(2,3) sequence
-CONTRACT §5.10 requires — and `frameIndex` is the absolute count of frames this page has rendered.
+**`post.js` jitters the projection matrix by `JITTER[frameIndex % 8]` — *"the eight Halton
+offsets"* CONTRACT §5.10 names — and `frameIndex` is the absolute count of frames this page has
+rendered.
 So the sub-pixel offset the captured frame was drawn at is set by HOW MANY FRAMES WERE RENDERED
 BEFORE IT.**
 
@@ -114,8 +115,8 @@ zero-floor runs — `s68final`, `s68noiseA`, `s68noiseB` — are all `5664…`, 
 So is `bisced33d2`. Its other zero — *"session 67 → session 68 with `surfaceAt` UNGATED, 0 bytes"* —
 is `after67` against `isosurf`, taken an hour and fifty minutes apart and both phase 2.
 
-**Every one of session 68's five observations is one cell of that table.** Nothing else is needed to
-explain any of them.
+**Every observation in STATE 68 §1c and §8 item 1 — the zeroes and the 73 373 alike — is one cell of
+that table.** Nothing else is needed to explain any of them.
 
 ### 2b. THE PIN, WHICH IS THE CONTROL FROM ONE SIDE
 
@@ -314,6 +315,10 @@ reshuffled crowd, of a re-metered exposure and of a sub-pixel shift alike, and i
 
   4 of 8 RED — the same four as sessions 53-68. NO FIFTH RED.
 ```
+
+The battery ran on the `src/` that ships and that `src/` did not change afterwards; the three
+document edits below it — CONTRACT §9's 76th row, LOOK.md §7's note and this file — landed after it,
+and `parsecheck` is the only gate that reads any of them. It was re-run green after each.
 
 **`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–68 ON EVERY COUNT** — clumping CV **0.393**, **5**
 delivered forbidden overlaps, **2 of 2 647** signs inside a building, **1 004 of 284 918** bare
