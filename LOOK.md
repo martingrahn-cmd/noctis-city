@@ -1043,6 +1043,53 @@ It is that the street wall is broken.
   so the planting stops exactly where the scrub colour does.
   `tools/shot-out/country-{car,air}-s65-trees-t0_42-wet.png`.
 
+- **THE SEA IS THE COLOUR OF THE LAND, AND §9's BILL IS NOW THE LARGEST BRIGHT
+  SURFACE IN THE WORLD — SESSION 66, MEASURED AND NOT FIXED.**
+
+  Session 66 put a sea at the river's mouth. From 180 m looking 15° down, the
+  delivered water and the delivered river, at comparable range:
+
+  ```
+                         rgb                  Y     saturation   hue
+    the sea at ~500 m    75.7, 68.9, 59.1   69.6      0.219      r > g > b
+    the river at ~300 m  73.5, 76.8, 81.6   76.5      0.100      b > g > r
+    ATM.groundAlbedo      0.155, 0.145, 0.125          0.194      r > g > b
+  ```
+
+  **The sea's hue is `ATM.groundAlbedo`'s, channel order and all.** `sky.js`
+  paints the below-horizon hemisphere as `ATM_GROUND_ALBEDO × groundLighting / π`
+  and the water is a near-mirror at `WATER.baseRoughness` = 0.045, so a camera
+  high enough to look down on it reflects into the band the PMREM blurs that
+  fill into. **FROM A LOW EYE IT IS WATER** — the same surface from 6 m reads
+  blue with the wave field on it. The defect is a view angle on a known
+  quantity, not a property of the sea.
+
+  It is the third session running that this entry has been the top of the list,
+  and it is louder every time: session 64 measured the fill at 1.34× the ground
+  it stands in for, session 65 left it alone, and session 66 has now put the
+  brightest large surface in the world exactly where it shows.
+  `tools/shot-out/sea-{edge,air,harbour}-t0_42-wet.png`.
+
+- **AND A SHORE IS A CHROMA TELL, WHICH IS SESSION 64's INSTRUMENT AND NOT
+  SESSION 65's — SESSION 66.**
+
+  A strand is `GROUND.earthAlbedo` — session 42's *"a field beside a city"*, Y
+  0.1212, saturation 0.050 — and against what it replaces at the water's edge:
+
+  ```
+    strand vs   luminance      chroma
+    grass         1.45x      10.50x flatter
+    field         0.70x       9.97x flatter
+    tilled        1.21x       8.13x flatter
+  ```
+
+  **Chroma, overwhelmingly, and harder than the 6 to 7 that found the
+  farmsteads.** The luminance ratio SPANS 1.0 and carries no consistent sign at
+  all: a shingle bank is brighter than grass and darker than stubble. Two
+  sessions have now each found one of the two instruments to be the right one
+  for their own subject, and the lesson is that neither is general — measure
+  both and read which one has a sign.
+
 - **THE LONG SOFT BANDS ACROSS AN AERIAL ARE THE LAND — SESSION 65, MEASURED
   AND NOT FIXED.**
 
