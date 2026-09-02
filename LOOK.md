@@ -127,6 +127,17 @@ harbour is. Measured on water-only pixels at the city's edge, `t = 0.42`:
   city-interior frame — is byte-identical at 0 of 3 499 200 bytes.
 ```
 
+**AND THAT LAST SENTENCE IS NOT THE CONTROL IT READS AS — session 70.** The two
+frames really were identical; a zero is only reachable at equal content. What it
+cannot support is the inference, because **that frame has no sensitivity to the
+thing it was standing in for**: session 69 rendered five different
+`river.surfaceAt` arms — one of them refusing everywhere, moving twenty-two chunk
+meshes — and got a byte-identical `viaduct-under` PNG from every one of them, at
+a noise floor of 57 801 to 78 979 bytes. **A frame that returns 0 whatever you do
+to the world is not evidence that you did nothing to the world.** The sea term
+being absent from the city interior is still the right conclusion and it rests on
+the two rows above it and on session 70's own mask, not on this line.
+
 **WHAT WOULD MAKE THIS A DEFECT AGAIN, so a later session knows what it is
 allowed to change.** If the below-horizon half of the environment map ever
 stops carrying the city's ground — a second sky LUT for the open sea, say, or a
