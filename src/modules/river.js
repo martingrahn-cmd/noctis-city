@@ -62,6 +62,10 @@ import {
   bridgeIndexAt,
   bridgeX,
   nearestCrossingX,
+  // Session 66: the sea. `SEA.levelY` IS `-RIVER.depth` — one water datum for
+  // the world — and `seaCells` is the flood fill that says which water is sea.
+  SEA,
+  seaCells,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -108,6 +112,8 @@ export function createRiver(options = {}) {
   let materials = null;
   let boxGeo = null;
   let waterMesh = null;
+  /** Session 66: how many sea quads the water buffer carries, for the boot line. */
+  let seaQuads = 0;
   let structureMesh = null;
   let steelMesh = null;
   /** Which build window is currently up, as an integer chunk index in x. */
@@ -213,7 +219,14 @@ export function createRiver(options = {}) {
    */
   function buildWater(extent) {
     const over = RIVER.wallThickness + 0.5;
-    const y = -RIVER.depth;
+    /**
+     * `SEA.levelY` AND NOT `-RIVER.depth` — SESSION 66. They are the same
+     * number and that is the point: the sea reads this too, so a river and a
+     * sea drawn a kilometre apart cannot end up a millimetre apart. It was a
+     * literal at two sites in this file and CONTRACT §9 rule 7 is the reason it
+     * is not any more.
+     */
+    const y = SEA.levelY;
     const st = riverBankStations(-extent, extent);
     const pos = [];
     for (let i = 0; i < st.length - 1; i++) {
@@ -225,6 +238,66 @@ export function createRiver(options = {}) {
       const b1 = b.south + over;
       pos.push(a.x, y, a0, b.x, y, b1, b.x, y, b0);
       pos.push(a.x, y, a0, a.x, y, a1, b.x, y, b1);
+    }
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE SEA IS IN THE SAME BUFFER — SESSION 66, WHICH IS WHY IT COSTS
+     * NO DRAW CALL AT ALL.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The brief's premise (iv) is that the sea costs one draw call and the
+     * shoreline costs none. **It costs ZERO and the shoreline costs none**,
+     * because the sea is not a new surface: it is the river's own water plane,
+     * at the river's own level, in the river's own mesh, on the river's own
+     * `NOCTIS_WATER` material. Draws are 401 of 440 and this session's binding
+     * constraint is the 39 left; the sea spends none of them.
+     *
+     * It also settles item 1d by construction. `roughcensus.mjs` classifies
+     * `river:water` as `moot` — `NOCTIS_WATER` overwrites both wet terms
+     * unconditionally, so `noctisRough` cannot reach it — and the sea inherits
+     * that row rather than becoming an unclassified surface 31. There is
+     * nothing defaulted here: the one surface in this project that is SUPPOSED
+     * to mirror is the one that was already declared as such.
+     *
+     * ── THE SHORELINE IS DRAWN BY THE LAND, NOT BY THIS ────────────────────
+     *
+     * Every cell of `seaCells` becomes one flat quad at `SEA.levelY`, and
+     * the coast is wherever the terrain rises through that plane and occludes
+     * it. So the coast is the terrain's own contour at the ground mesh's own
+     * 32 m stations, not a curve authored here and not a function of the fill's
+     * 128 m cell.
+     *
+     * DILATED BY ONE CELL, which is what makes the cell size free. The fill's
+     * own boundary is then always under ground that stands above the level —
+     * and ground above the level is above this plane by definition — so the
+     * quad's edge can never be seen whatever `SEA.cellM` is.
+     */
+    {
+      const S = seaCells(rootSeed);
+      const C = S.cell;
+      const h = C / 2;
+      let emitted = 0;
+      for (let i = 0; i < S.nx; i++) {
+        for (let j = 0; j < S.nz; j++) {
+          let near = false;
+          for (let di = -1; di <= 1 && !near; di++) {
+            for (let dj = -1; dj <= 1; dj++) {
+              const i2 = i + di;
+              const j2 = j + dj;
+              if (i2 < 0 || i2 >= S.nx || j2 < 0 || j2 >= S.nz) continue;
+              if (S.on[j2 * S.nx + i2]) { near = true; break; }
+            }
+          }
+          if (!near) continue;
+          const cx = S.x0 + i * C;
+          const cz = S.z0 + j * C;
+          // The same winding the strip above derives: (A0, B1, B0), (A0, A1, B1).
+          pos.push(cx - h, y, cz - h, cx + h, y, cz + h, cx + h, y, cz - h);
+          pos.push(cx - h, y, cz - h, cx - h, y, cz + h, cx + h, y, cz + h);
+          emitted++;
+        }
+      }
+      seaQuads = emitted;
     }
     const arr = new Float32Array(pos);
     const geo = new THREE.BufferGeometry();
@@ -263,7 +336,14 @@ export function createRiver(options = {}) {
    * bottom is below the surface and only `freeboardM` of it shows.
    */
   function pushCraft(x0, x1, push) {
-    const y = -RIVER.depth;
+    /**
+     * `SEA.levelY` AND NOT `-RIVER.depth` — SESSION 66. They are the same
+     * number and that is the point: the sea reads this too, so a river and a
+     * sea drawn a kilometre apart cannot end up a millimetre apart. It was a
+     * literal at two sites in this file and CONTRACT §9 rule 7 is the reason it
+     * is not any more.
+     */
+    const y = SEA.levelY;
     for (const c of riverCraft(rootSeed, x0, x1)) {
       const F = RIVER_CRAFT.freeboardM;
       const hull = [0.19 * c.tone, 0.185 * c.tone, 0.175 * c.tone];

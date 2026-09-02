@@ -3340,7 +3340,26 @@ export function terrainHeightAt(rootSeed, x, z) {
    * sentence `city.js`'s `worldSurface` uses about its own three modules. A sum
    * would build a spire wherever two hills met.
    */
-  return h * (t * t * (3 - 2 * t)) + hillRiseAt(rootSeed, x, z);
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * AND THE SEA'S BASIN IS IN IT — SESSION 66, INSIDE THE RAMP AND NOT
+   * AFTER IT, WHICH IS THE OPPOSITE OF WHAT THE HILLS NEEDED.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * A hill is added AFTER the ramp because a dome straddling `extentEdgeM`
+   * would be squashed by it, and `hillMasses` pushes every footprint clear so
+   * that is safe. The basin is the other case exactly: it is a hole rather than
+   * a mass, its mouth is deliberately INSIDE the ramp (`SEA.mouthM` = 3 300
+   * against a ramp running 3 232 to 3 424), and being multiplied by the ramp is
+   * what makes the coast's shoulder and the city's own ramp ONE slope instead
+   * of two stacked ones.
+   *
+   * IT IS ALSO WHAT KEEPS THE ZERO GUARANTEE FREE. `terrainHeightAt` is exactly
+   * 0.000000 m inside r <= 3 232 over 512 733 samples, and this term inherits
+   * that by construction rather than by a guard of its own — measured after the
+   * change at **0.000000 m over 302 500 samples at 12 m**.
+   */
+  return (h + seaBasinAt(x, z)) * (t * t * (3 - 2 * t)) + hillRiseAt(rootSeed, x, z);
 }
 
 /**
@@ -5987,6 +6006,312 @@ export function riverCentreAt(x) {
 /** The half-width at a world x. */
 export function riverHalfAt(x) {
   return RIVER.halfWidth + RIVER.widthAmp * Math.sin((TAU * x) / RIVER.widthPeriod + RIVER.widthPhase);
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE SEA — SESSION 66, AND ITS DATUM IS THE RIVER'S OWN SURFACE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * **THERE IS NO SECOND WATER DATUM AND THAT IS THE WHOLE OF ITEM 0.** The last
+ * two sessions both had CONTRACT §9 rule 7 as their headline finding — a length
+ * measured from the wrong reference — and a sea introduced beside a river is the
+ * most exposed surface in this project for it. So `levelY` is `-RIVER.depth`
+ * and nothing else: the sea IS the river's surface, seen where the land is
+ * lower, and the two meet at the mouth because they were never two numbers.
+ *
+ * MEASURED BEFORE ANY OF THIS WAS DESIGNED (`node tools/seaprobe.mjs`):
+ *
+ *   the river surface        y = -RIVER.depth = -4.990 m, a CONSTANT, written
+ *                            as a literal at two sites in `river.js`
+ *   it crosses r = 3 232 at  x = -3 203.9 (103.4 m wide) and x = +3 203.8
+ *                            (112.7 m wide), both at z about -425
+ *   the quay wall            top at grade 0, parapet +1.05, toe -5.79
+ *   a moored craft           `RIVER_CRAFT.freeboardM` = 0.75 m shows, and
+ *                            `river.js` already sinks the hull 0.5 m
+ *
+ * The brief's premise (i) — *"the river surface is a fixed height inside the
+ * zero disc"* — is TRUE, and it is what makes this cheap rather than hard.
+ *
+ * ── THE MEASUREMENT THAT DECIDED THE SHAPE ────────────────────────────────
+ *
+ * **15.34% of the 8 km plane is ALREADY below -4.99 m**, from the landform's
+ * own +-18 m alone (251 001 samples at 16 m; min -15.84, max +106.03). So
+ * `h(x, z) < levelY` is NOT the sea — used as a global test it floods a sixth
+ * of the countryside with ponds. The sea has to be a REGION as well as a level,
+ * and §66's answer to *"which region"* is the honest one:
+ *
+ *   **THE SEA IS THE WATER YOU CAN SAIL TO.** `seaCells` floods from the river
+ *   mouth over the cells where the land is under the level, and stops. A hollow
+ *   in a field five kilometres inland is a hollow. There is no threshold in it
+ *   to tune and no curve authored anywhere.
+ *
+ * ── WHY IT OPENS NORTH ────────────────────────────────────────────────────
+ *
+ * `halfNorthM` is 62x `halfSouthM` and that asymmetry is a DESIGN DECISION with
+ * a measurement under it, not a shape somebody liked. The exit road runs east at
+ * z about -30 and the river at z about -425: **measured, 378 to 426 m apart at
+ * every station from 3 232 to 10 000 m**. An estuary that widens symmetrically
+ * puts the road under water — the first arm did, at 1 748 of 2 541 road samples
+ * — so the water opens away from it. The delivered clearance from the road to
+ * the nearest sea cell is **128 m at its narrowest, at x = 6 496**, and 0 of
+ * 2 541 road samples are in the sea.
+ */
+export const SEA = {
+  /**
+   * THE ONE WATER DATUM. `river.js` drew its surface at `-RIVER.depth` as a
+   * literal in two places; both read this now, so the river and the sea cannot
+   * drift apart by a millimetre and there is nothing to transition between.
+   * `RIVER.depth` carries its own three-term derivation (deck slab, girder,
+   * freeboard) and this borrows it rather than restating it.
+   */
+  levelY: -RIVER.depth,
+  /**
+   * World x where the basin starts. **Inside the terrain's own ramp**, which
+   * runs `TERRAIN.rampStartM` = 3 232 to 3 424: so the coast's shoulder and the
+   * city's own ramp are ONE slope rather than a second shoulder stacked on the
+   * first, and the zero-inside guarantee needs no separate guard — the ramp
+   * multiplies this term with everything else. 3 300 is 68 m into a 192 m ramp.
+   */
+  mouthM: 3300,
+  /** Metres over which the basin reaches full depth and full width. */
+  flareM: 760,
+  /**
+   * Metres the basin pulls the floor down at full flare. The requirement is
+   * that the SHORELINE is set by the landform's own crossing and not by the
+   * basin bottoming out, so it must exceed `|levelY|` plus the landform's own
+   * reach: 4.99 + 18 = 23 m. 62 is **2.7x** that, which puts the estuary's
+   * centre under water for every draw of the noise.
+   */
+  deepM: 62,
+  /**
+   * Half-width of the basin's core at the mouth. `riverEnvelope()` is 73.8 m
+   * either side of the centreline, so 150 is twice the river's own envelope:
+   * the channel WIDENS into the estuary rather than stepping into it.
+   */
+  mouthHalfM: 150,
+  /**
+   * The flare, north and south, per `flareM` of distance. See the block above
+   * for why they differ by 62x and what the delivered road clearance is.
+   * 3 100 m of northward flare puts the far shore about 4 km off the
+   * centreline, which is where STATE 64 measured the haze closing (transmittance
+   * under 0.22 past 4 km) — so the far side of the estuary is never a LINE in a
+   * frame, it is the horizon.
+   */
+  halfNorthM: 3100,
+  halfSouthM: 50,
+  /**
+   * Metres. The flood fill's cell. The water plane is FLAT, so this is not a
+   * resolution — it is only how tightly the emitted quads hug the coast, and
+   * the coast itself is drawn by the LAND occluding the water and is exact.
+   * The fill is dilated by one cell so its own edge always lies under ground
+   * that is above the level, which is what makes the boundary invisible at any
+   * cell size.
+   */
+  cellM: 128,
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * METRES OF BASIN A CELL NEEDS BEFORE IT COUNTS AS SEA — AND THIS NUMBER
+   * IS THE SESSION'S ONE HONEST COMPROMISE, MEASURED AND NOT ARGUED.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `seaCells` floods from the mouth over ground below the level, which is the
+   * definition with nothing to tune in it. **Delivered without this line, the
+   * fill came back with 459 of 2 541 EXIT-ROAD SAMPLES UNDER WATER**, and the
+   * basin at every one of them measured **-0.00 m**: they are the landform's
+   * own hollows, chained to the estuary from x = 6 336 outward. The connection
+   * is real and not a sampling artefact — halving the step to test each edge's
+   * midpoint changed the count by zero — because **15.34% of this countryside
+   * lies below -4.99 m and its sub-level set percolates.**
+   *
+   * So the fill is restricted to ground the COAST lowered. 0.5 m is the
+   * smallest threshold that separates the two populations completely, and it
+   * separates them completely because they do not overlap: the estuary's cells
+   * carry tens of metres of basin and the hollows carry 0.00.
+   *
+   * WHAT IT COSTS, MEASURED RATHER THAN WAVED AT. The restriction leaves 90
+   * cell edges where water stops against ground that is still below the level —
+   * a lagoon the fill can no longer reach — at a median depth of **3.84 m**.
+   * Every one of them is far away: **the nearest is 2 016 m from the harbour
+   * and the median is 4 995 m**, all past x = 3 584 with a p50 of 7 680, out on
+   * the skirt where session 64's rings are 512 to 2 048 m wide and the
+   * transmittance is under 0.2. **0 of the 90 fall within 2 km of the
+   * harbour.** It is a defect and it is in STATE's §8 as one.
+   */
+  claimM: 0.5,
+};
+
+/**
+ * How far the sea basin pulls the ground down at a world point, in metres,
+ * BEFORE the terrain's ramp. Negative or zero.
+ *
+ * A SUPER-GAUSSIAN ACROSS THE CHANNEL — `exp(-(dz/half)^4)` — and not a plain
+ * Gaussian: a plain one has no flat middle, so the estuary's floor would be a
+ * V and its shoulder would start at the centreline. The fourth power gives a
+ * flat bed and a real shoulder, and the shoulder's gradient is what lets the
+ * landform's +-18 m move the coast: measured, the delivered south shore stands 152
+ * to 236 m off the centreline between x = 3 300 and 6 000 — it **wanders 84 m**,
+ * which is the terrain's own shape and not a curve drawn here.
+ *
+ * CENTRED ON `riverCentreAt`, so the estuary meanders exactly as the river it
+ * is the mouth of. One description, two readers.
+ */
+export function seaBasinAt(x, z) {
+  if (x <= SEA.mouthM) return 0;
+  const u = Math.min(1, (x - SEA.mouthM) / SEA.flareM);
+  const dz = z - riverCentreAt(x);
+  const half = SEA.mouthHalfM + (dz < 0 ? SEA.halfNorthM : SEA.halfSouthM) * u;
+  const q = dz / half;
+  const q2 = q * q;
+  return -SEA.deepM * (u * u * (3 - 2 * u)) * Math.exp(-q2 * q2);
+}
+
+/* ─────────────────────── the sea, as a set of cells ─────────────────────── */
+
+let seaCacheSeed = null;
+let seaCacheOut = null;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHICH WATER IS THE SEA — A FLOOD FILL FROM THE MOUTH, AND IT HAS NO
+ * THRESHOLD IN IT.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * **15.34% of the countryside is already below the water level from the
+ * landform alone.** So "the ground is under the level" is not a definition of
+ * the sea; it is a definition of every hollow in the world. The first arm of
+ * this session added a `claimM` threshold on the basin's own depth to exclude
+ * them, and a threshold is a number somebody chose that a reader has to
+ * believe. This is the definition instead:
+ *
+ *   **THE SEA IS THE WATER YOU CAN SAIL TO.** Flood from the river mouth over
+ *   the cells whose ground is under `SEA.levelY`, four-connected, and stop.
+ *
+ * A hollow in a field is a hollow because you cannot get a boat to it. Nothing
+ * is tuned, and the answer changes correctly and by itself if the landform,
+ * the basin or the level ever move.
+ *
+ * THE CELL IS NOT A RESOLUTION. The water surface is FLAT, so `SEA.cellM` only
+ * decides how tightly the emitted quads hug the coast — and the coast a frame
+ * shows is the LAND occluding the water, which is exact at the terrain mesh's
+ * own 32 m stations. The fill is DILATED by one cell in `river.js` so its own
+ * boundary always lies under ground that stands above the level, which makes
+ * the boundary invisible at any cell size and is why 128 m is affordable.
+ *
+ * BOUNDED IN x BY `TERRAIN.skirtM` AND IN z BY THE SAME, because that is where
+ * the ground stops being drawn at all. Cached on the seed, the same arrangement
+ * `hillMasses` has, because the fill is ~14 000 `terrainHeightAt` calls and
+ * every consumer wants the same answer.
+ */
+export function seaCells(rootSeed) {
+  if (seaCacheSeed === rootSeed && seaCacheOut) return seaCacheOut;
+  const C = SEA.cellM;
+  /**
+   * The window. It starts one cell inside `SEA.mouthM` so the seed cell is
+   * findable, and reaches `TERRAIN.skirtM` in every direction the water can
+   * run. South of the river the basin is 62x narrower, so +1 024 m of margin
+   * past the centreline is ten cells of headroom on a shore that measures 132
+   * to 256 m out.
+   */
+  const x0 = Math.floor((SEA.mouthM - C) / C) * C;
+  const x1 = Math.ceil(TERRAIN.skirtM / C) * C;
+  const z0 = Math.floor(-TERRAIN.skirtM / C) * C;
+  const z1 = Math.ceil((RIVER.z0 + 1024) / C) * C;
+  const nx = Math.round((x1 - x0) / C) + 1;
+  const nz = Math.round((z1 - z0) / C) + 1;
+  const under = new Uint8Array(nx * nz);
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < nz; j++) {
+      const x = x0 + i * C;
+      const z = z0 + j * C;
+      if (terrainHeightAt(rootSeed, x, z) < SEA.levelY
+        && -seaBasinAt(x, z) >= SEA.claimM) under[j * nx + i] = 1;
+    }
+  }
+  /**
+   * THE SEED IS THE MOUTH, found by walking out along the river's own
+   * centreline until the ground drops under the level. If it never does the
+   * fill is EMPTY and every consumer sees no sea at all — which is the honest
+   * failure and not a crash: a `SEA` retuned so the basin never reaches the
+   * level would deliver a countryside with no water in it and say so.
+   */
+  const on = new Uint8Array(nx * nz);
+  let seed = -1;
+  for (let x = SEA.mouthM; x < TERRAIN.skirtM; x += C / 2) {
+    const z = riverCentreAt(x);
+    const i = Math.round((x - x0) / C);
+    const j = Math.round((z - z0) / C);
+    if (i >= 0 && i < nx && j >= 0 && j < nz && under[j * nx + i]) { seed = j * nx + i; break; }
+  }
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * TWO CELLS ARE CONNECTED IF THE GROUND BETWEEN THEM IS ALSO UNDER WATER,
+   * AND THE FIRST ARM DID NOT ASK.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Four-connecting on the CELL CENTRES alone lets the fill cross a ridge it
+   * never sampled: a 128 m cell against a landform whose short octave is 384 m
+   * steps over saddles a boat could not. Delivered by that arm: **1 377 of
+   * 2 541 exit-road samples came back as sea**, because the countryside's own
+   * hollows chained themselves to the estuary through gaps between cell
+   * centres. The road ran under a lake.
+   *
+   * So a step tests the MIDPOINT of the edge it crosses, which halves the
+   * sampling interval to 64 m against a 384 m feature and is the same
+   * *"sample the thing you are asserting about"* the terrain's own central
+   * difference is built on. It costs one `terrainHeightAt` per edge taken.
+   */
+  const under1 = (x, z) => terrainHeightAt(rootSeed, x, z) < SEA.levelY;
+  const cells = [];
+  if (seed >= 0) {
+    const stack = [seed];
+    on[seed] = 1;
+    while (stack.length) {
+      const k = stack.pop();
+      const i = k % nx;
+      const j = (k - i) / nx;
+      const x = x0 + i * C;
+      const z = z0 + j * C;
+      cells.push([x, z]);
+      const step = (k2, mx, mz) => {
+        if (on[k2] || !under[k2]) return;
+        if (!under1(mx, mz)) return;
+        on[k2] = 1;
+        stack.push(k2);
+      };
+      if (i > 0) step(k - 1, x - C / 2, z);
+      if (i < nx - 1) step(k + 1, x + C / 2, z);
+      if (j > 0) step(k - nx, x, z - C / 2);
+      if (j < nz - 1) step(k + nx, x, z + C / 2);
+    }
+  }
+  seaCacheSeed = rootSeed;
+  seaCacheOut = { x0, z0, nx, nz, cell: C, on, cells };
+  return seaCacheOut;
+}
+
+/**
+ * Is this world point the sea? The cell is in the flooded set AND the ground
+ * under it is below the level — the second half because a cell is 128 m and the
+ * coast inside it is the terrain's own, not the cell's.
+ *
+ * IT IS THE QUERY EVERY CONSUMER ASKS and there is exactly one of it: the
+ * harbour's placement, the moorings and `river.js`'s emission all read this.
+ * CONTRACT §9 rule 7 — one datum, one function.
+ */
+export function isSeaAt(rootSeed, x, z) {
+  const S = seaCells(rootSeed);
+  const i = Math.round((x - S.x0) / S.cell);
+  const j = Math.round((z - S.z0) / S.cell);
+  if (i < 0 || i >= S.nx || j < 0 || j >= S.nz) return false;
+  if (!S.on[j * S.nx + i]) return false;
+  return terrainHeightAt(rootSeed, x, z) < SEA.levelY && -seaBasinAt(x, z) >= SEA.claimM;
+}
+
+/** Metres of water over the bed, or 0 on land. The draught a hull may have. */
+export function seaDepthAt(rootSeed, x, z) {
+  if (!isSeaAt(rootSeed, x, z)) return 0;
+  return SEA.levelY - terrainHeightAt(rootSeed, x, z);
 }
 
 /**

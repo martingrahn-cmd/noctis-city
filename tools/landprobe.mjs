@@ -50,6 +50,7 @@ import {
   EXIT_ROAD, exitRoadZ, exitRoadYawDeg, exitRoadHalfM, exitRoadSpans, exitRoadOwnSpans,
   FARM, farmLinesIn, HILLSIDE, hillMasses, hillProfile, groundHeightAt, hillsideHouses, hillRiseAt,
   TERRAIN, terrainHeightAt, terrainNormalAt,
+  RIVER, RIVER_CRAFT, riverCentreAt, riverEdges, SEA, seaBasinAt, seaCells, isSeaAt, seaDepthAt,
 } from '../src/lib/citygen.js';
 
 const BUDGET = JSON.parse(await readFile(new URL('./budget.json', import.meta.url), 'utf8'));
@@ -59,7 +60,7 @@ const args = new Map(process.argv.slice(2).map((a) => {
 }));
 const SEED = args.get('seed') || BUDGET.capture.params.seed || 1337;
 const S = CITY.chunkSize;
-const ALL = !['road', 'lamps', 'fields', 'hills', 'houses', 'terrain', 'plates'].some((k) => args.has(k));
+const ALL = !['road', 'lamps', 'fields', 'hills', 'houses', 'terrain', 'plates', 'sea'].some((k) => args.has(k));
 const f2 = (n, w = 8) => n.toFixed(2).padStart(w);
 const f1 = (n, w = 7) => n.toFixed(1).padStart(w);
 
@@ -638,6 +639,111 @@ function plates() {
   console.log('  exists, the number above is how much open air a plot edge shows.\n');
 }
 
+
+// ---------------------------------------------------------------------------
+// 8. THE SEA — SESSION 66
+// ---------------------------------------------------------------------------
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ITEM 0'S MEASUREMENTS, REPRODUCIBLE. THE DATUM BEFORE THE DESIGN.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 66 introduced a third ground datum beside the terrain and the road's
+ * hoisted stations, and the two sessions before it both had CONTRACT §9 rule 7
+ * as their headline finding. Every number the design rests on is printed here so
+ * the next session can disagree with the arithmetic rather than with the taste.
+ *
+ * THE HEADLINE IS THAT THERE IS NO THIRD DATUM. `SEA.levelY` IS `-RIVER.depth`,
+ * and `river.js` reads it too, so the river and the sea are one number and there
+ * is nothing to transition between at the mouth.
+ */
+function sea() {
+  console.log('8. THE SEA — the datum, the coast, and what the flood fill costs\n');
+  console.log('  THE DATUM');
+  console.log(`    SEA.levelY                    ${SEA.levelY.toFixed(3)} m  = -RIVER.depth, ONE number for the world`);
+  console.log(`    quay wall top / toe            0.000 / ${(-(RIVER.depth + 0.8)).toFixed(2)} m,  parapet +${RIVER.parapet}`);
+  console.log(`    a moored craft shows           ${RIVER_CRAFT.freeboardM} m of freeboard and draws 0.50 m`);
+  for (const sgn of [-1, 1]) {
+    let lo = 2000; let hi = 4000;
+    for (let i = 0; i < 60; i++) {
+      const m = (lo + hi) / 2;
+      if (Math.hypot(m, riverCentreAt(sgn * m)) < CITY.extentEdgeM) lo = m; else hi = m;
+    }
+    const x = sgn * lo; const e = riverEdges(x);
+    console.log(`    river crosses r=${CITY.extentEdgeM} ${sgn > 0 ? 'EAST' : 'WEST'}   x ${f1(x)}  z ${f1(riverCentreAt(x))}  width ${f1(e.south - e.north)} m`);
+  }
+
+  console.log('\n  WHY THE SEA IS A REGION AND NOT A LEVEL');
+  let below = 0; let n = 0; let mn = Infinity; let mx = -Infinity;
+  for (let x = -4000; x <= 4000; x += 16) {
+    for (let z = -4000; z <= 4000; z += 16) {
+      /** The landform WITHOUT the sea's basin — the field this design met. */
+      const r = Math.hypot(x, z);
+      const t = r <= TERRAIN.rampStartM ? 0 : Math.min(1, (r - TERRAIN.rampStartM) / TERRAIN.rampM);
+      const bare = terrainHeightAt(SEED, x, z) - seaBasinAt(x, z) * (t * t * (3 - 2 * t)); n++;
+      if (bare < mn) mn = bare;
+      if (bare > mx) mx = bare;
+      if (bare < SEA.levelY) below++;
+    }
+  }
+  console.log(`    over ${n} samples at 16 m the landform WITHOUT the basin runs ${f2(mn)} to ${f2(mx)} m`);
+  console.log(`    and ${(100 * below / n).toFixed(2)}% of it lies under SEA.levelY — a global "h < level" test`);
+  console.log('    would flood a sixth of the countryside, which is why `seaCells` floods from');
+  console.log('    the mouth instead: THE SEA IS THE WATER YOU CAN SAIL TO.');
+
+  console.log('\n  THE DELIVERED SEA');
+  const F = seaCells(SEED);
+  console.log(`    ${F.cells.length} cells of ${F.cell} m = ${(F.cells.length * F.cell * F.cell / 1e6).toFixed(1)} km2, grid ${F.nx}x${F.nz}`);
+  let first = null;
+  for (let x = CITY.extentEdgeM; x < TERRAIN.skirtM; x += 4) {
+    if (isSeaAt(SEED, x, riverCentreAt(x))) { first = x; break; }
+  }
+  console.log(`    first sea on the river's centreline: x ${first}, ${first - CITY.extentEdgeM} m past the city edge`);
+  console.log(`    depth at the mouth ${f2(seaDepthAt(SEED, first + 200, riverCentreAt(first + 200)))} m, at x 6000 ${f2(seaDepthAt(SEED, 6000, riverCentreAt(6000)))} m`);
+
+  console.log('\n  THE ROAD STAYS OUT OF IT — the constraint the asymmetry exists for');
+  let wet = 0; let ns = 0; let clear = Infinity; let at = 0;
+  for (let x = CITY.extentEdgeM; x <= TERRAIN.skirtM; x += 8) {
+    const z = exitRoadZ(x);
+    for (const dz of [-12, 0, 12]) { ns++; if (isSeaAt(SEED, x, z + dz)) wet++; }
+    for (let d = 0; d < 1600; d += 8) if (isSeaAt(SEED, x, z - d)) { if (d < clear) { clear = d; at = x; } break; }
+  }
+  console.log(`    ${wet} of ${ns} exit-road samples are in the sea; nearest sea to the road ${f1(clear)} m at x ${at}`);
+
+  console.log('\n  THE COAST IS THE TERRAIN\'S OWN SHAPE');
+  const offs = [];
+  for (let x = SEA.mouthM; x <= 6000; x += 32) {
+    const c = riverCentreAt(x);
+    for (let z = c + 1600; z > c - 100; z -= 4) if (isSeaAt(SEED, x, z)) { offs.push(z - c); break; }
+  }
+  if (offs.length) {
+    console.log(`    the SOUTH shore over x ${SEA.mouthM}..6000 stands ${f1(Math.min(...offs))} to ${f1(Math.max(...offs))} m`);
+    console.log(`    from the centreline — it wanders ${f1(Math.max(...offs) - Math.min(...offs))} m, which is the landform and not a curve drawn anywhere.`);
+  }
+
+  console.log('\n  WHAT `SEA.claimM` COSTS — the session\'s one compromise, measured');
+  const C = F.cell; const cut = [];
+  for (const [x, z] of F.cells) {
+    for (const [dx, dz] of [[C, 0], [-C, 0], [0, C], [0, -C]]) {
+      const i2 = Math.round((x + dx - F.x0) / C); const j2 = Math.round((z + dz - F.z0) / C);
+      if (i2 < 0 || i2 >= F.nx || j2 < 0 || j2 >= F.nz) continue;
+      if (F.on[j2 * F.nx + i2]) continue;
+      const h = terrainHeightAt(SEED, x + dx, z + dz);
+      if (h < SEA.levelY) cut.push({ x: x + dx, z: z + dz, d: SEA.levelY - h });
+    }
+  }
+  cut.sort((a, b) => a.d - b.d);
+  const HX = 3800; const HZ = -300;
+  const near = cut.filter((c) => Math.hypot(c.x - HX, c.z - HZ) < 2000).length;
+  const dists = cut.map((c) => Math.hypot(c.x - HX, c.z - HZ)).sort((a, b) => a - b);
+  console.log(`    ${cut.length} cell edges where water stops against ground still under the level`);
+  if (cut.length) {
+    console.log(`    their depth p50 ${f2(cut[Math.floor(cut.length / 2)].d)} max ${f2(cut[cut.length - 1].d)} m`);
+    console.log(`    from a harbour at (${HX}, ${HZ}): nearest ${f1(dists[0])} m, p50 ${f1(dists[Math.floor(dists.length / 2)])} m, ${near} within 2 km`);
+  }
+  console.log('');
+}
+
 if (ALL || args.has('terrain')) terrain();
 if (ALL || args.has('road')) road();
 if (ALL || args.has('lamps')) lamps();
@@ -645,3 +751,4 @@ if (ALL || args.has('fields')) fields();
 if (ALL || args.has('hills')) hills();
 if (ALL || args.has('houses')) houses();
 if (ALL || args.has('plates')) plates();
+if (ALL || args.has('sea')) sea();
