@@ -111,8 +111,17 @@ if (args.has('fov')) shot.fov = Number(args.get('fov'));
 // ── the shader's constants, read and not restated ──────────────────────────
 const WAVES = waterWaves();
 const LAMBDA_MAX = Math.max(...WATER.wavelengths);
-const EDGE_LO = WATER.cutoffLo * LAMBDA_MAX;
-const EDGE_HI = WATER.cutoffHi * LAMBDA_MAX;
+/**
+ * THE SHIPPED WINDOW, AND THE ARM.
+ *
+ * `--lo` / `--hi` replace the two edges in METRES PER PIXEL so a candidate
+ * softening can be measured before it is written into a shader. They default
+ * to the shipped values, so an arm and the ship cannot drift apart —
+ * `post.js`'s `setJitterComp` note, one tool along. Nothing here changes
+ * `src/`; this file renders nothing and asserts nothing.
+ */
+const EDGE_LO = args.has('lo') ? Number(args.get('lo')) : WATER.cutoffLo * LAMBDA_MAX;
+const EDGE_HI = args.has('hi') ? Number(args.get('hi')) : WATER.cutoffHi * LAMBDA_MAX;
 const DIRS = WAVES.waves.map((w) => w.dir);
 
 const smoothstep = (e0, e1, x) => {
@@ -212,6 +221,8 @@ function crossingRow(px, level) {
   return null;
 }
 
+const f = (n, d = 1) => (n == null || !Number.isFinite(n) ? '     —' : n.toFixed(d).padStart(6));
+
 const columns = [];
 for (let c = 0; c < COLS; c++) {
   const px = Math.round(((c + 0.5) / COLS) * (W - 1));
@@ -273,6 +284,29 @@ for (const c of columns) {
   c.dirRatio = d ? d.ratio : null;
 }
 
+/**
+ * A LADDER DOWN ONE COLUMN, so the near water can be read as well as the seam.
+ * `--profile` is a column index; the rows printed are every `--step` from the
+ * bottom of the frame to the horizon. The bottom of a sea frame is usually the
+ * RIVER, and what its footprint is bounds how far the lower edge may move
+ * without the river ceasing to be byte-identical (LOOK.md §0.1).
+ */
+if (args.has('profile')) {
+  const px = Math.round(Number(args.get('profile')));
+  const stride = Number(args.get('step') || 40);
+  console.log(`\n  LADDER down column ${px}, every ${stride} rows from the bottom:`);
+  console.log('  row      span m/px    open      dist m   graze deg   comp   dir');
+  for (let py = H - 1; py >= 0; py -= stride) {
+    const s2 = spanAt(px, py);
+    const d2 = directional(px, py);
+    if (!s2) continue;
+    console.log(
+      `  ${String(py).padStart(4)}   ${f(s2.span, 3)}   ${f(s2.open, 3)}   ${f(s2.dist, 0)}   ` +
+      `${f((Math.asin(Math.abs(s2.dy)) * 180) / Math.PI, 2)}   ${String(WATER.wavelengths[s2.which]).padStart(5)}m  ${f(d2 ? d2.ratio : null, 2)}`
+    );
+  }
+}
+
 // ── the frame's own answer, if one was given ───────────────────────────────
 /**
  * THE SEA BAND AND THE GROUND-FILL BAND ARE READ OFF LOOK.md §0.1's OWN TABLE,
@@ -321,8 +355,79 @@ if (args.has('png')) {
   }
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * LOOK.md §0.1's OWN TABLE, RE-RUNNABLE — `--bands=A.png[,B.png]`
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 68 recorded the term's effect as five row bands with a saturation, a
+ * hue and the sentence *"Y is unchanged in every band"*. That table was made by
+ * a command nobody kept, so no later session could re-run it — this project's
+ * own recurring defect (STATE 69 §8 item 7). It is here now.
+ *
+ * WITH TWO FILES IT COMPARES THEM, and the strongest control available is the
+ * PURE-RED ARM: `SEA_OPEN_TINT = [1, 0, 0]` runs the identical mix through the
+ * identical gate with a maximally different chromaticity, so if the
+ * construction really does preserve luminance exactly, Y must be the same in
+ * both — and the pixels where it is not are pixels the term did not reach by
+ * the route it claims to. That is a two-sided test where session 68's was
+ * one-sided.
+ */
+if (args.has('bands')) {
+  const files = args.get('bands').split(',');
+  const imgs = [];
+  for (const fp of files) imgs.push({ fp, png: decodePNG(await readFile(fp)) });
+  const nBands = Number(args.get('bandcount') || 10);
+  const x0 = Number(args.get('bandx0') || 0);
+  const x1 = Number(args.get('bandx1') || imgs[0].png.width);
+  console.log(`\n  ROW BANDS over columns ${x0}-${x1}, ${nBands} bands of ${Math.round(imgs[0].png.height / nBands)} rows`);
+  console.log('  rows        ' + imgs.map((m, i) => `sat${i}    hue${i}      Y${i}    `).join('  '));
+  const bh = imgs[0].png.height / nBands;
+  for (let b = 0; b < nBands; b++) {
+    const r0 = Math.round(b * bh);
+    const r1 = Math.round((b + 1) * bh);
+    const cells = [];
+    for (const m of imgs) {
+      const { png } = m;
+      let sw = 0, sx = 0, sy = 0, ys = 0, n = 0;
+      for (let y = r0; y < r1; y++) for (let x = x0; x < x1; x++) {
+        const o = (y * png.width + x) * png.channels;
+        const R = png.data[o], G = png.data[o + 1], B = png.data[o + 2];
+        const { h, s } = hueSat(R, G, B);
+        // Saturation-weighted circular hue, `lookmetrics.regionHue`'s own rule:
+        // a grey pixel has no opinion about hue and must not be allowed to vote.
+        sx += s * Math.cos((h * Math.PI) / 180);
+        sy += s * Math.sin((h * Math.PI) / 180);
+        sw += s;
+        ys += (0.2126 * R + 0.7152 * G + 0.0722 * B) / 255;
+        n++;
+      }
+      let hue = (Math.atan2(sy, sx) * 180) / Math.PI;
+      if (hue < 0) hue += 360;
+      cells.push(`${(sw / n).toFixed(3).padStart(6)} ${hue.toFixed(0).padStart(6)} ${(ys / n).toFixed(5).padStart(9)}`);
+    }
+    console.log(`  ${String(r0).padStart(4)}-${String(r1).padStart(4)}   ${cells.join('   ')}`);
+  }
+  if (imgs.length === 2) {
+    let worst = 0, worstAt = null, diff = 0, tot = 0;
+    const a = imgs[0].png, c = imgs[1].png;
+    for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
+      const o = (y * a.width + x) * a.channels;
+      const ya = 0.2126 * a.data[o] + 0.7152 * a.data[o + 1] + 0.0722 * a.data[o + 2];
+      const yc = 0.2126 * c.data[o] + 0.7152 * c.data[o + 1] + 0.0722 * c.data[o + 2];
+      const d = Math.abs(ya - yc);
+      if (d > worst) { worst = d; worstAt = [x, y]; }
+      if (d > 0.5) diff++;
+      tot++;
+    }
+    console.log(
+      `\n  LUMINANCE, the two files against each other: worst |dY| ${worst.toFixed(2)} of 255 ` +
+      `at [${worstAt}], ${diff} of ${tot} pixels over half a code value (${((100 * diff) / tot).toFixed(3)}%).`
+    );
+  }
+}
+
 // ── report ─────────────────────────────────────────────────────────────────
-const f = (n, d = 1) => (n == null || !Number.isFinite(n) ? '     —' : n.toFixed(d).padStart(6));
 console.log(`\nseamprobe  ${shot.name}  ${W}x${H}  fov ${shot.fov}`);
 console.log(
   `  eye  [${eye.map((v) => v.toFixed(1)).join(', ')}]  ->  [${shot.target.map((v) => v.toFixed(1)).join(', ')}]`

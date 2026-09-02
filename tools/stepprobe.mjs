@@ -53,7 +53,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { LANDMARKS, viaductArc } from '../src/lib/citygen.js';
+import { POSES } from './lib/poses.mjs';
 import { startServer, launchBrowser, openPage, readRendererString } from './lib/page.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -68,24 +68,27 @@ const args = new Map(
 );
 
 /**
- * `viaduct-under`, DERIVED THE WAY `lookat.mjs` DERIVES IT — off `LANDMARKS`
- * and `viaductArc`, so the two tools cannot drift into two cameras with one
- * name. The eye height is the routes' 1.74 m.
+ * THE POSE COMES FROM `tools/lib/poses.mjs` — SESSION 70.
+ *
+ * This file used to re-derive `viaduct-under` off `LANDMARKS` and `viaductArc`
+ * by the same three lines `lookat.mjs` used, and printed the pose so a reader
+ * could check the two by eye. That is a mitigation, not a fix: two derivations
+ * of one camera is CONTRACT §9.1 with a matrix in it. There is one now, in
+ * `lookat.mjs`'s own table, and both tools import it.
+ *
+ * ── AND `viaduct-under` DOES NOT SHOW A VIADUCT. READ THIS BEFORE USING IT. ──
+ *
+ * STATE 69 §8 item 4 measured it: 60.3% of the frame is one building wall a few
+ * metres from the lens, and session 70 looked at the frame — there is no
+ * viaduct in it at all, no deck, no pier, no soffit. It is kept as the DEFAULT
+ * here for one reason only, and it is not a good one about the picture: every
+ * byte comparison this project has recorded since session 68 is against this
+ * frame, so changing the default would make session 69's and 70's own artefacts
+ * incomparable. **For a frame that actually shows a soffit use
+ * `--preset=viaduct-side`**, which is a committed pose with its own derivation
+ * and which delivers the deck's underside, the girder edge and the piers on
+ * both sides.
  */
-function viaductUnder() {
-  const v = LANDMARKS.find((l) => l.name === 'viaduct');
-  const st = viaductArc(v).stations;
-  const at = (m) => st.reduce((b, s) => (Math.abs(s.s - m) < Math.abs(b.s - m) ? s : b), st[0]);
-  const crown = at(0);
-  const along = at(-90);
-  return {
-    name: 'viaduct-under',
-    pos: [crown.x + 2.5, 1.74, 0],
-    target: [along.x, v.height - 3.5, along.z],
-    fov: 72,
-  };
-}
-
 const shot = args.has('pos')
   ? {
       name: args.get('name') || 'custom',
@@ -93,7 +96,14 @@ const shot = args.has('pos')
       target: (args.get('target') || '0,10,0').split(',').map(Number),
       fov: Number(args.get('fov') || 55),
     }
-  : viaductUnder();
+  : (() => {
+      const name = args.get('preset') || 'viaduct-under';
+      if (!POSES[name]) {
+        console.error(`stepprobe: no preset '${name}'. Have: ${Object.keys(POSES).join(', ')}`);
+        process.exit(2);
+      }
+      return { name, ...POSES[name] };
+    })();
 
 const TAG = args.get('tag') || 'stepprobe';
 const T = Number(args.get('t') || 0.5);
