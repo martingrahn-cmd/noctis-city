@@ -11,8 +11,10 @@ bar since session 32. **No millisecond below is a verdict.**
 
 Branch `claude/noctis-70-jitter-phase-and-seam`, off session 69's head.
 
-**WHAT SHIPPED IS FIVE LINES AND TWO GETTERS IN `src/`.** Everything else is instruments and
-measurement. `draws`, `triangles` and the occupancy registry are untouched — §7.
+**WHAT SHIPPED IS EIGHT LINES AND TWO GETTERS IN `src/`** — `git diff 995a7b7 -- src/` is 77
+insertions and no deletions across two files, of which **14 are code and 63 are the comment that
+says why**. Everything else this session produced is instruments and measurement. `draws`,
+`triangles` and the occupancy registry are untouched — §7.
 
 ---
 ## 0. THE SWEEP, WHICH IS WHY THIS FILE OPENS WITH IT
@@ -86,8 +88,8 @@ frames from a defined start:
   }
 ```
 
-Five lines in `harness.settle()`, and `post.frameIndex` / `post.jitterPeriod` as **getters with no
-setters** — a counter a caller may write is CONTRACT §9.1, and the written copy would be the one the
+Eight lines in `harness.settle()` — STATE 69 §4c costed *"about four"* — and `post.frameIndex` /
+`post.jitterPeriod` as **getters with no setters** — a counter a caller may write is CONTRACT §9.1, and the written copy would be the one the
 jitter table is actually indexed by.
 
 **WHAT IT COSTS, STATED RATHER THAN DISCOVERED LATER.** Every caller reaches `settle()` either
