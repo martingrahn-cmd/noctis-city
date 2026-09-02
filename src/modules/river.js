@@ -69,6 +69,8 @@ import {
   harbourCraft,
   isSeaAt,
   quaySegmentIsLanded,
+  harbourSite,
+  HARBOUR,
   bankIsLanded,
   QUAY_SETBACK_M,
 } from '../lib/citygen.js';
@@ -121,6 +123,9 @@ export function createRiver(options = {}) {
   let seaQuads = 0;
   let structureMesh = null;
   let steelMesh = null;
+  /** Session 68, item 3 — the harbour's moving plant. One mesh, one draw. */
+  let movingMesh = null;
+  let movingParts = null;
   /** Which build window is currently up, as an integer chunk index in x. */
   let builtWindow = null;
   let rootSeed = '1337';
@@ -796,7 +801,162 @@ export function createRiver(options = {}) {
     replaceInstanced('river:steel', materials.steel, steel, steelSkin, steelKinds, (m) => {
       steelMesh = m;
     });
+    buildMoving(x0, x1);
     builtWindow = centreX;
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE HARBOUR'S MOVING PLANT — SESSION 68, ITEM 3. ONE MESH, ONE DRAW.
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * The operator: *"A harbour that does not move reads as a model, and it is
+   * the same defect that made the city feel dead before traffic arrived."*
+   *
+   * WHY IT IS ITS OWN MESH AND NOT THE CHUNK'S. Everything else in this harbour
+   * — 384 container boxes, 33 crane boxes, the warehouses — rides the chunk's
+   * `:masses` InstancedMesh at ZERO draw calls, and that mesh is rebuilt only
+   * on a chunk crossing. A thing that moves every frame cannot live in a
+   * buffer that is rewritten a few times a minute. So the moving plant is
+   * lifted out into ONE instanced mesh whose matrices are rewritten in place,
+   * and it costs **one draw call of the thirty-nine available**. Nothing else
+   * in this session spends one.
+   *
+   * WHY EVERY PIECE IS IN THE SAME MESH. A launch and a straddle carrier are
+   * different objects with nothing in common except that they move, and that
+   * is exactly the property the draw call is being spent on. Two meshes would
+   * be two draws for one reason.
+   *
+   * NO STATE. Every position is a pure function of `time.now`, so nothing has
+   * to be seeded, saved, or stepped, a paused harness sees a still harbour at a
+   * defined instant, and two runs at the same clock are identical — which is
+   * what lets `lookcheck` and `perfcheck` stay reproducible with a moving
+   * object in the frame.
+   */
+  const MOVING_ALBEDO = { hull: [0.16, 0.17, 0.19], house: [0.62, 0.62, 0.60], carrier: [0.55, 0.42, 0.06] };
+
+  function buildMoving(x0, x1) {
+    movingParts = null;
+    const H = harbourSite(rootSeed);
+    if (H.x1 < x0 || H.x0 > x1) {
+      replaceInstanced('river:moving', materials.structure, [], [], {}, (m) => { movingMesh = m; });
+      return;
+    }
+    /**
+     * THE PARTS LIST, IN LOCAL COORDINATES ABOUT EACH VEHICLE'S OWN ORIGIN.
+     * The instance COUNT is fixed here and never changes; `stepMoving` only
+     * rewrites the matrices, which is what makes the per-frame cost a buffer
+     * upload and not an allocation.
+     */
+    const parts = [];
+    /**
+     * A HARBOUR LAUNCH. It floats, so its datum is `SEA.levelY` and NOT the
+     * ground — session 66's own item 4, and the reason the hull's centre is
+     * half its draught BELOW the waterline rather than on it.
+     */
+    const draught = 0.80;
+    parts.push({ v: 0, dx: 0, dy: SEA.levelY + 1.05 - draught, dz: 0, sx: 14.0, sy: 2.1, sz: 4.2, a: MOVING_ALBEDO.hull, r: 0.42, kind: 'launch:hull' });
+    parts.push({ v: 0, dx: -2.2, dy: SEA.levelY + 2.7, dz: 0, sx: 4.0, sy: 2.2, sz: 3.2, a: MOVING_ALBEDO.house, r: 0.52, kind: 'launch:house' });
+    parts.push({ v: 0, dx: -2.2, dy: SEA.levelY + 4.6, dz: 0, sx: 0.18, sy: 1.8, sz: 0.18, a: MOVING_ALBEDO.house, r: 0.55, kind: 'launch:mast' });
+    /**
+     * STRADDLE CARRIERS. A container-yard machine straddles a stack and is
+     * therefore mostly legs: the box it carries hangs INSIDE its own portal,
+     * which is what makes the silhouette read at five hundred metres.
+     */
+    for (let c = 0; c < HARBOUR.carriers; c++) {
+      for (const ex of [-3.4, 3.4]) {
+        for (const ez of [-2.1, 2.1]) {
+          parts.push({ v: 1 + c, dx: ex, dy: H.apronY + 5.2, dz: ez, sx: 0.42, sy: 10.4, sz: 0.42, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:leg' });
+        }
+      }
+      parts.push({ v: 1 + c, dx: 0, dy: H.apronY + 10.9, dz: 0, sx: 7.6, sy: 1.0, sz: 5.0, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:portal' });
+      parts.push({ v: 1 + c, dx: 0, dy: H.apronY + 1.4, dz: 0, sx: 6.2, sy: 2.6, sz: 2.5, a: [0.10, 0.14, 0.28], r: 0.72, kind: 'carrier:load' });
+    }
+    const kinds = {};
+    for (const p of parts) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
+    const mats = parts.map(() => setMatrix(0, 0, 0, 1, 1, 1, 0));
+    const skin = parts.map((p) => ({ albedo: p.a, roughness: p.r }));
+    replaceInstanced('river:moving', materials.structure, mats, skin, kinds, (m) => { movingMesh = m; });
+    movingParts = { parts, H };
+    stepMoving(0);
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE BOUNDING SPHERE IS THE CIRCUIT'S, NOT THE POSE'S.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `replaceInstanced` computes a bounding sphere from the matrices it is
+     * handed, which for a mesh that MOVES describes one instant and not the
+     * object. The first arm of this handed it a sentinel pose and the sphere
+     * came out a hundred kilometres under the world, so `frustumCulled` threw
+     * the whole harbour's motion away and the draw count did not move — the
+     * mesh existed, cost nothing, and drew nothing. A silent zero.
+     *
+     * `frustumCulled = false` would also have worked and is what `river:water`
+     * does, but that pays 180 triangles in every frame in the world including
+     * the ones four kilometres inland. A sphere over the CIRCUIT — every
+     * position the plant can reach, which is a fixed and known volume — culls
+     * correctly at every instant instead of at one.
+     */
+    if (movingMesh) {
+      const runX = HARBOUR.launchRunM + 240;
+      movingMesh.boundingSphere = new THREE.Sphere(
+        new THREE.Vector3(H.x0 - 120 + runX / 2, H.apronY + 6, (H.quayZ - 150 + H.apronZ) / 2),
+        Math.hypot(runX / 2, (H.apronZ - (H.quayZ - 150)) / 2) + 24
+      );
+    }
+  }
+
+  /**
+   * WHERE EACH VEHICLE IS AT TIME `t`, AND THE CIRCUITS ARE THE HARBOUR'S OWN
+   * LENGTHS RATHER THAN NUMBERS CHOSEN TO LOOK RIGHT.
+   *
+   * A triangle wave and not a modulo, so nothing teleports: a carrier that ran
+   * off the end of the apron and reappeared at the other would be the one
+   * artefact that says "loop" out loud. Both turn round and come back, which is
+   * also what the machines actually do.
+   */
+  function stepMoving(t) {
+    if (!movingMesh || !movingParts) return;
+    const { parts, H } = movingParts;
+    const tri = (u) => { const w = ((u % 2) + 2) % 2; return w < 1 ? w : 2 - w; };
+    const pose = [];
+    {
+      // The launch, down the fairway off the quay and back.
+      const run = HARBOUR.launchRunM;
+      const u = tri((t * HARBOUR.launchSpeedMS) / run);
+      const dir = ((((t * HARBOUR.launchSpeedMS) / run) % 2) + 2) % 2 < 1 ? 1 : -1;
+      /**
+       * IN THE FAIRWAY, 60 m OFF THE QUAY — AND THE FIRST ARM PUT IT AT 150 m,
+       * WHICH IS BEHIND THE `sea-harbour` CAMERA.
+       *
+       * That camera stands OFF the quay at z = −330 looking back north at the
+       * berth, which is session 57's own lesson made into a preset. A launch
+       * at `quayZ − 150` = −374 is south of it and out of frame — so the frame
+       * would have shown an empty harbour and been read as one, which is the
+       * brief's *"a frame that does not show its subject is not evidence the
+       * subject is absent"* about this very quay. 60 m is a working fairway
+       * off a berth and it is in front of that camera rather than behind it.
+       */
+      pose.push({ x: H.x0 - 120 + u * run, z: H.quayZ - 60, yaw: dir > 0 ? 0 : 180 });
+    }
+    for (let c = 0; c < HARBOUR.carriers; c++) {
+      // The apron, between the outer container blocks, offset half a period apart.
+      const run = (HARBOUR.stackCols - 1) * HARBOUR.stackPitchM;
+      const phase = (t * HARBOUR.carrierSpeedMS) / run + c;
+      const u = tri(phase);
+      const dir = (((phase % 2) + 2) % 2) < 1 ? 1 : -1;
+      pose.push({ x: H.x0 + 40 + u * run, z: H.apronZ - 10 + c * 14, yaw: dir > 0 ? 0 : 180 });
+    }
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const v = pose[p.v];
+      const c = Math.cos((v.yaw * Math.PI) / -180);
+      const sn = Math.sin((v.yaw * Math.PI) / -180);
+      movingMesh.setMatrixAt(i, setMatrix(
+        v.x + p.dx * c - p.dz * sn, p.dy, v.z + p.dx * sn + p.dz * c,
+        p.sx, p.sy, p.sz, v.yaw));
+    }
+    movingMesh.instanceMatrix.needsUpdate = true;
   }
 
   function replaceInstanced(name, material, matrices, skin, census, assign) {
@@ -1025,6 +1185,7 @@ export function createRiver(options = {}) {
         stats: () => ({
           structureInstances: structureMesh ? structureMesh.count : 0,
           steelInstances: steelMesh ? steelMesh.count : 0,
+          movingInstances: movingMesh ? movingMesh.count : 0,
           waterTriangles: waterGeo.attributes.position.count / 3,
           builtWindow,
         }),
@@ -1042,6 +1203,19 @@ export function createRiver(options = {}) {
        */
       const want = Math.round(ctx.camera.position.x / CITY.chunkSize) * CITY.chunkSize;
       if (want !== builtWindow) rebuild(ctx, want);
+      /**
+       * AND THE MOVING PLANT EVERY FRAME — SESSION 68, ITEM 3.
+       *
+       * The rebuild above is a few times a minute; this is a matrix rewrite on
+       * a mesh of fifteen instances and it is the whole per-frame cost of the
+       * only thing in this harbour that moves. Read off the shared clock rather
+       * than integrated, so it has no state to drift: `ctx.get('time')` is the
+       * same clock `weather.js` reads, and a paused harness gets a still
+       * harbour at a defined instant instead of a frozen one at an undefined
+       * one.
+       */
+      const clock = ctx.get('time');
+      if (clock) stepMoving(clock.now);
     },
 
     dispose(ctx) {
@@ -1055,7 +1229,8 @@ export function createRiver(options = {}) {
       }
       for (const d of disposables) d.dispose && d.dispose();
       disposables.length = 0;
-      waterMesh = structureMesh = steelMesh = null;
+      waterMesh = structureMesh = steelMesh = movingMesh = null;
+      movingParts = null;
       builtWindow = null;
     },
   };

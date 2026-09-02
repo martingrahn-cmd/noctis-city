@@ -4923,11 +4923,30 @@ export function createCity(options = {}) {
           const L = 12.19;
           const W = 2.44;
           const Hh = 2.59;
-          for (let r = 0; r < f.rows; r++) {
-            for (let k = 0; k < f.high; k++) {
-              const c = LIV[(f.chroma + r * 2 + k * 3) % LIV.length];
-              put(0, Hh / 2 + k * (Hh + 0.1), (r - (f.rows - 1) / 2) * (W + 0.35),
-                L, Hh, W, c, 0.72);
+          /**
+           * AND IT IS STACKED IN BAYS ALONG THE QUAY NOW — SESSION 68, ITEM 3b.
+           * `f.bays` is the axis a gantry travels; without it a block was one
+           * container deep and read as a fence from the fairway. A bay gap of
+           * 1.0 m so the boxes read apart end-on, and the whole block is
+           * centred on its own feature position so the claim does not move.
+           */
+          const bays = f.bays || 1;
+          const GAP = 1.0;
+          for (let a = 0; a < bays; a++) {
+            for (let r = 0; r < f.rows; r++) {
+              for (let k = 0; k < f.high; k++) {
+                /**
+                 * THE LIVERY TAKES THE BAY INDEX TOO. Without it every bay in
+                 * a block is the same colour repeated along x, which is the
+                 * defect this loop's own comment already names one axis over:
+                 * *"a row of blocks is not one block repeated"*.
+                 */
+                const c = LIV[(f.chroma + a * 5 + r * 2 + k * 3) % LIV.length];
+                put((a - (bays - 1) / 2) * (L + GAP),
+                  Hh / 2 + k * (Hh + 0.1),
+                  (r - (f.rows - 1) / 2) * (W + 0.35),
+                  L, Hh, W, c, 0.72);
+              }
             }
           }
         }

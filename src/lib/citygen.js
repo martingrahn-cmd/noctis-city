@@ -6418,10 +6418,76 @@ export const HARBOUR = {
   craneGaugeM: 30,
   craneHeightM: 38,
   craneReachM: 34,
-  /** Container blocks on the yard, and how many boxes each stacks. */
-  stacks: 6,
-  stackRows: 3,
-  stackHigh: 3,
+  /**
+   * CONTAINER BLOCKS ON THE YARD — SESSION 68, ITEM 3b, AND THE OPERATOR'S
+   * WORD FOR WHAT WAS THERE BEFORE IT WAS *"thin"*.
+   *
+   * Session 66 built 6 blocks of 3 x 3 = **54 boxes**, one box DEEP: a block
+   * was a single 12.19 m container seen end-on, three across and three up.
+   * From the fairway that reads as a fence, not as a terminal.
+   *
+   * A real yard is stacked in BAYS along the quay as well as rows across it,
+   * because that is the axis a gantry travels. So the block grows a third
+   * dimension and the yard grows a fourth column:
+   *
+   *              session 66      now      delivered boxes
+   *   blocks         6            8       4 columns x 2 rows
+   *   bays (x)       1            3       39.6 m per block
+   *   rows (z)       3            4       11.2 m per block
+   *   high           3            4
+   *   ───────────────────────────────────────────────────────
+   *   boxes         54          384       4 608 triangles
+   *
+   * AND IT COSTS ZERO DRAW CALLS. Every box rides the chunk's own `:masses`
+   * InstancedMesh through `put()`, which is the mechanism session 53 used to
+   * put 5 936 distant buildings in one draw. The brief's premise (iii) — that
+   * a container yard costs ONE draw and many instances — is CONSERVATIVE: it
+   * costs NONE, and 4 608 triangles against 178 352 of headroom.
+   *
+   * THE COLUMN PITCH IS 110 m AND NOT 150, so four blocks fit the 448 m quay
+   * run with a lane between each: 3 944 to 4 274 plus half a block is 4 294,
+   * inside `x1` = 4 352.
+   */
+  stacks: 8,
+  stackCols: 4,
+  stackPitchM: 110,
+  stackBays: 3,
+  stackRows: 4,
+  stackHigh: 4,
+  /**
+   * ══════════════════════════════════════════════════════════════════════════
+   * AND WHAT MOVES — SESSION 68, ITEM 3, AND IT IS THE OPERATOR'S HEADLINE:
+   * *"A harbour that does not move reads as a model."*
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * THE CITY'S VEHICLE MOVER DOES NOT REACH HERE AND THE BRIEF'S PREMISE (ii)
+   * IS TRUE. `traffic.js` is splines and not pathfinding by design — its own
+   * header says *"there is no road graph in this project"* — and a vehicle's
+   * entire state is `{ axis, line, dir, lane, s }` turned into a position by
+   * arithmetic on the 128 m chunk lattice:
+   *
+   *     axis 0:  x = s,                        z = line * 128 + dir * off
+   *     axis 1:  x = line * 128 - dir * off,   z = s
+   *
+   * A quay apron is an open paved rectangle at x 3 904 to 4 352, z −188 to
+   * −132. It is not a chunk boundary and it has no lanes at 128 m. Generalising
+   * the mover would mean giving this project its first road graph, for four
+   * vehicles, and the brief says the honest alternative in as many words: **a
+   * small fixed circuit is enough.**
+   *
+   * SO IT IS A CIRCUIT, AND EVERY LENGTH BELOW IS THE HARBOUR'S OWN.
+   * The carriers run the apron between the outer container blocks; the launch
+   * runs the fairway off the quay. Both are periodic in `time.now` with no
+   * state at all, which is what lets them cost one mesh rebuilt never and
+   * rewritten in place.
+   *
+   * SPEEDS ARE REAL. 8 knots is 4.1 m/s and is the harbour speed limit in most
+   * ports; a loaded straddle carrier does about 3.5 m/s. Neither is a knob.
+   */
+  carriers: 2,
+  carrierSpeedMS: 3.5,
+  launchSpeedMS: 4.1,
+  launchRunM: 760,
 };
 
 /**
@@ -17599,12 +17665,12 @@ export function generateChunk(rootSeed, cx, cz) {
          * one block repeated.
          */
         for (let i = 0; i < H.stacks; i++) {
-          const cx = H.x0 + 40 + (i % 3) * 150;
-          const cz = H.apronZ + 16 + Math.floor(i / 3) * 26;
+          const cx = H.x0 + 40 + (i % H.stackCols) * H.stackPitchM;
+          const cz = H.apronZ + 16 + Math.floor(i / H.stackCols) * 26;
           if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
           features.push({
             kind: 'containers', x: cx, z: cz, yawDeg: 0, chroma: i,
-            rows: H.stackRows, high: H.stackHigh,
+            bays: H.stackBays, rows: H.stackRows, high: H.stackHigh,
           });
         }
         /**
