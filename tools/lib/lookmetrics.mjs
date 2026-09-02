@@ -35,7 +35,7 @@ export function rectPixels(png, rect) {
  * neutral pixel, which is why every hue statistic below is saturation-weighted:
  * a grey pixel has no opinion about hue and must not be allowed to vote.
  */
-function hueSat(r, g, b) {
+export function hueSat(r, g, b) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;

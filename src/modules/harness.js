@@ -152,6 +152,61 @@ export function createHarness(options = {}) {
          */
         async settle(frames = 4) {
           const exposure = ctx.get('exposure');
+          /**
+           * ═════════════════════════════════════════════════════════════════
+           * FIRST, MAKE THE CAPTURE A FIXED NUMBER OF FRAMES AT A FIXED
+           * SEQUENCE OF SUB-PIXEL OFFSETS — SESSION 70.
+           * ═════════════════════════════════════════════════════════════════
+           *
+           * THE DEFECT. `post.js` draws frame n at `JITTER[n % 8]` and n is the
+           * absolute count of frames this page has rendered, which
+           * `waitForCity` sets by polling a WORKER in blocks of ten — so the
+           * sub-pixel offset the captured frame was drawn at was chosen by how
+           * long the bake took in wall-clock milliseconds. Session 69 measured
+           * that: 2 808 to 3 038 arrival frames over 35 runs of ONE source, and
+           * two captures at two of the eight phases differing by 57 801 to
+           * 78 979 bytes of 3 499 200 where two at one phase differ by 0.
+           * `TAA.settleFrames` is 32 and 32 is a MULTIPLE of 8, so the
+           * accumulation below discharged CONTRACT §8 for the temporal AVERAGE
+           * and PRESERVED the phase exactly.
+           *
+           * PADDING TO A FIXED PHASE IS NOT ENOUGH, AND IT WAS MEASURED RATHER
+           * THAN REASONED. STATE 69 §4c costed exactly that — pad to a fixed
+           * residue before the last step — and it was built and swept first.
+           * The ten-pin sweep still returned EIGHT distinct images with a
+           * period of exactly 8, differing by 13 774 to 33 813 bytes: the pad
+           * is 0 to 7 EXTRA FRAMES OF ACCUMULATION, so fixing the phase only
+           * moved the wall-clock race from WHICH of eight offsets to HOW MANY
+           * frames had been averaged. 0.92^46 = 2.19% of the first frame
+           * survives against 0.92^53 = 1.20%, and that gap is |delta| = 1 over
+           * half a percent of the frame.
+           *
+           * BOTH CANNOT BE FIXED BY PADDING ALONE and the arithmetic says why:
+           * holding the final phase fixed REQUIRES the frame count since the
+           * history was dropped to be congruent to -(that frame's index) mod 8,
+           * and that index is the race. One knob, two constraints. So the
+           * history is dropped HERE, at the fixed phase, and everything after
+           * it is a constant `8 + TAA.settleFrames + frames` frames from a
+           * defined start.
+           *
+           * WHAT IT COSTS, AND IT IS SMALLER THAN IT LOOKS. Every caller today
+           * reaches this either straight after `setTimeOfDay`, which drops the
+           * history itself two frames earlier (post.js's `timeOfDay` handler),
+           * or straight after `sampleRouteAt`'s own `resetHistory` — so for
+           * every capture in the project this replaces a reset that had just
+           * happened with one three frames later. The 32-frame promise below
+           * becomes exactly true rather than approximately: the "initial frame"
+           * it names is now a frame this function defines.
+           */
+          const post = ctx.get('post');
+          if (post && typeof post.frameIndex === 'number') {
+            const period = post.jitterPeriod || TAA.jitterSamples;
+            /** Frames rendered below this line. The last of them is the capture. */
+            const after = 8 + TAA.settleFrames + frames;
+            const pad = (((-(post.frameIndex + after - 1)) % period) + period) % period;
+            if (pad > 0) await step(pad);
+            if (post.resetHistory) post.resetHistory();
+          }
           // The meter clips around its own previous reading, so a single snap
           // only moves it one clipping window. Iterate until the window has
           // walked the full range (6^8 is nine orders of magnitude, which
@@ -169,36 +224,6 @@ export function createHarness(options = {}) {
            * positions the machine happened to have averaged — CONTRACT §8.
            */
           await step(TAA.settleFrames);
-          /**
-           * THEN NORMALISE THE SUB-PIXEL OFFSET — session 70, and it is the
-           * other half of the sentence above.
-           *
-           * `post.js` draws frame n at `JITTER[n % 8]`, and n is the absolute
-           * count of frames this page has rendered — which `waitForCity` sets
-           * by polling a WORKER in blocks of ten. So the offset the captured
-           * frame was drawn at was chosen by how long the bake took in
-           * wall-clock milliseconds. `TAA.settleFrames` is 32 and 32 is a
-           * MULTIPLE of 8, so the settle above discharges CONTRACT §8 for the
-           * temporal ACCUMULATION and preserves the jitter PHASE exactly.
-           *
-           * Measured, STATE 69: two captures of one unmodified source at two
-           * phases differ by 57 801 to 78 979 of 3 499 200 bytes, and by 0 when
-           * they share one. That is the noise floor every frame-to-frame
-           * comparison in this project has been read against as though it were
-           * zero.
-           *
-           * Pad to a fixed residue so the frame that is CAPTURED — the last of
-           * the `frames` below — is always drawn at `JITTER[0]`, whatever the
-           * worker did. It only ever ADDS frames, so the accumulation the
-           * paragraph above guarantees is a floor and not a target: 32 becomes
-           * 32 to 39 and 0.92^32 = 7% becomes 7% to 3.8%.
-           */
-          const post = ctx.get('post');
-          if (post && typeof post.frameIndex === 'number') {
-            const period = post.jitterPeriod || TAA.jitterSamples;
-            const pad = (((-(post.frameIndex + frames - 1)) % period) + period) % period;
-            if (pad > 0) await step(pad);
-          }
           // The exposure meter reads the resolved buffer, which has just moved.
           // Snap once more so the frame that is captured is metered on itself.
           if (exposure) exposure.snap();
