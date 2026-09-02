@@ -648,6 +648,22 @@ simultaneously the antialiasing, the SSR denoiser and the upscale.
   description of a different world.
 - **`harness.settle()` converges it** over `TAA.settleFrames`. A capture that
   depends on how many frames the machine happened to render is not a capture.
+- **AND IT NORMALISES THE PHASE, WHICH THAT SENTENCE DID NOT COVER — session
+  70.** `TAA.settleFrames` is 32 and 32 is a MULTIPLE of `jitterSamples`, so
+  converging the AVERAGE preserved the sub-pixel OFFSET exactly: the captured
+  frame was drawn at `JITTER[n % 8]` for an `n` that `waitForCity` set by
+  polling a worker in wall-clock milliseconds. Measured over 35 runs of one
+  source: arrivals 2 808 to 3 038, and two captures at two of the eight phases
+  differing by 57 801 to 78 979 bytes of 3 499 200 where two at one phase differ
+  by 0. `settle()` now pads to a fixed residue of `post.frameIndex` and drops
+  the history there, so what follows is a constant `8 + settleFrames + frames`
+  frames from a defined start at a fixed sequence of offsets. **Padding alone
+  was built first and measured first, and it is NOT enough** — it left 13 774 to
+  33 813 bytes and a period of still exactly 8, because holding the final phase
+  fixed requires the frame count since the history was dropped to be congruent
+  to −(that frame's index) mod 8, and that index is the race. One knob, two
+  constraints; the history drop is the second knob. Ten pins across 4000–4009
+  plus three unpinned races now deliver one md5.
 
 ### 5.11 Motion vectors — the strategy, decided in this session
 
@@ -1707,7 +1723,16 @@ setShotAt(pos, target, fov)     an arbitrary placement, for looking. No gate
                                 asserts through it and no gate may.
 step(n, dt): Promise<void>      renders exactly n frames with a fixed dt
 settle(): Promise<void>         steps until exposure adaptation has converged,
-                                then snaps it. Determinism, not a cheat.
+                                then snaps it. Determinism, not a cheat. Since
+                                session 70 it also pads to a fixed TAA jitter
+                                residue and drops the history there, so the
+                                captured frame is a constant number of frames
+                                at a constant sequence of sub-pixel offsets —
+                                §5.10. It reads `post.frameIndex`, which is a
+                                getter with no setter on purpose: a counter a
+                                caller may write is §9.1's arrangement, and the
+                                written copy would be the one the jitter table
+                                is actually indexed by.
 setRenderScale(n): void
 faults(): Array                 ctx.faults, so a gate can assert nobody is quarantined
 info(): object                  draw calls, triangles, programs, light count
@@ -1966,7 +1991,7 @@ loosest sense, and plausible magnitudes. Nothing throws. Nothing is undefined.
 The frame renders, and it renders *nearly* right — right enough that no amount of
 looking at it will tell you which of the fifty numbers upstream is the wrong one.
 
-**The 76 so far** — and that numeral is now **generated against, not
+**The 77 so far** — and that numeral is now **generated against, not
 maintained**. `tools/parsecheck.mjs` → `contractDocCheck()` counts the
 contiguous rows of the table below and fails the gate if they disagree, printing
 both numbers. §9.1's rule is that a comment which claims a check names the file
@@ -2076,6 +2101,7 @@ runs on every invocation.
 | 68 | `WATER_BODY` = [0.019, 0.026, 0.023], derived in session 42 for an URBAN RIVER and naming its own opposite in its own comment — *"silt rather than **the deep-ocean blue**"* | 30.4 km² of open ocean, added in session 66 into the same mesh on the same material, handed the silt | the constant that says what it is NOT was given the thing it said it was not, two dozen sessions later, by a session that never read its comment. Measured with a §7.3 control at [0.900, 0.020, 0.020]: the open sea goes to saturation **0.654**, so the diffuse reaches the far water and reaches it hard. `SEA_OPEN_TINT` is spent through the same footprint gate as the reflected term, so the river keeps its silt and only water whose waves have gone sub-pixel gets an ocean |
 | 68 | a bounding sphere, which for a static mesh describes the object | a bounding sphere computed from the matrices a moving mesh happened to hold **at build time**, which describes one instant | `replaceInstanced` computes it from what it is handed, and the harbour's moving plant was handed a sentinel pose at y = −1e5. `frustumCulled` then threw the whole thing away: **the mesh existed, cost nothing, and drew nothing, and the draw count did not move to say so.** A silent zero — the same shape as session 45's sign pool shipping with 16 slots, 0 candidates and a byte-identical frame. The sphere is the CIRCUIT's now, over every position the plant can reach, so it culls correctly at every instant instead of at one |
 | 69 | `waitForCity`'s return, a READINESS poll — it steps ten frames, asks the canyon **worker** whether its bake queue has drained, and steps ten more if it has not | the number of frames rendered before a capture, i.e. a capture SCHEDULE — and through `JITTER[frameIndex % 8]` in `post.js`, the sub-pixel offset the delivered frame was drawn at | over 35 runs of ONE source on one machine it returned **2 808 to 3 038** frames, a spread of 230, so a capture lands on whichever of the eight Halton phases the worker's milliseconds chose. `harness.settle()`'s fixed 44 frames preserve that phase exactly — `TAA.settleFrames` is 32 and **32 ≡ 0 (mod 8)** — so the constant whose comment reads *"a capture that depends on how many frames the machine happened to render is not a capture"* discharges that duty for the ACCUMULATION and not for the PHASE. Measured on `viaduct-under`: the eight phases of one unmodified source differ pairwise by **57 801 to 78 979 bytes** of 3 499 200, and **0** when two captures share a phase. STATE 68 §8 read one such pair as a finding (73 373) and three draws of one phase as a zero noise floor, and built a hypothesis about the whole city's population on the difference. With `post.setJitterScale(0)` the same three pairs read **11, 9 and 7 bytes**. THE INSTRUMENT AND NOT THE WORLD, and the second one this project has had: session 65's `worldSurfaceAt` transient reported 0.00 m for 6 078 genuinely wrong features |
+| 70 | **`span`**, the pixel's reach along a wave's own direction of travel — the footprint at which the surface stops being describable as geometry, and correct for exactly that | **"this fragment is OPEN SEA, so a downward ray lands on more sea"** — `gNoctisSeaOpen`, whose own comment calls it *"the share of this fragment's lobe that has gone below the horizon"*, a third quantity again | the two agree from 40 m up at the city's edge, where the harbour basin's footprint is centimetres and *"nothing had to be told where the harbour is"* — and they part on a PAVEMENT. At the routes' own 1.74 m eye, looking ALONG the river rather than across it, water 130 m away is grazing water: `span` reaches `cutoffLo · λmax` at **111–135 m** and saturates at **157–189 m**, and the river takes the open-sea blue over a **13–15 pixel, 43–54 m** seam. Measured against a term-off arm: **71 650 bytes, 37 347 px, mean |Δ| 19.4**, hue 356° → 255°. LOOK.md §0.1's *"the river — BYTE-IDENTICAL"* is a property of ONE CAMERA — a frame that sees the river across — and was read as a property of the river. `tools/seamprobe.mjs` is the instrument |
 
 The three session-4b rows in full, because two of them were invisible in every
 delivered frame and the third was visible and misread:

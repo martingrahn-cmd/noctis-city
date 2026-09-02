@@ -135,6 +135,35 @@ longer wrong, and it should go. Until then it is repairing a real error and
 also making the operator's picture, which is the rare case where §0 does not
 have to choose.
 
+#### THE RIVER IS NOT BYTE-IDENTICAL, AND THE TABLE ABOVE IS ONE CAMERA — SESSION 70
+
+**The row that reads *"767-810 the river — BYTE-IDENTICAL"* is true of the frame
+it was measured on and false as a property of the river.** In that frame the
+river is seen ACROSS, from 40 m up at the city's edge, and its footprint never
+reaches the gate — 0.23 to 0.36 m per pixel against a `cutoffLo · λmax` of 1.92.
+Seen ALONG the water from the promenade at the routes' own 1.74 m eye, the same
+river reaches 1.92 m/px at **111 to 135 m** and saturates at **157 to 189 m**,
+and the open-sea term takes it over a seam **13 to 15 pixels and 43 to 54 metres
+wide** — the sharpest transition of any pose measured. A term-off arm against
+what ships differs by **71 650 bytes over 37 347 pixels at a mean `|Δ|` of
+19.4**, and the affected band's hue swings from 356° to 255°.
+
+`tools/seamprobe.mjs --pos=-2000,1.74,-475 --target=3000,-4,-412` is the
+measurement, and `tools/lookat.mjs` with the same pose is the frame.
+
+**WHY IT HAPPENS, AND IT IS NOT A BUG IN THE MECHANISM.** `span` cannot tell far
+water from near water seen at a grazing angle, because at 1.74 m of eye height a
+river 130 m away IS grazing water. The gate is a good proxy for "open sea" from
+40 m up and a bad one from a pavement. **This is the thing to solve before the
+transition is softened**: the only edge that widens the seam on screen is the
+LOWER one, and lowering it moves the river's own onset from 130 m to about 65 m.
+
+**AND `exposure.js` CAN SEE THE TERM, at about a third of a code value.** The
+sentence above says it cannot. Measured at `sea-edge` against a term-off arm,
+`Y` is unchanged in the band the term acts on — 0.34166 → 0.34170 — and every
+band it does NOT act on rose by **0.25 to 0.38 of 255**, which is the whole-frame
+meter re-metering. Small, one-signed, and not zero.
+
 ---
 
 ## 1. The city
@@ -1976,6 +2005,41 @@ frame-to-frame byte comparison — `lookdiff.mjs`'s neighbourhood, and anything
 built on `tools/framebytes.mjs` — is evidence only when both frames were
 captured at the same frame count. `tools/stepprobe.mjs --pin` is how, until the
 phase is normalised in `settle()` itself.
+
+### AND SESSION 70 NORMALISED IT — 2026-09-02, THE SAME DAY
+
+**`harness.settle()` now pads to a fixed residue of `post.frameIndex` and drops
+the TAA history there**, so every capture in this project renders a constant
+`8 + TAA.settleFrames + frames` frames from a defined start at a fixed sequence
+of sub-pixel offsets, whatever the worker did. The paragraph above stands as the
+description of every frame taken before it and of nothing taken after.
+
+```
+  viaduct-under, ten pins 4000-4009 plus three unpinned runs whose city
+  arrived at 2698 and 2718 frames and which captured at frames 2745, 2769,
+  4049 and 4057:   ONE md5, e37d2383e9564dfa066062383942b0b3,  0 of 3 499 200
+  the eight FIRST-EYE look frames, two `lookcheck` runs:        byte-identical
+```
+
+**THE FLOOR IS ZERO AND IT IS NOT THREE DRAWS OF ONE PHASE** — the ten pins are
+the control session 68's own zero never had.
+
+**WHAT REMAINS IS A DIFFERENT RACE AND IT HAS A DIFFERENT SHAPE.** The four
+SECOND-EYE (`trade-*`) look frames still differ run to run, by 3.1 to 8.1 MB of
+17 280 000 with `|Δ|` up to 254 — and the difference is entirely THE VEHICLES,
+at different positions along the street, with the buildings, road, pavement,
+pedestrians and street furniture identical to the byte. `sea-edge` carries the
+same thing smaller: 543 bytes over 316 pixels, all of them in the sky.
+That is STATE 69 §8 item 3's traffic reseed against the resident ring, seen from
+the front, and it is not the capture path. **A frame with no vehicles and no
+aircraft in it is now exactly reproducible; a frame with them is reproducible
+everywhere except on them.**
+
+**AND THE REPAIR MOVED EVERY DELIVERED LOOK FRAME ONCE**, by 1.79% to 7.76% of
+bytes at `|Δ|` 1.7 to 2.7 — a little wider than the 2.4% to 5.7% STATE 69
+predicted. **The bands did not move**: `distinct:midnight|dusk` read 0.02846
+against 0.02845 before, which is the 1e-5 that instrument resolves, and
+`lookcheck` returned the identical three violations.
 
 ### `distinct:midnight|dusk` — RE-DERIVED IN THE OPEN, SESSION 53, 2026-08-29
 
