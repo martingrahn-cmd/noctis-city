@@ -1810,6 +1810,37 @@ cold light in 1280 × 720.** A statement with a picture behind it now, per §8.
 That default is what session 33 was told to change, and changing it moves every
 band in `look-budget.json` at once — see §7 for what is owed when it does.
 
+**AND THE THING THIS SECTION IS NAMED FOR HAS BEEN THE LOWER HEMISPHERE ALL
+ALONG — SESSION 67.** `ATM.groundAlbedo` is the light that comes back UP off the
+ground, and its own comment calls it *"the only thing filling shadows from
+below"*. It was written with **no derivation at all** while
+`GROUND.earthAlbedo`, sixty-six sessions of the same sentence away, had one from
+session 42 — the two disagreeing by **1.21x in luminance and 4.0x in
+saturation**. Nobody caught it for sixty-six sessions and here is why, measured
+three ways:
+
+* **THE LOOK GATE CANNOT SEE IT.** Six bands, three `gateaudit` runs either side
+  of the repair, **identical to every printed digit** against a noise floor that
+  is ZERO at this resolution. Not one band moved. The bands measure roads
+  (which face up), facades (which face sideways) and whole-frame statistics.
+* **THE CPU PATH NEVER READS IT.** `skyIlluminance`, `skyIrradianceOnPlane`, the
+  photocell and the canyon bake all sample the upper hemisphere only; setting the
+  albedo to [0.9, 0.05, 0.9] leaves every one of them bit-identical.
+* **THE NIGHT FILL IS BINARY AND OFF BY DAY.** `uGroundLighting` is 16 lux or 0,
+  so the below-horizon street-lighting term is EXACTLY ZERO at dawn, noon and
+  dusk — the three hours the gate judges.
+
+So it reaches only DOWNWARD-FACING surfaces, through PMREM: soffits, undersides,
+the shaded half of every kerb, and a rough water surface at a grazing angle.
+**§6's own sentence, one layer further out again: a term nothing in the harness
+looks at, lighting a class of surface no frame in this project had ever been
+pointed at.** It took 30.4 km2 of sea — which is one enormous downward-sampling
+mirror at roughness 0.62 — to make it visible at all, and STATE 67 opens with the
+first frame ever taken of a soffit for that reason. Session 42's derivation
+meanwhile survived twenty-five sessions and agrees with the delivered city to
+**1.7% on every channel**; the constant that went was the copy that never had
+one.
+
 ---
 
 ## 7. How this document relates to the gates
