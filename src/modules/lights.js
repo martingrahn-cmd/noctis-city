@@ -28,7 +28,7 @@
  */
 
 import * as THREE from 'three';
-import { CLUSTER, HDR_CLAMP, SURFACE, SSR, WATER, waterWaves } from '../core/constants.js';
+import { CLUSTER, HDR_CLAMP, SURFACE, SSR, WATER, SEA_OPEN_TINT, waterWaves } from '../core/constants.js';
 import { ATM } from '../lib/atmosphere.js';
 import { GAIT_GLSL } from '../lib/gait.js';
 import { ZONE_UNPACK_GLSL } from '../lib/color.js';
@@ -1284,6 +1284,13 @@ vec3 gNoctisLightHaze;
 #ifdef NOCTIS_WATER
   /** d(height)/dx and d(height)/dz of the wind sea. See WATER_GLSL. */
   vec2 gNoctisWaterSlope;
+  /**
+   * HOW MUCH OF THIS FRAGMENT'S REFLECTION LOBE HAS GONE BELOW THE HORIZON —
+   * session 68. Written where the footprint is known and spent in the indirect
+   * specular block, which is two different points in three's chain: a global
+   * for exactly the reason gNoctisWaterSlope above is one.
+   */
+  float gNoctisSeaOpen;
 #endif
 
 ${NOISE_GLSL}
@@ -1879,6 +1886,66 @@ ${ZONE_UNPACK_GLSL}
     roughnessFactor = max(roughnessFactor, ${WATER.cutoffRoughness.toFixed(3)} *
       smoothstep(${(WATER.cutoffLo * Math.max(...WATER.wavelengths)).toFixed(3)},
                  ${(WATER.cutoffHi * Math.max(...WATER.wavelengths)).toFixed(3)}, span));
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE SAME FOOTPRINT SAYS WHEN THE FILL BELOW THE HORIZON STOPPED
+     * BEING TRUE — SESSION 68, ITEM 1.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * THE SAME TWO NUMBERS AS THE LINE ABOVE, AND THAT IS THE ARGUMENT. The
+     * lobe goes wide and the fill goes wrong at the same footprint because
+     * they are the same event: once the 2.4 m component is sub-pixel the
+     * roughness reaches cutoffRoughness and the lobe spills below the
+     * horizon, and what the environment map holds down there is the CITY'S
+     * GROUND. One derivation, two readers — a second threshold here would be
+     * CONTRACT §9.1's arrangement with a wavelength in it.
+     *
+     * ── WHY THIS IS THE GATE AND NOT A DISTANCE ──────────────────────────
+     *
+     * The brief asked for the ground fill to be attenuated *with distance
+     * from the city*, and a distance is a PROXY for the thing that actually
+     * goes wrong. span is the thing itself. It is also what makes this
+     * free of the operator's own principle — *"the harbour water keeps
+     * carrying the harbour's light"*: a fragment of basin thirty metres from
+     * the quay has a footprint of centimetres, reads 0 here, and is not
+     * touched by one bit. Nothing had to be told where the harbour is.
+     *
+     * A separate smoothstep from the roughness line's max because this is
+     * a different QUANTITY off the same threshold — that one is a roughness
+     * floor and this is a share of a lobe — and collapsing them would be one
+     * expression asked to mean two things.
+     */
+    gNoctisSeaOpen = smoothstep(${(WATER.cutoffLo * Math.max(...WATER.wavelengths)).toFixed(3)},
+                                ${(WATER.cutoffHi * Math.max(...WATER.wavelengths)).toFixed(3)}, span);
+
+    /**
+     * AND THE BODY COLOUR IS THE OTHER HALF, BECAUSE WATER_BODY NAMES ITS OWN
+     * OPPOSITE IN ITS OWN COMMENT.
+     *
+     * It reads: "in an urban river that is silt rather than THE DEEP-OCEAN
+     * BLUE." Session 66 then put 30.4 km2 of deep ocean into the same mesh, on
+     * the same material, and handed it the silt. One constant, two bodies of
+     * water — CONTRACT section 9's shape with an estuary in it.
+     *
+     * Measured before this line existed: a control at WATER_BODY =
+     * [0.900, 0.020, 0.020] turns the OPEN SEA bright red at saturation 0.654,
+     * so the diffuse reaches the far water and reaches it hard. It is not a
+     * small term and the reflected block alone could not have finished this.
+     *
+     * SAME GATE, SAME CONSTANT, SAME ARGUMENT. The river keeps its silt because
+     * its footprint never opens the gate; the open sea gets an ocean. And the
+     * luminance is preserved here for the same three reasons the reflected
+     * block preserves it, one of which is that a body colour is the one term
+     * that could plausibly have been used to darken the sea into looking
+     * deeper, which is a global lift by another name and LOOK.md section 0
+     * refuses it.
+     */
+    float noctisBodyY = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec3 noctisBodyC = vec3(${SEA_OPEN_TINT.map((v) => v.toFixed(4)).join(', ')});
+    diffuseColor.rgb = mix(diffuseColor.rgb,
+                           noctisBodyC * (noctisBodyY / max(dot(noctisBodyC, vec3(0.2126, 0.7152, 0.0722)), 1e-4)),
+                           gNoctisSeaOpen);
   }
   #endif
 }
@@ -2068,6 +2135,47 @@ float noctisVisN = 1.0 - (1.0 - noctisSkyVis) * clamp(0.5 + 0.5 * noctisWn.y, 0.
     vec3 noctisEnvSpec = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness ) * noctisSpecOcc;
   #endif
   vec3 noctisReflected = mix(noctisEnvSpec, noctisWallL, noctisWallShare);
+
+  #ifdef NOCTIS_WATER
+  {
+    /**
+     * THE OPEN SEA STOPS REFLECTING A CITY TWO KILOMETRES AWAY.
+     * SESSION 68, ITEM 1. The operator's decision; LOOK.md 1 records it in
+     * his name.
+     *
+     * gNoctisSeaOpen is the share of this fragment's lobe that has gone
+     * below the horizon, written off the pixel footprint in the water block
+     * and derived from the SAME two numbers as the roughness cutoff, because
+     * the lobe going wide and the fill going wrong are one event.
+     *
+     * What sits below the horizon in the environment map is ATM.groundAlbedo
+     * lit by the sun. Out here that is the wrong surface: a downward ray ten
+     * kilometres offshore lands on more sea. So the term's CHROMATICITY is
+     * rotated toward SEA_OPEN_TINT and its LUMINANCE IS KEPT EXACTLY, which
+     * is three separate arguments in one line:
+     *
+     *   1. the amount of light returning from below the horizon is not what
+     *      was wrong with it, only its colour;
+     *   2. exposure.js meters the WHOLE FRAME, so a term that moved the
+     *      sea's luminance would move every city pixel in any frame with sea
+     *      in it, and STATE 67 measured this same term's reach into the city
+     *      at a quarter of one code value;
+     *   3. a luminance-preserving rotation cannot blow a highlight or crush
+     *      a shadow, so lookcheck's clipWhite and crushBlack bands cannot
+     *      move on its account.
+     *
+     * NOTHING HAD TO BE TOLD WHERE THE HARBOUR IS. A fragment of basin
+     * thirty metres off the quay has a footprint of centimetres, so
+     * gNoctisSeaOpen is 0 there and this block is the identity.
+     */
+    float noctisSeaY = dot(noctisReflected, vec3(0.2126, 0.7152, 0.0722));
+    vec3 noctisSeaC = vec3(${SEA_OPEN_TINT.map((v) => v.toFixed(4)).join(', ')});
+    float noctisSeaCY = dot(noctisSeaC, vec3(0.2126, 0.7152, 0.0722));
+    noctisReflected = mix(noctisReflected,
+                          noctisSeaC * (noctisSeaY / max(noctisSeaCY, 1e-4)),
+                          gNoctisSeaOpen);
+  }
+  #endif
 
   /**
    * And the third answer, where there is water: the actual geometry.

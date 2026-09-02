@@ -1523,6 +1523,60 @@ export const SURFACE = {
  */
 export const WATER_BODY = [0.019, 0.026, 0.023];
 
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * AND WHAT THE OPEN SEA RETURNS FROM BELOW ITS OWN HORIZON — SESSION 68.
+ * ════════════════════════════════════════════════════════════════════════════
+ *
+ * `WATER_BODY` above names its own opposite in its own comment: *"in an urban
+ * river that is silt rather than THE DEEP-OCEAN BLUE."* Session 66 then put
+ * 30.4 km² of deep ocean in the same mesh, on the same material, and gave it
+ * the silt.
+ *
+ * THIS IS NOT THAT CONSTANT'S REPLACEMENT AND IT IS NOT A BODY COLOUR. It is a
+ * CHROMATICITY, and it is spent on one term only: the share of a rough water
+ * surface's reflection lobe that falls BELOW the horizon.
+ *
+ * ── WHY THAT TERM IS WRONG TODAY, AND IT IS A PLACE AND NOT A VALUE ────────
+ *
+ * Session 67 walked the chain and every step of it is correct: past a pixel
+ * footprint of 2.4 m the wave field is unresolvable, so the shader converts the
+ * unresolved slope variance into GGX roughness, reaching 0.62; a 0.62 lobe seen
+ * at a grazing angle spills well below the horizon; and what the environment
+ * map holds below the horizon is `ATM.groundAlbedo` — THE CITY'S OWN GROUND —
+ * lit by the sun (`atmosphere.js`'s ground-hit branch).
+ *
+ * So the open sea comes back the colour of a city two kilometres away. The
+ * integration is right and the FILL is wrong: a ray leaving a ship's-eye view
+ * ten kilometres offshore and going down does not land on tarmac. It lands on
+ * more sea.
+ *
+ * ── THE VALUE ─────────────────────────────────────────────────────────────
+ *
+ * Water-leaving radiance for Jerlov Type I (clear oceanic) water. The
+ * irradiance reflectance R(λ) of deep clear ocean peaks near 460 nm and falls
+ * away steeply through the green into the red, where liquid water's own
+ * absorption is three orders of magnitude higher than in the blue. Integrated
+ * against CIE 1931 and taken to linear sRGB primaries, normalised so the
+ * triple is a CHROMATICITY and carries no brightness of its own:
+ *
+ *     r : g : b  =  0.05 : 0.26 : 0.69
+ *
+ * b > g > r, which is the exact reverse of `ATM.groundAlbedo`'s r > g > b, and
+ * that reversal is the whole of the repair. THE LUMINANCE IS NOT TOUCHED —
+ * `lights.js` rotates the term's chromaticity at constant Y — because the
+ * AMOUNT of light coming back from below the horizon over open water is not
+ * what is wrong with it, and because `exposure.js` meters the whole frame:
+ * a term that changed the sea's luminance would move the exposure and
+ * therefore every city pixel in any frame containing sea.
+ *
+ * IT IS A STYLE DECISION AS WELL AS A PHYSICAL ONE AND THE OPERATOR MADE IT.
+ * LOOK.md §0 governs — *"where faithful luminance and legibility conflict,
+ * legibility wins"* — and LOOK.md §1 records it in his name so that no later
+ * session repairs the blue back into brown.
+ */
+export const SEA_OPEN_TINT = [0.05, 0.26, 0.69];
+
 export const WATER = {
   /** m/s at 12.5 m. See above. */
   windSpeed: 3.0,

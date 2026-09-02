@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { TAA, LAMP_BOWL } from '../core/constants.js';
 import { gaitOffset } from '../lib/gait.js';
-import { CITY, terrainNormalAt, SEA } from '../lib/citygen.js';
+import { CITY, terrainNormalAt, SEA, inRiver, cityExtentAt } from '../lib/citygen.js';
 
 /**
  * The traffic-saturation instrument. CONTRACT §8 — an instrument, not content.
@@ -1059,6 +1059,102 @@ export function createHarness(options = {}) {
             /** So the gate knows whether `deliveredNits` is the ON value. */
             lampsOn: lighting ? !!lighting.photocellOn : null,
             paths: [...byPath.values()],
+          };
+        },
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * WHERE IS THE LAMP HEAD, AND IS IT OVER THE THING IT LIGHTS?
+         * SESSION 68, ITEM 2.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The operator's frame at a crossing: *"the arms hang out over the
+         * water and the fields on both sides instead of over the carriageway"*.
+         *
+         * THE INSTRUMENT RISK IS THE ONE THE BRIEF NAMES AND IT IS §9 ROW 71's
+         * OWN SHAPE. A street lamp's yaw is `(axis === 'x' ? 0 : -90) + (side <
+         * 0 ? 180 : 0)` — CARDINAL, off the chunk lattice, with no road tangent
+         * anywhere in it. So a heading measured against a tangent ALSO derived
+         * from that lattice would agree with itself perfectly and prove
+         * nothing: it would be one expression compared with itself.
+         *
+         * So this reads NEITHER. It takes the two DELIVERED instance matrices —
+         * `city:lamps` for the column and `city:bowls` for the head — and asks
+         * `inRiver`, which is the river's own envelope, a pure `citygen`
+         * predicate, and a quantity no lamp has ever consulted. Two
+         * independent deliveries and a third-party judge.
+         *
+         * AND IT ASKS OF THE HEAD WHAT THE GENERATOR ONLY EVER ASKED OF THE
+         * COLUMN. `city.js` refuses a lamp whose COLUMN is over water
+         * (`riverBlocks(spot.x, spot.z, 0.6)`) and has since session 19. The
+         * head is `LAMP_ARM_M` away from the column and has never been asked
+         * anything at all — which is CONTRACT §9's shape with two metres in it.
+         */
+        lampAimCensus() {
+          const find = (name) => {
+            let m = null;
+            ctx.scene.traverse((o) => { if (o.name === name && o.isInstancedMesh) m = o; });
+            return m;
+          };
+          const cols = find('city:lamps');
+          const bowls = find('city:bowls');
+          if (!cols || !bowls) return null;
+          const M = new THREE.Matrix4();
+          const read = (mesh) => {
+            const out = [];
+            for (let i = 0; i < mesh.count; i++) {
+              mesh.getMatrixAt(i, M);
+              const e = M.elements;
+              out.push({
+                x: e[12], y: e[13], z: e[14],
+                /**
+                 * The yaw three actually applied, recovered from the basis
+                 * rather than from the number that was passed in — the same
+                 * reason `windingCensus` reads the delivered index buffer.
+                 */
+                yawDeg: (Math.atan2(e[8], e[0]) * 180) / Math.PI,
+              });
+            }
+            return out;
+          };
+          const C = read(cols);
+          const B = read(bowls);
+          /**
+           * PAIRED BY PLAN DISTANCE, and the pairing is REPORTED rather than
+           * assumed: a bowl with no column within `LAMP_ARM_M` + slack is a
+           * park lamp or a flood mast, which is a post-top luminaire with no
+           * arm at all and must not be counted as an aimed one.
+           */
+          const rows = [];
+          let unpaired = 0;
+          for (const b of B) {
+            let best = null;
+            let bestD = Infinity;
+            for (const c of C) {
+              const d = Math.hypot(b.x - c.x, b.z - c.z);
+              if (d < bestD) { bestD = d; best = c; }
+            }
+            if (!best || bestD > 3.2 || bestD < 0.05) { unpaired++; continue; }
+            rows.push({
+              colX: best.x, colZ: best.z, colYawDeg: best.yawDeg,
+              headX: b.x, headZ: b.z,
+              armM: bestD,
+              armBearingDeg: (Math.atan2(b.z - best.z, b.x - best.x) * 180) / Math.PI,
+              headInRiver: inRiver(b.x, b.z, 0),
+              colInRiver: inRiver(best.x, best.z, 0),
+              headOutsideCity: cityExtentAt(b.x, b.z) <= 0,
+            });
+          }
+          return {
+            columns: C.length,
+            bowls: B.length,
+            /** Post-top luminaires — park lamps and flood masts. No arm. */
+            unpairedBowls: unpaired,
+            aimed: rows.length,
+            headsOverWater: rows.filter((r) => r.headInRiver).length,
+            columnsOverWater: rows.filter((r) => r.colInRiver).length,
+            headsOutsideCity: rows.filter((r) => r.headOutsideCity).length,
+            rows,
           };
         },
 

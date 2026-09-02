@@ -6199,7 +6199,43 @@ export function createCity(options = {}) {
        * curve and a fourth consumer sampling it differently is a lamp standing
        * inside its own parapet. The instancing below is the road's, unchanged.
        */
-      if (quayLamps && riverTouchesChunk(cx, cz)) {
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * AND THE PROMENADE LAMPS ASK WHERE THE CITY IS TOO — SESSION 68, AND
+       * IT IS SESSION 62's OWN SENTENCE IN THE OTHER LAMP POPULATION.
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * Session 62 wrote, of the kerbside stations forty lines above:
+       * *"`cityExtentAt` is one statement about where the city is, in every
+       * place that asks"* — and repaired 563 street lamps standing in
+       * farmland by asking it. **The promenade lamps were never asked at
+       * all.** `promenadeLamps` is arithmetic on `riverBankStations`, which
+       * runs the whole window, and the river runs to the world's rim.
+       *
+       * Measured out of the pure generator at seed 1337 over −4 400 to 4 400:
+       *
+       *   promenade lamp stations                                   412
+       *   COLUMNS standing outside the ring, on open farmland       112   27.2%
+       *     of those, columns standing IN THE SEA                    42
+       *     the seabed under them                        −57 to −61 m
+       *
+       * Forty-two street lamps in fifty-five metres of open water, and the
+       * operator's own frame is what found them: *"the arms hang out over the
+       * water and the fields on both sides instead of over the carriageway."*
+       * There is no carriageway out there. There is no promenade either — the
+       * arm reaches 2.1 m over a 6.4 m walk that stops at the ring, so past
+       * it the arm reaches over a field.
+       *
+       * `chunk.beyondCity` AND NOT A FOURTH EXPRESSION. It is the generator's
+       * own answer, already in this function, already read by the kerbside
+       * stations twenty lines up and by the lattice that decides whether a
+       * road is drawn at all. A promenade is a city surface; where the chunk
+       * emitted no city, it emits no promenade and therefore no promenade
+       * lamp. THREE READERS, ONE STATEMENT — which is CONTRACT §9.1's whole
+       * argument, and the reason this is a repair rather than a content
+       * change is that not one station inside the ring moves.
+       */
+      if (quayLamps && riverTouchesChunk(cx, cz) && !chunk.beyondCity) {
         for (const L of promenadeLamps(rootSeed, b.x0, b.x1)) {
           /**
            * ONE CHUNK OWNS EACH LAMP. `promenadeLamps` returns BOTH banks over
