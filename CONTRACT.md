@@ -1177,7 +1177,7 @@ tools/
                          elsewhere, or sub-pixel — and a picture distinguishes
                          none of them while three printed lines distinguish all
                          three.
-  lampprobe.mjs          NOT A GATE. SESSION 68. IS THE LAMP HEAD OVER THE
+  lampaimprobe.mjs       NOT A GATE. SESSION 68. IS THE LAMP HEAD OVER THE
                          THING IT LIGHTS? It exists because a street lamp's yaw
                          is `(axis === 'x' ? 0 : -90) + (side < 0 ? 180 : 0)` —
                          CARDINAL, off the chunk lattice, with no road tangent
@@ -1190,7 +1190,12 @@ tools/
                          — the generator has refused those since session 19 —
                          and that `aimed` must be most of `bowls`, because a run
                          that paired nothing would report "0 heads over water"
-                         and read as a pass.
+                         and read as a pass. NAMED `lampaimprobe` AND NOT
+                         `lampprobe` because session 23 already owns that name
+                         for a different question — a tree crown growing into a
+                         lamp head. This session overwrote that file and
+                         restored it; the near-miss is recorded here because a
+                         filename is a name like any other.
   albedoprobe.mjs        NOT A GATE. SESSION 67. WHAT IS THE GROUND'S
                          REFLECTANCE, AND WHAT DOES THE SKY THINK IT IS? It
                          exists because `ATM.groundAlbedo` and
