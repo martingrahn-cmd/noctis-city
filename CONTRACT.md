@@ -2163,6 +2163,17 @@ into one mesh, and after that the scene had no way to say how many props it drew
 **A refactor that erases a category also erases the check on it**, and the label
 has to be written at the point where the category still exists.
 
+**TWO MORE OF THE PLAIN FORM, BOTH ON THE AIRFIELD, BOTH SESSION 76.**
+`AIRFIELD.edgeStepM` = 60 is declared with a comment about runway edge-light
+spacing and **read by nothing**: the edge lights come one per `afstrip` station
+and that pitch is `runM / stationM`. The two agree at 60 by coincidence of two
+constants rather than by derivation, which is the worst case of this variant —
+it will keep agreeing until somebody changes one. And `afPaint` is a ground kind
+with an albedo row, a porosity row of 0.40 and a documented deliberate absence
+from `CATEGORY_FOR_GROUND`, and **nothing in the project ever pushes a ground
+rect of that kind**; the runway markings are 12 mm `put()` boxes instead, which
+is correct and stated. Three declarations serving a kind that does not exist.
+
 **A KEEP-OUT NOBODY CALLS — session 75, and it is the same variant with a
 FUNCTION instead of a config value.** Session 74 wrote `onAirfieldAt(x, z,
 pad)`, exported it, and said of it in a comment beside the platform it guards:
@@ -2183,6 +2194,33 @@ by looking at the ground it is supposed to have cleared, and nobody could.
 > a working guard in review, and the only way to tell them apart is to count
 > what is standing where the guard says nothing should be. Count it once, at
 > the time it is written.
+
+**AND THE THIRD FORM: THE VALUE IS READ, BUT ONLY ONCE, AND IT IS THE WRONG
+ONCE — session 76.** `updateLampPool` reassigns a fixed set of clustered-light
+slots to whichever lamps are nearest, every frame. It writes `position`,
+`direction`, `radius`, `intensity` and `alongAxis`. **It has never written
+`coneOuter`, `coneInner`, `peakCos`, `alongScale`, `acrossScale`, `sourceRadius`
+or `color`** — those were set once at `lights.add` to a street lantern's values
+and have stood there for every fixture that has taken a slot since. So all nine
+of this project's flood masts — six on construction sites, three on the harbour
+— throw 60 000 cd through a 68° lantern optic, elongated 2.39× across a road
+axis they do not have, with a 1/cos³ batwing peaking 57° off nadir, in sodium
+whatever the lamp is. Session 21 gave a flood its own candela, its own aim and
+its own falloff window and stopped there; sessions 54 and 71 each added a fixture
+the same way.
+
+**`updateSignPool`, FORTY LINES DOWN THE SAME FILE, GETS IT RIGHT AND SAYS SO**:
+*"a slot reassigned from a cyan blade to a sodium fascia does not keep the
+cyan."* Two pools, one shape, one written after the other, and only one of them
+carrying the rule.
+
+> **A pooled slot is state, and every field of it belongs to whatever is holding
+> it this frame.** A field written at construction and not at assignment is a
+> field that describes the FIRST tenant for ever. The repair is to write every
+> such field unconditionally — writing them conditionally is worse than not
+> writing them, because a slot that keeps one fixture's beam only until the next
+> reassignment is a defect that comes and goes with the camera, and this project
+> has already paid a whole session for one of those.
 
 **An argument dropped by a forwarder.** `city.js` measures the facade openness,
 logs it beside the roadway figure and the ratio between them, and calls
@@ -2469,7 +2507,7 @@ when they should not have.
 Measure before theorising. A theory about why a frame looks wrong costs an hour;
 printing the number costs a minute and is right more often.
 
-### 9.2 A city default travels unquestioned — session 73, and it is three already
+### 9.2 A city default travels unquestioned — session 73, and it is five now
 
 The table above is *a number computed correctly and then used as a different
 quantity*. §9.1's two variants are that failure at one remove. **This one is at
@@ -2506,6 +2544,31 @@ was the third:
   signal loop did not, so wherever the camera stands, so do the signals. The
   128 m junction grid is a CITY default and 5 km out it has changed counties.
   Found in a frame of the terminal stands and cropped 7× to be sure of it.
+- **The lamp pool's candidate radius, `CITY.chunkSize` = 128 m, applied to a
+  320 m apron — session 76, and it is five.** `updateLampPool` refuses any lamp
+  further than one chunk from the camera. For a street lamp that is generous
+  three times over: its falloff window is 30 m, so a lamp at 128 m is already
+  clipped to nothing, and **the 128 is a STREAMING number rather than a
+  photometric one** — it exists so a lamp does not pop into the pool as a chunk
+  becomes resident. Carried to an airfield whose masts stand 80 m apart and
+  throw 210, it refuses **9 of the 13 that stand there** — measured at the
+  committed apron pose, not reasoned about, and the two that light the west and
+  east ends of the apron were being thrown away at 144 m and 140 m. Under the
+  luminaire's own window, 10 of the 13 are candidates and the three it still
+  refuses are refused at 212, 214 and 221 m, which is past where their own
+  falloff has anything left to deliver.
+
+  **AND THE FIX IS THE FIRST IN THIS SECTION WHOSE INERTNESS WAS PROVED RATHER
+  THAN ASSERTED.** The cut is the luminaire's own window now, floored at one
+  chunk — `max` can only ADD candidates, and it adds none for a street lamp
+  (30), a park lamp (30), a column (30) or a yard flood (40). The one city
+  fixture it touches is the site flood, 128 → 130, whose own falloff delivers
+  `60 000 × (1 − 129/130)² / 129²` = **2.1e-7 lx** in the annulus it gains.
+  Then measured anyway at the street look eye — 29 of 29 candidates, 105
+  clustered, 296 draws, identical — **because the city's pool is NOT saturated
+  at 29 of 98, so a new candidate really would have lit.** The arithmetic said
+  it could not matter and the instrument said it did not; a change to a default
+  that travels needs both.
 
 **WHY IT SURVIVES, AND IT IS NOT THE SAME REASON §9.1's VARIANTS DO.** Those
 survive because their number is only read far away. This one survives because

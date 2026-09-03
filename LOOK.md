@@ -1969,6 +1969,69 @@ looked most likely:
 > real fixture faces.** The difference is not a rendering detail — it is the
 > whole of the information a red port light and a green starboard one carry.
 
+### AN EMITTER IS NOT A LIGHT — SESSION 76, 2026-09-03
+
+Session 75 made the airfield's lights appear and closed with *"nothing on the
+field lights the GROUND: an aeroplane on a stand at midnight is a silhouette
+with a cabin strip."* **That is true of every surface this project has built
+outside the city since session 62, and the reason is one function.**
+
+```
+  glow()   city.js:4230.  Pushes a matrix into signQuads, a tint into signTint
+           and a null into signTrade.  That is the whole body.
+```
+
+The call that claims a clustered-light slot for an emissive panel is
+`pushSignLight`, and **its only five callers are shop fascias, roof cabinets,
+blades and pylons.** Everything built beyond the city edge — 22 villas' windows,
+the harbour's quay floods and under-portal lamps, all ~570 of the airfield's
+emitters — goes through `glow()`. They are lamp-shaped holes in the dark.
+Measured at the apron at midnight, before anything was changed: **`lamp pool 0
+active of 0 candidates`, `sign pool 0 active of 0`, one clustered light in the
+whole frustum, median surface 0.203 cd/m² — code value 10 of 255, with 87.8% of
+the frame under 16.**
+
+**AND THE MECHANISM WAS NEVER MISSING.** CONTRACT §5.6's clustered forward+ has
+been the city's night look since session 1: 384 slots, a 98-slot streamed lamp
+pool carrying five luminaires, a 16-slot sign pool ranked by the lux each panel
+would put on the camera. 192 lamp slots and 16 sign slots stood parked below the
+world at zero intensity while two sessions built an airport five kilometres from
+anything that would have used one. Ten `flood` features — a feature kind session
+21 wrote for a construction site — took the apron's median from 0.203 to 0.531
+cd/m² and its p90 from 0.313 to 2.884, for **two draw calls and no light slot
+that was not already allocated.**
+
+> **"The lights appear" and "the place is lit" are two measurements and this
+> project has confused them at four landscapes now.** The first is a frame with
+> bright pixels in it; the second is a frame where you can see what the bright
+> pixels are ON. A population of emitters that costs nothing is a population
+> that lights nothing, and the tell is free: `radianceprobe` prints
+> `lamp pool N of M` and `sign pool N of M` at any pose in the world. **If both
+> read zero, every bright thing in that frame is its own only subject.**
+
+**AND THE COUNTRY ROAD IS THE OTHER HALF OF THE SAME LESSON, WITH NOTHING TO
+REPAIR.** Session 62 removed 563 city lamp stations from the farmland and that
+was right; an unlit country road is what the reference look asks for. So the
+question is whether it READS by its own markings and reflectance, and it was
+measured at `country-car`, car height, midnight: **the whole frame is four code
+values wide — min 9, median 10, p90 12, with 99.0% of every surface under
+16/255.** There is no carriageway in it. No edge, no line, no distinction
+between the road and the field beside it.
+
+Four decisions, each correct alone, and the frame is what shows what they are
+together: no lighting (`if (chunk.beyondCity) continue;`, and it should stay);
+34 dashes of centre line that stop 568 m short of the rim; no vehicle out there
+to carry a headlight, because `traffic.js` refuses one at
+`cityExtentAt(x, z) <= 0` — **the same boundary that keeps the lamps off**; and
+`ROAD_PAINT`'s own comment saying retroreflection is *"most of what makes a line
+read at night from a car"* and that this project has no BRDF for it.
+
+> **Four right answers can sum to a black frame, and no single one of them will
+> ever look wrong in review.** The only instrument that finds this is a camera
+> at the height of the thing that is supposed to be using the place. Nothing in
+> the world knows the road is unreadable, because nothing in the world is
+> driving on it.
+
 ---
 
 ## 7. How this document relates to the gates
