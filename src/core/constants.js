@@ -388,6 +388,55 @@ export const LIGHT = {
   yardFloodRadiusM: 40,
 
   /**
+   * cd, PEAK. AN APRON FLOODLIGHT MAST — SESSION 76, and it is the FIFTH in the
+   * family `parkLampCandela` started: the same two relations evaluated for a
+   * different height and a different class of surface.
+   *
+   * WHY IT IS NOT A SITE FLOOD, WHICH IS THE WHOLE POINT OF DERIVING IT.
+   * `siteFloodCandela` is 50 lx of CONSTRUCTION TASK lighting off a 9.0 m mast,
+   * and the airfield's masts are taller than any threshold this project has, so
+   * an apron mast pushed through the existing `flood` feature would have been
+   * classified a site flood by `city.js`'s own height discriminator and lit an
+   * airport with an excavation's luminaire. That is CONTRACT §9.2 exactly — a
+   * city default travelling unquestioned into a fifth landscape — and it is the
+   * class STATE 75 §3 item 3 and session 72's rural spur both belong to. The
+   * discriminator is not wrong; the fixture is simply not in its table.
+   *
+   * THE STANDARD. ICAO Annex 14 Vol I, apron floodlighting: **20 lx average
+   * horizontal illuminance on an aircraft stand**, uniformity ratio not below
+   * 0.25. It is the SAME 20 lx as `yardFloodCandela`'s loading zone and for the
+   * same reason — an aircraft stand IS a loading bay, with a jet bridge instead
+   * of a roller door — and it is 0.40x a construction site's, because nobody on
+   * an apron is working in a hole. Two fixtures, one illuminance, a factor of
+   * 40 between their peaks: that difference is entirely the THROW.
+   *
+   * SIZE THE WINDOW FIRST, THEN DERIVE THE INTENSITY THROUGH IT —
+   * `siteFloodRadiusM`'s rule, which this project has now got wrong three times
+   * and right three times. The mast is `AIRFIELD.mastHeightM` = 25 m (real
+   * apron high masts run 20-30 m; this one clears the 15 m terminal and stands
+   * under the 34 m tower, so it reads as apron furniture and not as a landmark)
+   * and it aims `AIRFIELD.mastAimM` = 55 m out across the concrete, so the
+   * slant range is `hypot(25, 55)` = **60.42 m**.
+   *
+   *     R >= 60.42 / 0.293 = 206.2 m  ->  210 m
+   *     window = (1 - 60.42/210)^2    =  0.5074
+   *     I = E·d²/window = 20 x 3650.6 / 0.5074 = 143 875 cd  ->  144 000
+   *
+   * AND THE DERIVATION IS CHECKED BACKWARDS, which is §9 rule 2 and is cheap
+   * here: `I·window/d²` = 144 000 x 0.5074 / 3650.6 = **20.02 lx** at the aim
+   * point. A number that only ever runs one way is a number nobody checked.
+   *
+   * ALL THREE RATIOS, per §9 rule 4: **2.40x a site flood's peak, 40.0x a yard
+   * flood's, and 21.2x a street lamp's, from a mast 2.78x a site mast's
+   * height.** The 40x against an identical 20 lx is the throw and nothing else,
+   * and writing it down is what stops the next session reading 144 000 as
+   * "brighter" when it means "further away".
+   */
+  apronFloodCandela: 144000,
+  /** m. The window above, sized before the intensity was derived through it. */
+  apronFloodRadiusM: 210,
+
+  /**
    * lux, below which the photocell closes and the street lights up.
    *
    * Calibrated, not picked: this is the horizontal illuminance this atmosphere

@@ -2863,6 +2863,105 @@ export function createCity(options = {}) {
    */
   const LAMP_ARM_M = 2.1;
   /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE OPTIC BELONGS TO THE LUMINAIRE AND NOT TO THE POOL SLOT — SESSION 76,
+   * AND IT IS A LATENT DEFECT THE SIGN POOL ALREADY AVOIDS.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `updateLampPool` reassigns a fixed set of slots to whichever lamps are
+   * nearest, and it writes `position`, `direction`, `radius`, `intensity` and
+   * `alongAxis` per frame. It has never written `coneOuter`, `coneInner`,
+   * `peakCos`, `alongScale`, `acrossScale`, `sourceRadius` or `color` — those
+   * were set ONCE at `lights.add` to a street lantern's values and stood there
+   * for every fixture that has ever taken a slot since.
+   *
+   * SO A CONSTRUCTION FLOOD MAST THROWS A STREET LANTERN'S BEAM. Session 21
+   * gave a `flood` its own candela, its own aim and its own falloff window and
+   * stopped there; session 54 added a second flood the same way; session 71 put
+   * three 14 m masts on the harbour. All nine of them deliver 60 000 cd through
+   * `LUMINAIRE.alongRoadRad` = 68 degrees, elongated 2.39x across a ROAD AXIS
+   * they do not have, with a 1/cos³ batwing peaking 57 degrees off nadir — the
+   * profile whose entire purpose is putting equal illuminance along a
+   * carriageway — and in `EMITTER_CHROMA.sodium` whatever the lamp is.
+   *
+   * `updateSignPool` FORTY LINES DOWN GETS THIS RIGHT AND SAYS SO: *"a slot
+   * reassigned from a cyan blade to a sodium fascia does not keep the cyan"*.
+   * Two pools, one shape, one of them written after the other, and only one of
+   * them carries the rule. CONTRACT §9.1 — a value the code does not read, with
+   * the reader missing rather than the value.
+   *
+   * THE REPAIR IS TO WRITE EVERY OPTIC FIELD EVERY FRAME, from the lamp record
+   * when it names one and from `LANTERN_OPTIC` when it does not. Writing them
+   * CONDITIONALLY would be worse than not writing them at all: a slot that kept
+   * an apron mast's 36-degree cone and then took a street lamp would light one
+   * pool of pavement and leave the kerb dark, and it would do it only when the
+   * player walked past a mast — which is a defect that comes and goes with the
+   * camera, and this project has paid for one of those already (session 74's
+   * approach row, visible from exactly one bearing).
+   *
+   * The lantern's own numbers are HERE and not at `lights.add`, so the two
+   * cannot drift: the pool init reads this object and so does the per-frame
+   * assignment. One optic, two readers (§9.1), which is the arrangement
+   * `LAMP_ARM_M` above exists to demonstrate.
+   */
+  const LANTERN_OPTIC = {
+    chroma: EMITTER_CHROMA.sodium,
+    coneOuter: LUMINAIRE.alongRoadRad,
+    coneInner: LUMINAIRE.alongRoadRad - LUMINAIRE.edgeRad,
+    /** `lights.add` takes `peakAngle` and STORES `peakCos`; this is the stored form. */
+    peakCos: Math.cos(LUMINAIRE.peakAngleRad),
+    alongScale: 1,
+    acrossScale: Math.tan(LUMINAIRE.alongRoadRad) / Math.tan(LUMINAIRE.acrossRoadRad),
+    /** The frosted bowl's own size, and it was the literal `0.42` here. */
+    sourceRadius: LAMP_BOWL.radiusM,
+    /** A lantern's distribution is measured about the road. A flood has no road. */
+    elongated: true,
+  };
+  /**
+   * AN APRON FLOODLIGHT MAST'S OPTIC — session 76. `LIGHT.apronFloodCandela`
+   * carries the intensity's derivation; this is the shape the intensity is
+   * delivered in, and the two halves are separate because a peak candela is
+   * meaningless without the distribution it is the peak OF (CONTRACT §5.9).
+   *
+   * CIRCULAR, NOT ELONGATED. `elongated` false zeroes `alongAxis`, which the
+   * shader reads as *"circular"* (`lights.js`, the `dot(along, along) > 0.5`
+   * test). A lantern is stretched along a road because a road is long and thin;
+   * an apron is 320 x 300 m and a floodlight aimed across it is a cone.
+   *
+   * NO BATWING. `peakCos` 0 puts the maximum on the beam's own axis, which is
+   * what a floodlight IS. The 1/cos³ rise exists to compensate a road's
+   * increasing distance from a lantern directly overhead; a mast aiming 55 m
+   * out is already pointing at the far end of its own pool, so applying it
+   * again would brighten the far edge and dim the middle.
+   *
+   * 36 DEGREES, AND IT IS SOLVED FROM THE POOL RATHER THAN PICKED. The beam has
+   * to cover the stand it is aimed at: a 40 m radius patch at the 60.42 m slant
+   * range `apronFloodCandela` is derived over is `atan(40 / 60.42)` = **33.5
+   * degrees**, so 36 at the cutoff and 25 where the smoothstep starts. That is
+   * a NEMA 4 floodlight, which is what stands on an apron mast.
+   *
+   * COLD, AND IT IS THE ONE FREE DECISION HERE. `EMITTER_CHROMA` is
+   * luminance-normalised, so a chroma costs nothing and changes only the hue.
+   * Apron floodlighting is metal-halide or LED white; it is also the one large
+   * COLD ground surface in a world whose street lighting is sodium, which is
+   * LOOK.md §3's *"colour opposition, the biggest unspent lever"* asked of a
+   * landscape that had no light at all to oppose with.
+   *
+   * `sourceRadius` 0.9 m is the rack, not a bulb: a mast head carries a dozen
+   * fixtures over about 1.8 m, and this is what sets how wide its reflection
+   * smears in wet concrete.
+   */
+  const APRON_FLOOD_OPTIC = {
+    chroma: EMITTER_CHROMA.fluorescentCold,
+    coneOuter: (36 * Math.PI) / 180,
+    coneInner: (25 * Math.PI) / 180,
+    peakCos: 0,
+    alongScale: 1,
+    acrossScale: 1,
+    sourceRadius: 0.9,
+    elongated: false,
+  };
+  /**
    * m. Half the column's claim, which is the pole's widest radius: the taper in
    * `buildGeometries` is `CylinderGeometry(0.11, 0.15)`. Read by the claim
    * pushed in `buildChunkBody`, by the ad pillar's refusal and by the corner
@@ -5063,8 +5162,22 @@ export function createCity(options = {}) {
           put(0, f.height + 0.08, 0, f.length, 0.16, f.thickness * 1.5, [0.088, 0.080, 0.070], 0.95);
           put(f.length * 0.30, f.height * 0.46, 0, 0.9, f.height * 0.92, f.thickness * 1.4, [0.132, 0.104, 0.080], 0.92);
         } else if (f.kind === 'flood') {
-          put(0, 0.14, 0, 0.9, 0.28, 0.9, [0.30, 0.298, 0.288], 0.9);
-          put(0, f.height * 0.5, 0, 0.20, f.height, 0.20, [0.34, 0.345, 0.352], 0.55);
+          /**
+           * THE COLUMN IS SIZED FROM ITS OWN HEIGHT — SESSION 76, AND ONLY FOR
+           * THE APRON MASTS, WHICH IS THE HONEST SCOPE.
+           *
+           * A 0.20 m section is right for a 9 m site mast and it is a wire at
+           * 25 m: an apron high mast is a 0.7 m lattice or spun column with a
+           * pad under it to match, and at 125 diameters the first frame would
+           * have shown a head floating over nothing. Scoped to `f.apron` for
+           * the reason session 71 scoped `f.head`: a change made for one
+           * landscape that also moves nine masts in three others is a change
+           * whose gate numbers nobody can attribute.
+           */
+          const stem = f.apron === 1 ? 0.70 : 0.20;
+          const pad = f.apron === 1 ? 3.2 : 0.9;
+          put(0, 0.14, 0, pad, 0.28, pad, [0.30, 0.298, 0.288], 0.9);
+          put(0, f.height * 0.5, 0, stem, f.height, stem, [0.34, 0.345, 0.352], 0.55);
           /**
            * AND A HEAD ON IT — session 71, ON THE HARBOUR'S MASTS AND NOT ON
            * EVERY MAST IN THE CITY.
@@ -5090,8 +5203,31 @@ export function createCity(options = {}) {
             const ax = (f.aimX == null ? f.x : f.aimX) - f.x;
             const az = (f.aimZ == null ? f.z : f.aimZ) - f.z;
             const aim = (Math.atan2(ax, az) * 180) / Math.PI;
-            put(0, f.height + 0.5, 0, 2.6, 0.9, 1.2, [0.22, 0.225, 0.235], 0.6, aim);
-            glow(0, f.height + 0.4, 0, 2.4, 0.7, aim, EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 7.0);
+            /**
+             * A RACK, NOT A LANTERN — and it is DIRECTIONAL ON PURPOSE, which
+             * item 3b of this session's brief asks every new emitter to say.
+             *
+             * `glow` and not `glowOmni`. Session 75's repair exists for
+             * fixtures that are omnidirectional IN THE WORLD — a runway edge
+             * light is seen from both sides because it is a lens on a stalk in
+             * the middle of a field. A floodlight has a reflector behind it and
+             * a glass front, and the back of one is a black box. Standing
+             * behind an apron mast you should see the mast and not the lamp,
+             * and `materials.sign` being `FrontSide` delivers exactly that.
+             *
+             * The rack is `EMITTER_CHROMA.fluorescentCold` for the apron and
+             * `sodium` for everything that was here before, because the head
+             * has to be the colour of what the beam is: two emitters that
+             * disagree about a lamp's colour is `pushSignLight`'s own rule
+             * (*"the light and the panel cannot disagree"*) with a mast.
+             */
+            const rack = f.apron === 1;
+            const hw = rack ? 5.4 : 2.6;
+            const hd = rack ? 1.8 : 1.2;
+            put(0, f.height + 0.5, 0, hw, 0.9, hd, [0.22, 0.225, 0.235], 0.6, aim);
+            glow(0, f.height + 0.4, 0, hw - 0.2, 0.7, aim,
+              rack ? EMITTER_CHROMA.fluorescentCold : EMITTER_CHROMA.sodium,
+              LIGHT.signPlateNits * (rack ? 11.0 : 7.0));
           }
         } else if (f.kind === 'crane') {
           /**
@@ -7643,12 +7779,55 @@ export function createCity(options = {}) {
            * `SITE.floodHeightM` = 9.0 m and a yard column is 6.0; anything at
            * or under the yard column's height is a yard light.
            */
-          const site = f.height > DEAD_ZONE.yardLightHeightM;
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AND A THIRD FLOOD — SESSION 76, AND IT IS THE ONE CASE WHERE THE
+           * HEIGHT DISCRIMINATOR ABOVE IS THE WRONG INSTRUMENT.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * The rule this branch has carried since session 54 is *"the
+           * discriminator is `DEAD_ZONE.yardLightHeightM` and NOT a new flag on
+           * the feature"*, because a site mast and a yard column light the same
+           * KIND of surface at two scales and the mounting height is the one
+           * thing they differ in. That is still true of those two.
+           *
+           * AN APRON MAST DIFFERS IN THE SURFACE. `siteFloodCandela` is HSG38's
+           * 50 lx of construction task lighting; `apronFloodCandela` is ICAO
+           * Annex 14's 20 lx on an aircraft stand — a DIFFERENT standard for a
+           * different activity, and the 25 m height is a consequence of the
+           * 55 m throw that illuminance is derived over, not the cause of it.
+           *
+           * AND A HEIGHT BAND WOULD HAVE BEEN A SILENT RECLASSIFICATION. The
+           * only threshold that separates a 25 m apron mast from a 9 m site
+           * mast without also catching the harbour's 14 m quay masts is a
+           * number somewhere between 14 and 25 with nothing behind it — a
+           * threshold with no derivation, which is the thing this file forbids
+           * everywhere else. `apron` is a flag and it says so.
+           *
+           * THE FLAG CANNOT DISAGREE WITH THE HEIGHT, which is the rule's own
+           * stated reason for preferring a discriminator: `citygen.js` emits
+           * `height: AIRFIELD.mastHeightM` on the same feature that sets
+           * `apron: 1`, and `LIGHT.apronFloodCandela` is derived at that same
+           * 25 m. One number, two readers (§9.1).
+           */
+          const apron = f.apron === 1;
+          const site = !apron && f.height > DEAD_ZONE.yardLightHeightM;
           lamps.push({
             x: px, y: py, z: pz, axis: 'x', side: 1,
-            candela: site ? LIGHT.siteFloodCandela : LIGHT.yardFloodCandela,
-            radius: site ? LIGHT.siteFloodRadiusM : LIGHT.yardFloodRadiusM,
+            candela: apron ? LIGHT.apronFloodCandela
+              : site ? LIGHT.siteFloodCandela : LIGHT.yardFloodCandela,
+            radius: apron ? LIGHT.apronFloodRadiusM
+              : site ? LIGHT.siteFloodRadiusM : LIGHT.yardFloodRadiusM,
             dir: [dx / len, dy / len, dz / len],
+            /**
+             * AND ITS OWN BEAM. Undefined falls through to `LANTERN_OPTIC`,
+             * which is what the site and yard masts have always silently had
+             * and is a defect this session names rather than repairs — moving
+             * nine existing masts off a street lantern's batwing would change
+             * the harbour and two block interiors in a session that is about
+             * the airfield. STATE §6 carries it.
+             */
+            optic: apron ? APRON_FLOOD_OPTIC : undefined,
           });
         }
       }
@@ -10446,11 +10625,46 @@ export function createCity(options = {}) {
     const lampsOn = lighting ? lighting.photocellOn : true;
     if (materials) materials.lampBowl.emissiveIntensity = lampsOn ? LAMP_BOWL.streamedNits : 0.5;
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * A LAMP IS A CANDIDATE OUT TO ITS OWN WINDOW, FLOORED AT ONE CHUNK —
+     * SESSION 76, AND THE OLD CUT WAS A STREET LAMP'S NUMBER ON A 320 m APRON.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `CITY.chunkSize` = 128 m was the whole cut, and for a street lamp it is
+     * generous three times over: its falloff window is 30 m, so a lamp at 128 m
+     * passes `(1 - 128/30)²` — nothing at all, it is already clipped. The 128 is
+     * a STREAMING number, not a photometric one; it exists so a lamp does not
+     * pop into the pool as a chunk becomes resident.
+     *
+     * MEASURED, AT THE COMMITTED APRON POSE: four of the airfield's nine masts
+     * were candidates and five were not, and the two that light the west and
+     * east ends of the apron sat at 144 m — sixteen metres outside a bound
+     * derived for a fixture that throws a sixth as far. CONTRACT §9.2's class
+     * exactly, and the fourth landscape to find it: a city default carried
+     * unquestioned into a place whose fixtures are 80 m apart and reach 210.
+     *
+     * THE FLOOR IS WHY THIS IS INERT IN THE CITY AND THE ARITHMETIC SAYS SO
+     * RATHER THAN THE INTENT. `max` can only ever ADD candidates, and it adds
+     * none for a street lamp (30 < 128), a park lamp (30), a car-park column
+     * (30) or a yard flood (40) — every one of them keeps 128 exactly. The one
+     * fixture in the city it touches is the site flood, whose window is 130, so
+     * it gains a 2 m annulus in which its own falloff delivers
+     * `60 000 × (1 − 129/130)² / 129²` = **2.1e-7 lx**. That is not a small
+     * change, it is no change: the added candidates are candidates that cannot
+     * light anything, and they lose the distance sort to everything nearer.
+     *
+     * The same arithmetic on an apron mast at the 144 m that was being refused:
+     * `144 000 × (1 − 144/210)² / 144²` = **0.686 lx**, against 3.24 lx of
+     * moon and sky at this hour. That is a fifth of the whole night's ambient
+     * from one fixture the old bound threw away.
+     */
     lampCandidates.length = 0;
     for (const rec of resident.values()) {
       for (const lamp of rec.lamps) {
         const d2 = (lamp.x - camera.position.x) ** 2 + (lamp.z - camera.position.z) ** 2;
-        if (d2 > CITY.chunkSize * CITY.chunkSize) continue;
+        const reach = lamp.radius > CITY.chunkSize ? lamp.radius : CITY.chunkSize;
+        if (d2 > reach * reach) continue;
         lampCandidates.push({ lamp, d2 });
       }
     }
@@ -10497,7 +10711,28 @@ export function createCity(options = {}) {
       slot.beam.intensity = lampsOn || l.candela === LIGHT.siteFloodCandela ? candela : 0;
       if (l.dir) slot.beam.direction.set(l.dir[0], l.dir[1], l.dir[2]).normalize();
       else slot.beam.direction.set(l.axis === 'x' ? -l.side * 0.3 : 0, -1, l.axis === 'x' ? 0 : -l.side * 0.3).normalize();
-      slot.beam.alongAxis.set(l.axis === 'x' ? 0 : 1, 0, l.axis === 'x' ? 1 : 0);
+      /**
+       * THE OPTIC, EVERY FRAME, FROM THE LUMINAIRE — session 76. The whole
+       * argument is at `LANTERN_OPTIC`; what matters here is that it is
+       * UNCONDITIONAL. Seven fields, written whether the lamp names an optic or
+       * not, so a slot cannot carry one fixture's beam into another's.
+       *
+       * `elongated` is what selects between the two: a lantern's distribution
+       * is measured about the road it stands beside, and a zero `alongAxis` is
+       * how the shader is told there is no such axis.
+       */
+      const optic = l.optic || LANTERN_OPTIC;
+      slot.beam.color = optic.chroma;
+      slot.beam.coneOuter = optic.coneOuter;
+      slot.beam.coneInner = optic.coneInner;
+      slot.beam.peakCos = optic.peakCos;
+      slot.beam.alongScale = optic.alongScale;
+      slot.beam.acrossScale = optic.acrossScale;
+      slot.beam.sourceRadius = optic.sourceRadius;
+      if (optic.elongated) slot.beam.alongAxis.set(l.axis === 'x' ? 0 : 1, 0, l.axis === 'x' ? 1 : 0);
+      else slot.beam.alongAxis.set(0, 0, 0);
+      slot.spill.color = optic.chroma;
+      slot.spill.sourceRadius = optic.sourceRadius;
       slot.spill.position.set(l.x, l.y, l.z);
       /** The spill scales with the beam, so a park lamp does not carry a
        *  street lamp's bounce. */
@@ -10657,31 +10892,44 @@ export function createCity(options = {}) {
       const beamLumens = luminaireFlux(LIGHT.streetlampCandela, LUMINAIRE);
       const spillCandela = (LIGHT.streetlampSpillFraction * beamLumens) / (4 * Math.PI);
 
+      /**
+       * THE SLOT IS CREATED WITH THE LANTERN'S OPTIC AND `updateLampPool`
+       * REWRITES IT EVERY FRAME — session 76, and the two read ONE object so
+       * they cannot drift. What was here was a second copy of the four
+       * `LUMINAIRE` expressions and the literal `0.42`, which is
+       * `LAMP_BOWL.radiusM` under another name; the whole argument for moving
+       * them is at `LANTERN_OPTIC`.
+       *
+       * `alongAxis` is still a live `Vector3` because the assignment `.set()`s
+       * it rather than replacing it, and `type: 'spot'` is still here because
+       * that is the one field the per-frame path does NOT write — a pool slot
+       * is a spot for its whole life.
+       */
       for (let i = 0; i < poolLamps; i++) {
         const beam = lights.add({
           role: 'lamp',
           position: new THREE.Vector3(0, -1000, 0),
-          color: EMITTER_CHROMA.sodium,
+          color: LANTERN_OPTIC.chroma,
           intensity: 0,
           radius: 30,
           type: 'spot',
           direction: new THREE.Vector3(0, -1, 0),
-          coneOuter: LUMINAIRE.alongRoadRad,
-          coneInner: LUMINAIRE.alongRoadRad - LUMINAIRE.edgeRad,
-          sourceRadius: 0.42,
+          coneOuter: LANTERN_OPTIC.coneOuter,
+          coneInner: LANTERN_OPTIC.coneInner,
+          sourceRadius: LANTERN_OPTIC.sourceRadius,
           alongAxis: new THREE.Vector3(1, 0, 0),
-          alongScale: 1,
-          acrossScale: Math.tan(LUMINAIRE.alongRoadRad) / Math.tan(LUMINAIRE.acrossRoadRad),
+          alongScale: LANTERN_OPTIC.alongScale,
+          acrossScale: LANTERN_OPTIC.acrossScale,
           peakAngle: LUMINAIRE.peakAngleRad,
         });
         const spill = lights.add({
           role: 'lamp',
           position: new THREE.Vector3(0, -1000, 0),
-          color: EMITTER_CHROMA.sodium,
+          color: LANTERN_OPTIC.chroma,
           intensity: 0,
           radius: 26,
           type: 'point',
-          sourceRadius: 0.42,
+          sourceRadius: LANTERN_OPTIC.sourceRadius,
         });
         lampPool.push({ beam, spill, spillCandela });
       }

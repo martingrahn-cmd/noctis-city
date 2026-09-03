@@ -6703,6 +6703,33 @@ export const AIRFIELD = {
    * which is the half of session 72's split that belongs in this file.
    */
   layerLiftM: 0.001,
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE APRON FLOODLIGHT MASTS — SESSION 76, AND THESE TWO NUMBERS ARE THE
+   * INPUT TO `LIGHT.apronFloodCandela` RATHER THAN A DESCRIPTION OF IT.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `constants.js` derives 144 000 cd from `hypot(25, 55)` = 60.42 m of slant
+   * range, and this file emits the masts at that height aiming that far. They
+   * are the same two numbers and they are written down twice, in two files that
+   * may not import each other — `parsecheck` forbids `src/lib` reading
+   * `src/core`, which is the same wall `layerLiftM` above stands against.
+   *
+   * SO THE DERIVATION IS RESTATED AT BOTH ENDS AND THE PRODUCT IS PRINTED. That
+   * is `layerLiftM`'s arrangement and it is the best this split allows: what
+   * cannot be shared is at least stated in both places, so a change to one is a
+   * visible disagreement rather than a silent 4x error in the illuminance.
+   *
+   * 25 m: real apron high masts run 20-30 m. This one clears the 15 m terminal
+   * and stands under the 34 m tower, so the tower keeps the skyline — session
+   * 75's *"the darkest shaft on the field"* is a claim a 30 m mast row would
+   * have quietly taken away.
+   *
+   * 55 m: the mast aims at the stand row rather than at its own feet. A flood
+   * pointed straight down lights the mast.
+   */
+  mastHeightM: 25,
+  mastAimM: 55,
 };
 
 /**
@@ -18829,6 +18856,139 @@ export function generateChunk(rootSeed, cx, cz) {
           const wz = F.apZ0 + 34;
           if (wx >= b.x0 && wx < b.x1 && wz >= b.z0 && wz < b.z1) {
             features.push({ kind: 'aftower', x: wx, z: wz, yawDeg: 0, height: F.towerHeightM });
+          }
+        }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE APRON FLOODLIGHTING — SESSION 76, ITEM 2a, AND IT IS THE FIRST
+         * THING ON THIS AIRFIELD THAT PUTS LIGHT ON THE GROUND.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * MEASURED FIRST, AT THE COMMITTED POSE, BEFORE ANY OF THIS WAS
+         * WRITTEN: `tools/radianceprobe.mjs` standing at `af-apron` at
+         * midnight printed **`lamp pool 0 active of 0 candidates`** and
+         * **`sign pool 0 active of 0 candidates`**, one clustered light
+         * resident in the whole frustum, and a median surface at **0.203
+         * cd/m² — code value 10 of 255, with 87.8% of every surface in the
+         * frame under 16**. Sessions 74 and 75 built a hundred and thirty
+         * emitters out here and not one of them was a light. `glow()` pushes a
+         * matrix, a tint and a null; `pushSignLight` is what claims a cluster
+         * slot and its only five callers are shop, roof and pylon signage.
+         *
+         * SO THE FIX IS NOT A NEW MECHANISM, IT IS THE ONE THE CITY HAS. A
+         * `flood` feature already carries a mast, a head, an emissive rack AND
+         * a record in the streamed lamp pool — session 21 built it for a
+         * construction site and session 71 put three on the harbour. The
+         * airfield is the only landscape in this project that never asked for
+         * one. Nine masts is nine records in a 98-slot pool that has nothing
+         * else within 128 m of the apron, so it is nine slots that were
+         * standing parked below the world at zero intensity.
+         *
+         * DIRECTIONAL, AND THIS SESSION'S RULE SAYS SO OUT LOUD. Item 3b: every
+         * new emitter declares which it is. A floodlight has a reflector behind
+         * it, so the rack is a single-sided `glow` facing its aim and the beam
+         * is a 36-degree cone about the same vector. `glowOmni` is for the
+         * runway's lenses, which are seen from both ends because they stand in
+         * the middle of a field.
+         *
+         * THE SITING IS THE STANDS, WHICH IS WHAT APRON FLOODLIGHTING IS FOR,
+         * AND THE SPACING IS SOLVED RATHER THAN CHOSEN.
+         *
+         * The beam is a 36-degree cone about an axis that meets the ground
+         * 55 m out, so its pool is `60.42 x tan(36)` = **43.9 m** either side of
+         * the aim point. Two masts light continuous ground when their pools
+         * meet, which needs a pitch under **87.8 m** — so the four masts of the
+         * first row sit at 80 m over the apron's 320 m width and overlap by
+         * 7.8 m, and the three of the second row are offset half a pitch so the
+         * two rows interlock instead of leaving a seam down the middle.
+         *
+         * THE FIRST ARM SPACED THEM 82, 114 AND 82 AND THE FRAME SHOWED THE
+         * 114. A 26 m stripe of black apron between two lit ones, at the exact
+         * x where the pools stopped meeting — which is the whole reason the
+         * pitch is now derived from the cone instead of eyeballed against the
+         * piers.
+         *
+         * AND THE SECOND ARM PUT BOTH ROWS ON THE SAME HEADING, WHICH IS THE
+         * SAME MISTAKE ONE AXIS OVER. A mast lights the ground in FRONT of it:
+         * the cone's near edge meets the concrete `25/tan(24.4 + 36)` = **14 m**
+         * out, so every mast stands in a 14 m ring of its own dark. Two rows
+         * 90 m apart both throwing south put one ring at z 391-419 and the
+         * other at 481-509 with the first row's pool already behind them, and
+         * the committed pose stands at z 440 looking straight down the seam.
+         * The frame delivered a black band across its whole lower third.
+         *
+         * SO THE ROWS FACE EACH OTHER, WHICH IS ALSO HOW AN APRON IS REALLY
+         * LIT. Masts stand on the perimeter and throw INWARD, so the ground in
+         * front of one row is where the other row's masts are standing, and
+         * every ring is covered by the beams crossing over it. It buys the
+         * aircraft as well as the concrete: the south row lights the tails and
+         * the north row lights the noses, and a stand lit from one side is a
+         * silhouette with a bright edge.
+         *
+         * Three more stand in the gaps BETWEEN the hangars, which is where a
+         * real mast goes because it is the only ground on that apron no
+         * aeroplane crosses. Their pitch is the hangar row's and not this
+         * derivation's — 123 m against 87.8 — so the hangar apron is lit in
+         * three pools with dark between them, and that is a siting the
+         * buildings dictate rather than a number anybody chose.
+         *
+         * EVERY MAST THROWS EXACTLY `F.mastAimM`, and that is the whole reason
+         * the aim is a constant rather than a target: `LIGHT.apronFloodCandela`
+         * is derived at one slant range, so a mast that aimed further would
+         * deliver less than the 20 lx the derivation claims and nothing would
+         * say so. One throw, one intensity, one pool size.
+         */
+        {
+          const masts = [
+            /**
+             * THE SOUTH ROW, THROWING NORTH, from the apron's own edge 14 m off
+             * the terminal's face. Its aim point z = apZ0 + 69 lands between
+             * the two stand rows, so it lights the SOUTH face of every
+             * aeroplane on the field and the concrete they stand on.
+             */
+            [F.apX0 + 40, F.apZ0 + 14, 1], [F.apX0 + 120, F.apZ0 + 14, 1],
+            [F.apX0 + 200, F.apZ0 + 14, 1], [F.apX0 + 280, F.apZ0 + 14, 1],
+            /**
+             * THE MIDDLE ROW, THROWING SOUTH, aimed at the north stand row.
+             * THIS IS THE ROW THAT STOPS AN AEROPLANE BEING A SILHOUETTE, and
+             * an arm without it was measured: lit from the south alone, every
+             * airframe presents its dark side to `af-apron`, which stands to
+             * the north because the terminal is the subject.
+             *
+             * ON THE PIERS' OWN CENTRELINES, AND THE POSE IS WHY. Spaced on the
+             * 80 m pitch like the other two rows, this row put a 25 m mast at
+             * x 5178 — **two and a half metres off `af-apron`'s sight line and
+             * thirty-five metres in front of it** — and the frame came back
+             * with a column up its middle from the sky to the apron. A pose is
+             * an instrument (this session's method, and session 73's three
+             * blind poses); a mast planted in one is a defect this session
+             * introduced and the frame is what found it.
+             *
+             * The pier axes are the honest place anyway: each mast's 43.9 m
+             * pool then lands on the two stands that pier serves, which is what
+             * the 80 m pitch was approximating, and the masts read as part of
+             * the pier rather than as posts in open concrete.
+             */
+            [tmX0 + (tmX1 - tmX0) * 0.25, F.apZ0 + 155, -1],
+            [tmX0 + (tmX1 - tmX0) * 0.75, F.apZ0 + 155, -1],
+            /**
+             * THE NORTH ROW, THROWING SOUTH, over the open apron — which is
+             * where the camera stands, and where the middle row's own 14 m ring
+             * falls.
+             */
+            [F.apX0 + 40, F.apZ1 - 30, -1], [F.apX0 + 120, F.apZ1 - 30, -1],
+            [F.apX0 + 200, F.apZ1 - 30, -1], [F.apX0 + 280, F.apZ1 - 30, -1],
+            /** In the hangar row's own gaps — see `hangars` above for the runs. */
+            [tmX0, F.apZ1 + 50, -1], [tmX0 + 123, F.apZ1 + 50, -1],
+            [tmX0 + 245, F.apZ1 + 50, -1],
+          ];
+          for (const [px, pz, dir] of masts) {
+            if (px < b.x0 || px >= b.x1 || pz < b.z0 || pz >= b.z1) continue;
+            features.push({
+              kind: 'flood', x: px, z: pz, yawDeg: 0,
+              height: F.mastHeightM, head: 1, apron: 1,
+              aimX: px, aimZ: pz + dir * F.mastAimM,
+            });
           }
         }
         /**
