@@ -1,286 +1,225 @@
 # NOCTIS — STATE
 
-*End of session 73. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 16 h of
-uptime — the same boot as sessions 47–72. Every gate that reads a pixel printed
+*End of session 74. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 19 h of
+uptime — the same boot as sessions 47–73. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RAN 2.15–5.69 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the
-thirteenth session running. **No millisecond below is a verdict.**
+***`load1` RAN 3.62–4.61 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the
+fourteenth session running. **No millisecond below is a verdict.**
 
-Branch `claude/noctis-73-walk-and-fix`, off session 72's head.
+Branch `claude/noctis-74-the-airports-ground`, off session 73's head.
 
-**A WALK-AND-FIX.** Twenty-two frames, three worlds, written down before they were shot and read in
-plain words before any probe was opened.
-
----
-## 0. WHAT THE WORLD LOOKS LIKE TO SOMEONE DRIVING THROUGH IT
-
-This is item 1b, and it is the whole reason the session exists. No numbers.
-
-### The city by day
-- **`condenser-street` is seventy per cent a blank cream curve.** No windows, no panels, no scale,
-  no way to tell what the object is. A sliver of street on the right is the only part that reads.
-- **`exchange-street` is a smooth brown dome with nothing on it**, over a very large empty wet plaza
-  with two lamps and a tree on it.
-- **`dish-street` is a smooth white cone with nothing on it**, hard-edged against the sky.
-- `viaduct-street` reads as a proper city street — buildings, markings, vehicles, people. A good
-  frame. The viaduct itself reads as a footbridge.
-- **A white van fills the middle of `viaduct-side` and it has a face**: a featureless box with two
-  dark slots where a windscreen should be.
-- **`viaduct-side` and `viaduct-piers` each have a large grey angular object at the lens that I
-  cannot identify.**
-- Pedestrians stand in evenly spaced rows on the pavement and read as flat dark slabs.
-- `weir-street` does not show the weir and `stack-street` does not show a stack.
-
-### The countryside and the road out
-- **The exit road is a flat brown expanse with no edges**, and the verges are flat green with a hard
-  straight line where they meet it — a carpet laid either side.
-- **Trees beside it are black cubes**, and one is a stack of cubes.
-- `country-air` is smooth and empty: soft brown and olive patches, hedgerows as dotted lines of
-  specks, a hill that is a smooth dome.
-
-### The river
-- **The promenade is a blank pale slab with nothing on it at all** — no benches, no railings, no
-  bollards, nobody. One lamp. The water reads well.
-
-### The estuary and the harbour
-- The harbour reads as a working port; session 71's and 72's frames stand up.
-- **A grey rectangle floats in the sky** in `sea-harbour`, above and left of the cranes.
-- The land either side of the estuary is enormous and bare.
-
-### After dark
-- **`viaduct-street` at midnight is the best frame in the round.** Lit windows, neon in three
-  colours, lamp pools, a wet road carrying all of it.
-- **`country-car` at midnight is a black void.** A farmstead with two small lights, a hill
-  silhouette, a tree blob. The road itself is invisible: no studs, no markings that carry, no
-  lighting of any kind.
-- **`country-air` at midnight is almost entirely black.** The hillside villas are not visible.
-- `sea-road` at midnight works — the gate canopy and the crane lights carry it.
-
-### THE RANK — item 1d, loudest first, by how much of the frame it spoils and how often it recurs
-```
-  1  THE LANDMARKS ARE UNTEXTURED PRIMITIVES      3 of 8, each dominating its own frame   FIXED
-  2  THE COUNTRYSIDE IS BLACK AT NIGHT            2 of 4 night frames, LOOK.md §0's own subject
-                                                  the VILLAS are fixed; the ROAD is not
-  3  TREES ARE SINGLE CUBES                       every frame with vegetation             NOT FIXED
-  4  VEHICLES HAVE NO BACK                        most city frames                        NOT FIXED
-  5  A GREY RECTANGLE FLOATS IN THE SKY           most outdoor frames                     FIXED
-  6  LARGE BARE SURFACES WITH NOTHING ON THEM     5 frames                                NOT FIXED
-  7  POSES THAT DO NOT SHOW THEIR SUBJECT         2, and a third that was LYING           NAMED
-```
+**THE AIRFIELD'S HORIZONTAL WORK. No terminal, no hangars, no aircraft — that split was the brief's
+and it held.**
 
 ---
-## 1. THE THREE FIXES, EACH WITH A PAIR
+## 0. THE FRAME THE BRIEF ASKED FOR CANNOT EXIST, AND THAT IS THE FIRST FINDING
 
-### 1a. THE LANDMARKS HAD NO SURFACE
+> *"Write STATE.md … Open it with the aerial over the field, because whether an airfield fits in this
+> landscape at all is the one question this session exists to answer."*
 
-A lathe carrying one flat material has no surface information at all, and a 260 m one fills the
-frame with it. All three are boxes on a circle, which is a trick the condenser's own crown was
-already using one ring up:
+**There is no aerial over the field and there cannot be one.** `CITY.groundRadius` is 5 chunks, so
+the `city:ground` mesh exists only within **640 m of the camera**. A single frame can therefore hold
+at most **1 280 m of a 3 000 m runway — 43 %** — and a camera far enough back to see three
+kilometres has none of it resident at all. The first two aerials this session shot came back as empty
+farmland for exactly that reason, and they were right to.
 
-```
-  condenser   36 meridian ribs in eight lifts, an INLET COLONNADE of 36 raking legs — the bottom
-              eight metres of a natural-draught tower is open and it is the feature that says the
-              thing breathes — a throat ring and a lip ring.
-  exchange    20 meridian ribs, a cornice at the springing, a plinth, pilasters on the drum with a
-              tall opening every other bay, and a lantern. The openings are what give it SCALE.
-  dish        44 ribs on the RAKE rather than vertical, a lip, and a glazed slot round the foot.
-```
+**So the verdict frame is from over the runway itself**, 40 m up at the south end looking north:
 
-Its own comment says *"a civic hall with no windows at all, which is the whole of its character"* —
-a good decision that was never carried out, because **no windows is not the same as no surface**.
+`node tools/lookat.mjs --pos=4750,48,400 --target=4750,8,1300 --fov=55`
 
-### 1b. THE VILLAS ARE LIT, AND THE POSE WAS LYING ABOUT THEM
-
-STATE has carried *"the hillside villas are dark"* as a deferred item for five sessions, on session
-68's finding that the emissive ring gate excludes them. **Session 71 found the route without looking
-for it and this is the second thing it buys.** `city:bowls` is built inside `if (near)` — ring ≤ 2,
-which is the gate they were written off against — while `city:signs` merges over EVERY resident
-chunk at ring ≤ 5, on a material with a per-instance emissive. `glow()` was already in the feature
-loop.
-
-The glazed elevation lights, in tungsten, warm against the city's cold. **15 of 22 houses**, chosen
-off the house's own position so it draws no stream.
-
-**AND `country-air` COULD NOT HAVE SHOWN IT EITHER WAY.** It stands 710 m from the cluster and looks
-at the BACKS of the houses, whose whole design is *"a wall of glass on the view side and blunt
-masonry everywhere else"*. It reads as black whether they are lit or not. `villa-city` is new — the
-city side at 380 m, anchored on the same centroid `country-air` is — and the pair at that pose is
-a black hill before and five lit windows after.
-
-### 1c. THE ROTOR WAS A SQUARE
-
-`AIRFRAMES.heli` box 2 was `13.4 × 0.09 × 13.4` — a 13.4 m square plate — under a comment that
-argues correctly that a turning rotor is a disc. The argument is right and the shape it built is
-wrong. Chord 13.4 → 2.4 m, and darker than the airframe because a turning disc is most of the way to
-the sky behind it. Diameter untouched.
-
-**Its evidence is weaker than the other two and that is said rather than hidden:** STATE 69 records
-the aircraft as the one mesh that moves with the frame count, so the plate being absent from the
-after frame could be the plate having moved. What is not in doubt is the table.
+and it shows a runway — a dashed centreline running to a vanishing point, edge stripes, touchdown-zone
+bars in pairs, two rows of edge lights, airfield grass either side, and the perimeter fence crossing
+behind. **An airfield does fit in this landscape. It cannot be photographed whole.**
 
 ---
-## 2. WHAT WAS NOT FIXED, AND WHY — items 3, 4 and 6 of the rank
+## 1. THE SITE WAS CHOSEN BY THE NUMBER — ITEM 0a
 
-**TREES ARE CUBES, AND SESSION 22 ALREADY FIXED THAT.** The city's `tree` prop is three overlapping
-tilted masses at three heights with a 1.24 m spread over a 5.3 m tree, and its comment is two
-paragraphs on why a stack of prisms is not a crown. **So the cubes in the round are a different
-tree** — the countryside's, beside the exit road, and they were not identified before the box ran
-out. Naming the wrong object and fixing it would have been worse than deferring.
+Every 3 000 × 620 m platform on a 250 m lattice from −7 500 to +7 500, on both axis-aligned
+orientations, rejecting any that touched the city, the sea, the river or a hill. **3 851 clear
+platforms**, each scored on the relief across its own 2 525 terrain samples:
 
-**VEHICLES HAVE NO BACK.** The van in `viaduct-side` is the REAR of a van: a blank white face with a
-dark skirt, two wheels, and two small dark rectangles at the top that read as eyes at any distance.
-No doors, no plate, no handle, no bumper. Rear lights exist — `traffic.js` has a `rear:` table — but
-they are dark in daylight and they are all there is. **Not fixed because the body is a LOFT**: a
-stepped sweep of one shared chamfered section, one instance row per longitudinal station, built that
-way in session 7c precisely because five lofted meshes would have been five draw calls. A number
-plate is not a scaled section, so this is a design change and not a forty-minute one.
+```
+  the WORST of the 3 851      32.03 m
+  the MEDIAN                  17.29 m
+  the BEST                     1.28 m     (4 750, 1 750), runway along z
+```
 
-**THE BARE SURFACES ARE SESSION 72's SCATTER.** The promenade, the exchange plaza, the mast parapet
-and the exit road's verges are the same defect: session 72 measured 1.2 % of luminance range across
-a whole foreground and established that terrain per-vertex colour cannot carry a feature finer than
-64 m. An instanced scatter is the only arm left and it is a session, not an item.
+**Choosing by the number is worth sixteen metres of earthworks.**
+
+**AND THE OBVIOUS SITING IS THE ONE THE NUMBER REFUSES.** The instinct is to put it beside the road.
+The best platform within 1 km of the exit road has **11.15 m of relief and needs a 7.70 m cut** —
+worse than the wall item 0c warned about. So item 0c's *"if the site needs choosing again to keep the
+cut plausible, choose again"* is what was done.
+
+**IT IS STILL 280 m FROM THE ROAD, AND THE SURVEY NEARLY MOVED IT FOR THE WRONG REASON.** The ranking
+reported |centre − road| = 1 780 m, which reads as a long way. The centre is the wrong end to measure
+from: the runway runs from z = 250 to 3 250 and the exit road at this x is z = −30, so **the south
+threshold is 280 m from the road** and the apron is at that end. A number computed correctly and used
+as a different quantity — CONTRACT §9's own subject, caught in a survey instead of in a frame.
 
 ---
-## 3. THE POSES THAT DO NOT SHOW THEIR SUBJECT — item 1c
+## 2. A GROUND RECTANGLE CANNOT CUT — AND THE FRAMES ARE WHAT FOUND IT
+
+This is the session's real finding and it cost most of its time.
+
+The first arm levelled the platform at the terrain's **median**, which balances cut against fill and
+is the right answer to the earthworks question. **It is the wrong answer to the rendering one.** The
+fence rendered. The lights rendered. The runway, the taxiway, the apron and the platform grass were
+invisible **from directly above them**.
+
+**A ground rect is a flat quad laid OVER the terrain, and `block.js`'s terrain IS the earth plane** —
+session 63's own sentence, *"the terrain is the earth plane and not a surface over it"*. Every part of
+a platform levelled below the ground it covers is simply underneath the world, and the ground wins.
+At the median, half of it was.
+
+`harbourSite` had this right in one word and nobody had needed to generalise it: `clearM`, *"metres a
+platform stands above the highest ground along its own landward edge … enough that the terrain cannot
+poke through a level plate"*. A quay privileges its landward edge because its seaward one is under
+water; **a runway has no edge to privilege, so the maximum over the whole platform governs.**
+
+> **CUT IN THIS ENGINE IS ALWAYS FILL.** There is no mechanism that removes ground. Item 0b's *"the
+> ground yields, the runway does not"* is delivered entirely by session 65's cut face drawing a riser
+> DOWN from the platform, and the number that matters is not the relief about the median but the drop
+> to the lowest ground the platform covers.
 
 ```
-  weir-street     shows a brick street and no weir
-  stack-street    shows a blank cream wall and no stack
-  country-air     shows the BACKS of the villas at 710 m and reports them as dark
+  platform level      10.292 m        = the maximum over 1 007 samples, + 0.4 m clearance
+  relief               2.865 m
+  the riser at the lowest corner       3.265 m   — a bank, not a wall
 ```
 
-The third is the one worth carrying: **it was not a pose that showed nothing, it was a pose that
-answered wrongly**, and five sessions of STATE repeated its answer. `viaduct-under` is the same
-class and was named in session 71. That is three of nineteen committed poses.
+**AND THE DELIVERED PLATFORM IS NOT THE SURVEYED ONE**, which is worth saying because the two numbers
+differ. The survey scored 3 000 × 620 m strips; the built platform is 738 m wide because it carries
+the taxiway and the apron as well, and a wider footprint picks up more relief — 1.28 m becomes 2.87 m.
+The site is still the best of 3 851 and the riser is still a bank.
 
 ---
-## 4. CONTRACT §9.2 — A CITY DEFAULT TRAVELS UNQUESTIONED
+## 3. WHAT IS BUILT
 
-Item 4a, written before the round was shot. Three instances, each found by eye and none by a gate,
-and nobody had noticed it was the third: `block:ground`'s (0,0) porosity carried from under a city
-into every field in the world; 42 promenade lamp stations standing in the sea; and session 72's
-branch road at `kind: 'road'` falling through to a full mirror on a rural spur off a road session 65
-had already measured at 0.70.
+All horizontal, all of it:
 
-**It survives for a reason §9.1's variants do not:** the default is CORRECT at the place it was
-written, so every reader near the origin confirms it — and `citycheck`'s region is one 10 × 10
-square about the origin, so the whole class lives outside the only gate that could see it. The
-section proposes no gate and says why.
+```
+  runway      3 000 x 45 m with 7.5 m shoulders, centreline dashed 30 on 30 off,
+              continuous edge stripes, touchdown-zone bars thinning with distance
+  thresholds  eight piano keys, a threshold bar, an aiming point 400 m in, and
+              fifteen housings carrying a GREEN wing bar out and a RED one in
+  taxiway     parallel at 118 m, 23 m wide, three links
+  apron       320 x 300 m at the threshold end the road arrives at
+  perimeter   254 fence segments, a gate at the spur, a service road inside it
+  approach    30 stations over 900 m beyond the south threshold, a five-light
+              crossbar every 150 m — item 3a's "single most recognisable light
+              pattern there is"
+  and         a windsock and a beacon. The beacon is LIT AND DOES NOT SWEEP:
+              nothing animates a feature, so a rotating beacon is `river.js`'s
+              mover mesh and a different item. Said rather than implied.
+```
 
-**Item 4b's fourth was looked for and not found on this round.** Nothing else in the twenty-two
-frames pointed at a city value carried past `CITY.extentEdgeM`. That is a null and it is reported
-as one.
+**SIX NEW GROUND KINDS, EACH IN ALL THREE TABLES** — `GROUND_ALBEDO`, `porosityFor` and
+`CATEGORY_FOR_GROUND`, whose fall-throughs are pavement, a mirror and claims-nothing respectively.
+Porosity is `EXIT_ROAD`'s own MTD model, which is the one that can resolve sealed surfaces at all:
+
+```
+  afRunway    MTD 1.0 mm   0.40    grooved PQC — 6 mm grooves at 32 mm centres, and
+                                   grooving EXISTS to stop a runway ponding
+  afTaxi      MTD 0.8      0.25    plain asphalt, nearer the city anchor
+  afApron     MTD 1.1      0.455   `portApron`'s brushed concrete
+  afShoulder               0.60    asphalt-bound stone
+  afGrass                  1.00    turf, session 55
+```
+
+The access spur is **`portRoad` and not `road`**, which is session 72's finding applied before the
+defect rather than after it — CONTRACT §9.2's third instance was exactly this.
+
+**NOTHING HERE REGISTERS AN OCCUPANCY CLAIM**, following the harbour's precedent — session 66's
+*"water and its works are not claims"*, one landscape over.
 
 ---
-## 5. THE COST, AND IT MOVED FOR THE FIRST TIME SINCE SESSION 67
+## 4. THE FOUR PREMISES
 
-```
-  highway_speed   404 draws of 440        was 401 for six sessions      +3
-                  2 466 960 tris          was 2 451 648                 +15 312
-```
-
-**+3 draws is one box mesh per landmark and it is not avoidable.** The exchange and the dish had no
-boxes at all before — only a lathe — so `landmark:exchange` and `landmark:dish` did not exist as
-instanced meshes, and the condenser's own boxes were all steel. Ribs are boxes and boxes need a mesh.
-
-**AND THE FIRST ARM COST +12 RATHER THAN +3.** `push` owns each box by its own position, so a rib
-ring at a 62 m radius spilled across four chunks and three chunks that had held no landmark box
-acquired one — 413 draws. `lathe` twenty lines up already states the rule: *"a lathe is one mesh, so
-it cannot be split between chunks: the chunk holding its axis owns it."* A rib IS the lathe it sits
-on. `pushCore` skips the per-box test and the caller checks the axis once. 413 → 404.
-
-+15 312 triangles is 8.6 % of the 178 352 the brief granted, for three landmarks that each filled the
-frame named after them with nothing at all.
+| | premise | verdict |
+|---|---|---|
+| (i) | `city:signs`' ring ≤ 5 reaches the airport site | **TRUE, and the reason in the brief is not the reason.** The ring is measured from the CAMERA, not the origin, so distance from the city is irrelevant and the harbour's 3.5 km never mattered. The real constraint is the opposite one: the ring is only 640 m, so you must be AT the airfield to see any of it — §0. |
+| (ii) | the site can be found where the cut riser stays plausible | **TRUE with room.** 1.28 m of relief on the surveyed strip, a 3.27 m riser on the delivered platform, against a 17.29 m median site. §1, §2 |
+| (iii) | an axis-aligned runway needs no rotated ground claim | **TRUE, and it was never tested against an alternative.** Everything here is an axis-aligned rect and the ground record still has no orientation field. The cost of an angled runway is unpaid and unmeasured. |
+| (iv) | runway edge rows, threshold and approach lighting fit in ONE draw | **HALF TRUE, AND THE HALF THAT FAILS IS THE ONE THAT MATTERS.** They fit — no new draw, no new mesh, no cluster slot. **They also do not appear.** §6 item 1. |
 
 ---
-## 5b. AND A GATE CAUGHT THE SESSION, FOR THE SECOND TIME IN THREE
+## 5. THE COST
 
-**The first battery came back with a FIFTH RED — `windcheck`, green since session 53.**
+**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE NINTH SESSION RUNNING.**
 
 ```
-  landmark:exchange   1152 tris  242 inst  shell open  nrmAgree derived  facing —  UNMEASURED
-  ✗ coverage: 1 cull-eligible mesh(es) decided by no test — landmark:exchange
+  highway_speed   404 draws of 440              IDENTICAL TO SESSION 73
+                  2 466 960 tris of 2 630 000   IDENTICAL TO SESSION 73
+
+  gate            exit   verdict   seconds  load1 in
+  parsecheck         0     GREEN       3.9      4.30
+  faultcheck         0     GREEN      28.5      4.12
+  lookcheck          1       RED      50.6      3.93    THE IDENTICAL THREE
+  windcheck          0     GREEN      41.2      3.62    and session 73's lesson held
+  inputcheck         0     GREEN      17.5      3.77
+  gateaudit          1       RED      77.9      3.96
+  citycheck          1       RED     125.7      4.03    IDENTICAL TO SESSIONS 57-73
+  perfcheck          1       RED    1095.5      3.95
+
+  4 of 8 RED — the same four as sessions 53-73. NO FIFTH RED.
 ```
 
-`lathe` names its mesh `landmark:<name>` with an empty suffix and `addInstanced` named the BOX mesh
-the same. **Until this session no landmark had both a lathe and a plain box** — the condenser's crown
-is steel and goes to `:steel` — so the collision was unreachable. The ribs gave the dome, the cone
-and the hyperboloid all three at once, and `windingCensus` keys by MESH NAME: the two rows merged
-into one carrying the lathe's `noctisNormalsDerived`, which suppresses the normal test, and the
-boxes' instance count, which made the facing test decline. **Nothing decided it.**
+**AN ENTIRE AIRFIELD COST NOTHING ON THE BINDING ROUTE**, which is what being 5 km out and off every
+route buys: the runway, the taxiway, the apron, 254 fence segments, 82 lighting features and six new
+ground kinds move neither number by one.
 
-That is the rule working. `windcheck`'s own sentence — *"a census that declines is §7.1's quiet gate
-wearing a census"* — names this exact failure, and a mesh no test decides is what it exists to catch.
-`landmark:<name>:mass` for the boxes; `budget.json` → `requiredMeshes` matches `^landmark:` as a
-prefix, and `citycheck` is byte-identical after the rename.
+**`windcheck` STAYED GREEN**, and that is session 73's lesson holding rather than luck: its fifth red
+was a lathe and a box mesh sharing `landmark:<name>`, and the constraint list named an airfield as
+*"the exact shape of that collision"*. Nothing here adds a mesh at all — every surface is a rect in
+`city:ground`, every box is a chunk `:masses` instance and every light is a `city:signs` quad.
 
-**Session 71's flood-mast heads went 5 → 12 forbidden overlaps while every frame looked fine.
-Session 73's mesh name went unmeasured while every frame looked fine.** Two sessions in three where
-the gate caught the session rather than the world, and in both cases no frame could have.
+**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–73**: CV 0.393, 5 forbidden overlaps, 2 of 2 647 signs,
+1 004 of 284 918 bare samples, occupancy 18 799 / 19 087.
 
 ---
-## 6. GATE STATE
+## 6. WHAT TO DO FIRST NEXT TIME
 
-**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE EIGHTH SESSION RUNNING.** The
-battery below is the SECOND of two: the first is what caught §5b's fifth red, and this one ran on
-what ships.
+**1. THE AIRFIELD LIGHTS ARE BUILT AND THEY DO NOT APPEAR. THIS IS THE FIRST THING TO FIX.**
 
-```
-  gate            exit   verdict   seconds  load1 in     out
-  parsecheck         0     GREEN       4.0      4.72    4.90
-  faultcheck         0     GREEN      28.9      4.90    4.66
-  lookcheck          1       RED      50.9      4.66    4.53    THE IDENTICAL THREE
-  windcheck          0     GREEN      41.0      4.53    4.76    RED IN THE FIRST BATTERY
-  inputcheck         0     GREEN      17.4      4.76    4.80
-  gateaudit          1       RED      78.8      4.80    4.42    the carried `control failed`
-  citycheck          1       RED     126.9      4.42    5.69    IDENTICAL TO SESSIONS 57-72
-  perfcheck          1       RED    1100.0      5.69    2.99
+The night frame WAS taken —
+`node tools/lookat.mjs --pos=4750,30,-430 --target=4750,10,400 --fov=55 --t=0.0` — and it is black.
+Not dim: black, at full resolution, along the centreline where thirty approach stations stand.
 
-  4 of 8 RED — the same four as sessions 53-72, after §5b.
-```
-
-**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–72 ON EVERY COUNT**, which is worth saying because
-this session put 1 276 new boxes on three landmarks INSIDE its 10 × 10 region: clumping CV **0.393**,
-**5** delivered forbidden overlaps, **2 of 2 647** signs inside a building, **1 004 of 284 918** bare
-walkable samples, occupancy **18 799 / 19 087**. A landmark's own geometry is not a claim and the
-ribs did not make it one.
-
-`lookcheck`'s three are `distinct:midnight|dusk` at **0.02846**, `facadeAlbedo` and
-`facadeNeighbours` — the same three at the same numbers as sessions 53–72.
-
-**EVERY `perfcheck` VIOLATION IS CARRIED OR IS A TIMING ABSOLUTE FROM A LOADED MACHINE**, at `load1`
-**5.69** against CONTRACT §0.2's bar of 1.6. The non-timing ones:
+What is established:
 
 ```
-  night_rain      frame entropy  4.859   per run 4.856 / 4.876 / 4.859   floor 5
-  highway_speed   dark gap at the ground   69% of 64 vehicles   floor 75%
-  highway_speed   non-monotone tone        58% of 64 vehicles   floor 75%
+  the features generate           30 afapproach, 50 afstrip, 2 afthresh, counted off
+                                  `generateChunk` in the chunks the camera has resident
+  the features RENDER             the perimeter fence is in a daylight frame, and the
+                                  fence and the lights come out of the same feature loop
+  the daylight runway renders     centreline, edge stripes, TDZ bars, edge-light housings
+  the cost is zero                404 draws and 2 466 960 triangles, both identical to
+                                  session 73 — so the quads are in `city:signs` as intended
 ```
 
-The silhouette bars have now read 75/52 over 71 vehicles, 70/58 over 64, 71/54 over 59 and 69/58 over
-64 across sessions 70–73 with nothing in the routes changed — the sampling population
-`silhouettes.$estimator` describes. **And they are §0's own list item 4: those two bars are measuring
-the vehicles this round's plain words call featureless.**
+Three causes ruled out. **Opening hours**: `signHourFactor(ctx, null)` returns 1 and `glow()` pushes
+`signTrade.push(null)`, so a nightfall dimming is not it. **Brightness**: these are 258 to 645 nits
+against the villas' 73, which session 73 saw at 380 m. **Generation**: counted.
 
----
-## 7. WHAT TO DO FIRST NEXT TIME
+What is NOT established is why. **The next session should start here**, and the cheapest instrument is
+the villa comparison — session 73's `villa-city` pose lights through the identical route, so an A/B
+between a villa glow and an airfield glow at one camera separates the route from the site.
 
-**1. THE COUNTRYSIDE ROAD IS STILL BLACK.** The villas are lit; the road is not. `country-car` at
-midnight has no studs, no reflective markings, no lighting of any kind — LOOK.md §0's *"it is no fun
-when you cannot see anything"* on the main road out of the city. The `glow()` route reaches ring ≤ 5
-and the exit road is drawn by `block.js`, which does not have it — that is the one piece of
-plumbing between here and a lit road.
+**2. SESSION 75's HALF: the terminal, the hangars and the aircraft.** The apron has stand markings
+and nothing on them, which is the state the split intended.
 
-**2. VEHICLES HAVE NO BACK — §2.** The loft is why it was deferred, not whether it is worth doing.
-You see rears constantly.
+**3. `country-air`-CLASS POSES.** Session 73 found three of nineteen committed poses that do not show
+their subject. This session added no committed pose at all; the three frames above are `--pos`
+arguments in a STATE file, which is exactly the *"a frame produced by a command in a shell nobody
+kept"* that `poses.mjs` exists to prevent. **Put them in `poses.mjs`.**
 
-**3. THE NEAR-FIELD SCATTER — §2, and session 72 named it first.** It is the answer to five separate
-observations in this round's plain-words list.
+**4. THE 640 m GROUND RING IS NOW A DESIGN CONSTRAINT AND NOT A DETAIL.** Anything longer than
+1 280 m cannot be seen whole. The runway is the first object in this world that exceeds it; the
+viaduct at 480 m and the harbour at 448 m never did.
 
-**4. FIND THE COUNTRYSIDE'S TREE.** The round says cubes and session 22's city tree is not one.
-
-**5. THE THREE STANDING ITEMS, ALL UNTOUCHED.** `perfcheck` captures with no `settle()`; its entropy
-floor is a §0.1 case in the open; the four `trade-*` look frames differ run to run by 3.1–8.1 MB,
-entirely in the vehicles.
+**5. THE THREE STANDING ITEMS.** `perfcheck` captures with no `settle()`; its entropy floor is a
+§0.1 case in the open; the four `trade-*` look frames differ run to run by 3.1–8.1 MB, entirely in
+the vehicles.
