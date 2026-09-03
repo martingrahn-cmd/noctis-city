@@ -2448,6 +2448,55 @@ when they should not have.
 Measure before theorising. A theory about why a frame looks wrong costs an hour;
 printing the number costs a minute and is right more often.
 
+### 9.2 A city default travels unquestioned — session 73, and it is three already
+
+The table above is *a number computed correctly and then used as a different
+quantity*. §9.1's two variants are that failure at one remove. **This one is at
+two removes and it is the one this project keeps repeating**: a value that was
+correct where it was chosen, carried into somewhere it was never chosen for, by
+code that had no opinion about place at all.
+
+**THE TELL IS A DEFAULT THAT NOBODY PICKED FOR THE GROUND IT ENDED UP ON.** Not
+a wrong number — a right number in the wrong county. All three below were found
+by eye, none by a gate, and each was found separately without anyone noticing it
+was the third:
+
+- **`block:ground`'s porosity, (0,0) since session 1.** The earth plane was
+  under the city and impervious was what it was. Session 63 made the same plane
+  the COUNTRYSIDE — *"the terrain IS the earth plane and not a surface over
+  it"* — and a default chosen for asphalt became the reflectance of every field
+  in the world. Invisible for sixty-two sessions because until then it had never
+  been visible land.
+- **42 promenade lamp stations standing in the sea**, on a seabed 57–61 m down.
+  The promenade's own station spacing is right for a promenade; nothing in it
+  asks whether the bank it is spacing along is still a bank at x = 4 000.
+- **The harbour's branch road at `kind: 'road'`**, which falls through
+  `city.js`'s `porosityFor` to **0.0** — dense-graded city asphalt, a full
+  mirror at this project's wet convention. It is a hundred-metre spur off the
+  exit road, and session 65 had already measured THAT ROAD at **0.70** from the
+  sand-patch model. Two roads, one junction, one of them carrying an arterial's
+  sheen across a field. Session 72, and the operator found it by looking at it.
+
+**WHY IT SURVIVES, AND IT IS NOT THE SAME REASON §9.1's VARIANTS DO.** Those
+survive because their number is only read far away. This one survives because
+**the default is correct at the place it was written**, so every reader near the
+origin confirms it. The city's own gates cannot see it by construction:
+`citycheck`'s region is one 10 × 10 chunk square about the origin (§4b), and the
+whole class lives outside it.
+
+> **A value carried past `CITY.extentEdgeM` is a value that has changed
+> counties. Anything built for the city and reused beyond r ≤ 3 232 m is a
+> candidate — signage, kerbs, drainage, lamp spacing, road surfacing, pedestrian
+> behaviour, vehicle speeds, tree species — and the question to ask of it is not
+> "is this number right" but "was this number ever chosen for HERE".**
+
+The remedy is not a gate and this section does not propose one: three instances
+in seventy-three sessions is not a rate a check pays for, and the check would
+have to know what "chosen for here" means. **The remedy is that a session which
+extends the world asks the question of every default it inherits**, and writes
+the answer down beside the extension — which is what session 72's `portRoad`
+reading `exitRoadPorosity` rather than a literal is.
+
 ---
 
 ## 10. Session ritual
