@@ -9548,8 +9548,27 @@ export function createCity(options = {}) {
         break;
     }
 
+    /**
+     * `:mass` AND NOT THE BARE NAME — SESSION 73, AND `windcheck` FOUND IT THE
+     * HOUR IT BECAME POSSIBLE.
+     *
+     * `lathe` above names its mesh `landmark:<name>` with an empty suffix, and
+     * this line named the BOX mesh the same. Until session 73 no landmark had
+     * both a lathe and a plain box — the condenser's crown is steel and goes to
+     * `:steel` — so the collision was unreachable. Session 73's ribs gave the
+     * dome, the cone and the hyperboloid all three, and `windingCensus` keys by
+     * MESH NAME: the two rows merged into one that carried the lathe's
+     * `noctisNormalsDerived` (so the normal test was skipped) and the boxes'
+     * instance count (so the facing test declined), and the merged row came
+     * back **unmeasured**. `windcheck` failed on its own coverage rule —
+     * *"a census that declines is §7.1's quiet gate wearing a census"* — which
+     * is exactly the rule working.
+     *
+     * `budget.json` -> `requiredMeshes` matches `^landmark:` as a PREFIX, so a
+     * suffix keeps that assertion satisfied.
+     */
     bytes += addInstanced(
-      group, geometries.box, materials.facade, boxes, `landmark:${l.name}`, skin, true,
+      group, geometries.box, materials.facade, boxes, `landmark:${l.name}:mass`, skin, true,
       { chunk: `landmark:${l.name}`, landmarkBoxes: boxes.length }
     );
     bytes += addInstanced(
