@@ -17,12 +17,21 @@ Branch `claude/noctis-76-the-night`, off session 75's head.
 
 ```
   node tools/lookat.mjs --preset=af-apron,af-hangar,af-forecourt,af-approach --t=0
-  node tools/lookat.mjs --pos=5180,26,270  --target=5180,10,470 --fov=56 --t=0 --name=af-apron-back
-  node tools/lookat.mjs --pos=5151,20,645  --target=5151,8,500  --fov=62 --t=0 --name=af-hangar-back
+  node tools/lookat.mjs --pos=5180,26,270 --target=5180,10,470 --fov=56 --t=0 --name=af-apron-back
+  node tools/lookat.mjs --pos=5086,12,600 --target=5090,8,470  --fov=62 --t=0 --name=af-hangar-out
 ```
 
-The last two are the OPPOSED BEARINGS and they are half of this session's method, not an
-appendix. One of them found the defect the committed pose cannot see (§3).
+**THE LAST TWO ARE THE OPPOSED BEARINGS AND THEY ARE HALF OF THIS SESSION'S METHOD, NOT AN
+APPENDIX. EACH OF THEM FOUND SOMETHING THE COMMITTED POSE CANNOT SHOW** — §3 and §1d — and between
+them they cost two frames.
+
+> A third was taken and is NOT in that list, because it does not do what its name said.
+> `--pos=5151,20,645 --target=5151,8,500` was meant to oppose `af-hangar`; it stands in the gap
+> BETWEEN two hangars and looks down a corridor at a slot of apron. It is a real frame of a real
+> thing and it opposes nothing. `af-hangar-out` stands inside the open hangar and looks back out,
+> which is the bearing that actually reverses the door view. **A pose that does not do what it is
+> named for is session 73's finding, and it took one look at the delivered PNG to catch — which is
+> the entire argument for looking at them.**
 
 ---
 ## 0. WHAT LIGHTS THE GROUND IN THIS PROJECT — ITEM 1, AND THE BRIEF'S FIRST PREMISE IS FALSE
@@ -89,17 +98,17 @@ whole. At midnight the measured horizontal ambient is **3.24 lx**, of which `moo
   87.8% of every surface in the frame under 16/255
 ```
 
-**192 lamp slots and 16 sign slots stood parked below the world at zero intensity while sessions 74
-and 75 built a hundred and thirty emitters five kilometres away.** A terminal, two piers, three
-hangars, a tower, six aeroplanes and 44 approach stations, and the field's own concrete was code
-value 10.
+**192 LAMP SLOTS AND 16 SIGN SLOTS STOOD PARKED BELOW THE WORLD AT ZERO INTENSITY** while sessions
+74 and 75 built roughly five hundred and seventy emitting quads five kilometres away. A terminal,
+two piers, three hangars, a tower, six aeroplanes and 44 approach stations, and the field's own
+concrete was code value 10.
 
 ### 0d. WHICH MAKES ITEM 1d's QUESTION ANSWER ITSELF
 
 The brief asked *"if the project has no local ground illumination at all and the city fakes it, say
 what the fake is, and then the item is to extend the fake."* There is no fake, so the item was never
-to build lighting or to extend anything — **it was to emit nine `flood` features.** The whole of §1
-below is a hundred lines of derivation around one existing call.
+to build lighting or to extend anything — **it was to emit thirteen `flood` features.** The whole
+of §1 below is a hundred lines of derivation around one call that was already there.
 
 ---
 ## 1. THE APRON, AND AN AEROPLANE ON A STAND
@@ -200,14 +209,26 @@ in the gaps BETWEEN the hangars — the only ground on that apron no aeroplane c
 the hangar row's 123 m and not this derivation's 87.8, so the hangar apron is lit in three pools with
 dark between them, and **that is a siting the buildings dictate rather than a number anybody chose.**
 
-### 1d. DIRECTIONAL, AND IT SAYS SO — ITEM 3b
+### 1d. DIRECTIONAL — ITEM 3b — AND THE OPPOSED FRAME SAYS THE FIXTURE HAS TWO EMITTERS, NOT ONE
 
-The rack is `glow` and **not** `glowOmni`. Session 75's repair exists for fixtures that are
-omnidirectional IN THE WORLD — a runway edge light is a lens on a stalk in the middle of a field. A
-floodlight has a reflector behind it and a glass front, and the back of one is a black box. Standing
-behind an apron mast you should see the mast and not the lamp, and `materials.sign` being
-`FrontSide` delivers exactly that. **Confirmed in `af-apron-back`**, where the whole south row shows
-as dark bars on posts against the sky.
+The rack is `glow` and **not** `glowOmni`, and that part is right. Session 75's repair exists for
+fixtures that are omnidirectional IN THE WORLD — a runway edge light is a lens on a stalk in the
+middle of a field. A floodlight has a reflector behind it and a glass front, and the back of one is a
+black box. `materials.sign` being `FrontSide` delivers exactly that, and the racks of the whole south
+row are dark bars in `af-apron-back`.
+
+**AND THE MASTS ARE STILL LIT FROM BEHIND, WHICH I ONLY FOUND BECAUSE I LOOKED.**
+`tools/shot-out/af-hangar-out-s76-t0-wet.png` stands inside the open hangar looking 350 m south, so
+every mast in it is seen from its back, and **two of them have bright white heads.** That is not the
+rack. `city.js`'s `flood` branch has pushed a `city:bowls` instance at the head since session 21 —
+one global emissive intensity, no per-instance channel, and **omnidirectional by construction** —
+and it is the emitter you actually see from behind.
+
+> **A FIXTURE IS NOT AN EMITTER, AND ITEM 3b's RULE HAS TO BE DECLARED PER EMITTER.** This mast
+> carries two that disagree: a directional rack and an omnidirectional bowl, in two different meshes
+> with two different reach rings. Saying "an apron flood is directional" is true of the half I wrote
+> and false of the half I inherited. Neither is wrong — a real floodlight housing does have a bright
+> body — but the claim as I first recorded it was wrong, and one opposed frame is what cost it.
 
 ---
 ## 2. TWO DEFECTS FOUND ON THE WAY, BOTH CONTRACT §9 CLASSES
@@ -269,8 +290,9 @@ Identical in every quantity.
 ---
 ## 3. THE OPPOSED BEARINGS, AND WHAT THE SECOND ONE FOUND
 
-Item 3c cost two frames and it earned them. `af-apron-back` stands at z 270, south of the stands,
-looking north — the reverse of the committed pose.
+Item 3c cost two frames and it earned them. `af-apron-back`
+(`tools/shot-out/af-apron-back-s76-t0-wet.png`) stands at z 270, south of the stands, looking north —
+the reverse of the committed pose.
 
 **THE AEROPLANES' SOUTH FACES ARE DARK, AND THE COMMITTED POSE CANNOT SHOW IT.** From `af-apron` the
 north faces are lit and the frame is honest; from the other side every airframe is a silhouette with
@@ -502,7 +524,15 @@ stale sentence that put this claim in a brief.
 
 **7. THE APRON PEDESTRIANS ARE STILL A CITY DEFAULT THAT TRAVELS.** STATE 75 §6 item 3 flagged them
 by eye. They are now LIT, which makes them countable: `af-hangar` has four people standing in a flood
-pool on the airside of a fence at midnight. Same class as §5 above.
+pool on the airside of a fence at midnight, and `af-apron` has a dozen more. Same class as §5 above,
+and this session's floodlighting is what turned "measured only by eye" into "visible in a committed
+frame".
+
+**7b. THE FLOODLIT APRON FORESHORTENS TO NOTHING FROM A LOW EYE AT RANGE.** `af-hangar-out` looks
+350 m down the field from 12 m up and the concrete between the masts reads black, while the same
+concrete at 60–120 m in `af-apron` and `af-hangar` reads as lit. That is what a 20 lx pool does at
+grazing incidence and it is not obviously a defect — but it is the answer to *"how far does an apron
+read"*, and nobody has asked what the field should look like from the runway.
 
 **8. THE THREE STANDING ITEMS, UNCHANGED.** `perfcheck` captures with no `settle()`; its entropy
 floor's margin is smaller than its spread (§0.1 with a statistic instead of a millisecond); the four
