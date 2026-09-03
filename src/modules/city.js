@@ -4878,12 +4878,27 @@ export function createCity(options = {}) {
           put(0, 0.14, 0, 0.9, 0.28, 0.9, [0.30, 0.298, 0.288], 0.9);
           put(0, f.height * 0.5, 0, 0.20, f.height, 0.20, [0.34, 0.345, 0.352], 0.55);
           /**
-           * AND A HEAD ON IT — session 71. A flood mast whose lamp is not lit
-           * is a pole, and this one had 14 m of pole and nothing on top. The
-           * head is a box on the structure mesh and the LIGHT is a quad on the
-           * sign mesh, aimed the way `f.aimX/aimZ` already says the mast is.
+           * AND A HEAD ON IT — session 71, ON THE HARBOUR'S MASTS AND NOT ON
+           * EVERY MAST IN THE CITY.
+           *
+           * A flood mast whose lamp is not lit is a pole, and this one had 14 m
+           * of pole and nothing on top. The first arm gave the head to every
+           * `flood` — and there are NINE emitters of that kind, all of them
+           * passing `aimX`, so `f.aim` cannot tell a quay mast from a
+           * construction site's. `citycheck` said so within the hour:
+           * **forbidden delivered overlaps went 5 -> 12**, the new ones
+           * `prop(bin) x site(flood:)` at 0.034 m2 and `prop(cabinet) x
+           * site(flood:)` at 0.169 m2, and the delivered sign quads in its
+           * region went 2 647 -> 2 713. A 2.6 x 1.2 m head on a 0.20 m mast
+           * claims thirteen times the ground the mast does, and 66 of them
+           * stand in a city that was laid out around a pole.
+           *
+           * `f.head` is set by the harbour's emitter and by nothing else, which
+           * is the honest scope for a change made for the harbour. CONTRACT
+           * rule 5's shape with a bin in it: a gate's number moved as a side
+           * effect of a change aimed somewhere else.
            */
-          {
+          if (f.head) {
             const ax = (f.aimX == null ? f.x : f.aimX) - f.x;
             const az = (f.aimZ == null ? f.z : f.aimZ) - f.z;
             const aim = (Math.atan2(ax, az) * 180) / Math.PI;

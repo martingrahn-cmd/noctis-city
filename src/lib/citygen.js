@@ -17908,7 +17908,7 @@ export function generateChunk(rootSeed, cx, cz) {
          */
         for (const q of [[H.x0 + 84, H.yardZ - 2], [(H.x0 + H.x1) / 2 - 12, H.yardZ - 2], [H.x1 - 100, H.yardZ - 2]]) {
           if (q[0] < b.x0 || q[0] >= b.x1 || q[1] < b.z0 || q[1] >= b.z1) continue;
-          features.push({ kind: 'flood', x: q[0], z: q[1], height: 14.0, aimX: (H.x0 + H.x1) / 2, aimZ: H.quayZ });
+          features.push({ kind: 'flood', x: q[0], z: q[1], height: 14.0, head: 1, aimX: (H.x0 + H.x1) / 2, aimZ: H.quayZ });
         }
 
         /**
