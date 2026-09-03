@@ -41,7 +41,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, WATER, WATER_BODY, PORT_ALBEDO } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, WATER, WATER_BODY, PORT_ALBEDO, AIRFIELD_ALBEDO } from '../core/constants.js';
 /**
  * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
  * occupancy*. The advertising pillar's placement test asks this rather than
@@ -1834,6 +1834,19 @@ export function createCity(options = {}) {
       portWorn: PORT_ALBEDO.worn,
       /** The harbour's access spur. `road`'s own reflectance; see the porosity. */
       portRoad: roadAlbedo,
+      /**
+       * THE AIRFIELD — SESSION 74, and every one has its own row for CONTRACT
+       * §9.2's reason: a runway that borrowed `road` would borrow dense-graded
+       * city asphalt's reflectance AND its 0.0 porosity, which is the exact
+       * shape of the defect session 72 found on the harbour's spur.
+       */
+      afRunway: AIRFIELD_ALBEDO.runway,
+      afShoulder: AIRFIELD_ALBEDO.shoulder,
+      afTaxi: AIRFIELD_ALBEDO.taxi,
+      afApron: AIRFIELD_ALBEDO.apron,
+      afService: AIRFIELD_ALBEDO.taxi,
+      afGrass: AIRFIELD_ALBEDO.grass,
+      afPaint: AIRFIELD_ALBEDO.paint,
     };
     const albedoFor = (kind) => GROUND_ALBEDO[kind] || walkAlbedo;
     /** Scratch for the per-rectangle tone below. `quad` copies out of it. */
@@ -1948,6 +1961,35 @@ export function createCity(options = {}) {
                  * cannot drift apart. Session 65: `1 - 0.6/2.0` = 0.70, rural
                  * surface dressing against dense city asphalt.
                  */
+                /**
+                 * THE AIRFIELD — SESSION 74, ON `EXIT_ROAD`'s OWN MTD MODEL,
+                 * which is the one that can resolve sealed surfaces at all.
+                 *
+                 *   surface        MTD mm   1 - 0.6/MTD   what it is
+                 *   afRunway       1.0      0.40          grooved PQC: 6 mm
+                 *                                         grooves at 32 mm
+                 *                                         centres, and grooving
+                 *                                         EXISTS to stop a
+                 *                                         runway ponding
+                 *   afTaxi         0.8      0.25          plain asphalt, no
+                 *                                         grooving, nearer the
+                 *                                         city anchor
+                 *   afApron        1.1      0.455         `portApron`'s own
+                 *                                         brushed concrete
+                 *   afShoulder     —        0.60          asphalt-bound stone
+                 *   afGrass        —        1.00          turf, session 55
+                 *   afPaint        —        0.40          it is the runway
+                 *                                         under 0.2 mm of paint
+                 *
+                 * A GROOVED RUNWAY IS THE LEAST POND-PRONE SEALED SURFACE THERE
+                 * IS and that is not a taste: grooving is installed for exactly
+                 * this and nothing else.
+                 */
+                : kind === 'afRunway' || kind === 'afPaint' ? 0.40
+                : kind === 'afTaxi' || kind === 'afService' ? 0.25
+                : kind === 'afApron' ? PORT_POROSITY.apron
+                : kind === 'afShoulder' ? 0.60
+                : kind === 'afGrass' ? 1.0
                 : kind === 'portRoad' ? exitRoadPorosity(Infinity)
                 : kind === 'portApron' ? PORT_POROSITY.apron
                   : kind === 'portGravel' ? PORT_POROSITY.gravel
@@ -1995,6 +2037,20 @@ export function createCity(options = {}) {
       portApron: 'ground',
       portGravel: 'ground',
       portWorn: 'ground',
+      /**
+       * SESSION 74's SIX. Surfaces things stand on, and the rows are written
+       * for session 31's reason rather than discovered for it: an unmapped kind
+       * matches no `CATEGORIES` entry, `mayOverlap` returns true against
+       * everything, and the surface claims nothing at all. `afPaint` is
+       * deliberately absent for the reason `road` is: paint is not a surface
+       * anything stands on, it is a surface's own marking.
+       */
+      afRunway: 'ground',
+      afShoulder: 'ground',
+      afTaxi: 'ground',
+      afApron: 'ground',
+      afService: 'ground',
+      afGrass: 'ground',
       /** A carriageway, like `road`: things do not stand on it. Unmapped in
        *  `CATEGORY_FOR_GROUND` is what `road` itself is, and this matches it. */
       /**
@@ -5228,6 +5284,144 @@ export function createCity(options = {}) {
             put(legHalf + 4.5, portalY * 0.55, g - 6.0, 1.2, portalY * 0.9, 1.2, [0.55, 0.42, 0.06], 0.66);
             put(legHalf + 4.5, portalY + 1.4, g - 6.0, 2.6, 1.4, 2.6, dark, 0.7);
           }
+        } else if (f.kind === 'afstrip') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * 60 METRES OF RUNWAY — SESSION 74, ITEMS 1d AND 3a.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"THE MARKINGS ARE WHAT MAKE IT READ."* A 3 km grey rectangle is a
+           * car park; what makes it a runway is a dashed centreline running to
+           * a vanishing point, touchdown-zone bars in pairs, and two rows of
+           * edge lights at 60 m.
+           *
+           * PAINT IS A BOX AND NOT A GROUND RECTANGLE, and that is the one
+           * decision here worth stating. A ground rect is flat at one `y` and
+           * `worldSurface` takes the MAXIMUM, so a paint rect 12 mm over the
+           * runway would become the surface the player walks on and the census
+           * counts. A 12 mm box laid on the plate is paint.
+           *
+           * THE LIGHTS GO THROUGH `glow()`, which is `city:signs` — ring <= 5,
+           * per-instance emissive, and NO CLUSTER LIGHT SLOT. Session 71's
+           * route, and the reason an airfield's whole diagram costs no draw.
+           */
+          const half = f.wide / 2;
+          const paint = [0.62, 0.62, 0.60];
+          /** The centreline: 30 m on, 30 m off, which is ICAO's own pattern. */
+          put(0, 0.006, -f.run / 4, 0.9, 0.012, f.run / 2, paint, 0.55);
+          /**
+           * THE TOUCHDOWN ZONE, in pairs either side of the centreline. Real
+           * TDZ markings are groups that thin with distance from the threshold;
+           * these thin by station index, which is the same statement.
+           */
+          if (f.tdz) {
+            for (const sx of [-1, 1]) {
+              put(sx * 10.5, 0.006, 0, 1.8, 0.012, 22.5, paint, 0.55);
+              if (f.n % 3 === 0) put(sx * 15.0, 0.006, 0, 1.8, 0.012, 22.5, paint, 0.55);
+            }
+          }
+          /** The edge stripes, continuous down both sides. */
+          for (const sx of [-1, 1]) {
+            put(sx * (half - 0.9), 0.006, 0, 0.9, 0.012, f.run, paint, 0.55);
+          }
+          /**
+           * THE EDGE LIGHTS. White, and they are the row that draws the runway
+           * in the dark. `glow` writes a quad into `city:signs`; the housing is
+           * a 0.3 m box so the row reads by day as well.
+           */
+          if (f.edge) {
+            for (const sx of [-1, 1]) {
+              put(sx * (half + 2.4), 0.16, 0, 0.34, 0.32, 0.34, [0.20, 0.205, 0.21], 0.6);
+              glow(sx * (half + 2.4), 0.30, 0, 0.5, 0.34, 0,
+                EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 6.5);
+            }
+            /** And a centreline light every other station. */
+            if (f.n % 2 === 0) {
+              glow(0, 0.02, 0, 0.5, 0.5, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 3.0);
+            }
+          }
+        } else if (f.kind === 'afthresh') {
+          /**
+           * A THRESHOLD — SESSION 74. The piano keys, the bar, and the lights
+           * that are GREEN one way and RED the other, which is the one piece of
+           * aviation colour everybody knows.
+           *
+           * The feature's own `yawDeg` is 0 at the south end and 180 at the
+           * north, so every offset below is written once in the local frame and
+           * the far end is the same code turned round.
+           */
+          const half = f.wide / 2;
+          const paint = [0.62, 0.62, 0.60];
+          /** Eight piano keys, 30 m long, inside the edge stripes. */
+          for (let k = 0; k < 8; k++) {
+            const u = (k - 3.5) / 4;
+            put(u * (half - 3.2), 0.006, 22, 1.8, 0.012, 30, paint, 0.55);
+          }
+          /** The threshold bar itself, across the full width. */
+          put(0, 0.006, 3.0, f.wide - 2.0, 0.012, 1.8, paint, 0.55);
+          /** The aiming point, two big blocks 400 m in. */
+          for (const sx of [-1, 1]) {
+            put(sx * 11, 0.006, 400, 6.0, 0.012, 45, paint, 0.55);
+          }
+          /**
+           * THRESHOLD LIGHTS: a green wing bar facing out and a red one facing
+           * in, on the same housings, which is what a real threshold has.
+           */
+          for (let k = -7; k <= 7; k++) {
+            const lx = (k / 7) * (half + 2.0);
+            put(lx, 0.16, 1.0, 0.34, 0.32, 0.34, [0.20, 0.205, 0.21], 0.6);
+            glow(lx, 0.30, 0.82, 0.5, 0.34, 0, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 5.5);
+            glow(lx, 0.30, 1.18, 0.5, 0.34, 180, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 5.5);
+          }
+        } else if (f.kind === 'afapproach') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * THE APPROACH ROW — SESSION 74, ITEM 3a, AND IT IS THE SIGNATURE.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"AN APPROACH LIGHTING ROW RUNNING OUT BEYOND THE THRESHOLD — that
+           * row is the single most recognisable light pattern there is."* 900 m
+           * of it, a light every 30 m on the extended centreline, with a
+           * five-light crossbar every 150 m.
+           *
+           * IT STANDS OFF THE PLATFORM, on ground the plate does not reach, so
+           * each mast is a box on the terrain at its own height — which `put()`
+           * seats for free through `worldSurfaceAt`. Approach masts really are
+           * lattice towers that get taller as the ground falls away; these are
+           * short posts, which is the honest version at this budget.
+           */
+          const post = [0.19, 0.195, 0.20];
+          put(0, 0.55, 0, 0.22, 1.1, 0.22, post, 0.7);
+          glow(0, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
+          if (f.bar) {
+            for (const k of [-2, -1, 1, 2]) {
+              put(k * 4.5, 0.55, 0, 0.22, 1.1, 0.22, post, 0.7);
+              glow(k * 4.5, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
+            }
+          }
+        } else if (f.kind === 'afsock') {
+          /**
+           * A WINDSOCK AND A BEACON — session 74, item 3d, and both were close
+           * to free. The sock is a cone of four boxes of falling width, striped;
+           * the beacon is a mast with a lit head. Neither turns: `put` composes
+           * a yaw and the ground's pitch and nothing animates a feature, so a
+           * rotating beacon would be `river.js`'s mover mesh and a different
+           * item. It is lit and it does not sweep, and that is said rather than
+           * implied.
+           */
+          const post = [0.19, 0.195, 0.20];
+          put(0, 3.0, 0, 0.24, 6.0, 0.24, post, 0.7);
+          put(0, 6.2, 0, 1.6, 0.16, 0.16, post, 0.7);
+          for (let k = 0; k < 4; k++) {
+            const w = 0.95 - k * 0.17;
+            put(1.0 + k * 1.15, 6.0, 0, 1.1, w, w,
+              k % 2 ? [0.62, 0.62, 0.60] : [0.55, 0.13, 0.06], 0.8);
+          }
+          /** The beacon, beside it. */
+          put(-6, 4.5, 0, 0.3, 9.0, 0.3, post, 0.7);
+          put(-6, 9.3, 0, 1.0, 0.7, 1.0, [0.16, 0.165, 0.17], 0.6);
+          glow(-6, 9.3, 0.55, 0.9, 0.6, 0, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 9.0);
+          glow(-6, 9.3, -0.55, 0.9, 0.6, 180, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 9.0);
         } else if (f.kind === 'portfence') {
           /**
            * ═══════════════════════════════════════════════════════════════

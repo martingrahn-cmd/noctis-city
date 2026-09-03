@@ -6561,6 +6561,168 @@ export const HARBOUR = {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
+ * THE AIRFIELD — SESSION 74, AND THE SITE WAS CHOSEN BY A NUMBER.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * A runway is 3 km and the city is 3 232 m in radius, so **an airport is the
+ * same size as the city** and cannot sit at its edge. It goes out into the
+ * landscape as its own thing, with the country road reaching it.
+ *
+ * ── ITEM 0a: THE SITE IS CHOSEN BY THE NUMBER, AND HERE IS THE NUMBER ───────
+ *
+ * A runway is flat to a tolerance no landform meets by accident, and session 63
+ * gave the countryside 30.6 m of relief. So every 3 000 x 620 m platform on a
+ * 250 m lattice from -7 500 to +7 500 was surveyed, on both axis-aligned
+ * orientations, rejecting any that touched the city, the sea, the river or a
+ * hill — **3 851 clear platforms** — and each was scored on the relief across
+ * its own 2 525 samples:
+ *
+ *     the WORST of the 3 851        32.03 m
+ *     the MEDIAN                    17.29 m
+ *     the BEST                       1.28 m   <- (4 750, 1 750), runway along z
+ *
+ * **Choosing by the number is worth sixteen metres of earthworks.** The chosen
+ * platform needs a **0.71 m cut and a 0.57 m fill** about its own median level
+ * of 7.59 m — a kerb's worth, which is what item 0c asked for when it warned
+ * that *"a 6 m riser running for kilometres will read as a wall"*.
+ *
+ * ── AND THE OBVIOUS SITING IS THE ONE THE NUMBER REFUSES ────────────────────
+ *
+ * The instinct is to put it beside the road. **The best platform within 1 km of
+ * the exit road needs a 7.70 m cut and has 11.15 m of relief** — worse than the
+ * wall item 0c was worried about. So it is not beside the road, and item 0c's
+ * *"if the site needs choosing again to keep the cut plausible, choose again"*
+ * is what was done.
+ *
+ * IT IS STILL 280 m FROM THE ROAD, AND THE FIRST ARM ALMOST MOVED IT FOR THE
+ * WRONG REASON. The survey ranked sites by |centre − road| and reported this one
+ * at 1 780 m, which reads as a long way. **The centre is the wrong end to
+ * measure from**: the runway runs along z from 250 to 3 250 and the exit road at
+ * this x is z = −30, so the SOUTH THRESHOLD IS 280 m FROM THE ROAD and the
+ * apron sits at that end. A number computed correctly and used as a different
+ * quantity — CONTRACT §9's own subject, caught in a survey rather than in a
+ * frame.
+ */
+export const AIRFIELD = {
+  /** Platform centre, and the runway's own axis. Item 0a chose both. */
+  cx: 4750,
+  cz: 1750,
+  /** 3 000 x 45 m: a runway that takes anything, and ICAO code 4E's width. */
+  runM: 3000,
+  wideM: 45,
+  /** Shoulders either side, which is what a runway strip actually is. */
+  shoulderM: 7.5,
+  /** The parallel taxiway, its offset from the runway centreline, and its width. */
+  taxiOffM: 118,
+  taxiWideM: 23,
+  /** The apron, at the threshold end nearest the road. */
+  apronX0: 150,
+  apronX1: 470,
+  apronDepthM: 300,
+  /** The platform's own margin outside everything on it. */
+  marginM: 60,
+  /** Stations: one feature per this many metres of runway, chunk-safe by
+   *  construction — `quaykit`'s reason, and a 3 km rect is 24 chunks wide. */
+  stationM: 60,
+  /** The approach row, out beyond the south threshold. 900 m is ICAO's. */
+  approachM: 900,
+  approachStepM: 30,
+  /** Light spacing along the runway edge. 60 m is the real figure. */
+  edgeStepM: 60,
+};
+
+/**
+ * THE PLATFORM'S LEVEL, DERIVED AND CACHED — `harbourSite`'s own arrangement,
+ * and for the same reason: a typed `yAdd` is a number that works at seed 1337
+ * and buries itself at 1338.
+ *
+ * THE MEDIAN AND NOT THE MAXIMUM. A quay's landward edge governs because its
+ * seaward edge is under water; an airfield has no such edge, so the level that
+ * balances cut against fill is the middle of its own distribution. Measured
+ * here: cut 0.71 m, fill 0.57 m.
+ */
+let airfieldCacheSeed = null;
+let airfieldCacheOut = null;
+export function airfieldSite(rootSeed) {
+  if (airfieldCacheSeed === rootSeed && airfieldCacheOut) return airfieldCacheOut;
+  const A = AIRFIELD;
+  const halfRun = A.runM / 2;
+  const x0 = A.cx - A.wideM / 2 - A.shoulderM - A.marginM;
+  const x1 = A.cx + A.taxiOffM + A.apronX1 + A.marginM;
+  const z0 = A.cz - halfRun - A.marginM;
+  const z1 = A.cz + halfRun + A.marginM;
+  const hs = [];
+  for (let x = x0; x <= x1; x += 40) {
+    for (let z = z0; z <= z1; z += 60) hs.push(terrainHeightAt(rootSeed, x, z));
+  }
+  hs.sort((a, b) => a - b);
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE LEVEL IS THE MAXIMUM PLUS A CLEARANCE, NOT THE MEDIAN — AND THE
+   * FIRST ARM USED THE MEDIAN AND THE PLATFORM DID NOT DRAW.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * The median balances cut against fill and it is the right answer to the
+   * EARTHWORKS question. It is the wrong answer to the RENDERING one, and the
+   * frames said so: the fence rendered, the lights rendered, and the runway,
+   * the taxiway, the apron and the platform grass were all invisible from
+   * directly above them.
+   *
+   * **A GROUND RECTANGLE CANNOT CUT.** It is a flat quad laid over the terrain
+   * mesh, and `block.js`'s terrain IS the earth plane — session 63, *"the
+   * terrain is the earth plane and not a surface over it"*. So every part of a
+   * platform levelled below the ground it covers is simply underneath the
+   * world, and the ground wins. At the median, half the platform was under it.
+   *
+   * `harbourSite` had this right and said so in one word: `clearM`, *"metres a
+   * platform stands above the highest ground along its own landward edge"*, and
+   * *"enough that the terrain cannot poke through a level plate"*. The same
+   * sentence applies to a runway with no edge to privilege, so the maximum over
+   * the WHOLE platform is what governs.
+   *
+   * SO "CUT" IN THIS ENGINE IS ALWAYS FILL, and item 0c's riser is the whole of
+   * what the ground yields: session 65's cut face draws it down to the terrain
+   * at every edge. The number that matters is therefore not the relief about
+   * the median but **the drop from the platform to the lowest ground it
+   * covers**, which is what `fillM` reports below.
+   */
+  const level = hs[hs.length - 1] + 0.4;
+  airfieldCacheSeed = rootSeed;
+  airfieldCacheOut = {
+    ...A,
+    x0, x1, z0, z1,
+    /** The runway's own rectangle, and its two thresholds. */
+    runX0: A.cx - A.wideM / 2,
+    runX1: A.cx + A.wideM / 2,
+    runZ0: A.cz - halfRun,
+    runZ1: A.cz + halfRun,
+    level: +level.toFixed(3),
+    /** Zero by construction now: nothing is cut, because nothing can be. */
+    cutM: 0,
+    /** The riser at the lowest corner — the wall item 0c asked to be told about. */
+    fillM: +(level - hs[0]).toFixed(3),
+    reliefM: +(hs[hs.length - 1] - hs[0]).toFixed(3),
+    /** Where the access spur leaves the exit road, and where it arrives. */
+    spurX: A.cx + A.taxiOffM + (A.apronX0 + A.apronX1) / 2,
+    spurZ0: exitRoadZ(A.cx + A.taxiOffM + (A.apronX0 + A.apronX1) / 2),
+    spurZ1: A.cz - halfRun - A.marginM,
+    samples: hs.length,
+  };
+  return airfieldCacheOut;
+}
+
+/** Is this point on the airfield platform? The scatters' keep-out, `inHarbourAt`'s shape. */
+export function onAirfieldAt(x, z, pad = 0) {
+  const A = AIRFIELD;
+  const halfRun = A.runM / 2;
+  return x > A.cx - A.wideM / 2 - A.shoulderM - A.marginM - pad
+    && x < A.cx + A.taxiOffM + A.apronX1 + A.marginM + pad
+    && z > A.cz - halfRun - A.marginM - pad
+    && z < A.cz + halfRun + A.marginM + pad;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
  * THE GROUND A PORT STANDS ON — SESSION 72, AND IT IS THE SAME SHAPE AS A
  * HILL'S FOOT.
  * ═══════════════════════════════════════════════════════════════════════════
@@ -18242,6 +18404,172 @@ export function generateChunk(rootSeed, cx, cz) {
             length: w[2], depth: w[3], height: 12.5, floors: 1, style: 'dock',
             albedo: [0.30, 0.295, 0.28], trim: [0.23, 0.225, 0.215],
           });
+        }
+      }
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE AIRFIELD — SESSION 74. THE HORIZONTAL WORK ONLY.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `AIRFIELD` and `airfieldSite` carry the site survey and the derived level.
+     * This turns them into ground rectangles and features, by exactly the
+     * arrangement the harbour uses: a `plate` that CLIPS ITSELF to the chunk, so
+     * two chunks never draw the same quad and no rectangle hangs outside the
+     * chunk that owns it.
+     *
+     * IT IS A LEVEL PLATFORM AND THE GROUND YIELDS TO IT — item 0b. Session 65's
+     * cut face draws the riser at every `yAdd` terrace without a line of new
+     * code, and session 62's finding that this vocabulary expresses A TERRACE
+     * AND NOT A SLOPE is why that is the correct mechanism here rather than a
+     * workaround: an airfield IS a platform cut into land.
+     *
+     * NOTHING HERE REGISTERS AN OCCUPANCY CLAIM, following the harbour's own
+     * precedent — session 66's *"water and its works are not claims"*, one
+     * landscape over. `onAirfieldAt` keeps the countryside scatters off it, so
+     * nothing can grow through it.
+     */
+    {
+      const F = airfieldSite(rootSeed);
+      const ov = (a0, a1, b0, b1) => Math.min(a1, b1) > Math.max(a0, b0);
+      /**
+       * THE GATE IS THE APPROACH ROW'S EXTENT AND NOT THE PLATFORM'S, and the
+       * first arm used the platform's. The approach lighting runs 900 m BEYOND
+       * the south threshold, over ground the plate never reaches — so every
+       * chunk it stands in failed `ov(F.z0, F.z1, ...)` and emitted nothing.
+       * **4 of 30 approach features survived**, which is exactly session 71's
+       * quay station landing on a chunk boundary, one landscape over: a
+       * rectangle used as the bound of something that leaves it.
+       */
+      const gz0 = F.z0 - F.approachM - F.approachStepM;
+      if (ov(F.x0, F.x1, b.x0, b.x1) && ov(gz0, F.z1, b.z0, b.z1)) {
+        const plate = (px0, px1, pz0, pz1, kind, lift = 0) => {
+          const cx0 = Math.max(px0, b.x0);
+          const cx1 = Math.min(px1, b.x1);
+          const cz0 = Math.max(pz0, b.z0);
+          const cz1 = Math.min(pz1, b.z1);
+          if (cx1 <= cx0 || cz1 <= cz0) return;
+          ground.push({ kind, yKey: 'yard', yAdd: F.level + lift, x0: cx0, x1: cx1, z0: cz0, z1: cz1 });
+        };
+        /**
+         * THE PLATFORM, then everything on it. The order is the order they
+         * stack: `worldSurface` takes the maximum, so the paint's own 12 mm
+         * lift is what keeps it over the runway rather than inside it.
+         */
+        plate(F.x0, F.x1, F.z0, F.z1, 'afGrass');
+        plate(F.runX0 - F.shoulderM, F.runX1 + F.shoulderM, F.runZ0 - 30, F.runZ1 + 30, 'afShoulder');
+        plate(F.runX0, F.runX1, F.runZ0, F.runZ1, 'afRunway');
+        /** The parallel taxiway and its two end links. */
+        const tX = F.cx + F.taxiOffM;
+        plate(tX - F.taxiWideM / 2, tX + F.taxiWideM / 2, F.runZ0, F.runZ1, 'afTaxi');
+        for (const tz of [F.runZ0, F.cz, F.runZ1]) {
+          plate(F.runX1, tX - F.taxiWideM / 2, tz - F.taxiWideM / 2, tz + F.taxiWideM / 2, 'afTaxi');
+        }
+        /** The apron, at the threshold end the road arrives at. */
+        const aZ1 = F.runZ0 + F.apronDepthM;
+        plate(tX + F.apronX0, tX + F.apronX1, F.runZ0, aZ1, 'afApron');
+        plate(tX + F.taxiWideM / 2, tX + F.apronX0, F.runZ0 + 120, F.runZ0 + 120 + F.taxiWideM, 'afTaxi');
+        /** The service road, inside the fence, round the two open sides. */
+        plate(F.x0 + 12, F.x1 - 12, F.z0 + 12, F.z0 + 19, 'afService');
+        plate(F.x1 - 19, F.x1 - 12, F.z0 + 12, F.z1 - 12, 'afService');
+        /** The access spur, from the exit road up to the apron. */
+        {
+          const zA = F.spurZ0;
+          const zB = F.spurZ1;
+          const n = Math.max(1, Math.ceil((zB - zA) / TERRAIN.stationM));
+          const yA = terrainHeightAt(rootSeed, F.spurX, zA);
+          for (let i = 0; i < n; i++) {
+            const t0 = i / n;
+            const t1 = (i + 1) / n;
+            const y = yA + (F.level - yA) * ((t0 + t1) / 2);
+            const cz0 = Math.max(zA + (zB - zA) * t0, b.z0);
+            const cz1 = Math.min(zA + (zB - zA) * t1, b.z1);
+            const cx0 = Math.max(F.spurX - 5, b.x0);
+            const cx1 = Math.min(F.spurX + 5, b.x1);
+            if (cx1 <= cx0 || cz1 <= cz0) continue;
+            /**
+             * `portRoad` AND NOT `road` — session 72's own finding, applied
+             * before the defect rather than after it. `road` falls through
+             * `porosityFor` to 0.0, dense city asphalt's mirror, and this is a
+             * rural spur exactly like the harbour's. CONTRACT §9.2.
+             */
+            ground.push({ kind: 'portRoad', yKey: 'yard', yAdd: y, x0: cx0, x1: cx1, z0: cz0, z1: cz1 });
+          }
+        }
+        /**
+         * ── THE MARKINGS AND THE LIGHTS, ONE FEATURE PER STATION ────────────
+         *
+         * `quaykit`'s arrangement and for its reason: a feature belongs to the
+         * chunk its own position falls in, and a 3 km rect emitted from one
+         * chunk would hang 1.5 km outside that chunk's bounds. Short stations
+         * clip themselves by construction, and they also let the runway VARY
+         * along its length — the touchdown zone is not the midpoint.
+         */
+        const nSt = Math.round(F.runM / F.stationM);
+        for (let n = 0; n < nSt; n++) {
+          const sz = F.runZ0 + (n + 0.5) * (F.runM / nSt);
+          if (F.cx < b.x0 || F.cx >= b.x1 || sz < b.z0 || sz >= b.z1) continue;
+          const fromEnd = Math.min(n, nSt - 1 - n);
+          features.push({
+            kind: 'afstrip', x: F.cx, z: sz, yawDeg: 0, n,
+            run: F.runM / nSt, wide: F.wideM,
+            /** The touchdown zone is the first 900 m from each threshold. */
+            tdz: fromEnd >= 2 && fromEnd <= 15 ? 1 : 0,
+            /** Centreline paint is dashed 30 on 20 off; a station is 60 m. */
+            edge: 1,
+          });
+        }
+        /** The two thresholds: the bar, the number, and the wing bars. */
+        for (const [tz, dir] of [[F.runZ0, 1], [F.runZ1, -1]]) {
+          if (F.cx < b.x0 || F.cx >= b.x1 || tz < b.z0 || tz >= b.z1) continue;
+          features.push({ kind: 'afthresh', x: F.cx, z: tz, yawDeg: dir > 0 ? 0 : 180, wide: F.wideM });
+        }
+        /**
+         * THE APPROACH ROW, and item 3a is right that it is the single most
+         * recognisable light pattern there is. 900 m of crossbars out beyond the
+         * south threshold, over ground the platform does not reach — so each
+         * bar sits on the terrain at its own height rather than on the plate.
+         */
+        {
+          const nA = Math.round(F.approachM / F.approachStepM);
+          for (let i = 1; i <= nA; i++) {
+            const az = F.runZ0 - i * F.approachStepM;
+            if (F.cx < b.x0 || F.cx >= b.x1 || az < b.z0 || az >= b.z1) continue;
+            features.push({
+              kind: 'afapproach', x: F.cx, z: az, yawDeg: 0, i,
+              /** A crossbar every 150 m, which is what an ALS actually has. */
+              bar: i % 5 === 0 ? 1 : 0,
+            });
+          }
+        }
+        /** The perimeter fence, and the gate where the spur arrives. */
+        {
+          const step = 30;
+          const gap = 22;
+          const seg = (a0, a1, fixed, along, yaw) => {
+            const n = Math.max(1, Math.round((a1 - a0) / step));
+            for (let i = 0; i < n; i++) {
+              const t = a0 + (i + 0.5) * ((a1 - a0) / n);
+              const fx = along === 'x' ? t : fixed;
+              const fz = along === 'x' ? fixed : t;
+              if (along === 'x' && Math.abs(fx - F.spurX) < gap && fixed === F.z0 + 4) continue;
+              if (fx < b.x0 || fx >= b.x1 || fz < b.z0 || fz >= b.z1) continue;
+              features.push({ kind: 'portfence', x: fx, z: fz, yawDeg: yaw, run: (a1 - a0) / n, n: i });
+            }
+          };
+          seg(F.x0 + 4, F.x1 - 4, F.z0 + 4, 'x', 0);
+          seg(F.x0 + 4, F.x1 - 4, F.z1 - 4, 'x', 0);
+          seg(F.z0 + 4, F.z1 - 4, F.x0 + 4, 'z', 90);
+          seg(F.z0 + 4, F.z1 - 4, F.x1 - 4, 'z', 90);
+        }
+        /** The gate, and a windsock beside the apron. */
+        if (F.spurX >= b.x0 && F.spurX < b.x1 && F.z0 + 4 >= b.z0 && F.z0 + 4 < b.z1) {
+          features.push({ kind: 'gatehouse', x: F.spurX, z: F.z0 + 4, yawDeg: 0 });
+        }
+        if (tX + F.apronX0 - 30 >= b.x0 && tX + F.apronX0 - 30 < b.x1
+          && F.runZ0 + 40 >= b.z0 && F.runZ0 + 40 < b.z1) {
+          features.push({ kind: 'afsock', x: tX + F.apronX0 - 30, z: F.runZ0 + 40, yawDeg: 0 });
         }
       }
     }

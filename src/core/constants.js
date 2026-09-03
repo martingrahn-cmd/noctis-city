@@ -838,7 +838,45 @@ export const GROUND = {
  */
 export const PORT_MIX = { gravel: 0.35, worn: 0.70, scrub: 0.55 };
 
+
+/** One linear mix, used by both the port's margins and the airfield's. */
 const portMix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE AIRFIELD'S SURFACES — SESSION 74, AND EVERY ONE IS A MIX OR A MEASURE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Session 72's rule, one landscape over: a surface is not a new colour, it is
+ * the two things that made it, at a stated fraction. And item 1c's warning is
+ * the reason each has its own row rather than borrowing a city kind — session
+ * 72's branch road fell through to dense city asphalt's mirror on a rural spur,
+ * which is now CONTRACT §9.2's third instance.
+ *
+ *     surface     what it is                              Y        sat
+ *     afRunway    grooved PQC, paler than city asphalt   0.1550   0.043
+ *     afShoulder  the strip either side, asphalt-bound   0.1178   0.161
+ *     afTaxi      plain asphalt, darker than the runway  0.0980   0.061
+ *     afApron     worn concrete — `yardGround`'s own     0.1690   0.070
+ *     afGrass     mown airfield grass, drier than pasture 0.1043  0.478
+ *     afPaint     runway marking white, and it is the
+ *                 SAME 0.62 diffuse `city.js` already
+ *                 derives for road paint. Not a new
+ *                 number: one paint, one reflectance.
+ *
+ * `afRunway` IS NOT `road`. A runway is grooved Portland cement concrete, not
+ * dense-graded bituminous city arterial: it is paler, it is far less saturated,
+ * and its texture is transverse grooving cut 6 mm deep at 32 mm centres — which
+ * is the point of §9.2 and the point of its porosity below.
+ */
+export const AIRFIELD_ALBEDO = {
+  runway: [0.158, 0.155, 0.151],
+  shoulder: portMix3([0.158, 0.155, 0.151], GROUND.cropAlbedo.tilled, 0.42),
+  taxi: [0.100, 0.098, 0.094],
+  apron: GROUND.yardAlbedo,
+  grass: portMix3(GROUND.cropAlbedo.grass, GROUND.cropAlbedo.field, 0.30),
+  paint: [0.62, 0.62, 0.60],
+};
 
 export const PORT_ALBEDO = {
   gravel: portMix3(GROUND.yardAlbedo, GROUND.cropAlbedo.tilled, PORT_MIX.gravel),
