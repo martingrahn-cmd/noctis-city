@@ -1,450 +1,286 @@
 # NOCTIS — STATE
 
-*End of session 70. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 1 h of
-uptime — the same boot as sessions 47–69. Every gate that reads a pixel printed
+*End of session 71. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 12 h of
+uptime — the same boot as sessions 47–70. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RAN 1.86–3.79 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the tenth
-session running, though the battery started at **1.88** — the closest this project has come to the
-bar since session 32. **No millisecond below is a verdict.**
+***`load1` RAN 3.99–5.15 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the eleventh
+session running. **No millisecond below is a verdict.** This was a build session and it spent its
+time rendering frames, which is exactly what §0.2's own note says puts this machine outside the bar.
 
-Branch `claude/noctis-70-jitter-phase-and-seam`, off session 69's head.
+Branch `claude/noctis-71-harbour-becomes-a-place`, off session 70's head.
 
-**WHAT SHIPPED IS EIGHT LINES AND TWO GETTERS IN `src/`** — `git diff 995a7b7 -- src/` is 77
-insertions and no deletions across two files, of which **14 are code and 63 are the comment that
-says why**. Everything else this session produced is instruments and measurement. `draws`,
-`triangles` and the occupancy registry are untouched — §7.
+**THIS SESSION SHIPPED CONTENT.** The operator's instruction was *"BUILD MORE, MEASURE LESS"*, and
+the verdict below is a frame.
 
 ---
-## 0. THE SWEEP, WHICH IS WHY THIS FILE OPENS WITH IT
+## 0. THE CRANE LINE FROM THE WATER, WHICH IS THE QUESTION
 
-**Whether two frames in this project can be compared at all is the question that governs every other
-measurement in it.** Session 69 established that they could not: `post.js` draws frame *n* at
-`JITTER[n % 8]`, *n* is the absolute count of frames the page has rendered, and `harness.waitForCity`
-sets it by polling a **worker** in blocks of ten frames — a wall-clock race. Two captures of ONE
-unmodified source at two of the eight phases differ by **57 801 to 78 979 bytes** of 3 499 200.
+**The operator, looking at the quay before this session: *"two posts and a beam."*** Session 66 built
+its container gantries as eleven boxes — four legs, a portal beam, one solid bar for a boom and a
+mast — and the frame agrees with him: three pale portals in a row on a bare plate. A football goal.
 
-`tools/stepprobe.mjs --pin=N` across 4000–4009, one unmodified source, `viaduct-under`:
+`node tools/lookat.mjs --preset=harbour-air,sea-harbour,sea-road --t=0.42` is the verdict.
+**`harbour-air` is new**: 180 m over the berth, anchored on `harbourSite` so it moves if the quay
+moves. `sea-air` is 180 m over the MOUTH and shows the terminal off the edge of frame — they are not
+the same picture, and the brief's *"aerial over the harbour"* meant this one.
 
-```
-   pin      4000   4001   4002   4003   4004   4005   4006   4007   4008   4009
-
-   SESSION 69, before anything was changed
-   md5      5664   b35f   e731   007b   d93b   89fb   0537   8453   5664   b35f
-                                                                    ^4000  ^4001    period 8
-
-   §4c AS COSTED — pad to a fixed jitter phase before the last step
-   capture  4049   4049   4049   4049   4057   4057   4057   4057   4057   4057
-   md5      4d0a   f229   3d77   007b   e512   6605   57aa   7610   4d0a   f229
-                                                                    ^4000  ^4001    STILL period 8
-
-   SHIPPED — pad to the phase, then drop the TAA history there
-   capture  4049   4049   4049   4049   4057   4057   4057   4057   4057   4057
-   md5      e37d2383e9564dfa066062383942b0b3  — ALL TEN, 871 770 bytes each
-```
-
-And the three runs that matter more than the pins, because they are the thing the pin was standing
-in for — **no pin at all, three genuinely different races:**
+What the frame shows now, and every line of it is a thing that was not there:
 
 ```
-   free a   city arrived 2718   captured at frame 2769   e37d2383e9564dfa066062383942b0b3
-   free b   city arrived 2718   captured at frame 2769   e37d2383e9564dfa066062383942b0b3
-   free c   city arrived 2698   captured at frame 2745   e37d2383e9564dfa066062383942b0b3
+  three gantries, none of them the same machine   crane 0 works, its trolley RUNNING its boom
+                                                  crane 1 stands with its boom RAISED to 62 deg
+                                                  crane 2 is out of service, platform and picker
+  a portal with 16 m of headroom under it         lorries pass beneath it, and do
+  a boom that is a TRUSS and not a bar            two chords, nine posts, a tip
+  a back-reach over the yard                      so the machine is asymmetric, not a gate
+  a machinery house, an A-frame, stays, a cab     and a stair up one landward leg
+  876 containers in 10 blocks, 5 x 2, with lanes  heights varied, one block in four part-worked
+  16 stations of quay: BOTH CRANE RAILS,          bollards with heads, fenders over the face,
+    a kerb, pallets, drums, a dockers' hut        so a gantry stands on something
+  four transit sheds and a gatehouse              flanking the branch road's own approach
+  A COASTER UNDER WAY THROUGH THE MOUTH           with a bow wave and a wake
 ```
 
-**THIRTEEN RUNS, FOUR DISTINCT CAPTURE FRAME COUNTS, THREE DISTINCT ARRIVALS, ONE IMAGE.**
-`adaptedLogL` **7.582031250** in all thirteen. **The floor with the jitter ON is 0 of 3 499 200
-bytes**, and it is not three draws of one phase — the ten pins are the control session 68's own zero
-never had.
+**AND THE STEEL WENT DARK, which is half of why it reads.** Session 66's legs were
+`[0.30, 0.31, 0.33]`. At this exposure a mid grey against a lit sky goes white and the crane
+dissolves into the horizon — which is what the before-frame shows. A gantry is recognised as a **dark
+shape with one bright horizontal in it**, so the structure is `[0.105, 0.115, 0.135]` now and the
+boom keeps its safety yellow.
 
 ---
-## 1. THE REPAIR, AND WHY IT IS NOT THE ONE THAT WAS COSTED
+## 1. WHAT IT COST, WHICH IS THE ONE NUMBER THAT MATTERED
 
-STATE 69 §4c proposed *"one accessor and about four lines"*: before `settle()`'s last `step`, advance
-to a fixed residue of `frameIndex` modulo `TAA.jitterSamples`. **That was built first, swept first,
-and it is not enough.** The middle block of §0's table is its result: eight distinct images and a
-period of still exactly **8**, differing by **13 774 to 33 813 bytes** — four times better than
-57 801–78 979 and not a repair. Pin 4008 reproducing pin 4000's md5 bit for bit is the control that
-names the surviving variable: **the equivalence class became `pin mod 8`, which is the PAD, and the
-pad is 0 to 7 extra frames of TAA accumulation.** 0.92^46 = 2.19 % of the first frame survives
-against 0.92^53 = 1.20 %, and that gap is `|Δ| = 1` over half a percent of the frame. Fixing the
-phase moved the race from WHICH of eight offsets to HOW MANY frames had been averaged.
-
-**BOTH CANNOT BE FIXED BY PADDING, AND THE ARITHMETIC SAYS WHY.** Holding the captured frame's phase
-fixed REQUIRES the frame count since the TAA history was dropped to be congruent to −(that frame's
-index) mod 8 — and that index is the race. One knob, two constraints. So the history is dropped
-**at** the normalised phase, and everything after it is a constant `8 + TAA.settleFrames + frames`
-frames from a defined start:
-
-```js
-  const post = ctx.get('post');
-  if (post && typeof post.frameIndex === 'number') {
-    const period = post.jitterPeriod || TAA.jitterSamples;
-    const after = 8 + TAA.settleFrames + frames;      // the frames rendered below
-    const pad = (((-(post.frameIndex + after - 1)) % period) + period) % period;
-    if (pad > 0) await step(pad);
-    if (post.resetHistory) post.resetHistory();
-  }
+```
+  DRAW CALLS      401 of 440 on `highway_speed`, IDENTICAL TO SESSIONS 67-70.
+                  Zero new. Every box is a `put()` into the chunk's own `:masses`
+                  InstancedMesh; every mover is a part in `river:moving`, which already
+                  existed. No new mesh, no new material, no new program.
+  TRIANGLES       2 451 648 on `highway_speed`, identical to sessions 67-70 — the whole
+                  harbour is 3.9 km from the origin and off every route that binds.
+                  About 13 900 added where it stands, 7.8 % of the 178 352 of headroom.
 ```
 
-Eight lines in `harness.settle()` — STATE 69 §4c costed *"about four"* — and `post.frameIndex` /
-`post.jitterPeriod` as **getters with no setters** — a counter a caller may write is CONTRACT §9.1, and the written copy would be the one the
-jitter table is actually indexed by.
+**AND THE ROUTE COUNT DID MOVE ONCE, BY 576 TRIANGLES, WHICH IS §3e.** The first battery read
+2 452 224. That was the lamp head this session put on every flood mast in the city, and it is the
+only thing in this session that reached the routes at all.
 
-**WHAT IT COSTS, STATED RATHER THAN DISCOVERED LATER.** Every caller reaches `settle()` either
-straight after `setTimeOfDay`, which drops the history itself two frames earlier (`post.js`'s
-`timeOfDay` handler), or straight after `sampleRouteAt`'s own `resetHistory` — so for every capture
-in the project this replaces a reset that had just happened with one three frames later. The
-exception is `sampleRouteAt`, which had 30 further frames of accumulation on top and now does not:
-0.92^74 = 0.2 % of the first frame surviving becomes 0.92^44 = 2.6 %.
 
-**`citycheck`'s saturation reserve is the only reader of `sampleRouteAt`, and it is the one number in
-the project this change could have moved that NO SESSION HAS EVER WRITTEN DOWN.** It is GREEN today —
-saturation **1.96 % mean / 4.00 % pooled peak**, bright reserve **7.49 %** against a floor of 6.00 —
-and every COUNT `citycheck` reports is identical to sessions 57–69 (§8). But the last bright-reserve
-figure recorded anywhere is **6.37 %**, in LOOK.md §7, from session 37. **So this session cannot say
-whether the saturation moved, only that it did not go red**, and the three numbers above are written
-here so the next one can. That is the shape of defect this project keeps finding, caught before it
-was quoted rather than after.
+Where they went, counted from the generator's own arithmetic:
 
-**AND THE 32-FRAME PROMISE BECAME TRUE.** `TAA.settleFrames`' comment says *"32 frames leaves
-0.92^32 = 7 % of the initial frame"*. Until now "the initial frame" was whatever happened to be in
-the history buffer. It is now a frame this function defines.
+```
+                          boxes before   boxes after      triangles
+  the three gantries        11 each        92, 97, 97     132 ->  3 432
+  the container yard          384             876       4 608 -> 10 512
+  16 quay stations              0             252           0 ->  3 024
+  four transit sheds            0             128           0 ->  1 536
+  one gatehouse                 0              12           0 ->    144
+  the movers                   17 inst          40         204 ->    480
+```
 
-### 1a. WHICH EARLIER COMPARISONS ARE VOID — THE HALF THAT PAYS FOR THE ITEM
-
-**A frame-to-frame byte comparison taken before this repair is evidence only if both frames were
-captured at the same frame count.** Nothing before session 69's `--pin` ever was, so:
-
-| claim | where | verdict |
-|---|---|---|
-| *"73 373 bytes of 3 499 200"* between session 68's ungated and gated `surfaceAt` arms | STATE 68 §8 item 1 | **VOID.** `d93b…` is phase 2, `5664…` is phase 6; 73 373 is the p6↔p2 cell of a table produced from one source. Already killed in session 69. |
-| *"three runs, zero noise floor"* — `s68final`, `s68noiseA`, `s68noiseB` | STATE 68 §1c | **VOID.** Three draws of phase 6. A floor that only ever sampled itself reads as zero. |
-| *"session 67 → session 68 with `surfaceAt` UNGATED, 0 bytes"* | STATE 68 §1c | **VOID.** `after67` against `isosurf`, an hour and fifty minutes apart, both phase 2. |
-| *"the viaduct soffit pair is byte-identical at 0 of 3 499 200"* — session 68's sea-tint control | LOOK.md §0.1 | **NOT VOID, AND NOT A CONTROL EITHER.** The two frames really were identical — a zero is only reachable at equal content. What fails is the inference: session 69 rendered five `river.surfaceAt` arms, one of them moving twenty-two chunk meshes, and got a byte-identical `viaduct-under` from every one. **A frame that returns 0 whatever you do to the world is not evidence that you did nothing to it.** Corrected in place in LOOK.md §0.1; the conclusion stands on the band rows and on this session's mask. |
-| *"three `gateaudit` runs either side of the repair, identical to every printed digit against a noise floor that is ZERO"* | LOOK.md §6, session 67 | **UNCERTAIN, and it is B3's shape again.** `gateaudit` does not capture its own frames — it re-reads the PNGs `lookcheck` already wrote to `tools/look-out/`. Three runs over ONE PNG set are identical by construction, so that zero measures the file system. Whether a re-capturing `npm run gates` ran between them is not recorded. **The claim it supports may well be true; the floor under it is not a floor.** |
-| *"`lookat` frames are byte-deterministic — three runs, 0 of 3 499 200"* | the operator's memory note, session 68 | **VOID**, and corrected there. |
-| the look-frame drift session 69 measured between its own and session 68's frames — 416 580 to 978 114 bytes | STATE 69 §8 item 2 | **REAL, and now explained and repaired.** §2. |
-| *"1 908 chunks lying wholly inside r ≤ 3 232 m hash `6f192b75fb42ae2a5545ca17`"* | STATE 65, STATE 67 | **SURVIVES.** A digest of the GENERATOR's city, not a pixel comparison. Still unreproducible for a different reason: the instrument was never committed. |
-| the occupancy registry, 18 799 / 19 087 | STATE 66 onward | **SURVIVES.** Counts. |
-| `citycheck` byte-identical to sessions 57–70 | every STATE since 57 | **SURVIVES**, with STATE 69 §4b's caveat about what it actually guarantees. |
-| every `lookcheck` band, `distinct:midnight|dusk` included | LOOK.md §7 | **SURVIVES.** Means and cluster statistics over 5.76 M pixels; measured stable to 1e-5 across a phase change. |
-| the 344 InstancedMesh matrix hashes, `pedestrianStats`, the per-chunk census | STATE 69 §3 | **SURVIVES.** Not pixels. |
-
-**NO GATE ASSERTS ON A FRAME-TO-FRAME BYTE COMPARISON.** Every look threshold is computed WITHIN one
-frame; `distinct:midnight|dusk` is a mean-squared difference between two frames but is a statistic
-over 5.76 M pixels, not a byte count, and it is stable to 1e-5 across the change. **So no gate
-threshold was ever contaminated by this, and none moves now.**
+**Premise (i) held with room to spare** — a gantry with legs, boom, back-reach and machinery house
+fits into 178 352 triangles about thirteen times over. **Premise (ii) held** — the yard grew 2.3× at
+zero draws, by the same `put()` route session 68 used.
 
 ---
-## 2. THE LOOK GATE — THE SAME MECHANISM FOR EIGHT FRAMES AND A DIFFERENT ONE FOR FOUR
+## 2. PREMISE (iii) IS FALSE, AND IT MADE ITEM 3 CHEAPER RATHER THAN DEARER
 
-STATE 69 §8 item 2 recorded that `tools/look-out` differs between two sessions at identical source
-by 416 580 to 978 114 bytes of 17 280 000, and asked whether that is the same mechanism. **It is,
-for two thirds of the frames, and item 1 fixed them.** `lookcheck` captures through
-`setWetness` → `setTimeOfDay` → `settle(4)` → screenshot, which is exactly the path §1 repaired.
-Two `lookcheck` runs on this session's head:
+> *"Session 57's barges already move on the river. If that mover reaches the estuary, one hull
+> leaving is the strongest sign of life available."*
 
-```
-   midnight  dawn  noon  dusk  and all four -wet          BYTE-IDENTICAL, 8 of 8
+**Session 57's barges do not move.** `riverCraft` is MOORED craft — static instance matrices in the
+chunk's `river:structure` mesh, rebuilt only on a chunk crossing, with no path, no speed and no
+update. Its own header says so — *"WHAT IS MOORED ON THE RIVER — SESSION 57"* — and `river.js` labels
+the drawing side *"THE MOORED CRAFT"*. **The only thing that has ever moved on water in this project
+is session 68's harbour launch**, and it was already at the harbour.
 
-   trade-dawn       3 146 609 bytes differing of 17 280 000   mean |Δ| 11.9   max 232
-   trade-noon       5 794 202                                 mean |Δ|  9.8   max 232
-   trade-midnight   6 258 010                                 mean |Δ|  6.1   max 245
-   trade-dusk       8 130 200                                 mean |Δ|  2.6   max 254
-```
-
-**THE SECOND MECHANISM IS NAMED AND NOT REPAIRED, WHICH IS WHAT THE BRIEF ASKED FOR.** It is not the
-jitter — the signature is wrong for it (`|Δ|` up to 254, best scalar gain 0.991, 47 % to 129 %
-of the difference surviving a gain). **It is THE VEHICLES.** Looked at: in `trade-noon` the
-buildings, road, pavement, kerb, pedestrians, street furniture and sky are identical to the byte and
-the cars are at different positions along the street; at `trade-midnight` the same, with their
-headlight pools moving over the tarmac, which is why that frame's difference spreads furthest.
-`lookcheck`'s own log carries the variable — *"second eye: city re-streamed over 234 frames"* against
-*"244 frames"* — and `setShot('trade')` moves the residency ring three chunks, which is what
-`traffic.js` reseeds against. **That is STATE 69 §8 item 3's traffic race seen from the front**, and
-it has a third sighting: `sea-edge` differs run to run by **543 bytes over 316 pixels, every one of
-them in the sky**, which is the aircraft.
-
-So the rule for a reader with no memory of this: **a frame with no vehicles and no aircraft in it is
-now exactly reproducible. A frame with them is reproducible everywhere except on them.**
-
-**AND STATE 69 §8 ITEM 3 IS CORRECTED BY THIS.** It said of the traffic race *"It is invisible in
-every frame taken so far — the PNG was identical across all of them — so it is a determinism question
-and not a look one."* That was true of `viaduct-under`, which has no vehicles in it. It is **false**:
-the race is 3.1 to 8.1 MB of a look frame, and it is now the largest thing standing between this
-project and frame-level A/B.
-
-**AND THE REPAIR MOVED EVERY DELIVERED LOOK FRAME, ONCE.** Session 69's frames against this
-session's, at a `src/` that differs only by §1:
+So there was no river mover to extend. **There was something better.** Session 68's mover is a PARTS
+LIST with a vehicle index and one pose per vehicle per frame, all in ONE InstancedMesh — so a new
+vehicle is a new index and some parts, at **zero new draw calls**. Everything item 3 asked for went
+in that way:
 
 ```
-   midnight 1.79 %   dusk 3.57 %   midnight-wet 3.20 %   dawn 4.77 %
-   noon 5.00 %       dusk-wet 5.08 %   noon-wet 7.54 %   dawn-wet 7.76 %      mean |Δ| 1.7–2.7
+  a coaster under way        78 m hull, house aft, two hatches, a mast, a bow wave and a wake
+                             3.1 m/s over x 3 520 -> 4 600: six minutes to cross the frame
+  two lorries                on the crane line, so they pass UNDER the portals
+  a third straddle carrier   in the yard's second lane
+  crane 0's trolley          running its boom out over the water and back
 ```
 
-STATE 69 predicted 2.4 % to 5.7 %; the measured range is a little wider. **The metrics did not
-move**: `distinct:midnight|dusk` read **0.02846** against 0.02845 in sessions 68 and 69, which is the
-1e-5 that instrument resolves, and `lookcheck` returned the identical three violations.
-
-**AND THERE IS A STRUCTURAL REASON THE BANDS WERE NEVER AT RISK, which is not written down anywhere
-else.** `distinct:X|Y` is a mean squared difference of half-resolution luma between two look frames
-of ONE run (`lookassert.mjs:304`), and `lookcheck` calls `waitForCity` once per eye and then runs the
-same fixed-length `capture()` for every time of day — 46 frames, and 46 ≡ 6 (mod 8). **So the
-ABSOLUTE phase of a run was the race and the RELATIVE phase between two captures inside it was a
-constant**: `midnight|dusk` always compared two frames exactly two phases apart. The four
-`distinctness` pairs and the four `wetness` pairs were never comparing two randomly-phased frames.
-That is on top of the MSD's own robustness, and it is why a repair that changed the offset from a
-fixed 2 to a fixed 0 moved the number by **0.00001**.
+**AND SHE STARTS AT PHASE 1.45, NOT 0, WHICH IS SESSION 57's LESSON PAID A THIRD TIME.** A paused
+harness reads `time.now = 0`, so phase 0 is what every frame ever taken of this harbour shows — and
+phase 0 put the coaster at x = 3 520, four hundred metres west of the quay, behind every camera that
+looks at it. Session 57 shot three empty river frames before finding barges the quay wall hid;
+session 68 berthed its launch behind the `sea-harbour` camera and wrote a comment saying so. 1.45
+puts her mid-channel at x = 4 114 and heading **west, outbound**.
 
 ---
-## 3. THE SEAM — MEASURED IN FULL, AND NOTHING SHIPPED
+## 3. FIVE DEFECTS FOUND ON THE WAY — FOUR OF THEM THIS SESSION'S OWN
 
-`tools/seamprobe.mjs` computes the shader's own arithmetic from the shader's own constants: `dpx`
-and `dpy` off the water plane by ray intersection, `span` as the max over the three wave components
-of `|d_i·dpx| + |d_i·dpy|`, and `gNoctisSeaOpen` as `smoothstep(cutoffLo·λmax, cutoffHi·λmax, span)`
-— `smoothstep(1.920, 4.800, span)` in metres per pixel. It renders nothing and asserts nothing.
+### 3a. A STRADDLE CARRIER HAS RUN 6.35 m UNDERGROUND SINCE SESSION 68
 
-### 3a. HOW WIDE THE TRANSITION IS
+`buildMoving` bakes each part's `dy` once and `stepMoving` writes only x, z and yaw — so a vehicle's
+height is decided in one place and its position in another. Session 68 wrote `H.apronY` for both
+carriers and then posed carrier 1 at `z = H.apronZ - 10 + 14` = **−184**, which is on the **yard**
+plate. `apronY` is 2.117 and `yardY` is 8.470. **It ran its whole 330 m stroke buried to the portal
+beam**, in a mesh whose draw count said it was there — CONTRACT §9's shape with two platforms: the
+height of ONE level used as the height of the site.
 
-```
-   pose            width px      width m    half-way row spread    dir factor
-   river-along      14 (13-15)     46            5.0 px             1.19x
-   sea-road         19 (19-23)     66            9.8 px             1.31x
-   sea-harbour      30 (27-33)     92           15.2 px             1.07x
-   sea-edge         34 (34-41)    118           16.5 px             1.37x
-   sea-air          74 (67-93)    241           67.0 px             1.74x
-```
+Each carrier now takes the datum of the lane it runs in, and `carrierLane` holds the height and the z
+**together**, so the two can no longer be written apart and disagree.
 
-Rows 0.05 → 0.95 of the share, at 1440×810 — which is also the internal shading resolution, because
-`RENDER.neverExceedNative` clamps `internalSize` to the drawing buffer, so one predicted pixel is one
-shaded pixel.
+### 3b. A SECOND `shed` BRANCH IS DEAD CODE
 
-**CONFIRMED ON THE DELIVERED FRAME AND NOT ONLY PREDICTED.** A pure-red `SEA_OPEN_TINT` arm in a
-scratchpad worktree gives an exact mask of where the term acts — the blue channel of the armed frame
-is the base's times (1 − share). At the one column of `sea-edge` with open water below the seam, the
-observed ramp runs rows 490 → 528 against a predicted 0.50 crossing at **495.1**. Columns 1162 and
-1384 carry no tinted pixel at all, which is the mask saying what the eye could not: **the brown on
-the right of that frame is LAND, not untinted sea.**
+The first arm of item 2c added `} else if (f.kind === 'shed')`. Session 49's `shed` already sits
+forty branches up the same `if/else-if` chain with five call sites — a school, a hospital slab, a
+fire station, a farmstead barn and this harbour's own two warehouses. **The first match wins**, so
+the new branch never ran, and the new emitter's `{length, width, height, tone}` arrived at a branch
+expecting `{length, depth, albedo, trim, style}`: `f.depth` undefined, a shed drawn NaN metres deep.
+**Found by reading the chain, not by the frame** — a NaN box does not draw, and an absent shed looks
+exactly like a shed that was never emitted. Renamed `transitshed`.
 
-### 3b. THE ARM THE BRIEF EXPECTED IS REFUTED, WITH THE SWEEP
+### 3c. THE WAREHOUSES AND BOTH FLOOD MASTS STOOD INSIDE THE CONTAINER STACKS
 
-*"The arm is almost certainly a softer function of the same quantity."* It is — and not the softening
-anyone would reach for. **Widening the smoothstep upward does not soften the seam on screen; it peaks
-and then narrows**, because `span` diverges at the horizon and a wider window crams the ramp into the
-rows where it changes fastest:
+Session 66 put its two warehouses at z = −152 and −150 — inside the yard band (−188 to −132) and
+inside the block row centred at −146: a 96 × 34 m building interpenetrating four container blocks.
+Both flood masts were at `H.x0 + 40` = 3 944 and `H.yardZ − 14` = −146, which is a stack COLUMN
+centre and a block ROW centre, so each 14 m column stood through a block. Invisible in every frame
+taken since, because the blocks were three high and the shed is twelve metres tall in the same place.
+The warehouses move to the second rank inland; the masts move into the lanes.
 
-```
-   hi (m/px)    4.8    9.6   12.0   24.5     48    100
-   sea-edge    34.1   44.9   46.0   43.5   36.6   27.9   px
-   sea-air     74.3   95.3   97.1   90.7   75.5   57.0   px
-   sea-road    19.3   25.2   25.8   24.5   20.6   15.7   px
-```
+### 3d. THE EAST 28 m OF QUAY HAD NO RAIL, NO BOLLARD AND NO FENDER
 
-The best that edge can do is **1.34×**, at `hi ≈ 12`. **The only edge that widens the transition is
-the LOWER one** — `lo` 1.92 → 1.20 → 0.80 gives sea-edge 34 → 54 → 71 px, monotonically. And that is
-where the session stops, because of §3c.
+`quaykit`'s first arm put its stations at `H.x0 + (n / qN) * (x1 − x0)`, so the last one landed on
+x = 4 352 **exactly** — which is `chunkBounds(34, −2).x0`, the chunk EAST of the harbour, and that
+chunk fails the site's own overlap test because `min(4352, 4480) === max(3904, 4352)`. Sixteen of
+seventeen stations emitted. Stations are centred in their own run now, so every one is strictly
+inside the site. **Same class as the `cz` guard session 66 already carries a comment about**: an edge
+that is a boundary to two things at once.
 
-### 3c. THE RIVER IS NOT BYTE-IDENTICAL, AND HAS NOT BEEN SINCE SESSION 68
+### 3e. AND ONE THAT `citycheck` CAUGHT AND NO FRAME WOULD HAVE
 
-Item 3d asked for the river guarantee to be re-run. **It fails, on the shipped code, and the failure
-is older than this session.** LOOK.md §0.1's *"767-810 the river — BYTE-IDENTICAL"* was measured on a
-frame that sees the river ACROSS, from 40 m up at the city's edge, where its footprint is 0.23 to
-0.36 m/px against a gate at 1.92. Seen ALONG the water from the promenade at the routes' own 1.74 m
-eye:
+The lamp head added in item 4 went on **every** `flood` feature. There are NINE emitters of that
+kind — construction sites, canopies, yards — and **all nine pass `aimX`**, so nothing in the feature
+could tell a quay mast from a building site's. The gate said so within the hour:
 
 ```
-   span reaches 1.92 m/px at    111-135 m        saturates at    157-189 m
-   the seam is                  13-15 px         and             43-54 m       — the sharpest measured
-   term-off arm vs shipped      71 650 bytes     37 347 px       mean |Δ| 19.4
-   the affected band's hue      356 deg  ->  255 deg
+  forbidden delivered overlaps      5  ->  12     new: prop(bin) x site(flood:)      0.034 m2
+                                                       prop(cabinet) x site(flood:)  0.169 m2
+  delivered sign quads in region   2 647 -> 2 713
+  highway_speed triangles      2 451 648 -> 2 452 224
 ```
 
-`node tools/lookat.mjs --pos=-2000,1.74,-475 --target=3000,-4,-412 --fov=55 --name=river-along` is
-the frame and the same arguments to `seamprobe` are the arithmetic. **`span` cannot tell far water
-from near water seen at a grazing angle, because at 1.74 m of eye height a river 130 m away IS
-grazing water.** The gate is a good proxy for "open sea" from 40 m up and a bad one from a pavement —
-CONTRACT §9's 77th row.
-
-**THAT IS WHY NO BLEND CHANGE SHIPPED.** Softening the seam means lowering the low edge; lowering the
-low edge moves the river's own onset from 130 m to about 65 m. **That trade is not one to make in the
-session that discovered the river bleed**, and the operator's blue is not in question either way —
-LOOK.md §0.1 §0's licence stands and this session did not touch it.
-
-### 3d. THE ASYMMETRY IS `span` ALONE, FOR A REASON NOBODY HAD STATED
-
-Premise (iv) is **TRUE**, and the mechanism is worth more than the verdict. **`span` is
-DIRECTIONAL.** It is not the pixel's footprint; it is the pixel's reach ALONG A WAVE'S OWN DIRECTION
-OF TRAVEL, maxed over three components whose bearings are 292°, 326° and 265° — a 61° spread.
-`lights.js` says so in as many words and gives the reason (a plane wave is constant perpendicular to
-its direction, so only the reach along it averages the wave away). **So the same water at the same
-distance and the same grazing angle reads a `span` differing by up to 1.79× with the view azimuth**,
-against a smoothstep window that is only 2.50× wide. Measured within single frames: **1.07× to
-1.74×**, which tilts the half-way row by 5 to 67 pixels across a frame.
-
-### 3e. AND `sea-road` DOES NOT SHOW THE SEA
-
-*"Judge it from the quay at car height."* The pose that name belongs to delivers a green field, the
-container terminal and its gantry, and **no water at all**. It is `viaduct-under`'s defect in a
-second preset. `sea-edge`, `sea-harbour` and `sea-air` all show the sea and were used instead.
-
-### 3f. Y, RE-RUN — AND ONE CORRECTION TO LOOK.md §0.1
-
-Against a term-off arm at `sea-edge`: **`Y` is unchanged in the band the term acts on**, 0.34166 →
-0.34170. **But every band it does NOT act on rose by 0.25 to 0.38 of 255** — the whole-frame meter
-re-metering. LOOK.md §0.1 says *"`exposure.js`, which meters the whole frame, cannot see it."* It
-can, at about a third of a code value. Small, one-signed, and not zero.
+A 2.6 × 1.2 m head on a 0.20 m mast claims **thirteen times** the ground the mast does, and 66 of
+them stand in a city that was laid out around a pole. `f.head` is set by the harbour's emitter and by
+nothing else now. **CONTRACT rule 5's shape with a bin in it: a gate's number moved as a side effect
+of a change aimed somewhere else** — and the only reason it was caught is that `citycheck` counts a
+population nobody was looking at. The frames were all fine.
 
 ---
-## 4. THE TWO DEAD THINGS
+## 4. THE LIGHT, AND PREMISE (iv) IS TRUE FOR A BETTER REASON THAN THE BRIEF GAVE
 
-**`funnelprobe --identity` — REPAIRED, and it is not a gate.** It asserted against a constant pinned
-in session 38 to prove that session's frontage tally was inert. The generator has moved a great deal
-in the thirty-two sessions since, so the mode exited 1 and printed *"the tally has moved a stream"*,
-which is **false** — the tally is still inert and the city is a different city. It now prints the
-digest and exits 0; `--expect=<sha>` asserts and `--expect=session38` keeps the historical baseline
-reachable. Both directions exercised (CONTRACT §7.1): matching **0**, stale **1**, malformed **2**.
-`funnelprobe` is not one of the eight gates, so nothing red was made green.
-
-**`viaduct-under` — RETIRED AS AN INSTRUMENT, AND ITS REPLACEMENT IS `viaduct-side`.** STATE 69 §8
-item 4 measured it 60.3 % one building wall. **Looked at: it is not 60 % wall with a viaduct behind
-it. There is no viaduct in the frame at all** — no deck, no pier, no soffit, just a red facade a few
-metres from the lens and a slice of street. `viaduct-side` is already a committed pose with its own
-derivation off `viaductArc` and it delivers the deck's underside, the girder edge and the piers on
-both sides. **`stepprobe` keeps `viaduct-under` as its DEFAULT** — every byte comparison recorded
-since session 68 is against that frame, and changing the default would make sessions 69's and 70's
-own artefacts incomparable — and gains `--preset=`.
-
----
-## 5. THE INSTRUMENTS, AND ONE §9.1 FIX THAT WAS OVERDUE
-
-* **`tools/lib/poses.mjs`** — `lookat.mjs`'s seventeen presets, moved UNCHANGED. `stepprobe` had
-  re-derived `viaduct-under` beside them in session 69 and `seamprobe` would have been the third.
-  **Proved identical by loading both and comparing the JSON**, and proved byte-neutral by re-running
-  the pinned `stepprobe`: md5 `e37d2383…`, the same frame as all thirteen earlier runs.
-* **`tools/seamprobe.mjs`** — §3. Predicts the seam analytically, reads the frame's own edge with
-  `--png`, re-runs LOOK.md §0.1's row-band table with `--bands=A.png,B.png`, and sweeps a candidate
-  softening with `--lo`/`--hi` **without touching `src/`**. Asserts nothing.
-* `hueSat` exported from `tools/lib/lookmetrics.mjs` so `seamprobe` uses `lookcheck`'s hue rather
-  than a second one.
-
----
-## 6. THE PREMISES
-
-| | premise | verdict |
-|---|---|---|
-| (i) | §4c's four lines fix the phase without changing what `settle()` guarantees about accumulation | **HALF FALSE.** They fix the phase and leave 13 774–33 813 bytes, because fixing the phase necessarily varies the accumulation length. What shipped changes that guarantee deliberately — from "≥32 frames on top of whatever was there" to "exactly 44 from a defined start" — and says so. §1 |
-| (ii) | the look gate's irreproducibility is the same mechanism as the capture harness's | **TRUE for 8 frames of 12 and FALSE for 4.** The first eye is fixed; the second eye is the traffic. §2 |
-| (iii) | the seam is a sharp function of `span` rather than a second term | **TRUE as a description, REFUTED as a remedy.** The function is a 2.50× smoothstep and is gentle; the sharpness is geometric, and widening it upward makes the on-screen band NARROWER past `hi ≈ 12`. §3b |
-| (iv) | the estuary asymmetry is explained by `span` alone | **TRUE, and the reason is new: `span` is directional.** Up to 1.79× with the view azimuth against a 2.50× window. §3d |
-
----
-## 7. THE COST
+**The harbour is inside the emissive gate. There are TWO gates and they are 2× apart:**
 
 ```
-  highway_speed   401 draws of 440              IDENTICAL TO SESSIONS 67, 68 AND 69
-                  2 451 648 tris of 2 630 000   IDENTICAL TO SESSIONS 67, 68 AND 69
+  city:bowls    built inside `if (near)` — ring <= 2, 256-384 m. The gate session 68's villas
+                failed against a 900 m drive reach. ONE global emissive intensity and no
+                per-instance channel, so every bowl in the world is the same sodium at the
+                same brightness: LOOK.md's "warm against the city's cold" cannot be said
+                through it at all.
+  city:signs    merged by `rebuildSignMesh` over EVERY resident chunk — ring <= 5, 640-768 m
+                — on `materials.sign`, which `lights.js` gives a per-instance emissive
+                through `totalEmissiveRadiance *= vColor`.
 ```
 
-**The occupancy registry is untouched: 18 799 generator claims, 19 087 delivered.** `src/` differs
-from session 69's head by two getters in `post.js` and five lines plus a comment in `harness.js`;
-`git diff 995a7b7 -- src/` is those and nothing else. No shader term changed, so nothing could have
-moved either count — and both are read off the gate rather than asserted.
+So the harbour's lights are **sign quads**: twice the reach, a draw call that already exists, a
+chroma and a gain per instance, and **no cluster light slot taken**. `sea-road` and `sea-harbour`
+both stand at ring 1 of the quay, so every committed pose that looks at this sees it.
+
+Lit: four portal-corner floods on every gantry, two more along each boom, the operator's cab, a
+proper head on each flood mast aimed the way the mast already said it was aimed, clerestory strips
+along the transit sheds, the gatehouse window and its canopy, and the dockers' hut. **Sodium outside
+and cold fluorescent inside**, which is the contrast that makes both read.
+
+`glow()` writes `signQuads`, `signTint` and `signTrade` together or not at all — `rebuildSignMesh`
+asserts their lengths match and session 55 paid for a parallel array that ran short.
+
+**WHAT IT DOES NOT BUY, said out loud: these quads GLOW, they do not ILLUMINATE.** Nothing is lit by
+them. The actual illumination on the quay is still session 66's eight `lamp` features and the three
+`flood` masts, which take real cluster slots. At `t = 0.92` the terminal reads as a line of warm
+lights along a dark quay with one bright pool where a mast is aimed — which is what a port looks like
+at night, and is also less than a session with a light budget could do.
 
 ---
-## 8. GATE STATE
+## 5. GATE STATE
 
-**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE FIFTH SESSION RUNNING.**
+**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE SIXTH SESSION RUNNING.** The
+battery below is the SECOND of two: the first ran on the source that carried §3e's flood head, and it
+is what caught it. This one ran on what ships.
 
 ```
   gate            exit   verdict   seconds  load1 in     out
-  parsecheck         0     GREEN       3.7      1.88    1.89
-  faultcheck         0     GREEN      28.5      1.89    2.08
-  lookcheck          1       RED      50.7      2.08    3.79    THE IDENTICAL THREE
-  windcheck          0     GREEN      40.3      3.79    3.52
-  inputcheck         0     GREEN      17.4      3.52    3.63
-  gateaudit          1       RED      79.2      3.63    2.93    the carried `control failed`
-  citycheck          1       RED     127.3      2.93    3.31    IDENTICAL TO SESSIONS 57-69
-  perfcheck          1       RED    1101.3      3.31    2.46
+  parsecheck         0     GREEN       4.0      5.28    5.10
+  faultcheck         0     GREEN      27.7      5.10    5.12
+  lookcheck          1       RED      51.8      5.12    5.01    THE IDENTICAL THREE
+  windcheck          0     GREEN      41.1      5.01    4.88
+  inputcheck         0     GREEN      17.4      4.88    5.46
+  gateaudit          1       RED      78.1      5.46    5.06    the carried `control failed`
+  citycheck          1       RED     126.1      5.06    4.67    IDENTICAL TO SESSIONS 57-70
+  perfcheck          1       RED    1102.8      4.67    4.62
 
-  4 of 8 RED — the same four as sessions 53-69. NO FIFTH RED.
+  4 of 8 RED — the same four as sessions 53-70. NO FIFTH RED.
 ```
 
-The battery ran on the `src/` that ships and that `src/` did not change afterwards; the document
-edits below it landed after, and `parsecheck` is the only gate that reads any of them. It was re-run
-green after each — and it caught one of them, refusing a CONTRACT §9 table with 77 rows under a
-sentence saying 76.
+**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–70 ON EVERY COUNT, AFTER §3e AND NOT BEFORE:**
+clumping CV **0.393**, **5** delivered forbidden overlaps, **2 of 2 647** signs inside a building,
+**1 004 of 284 918** bare walkable samples, occupancy **18 799 / 19 087**. The harbour added 409
+features and roughly 1 400 boxes to the world and moved none of them, because every one of them is
+3.9 km outside that gate's 100-chunk region.
 
 `lookcheck`'s three are `distinct:midnight|dusk` at **0.02846** against a floor of 0.03,
-`facadeAlbedo` (3 clusters of 5 walls, need 4) and `facadeNeighbours` (2 of 3 adjacent pairs).
+`facadeAlbedo` and `facadeNeighbours` — the same three, at the same numbers, as sessions 53–70.
 
 **EVERY `perfcheck` VIOLATION IS CARRIED OR IS A TIMING ABSOLUTE FROM A LOADED MACHINE**, at `load1`
-**3.31** against CONTRACT §0.2's bar of 1.6, and the battery's own footer says six browser gates
-started above it. Nothing in `src/` changed that could reach a millisecond. The non-timing ones:
+**4.67** against CONTRACT §0.2's bar of 1.6. The non-timing ones:
 
 ```
-  downtown_dense  frame entropy  4.975   per run 4.946 / 4.976 / 4.975   floor 5
-  night_rain      frame entropy  4.972   per run 4.947 / 4.972 / 5.095   floor 5
-  highway_speed   dark gap at the ground   75% of 71 vehicles   floor 75%
-  highway_speed   non-monotone tone        52% of 71 vehicles   floor 75%
+  downtown_dense  frame entropy  4.992   floor 5
+  night_rain      frame entropy  4.968   per run 4.810 / 4.978 / 4.968   spread 0.168
+  highway_speed   dark gap at the ground   70% of 64 vehicles   floor 75%
+  highway_speed   non-monotone tone        58% of 64 vehicles   floor 75%
 ```
 
-Session 69 read entropy 4.923 and 4.952 and the two silhouette bars at 70 % and 69 %. **The bars
-moved to 75 % and 52 % and nothing in `src/` moved**, which is the sampling population the
-`silhouettes.$estimator` note already describes — whichever vehicles are in frame at the pose.
+The silhouette bars read 75 % and 52 % over 71 vehicles in session 70 and 70 % and 58 % over 64 here,
+with nothing in the routes changed — which is the sampling population `silhouettes.$estimator`
+already describes. **And `night_rain`'s entropy spread is 0.168 against a 0.032 breach for the second
+session running**, which is §6 item 4.
 
 ---
-## 9. WHAT TO DO FIRST NEXT TIME
+## 6. WHAT TO DO FIRST NEXT TIME
 
-**1. THE RIVER TAKES THE OPEN-SEA BLUE FROM A PAVEMENT AT 130 m — §3c.** This is the largest live
-defect this session found and it is the thing that must be solved before the seam is softened,
-because the only softening that works makes it worse. It is not a bug in session 68's mechanism:
-`span` is the right quantity for the roughness and a proxy for "open sea", and the proxy parts from
-the thing on a pavement. `tools/seamprobe.mjs` and the `river-along` pose are the instruments and
-both are committed.
+**1. LOOK AT THE HARBOUR AND SAY WHAT IS STILL WRONG.** This session built roughly and on purpose —
+*"many things built roughly beats one built perfectly"* — and frames are the only judge that has run
+on any of it. The container blocks read as a grid from 500 m and as a wall from the gate; the transit
+sheds are ribbed boxes; nothing on the quay has been looked at from reading distance.
 
-**2. THE TRAFFIC IS THE LAST RACE IN THE CAPTURE PATH — §2.** Three sightings now: the four
-`trade-*` look frames (3.1–8.1 MB), `sea-edge`'s sky (543 bytes), and STATE 69 §8 item 3's
-`traffic:bodies/lights/wheels` hash (2 of 35 runs). `traffic.js` reseeds against the resident ring,
-which arrives on the worker's schedule. **A frame with vehicles in it is still not comparable to
-another frame with vehicles in it**, and that is now the only thing standing between this project and
-frame-level A/B on any pose.
+**2. THE MOORED HULLS HAVE NO NAV LIGHTS AND THE COASTER HAS NONE EITHER.** `harbourCraft` is drawn
+by `river.js`'s own `push` into `river:structure`, which is not the sign mesh, so the `glow()` route
+this session opened does not reach it. A red and a green on a moving hull is the cheapest sign of
+life left unbought.
 
-**3. `perfcheck` CAPTURES WITH NO `settle()` AT ALL, AND ITS ENTROPY FLOOR IS A CONTRACT §0.1 CASE.**
-Its route screenshot is taken after `runRoute(..., {frames: 1800})` and its pose shots after
-`poseRoute(..., 24)`; neither calls `settle()`, so **neither is phase-normalised even now** — they
-are the only capture paths left in the repo that are not. `screenshotEntropy` and `meanLuminance` are
-asserted on those frames. And this session's own battery hands over the case:
+**3. `sea-road` IS THE ONLY POSE AT CAR HEIGHT AND IT NEARLY DIED THIS SESSION.** The first arm
+spread four transit sheds evenly and put two of them 3 m either side of that camera; the frame came
+back as two white walls with a slot between them. They flank the gate now and the 134 m window is the
+road's own approach. **Any future building landward of `yardZ` has to be checked against that pose
+before it is committed.**
 
-```
-  night_rain      entropy per run   4.947   4.972   5.095      floor 5      spread 0.148
-                  the gate reports  4.972                                   breach 0.028
-  downtown_dense  entropy per run   4.946   4.976   4.975      floor 5      spread 0.030
-  across sessions 67, 68, 69, 70:   4.910   4.887   4.923   4.975
-```
+**4. THE TWO THINGS SESSION 70 LEFT, BOTH STILL TRUE AND NEITHER TOUCHED.** `perfcheck` captures with
+no `settle()` at all, so its frames are the only ones left in the repo that are not phase-normalised;
+and its entropy floor is a §0.1 case in the open — `night_rain` read 4.947 / 4.972 / 5.095 across
+three runs against a floor of 5, asserted on a single draw whose spread is five times the breach. The
+four `trade-*` look frames still differ run to run by 3.1–8.1 MB, entirely in the vehicles.
 
-**One of night_rain's three runs CLEARS the floor, the spread is five times the breach, and the
-statistic is asserted on a single draw rather than pooled** — `budget.json`'s
-`$screenshotEntropy_s17` says so in as many words. That is §0.1's incident with an entropy instead of
-a millisecond, and §0.1's own rule is that it *"applies to every measurement in this project and not
-only to this gate"*. Whether the phase is part of that spread is now a cheap question, because
-`settle()` can normalise it and `stepprobe --pin` can pin it. **Nobody has asked either.**
-
-**4. `sea-road` SHOWS A FIELD AND `viaduct-under` SHOWS A WALL.** Two of seventeen committed poses
-do not show their subject, and both were found by looking rather than by measuring. The others have
-not been looked at as a set since they were written.
-
-**5. `citycheck`'s SATURATION RESERVE HAS NO RECORDED HISTORY SINCE SESSION 37.** It is the only
-pixel statistic in the eight gates that this session's `settle()` change could have moved, and there
-was nothing to compare it against — §1. Today: 1.96 % / 4.00 % / 7.49 %. Two runs on one head would
-say what its own spread is, which is the thing CONTRACT §0.1 exists to make somebody do.
-
-**6. THE UNCOMMITTED INSTRUMENT.** Session 65 and 67's 1 908-chunk city hash is still lost.
-`framebytes`, `stepprobe`, `seamprobe` and `poses` are committed and each was validated against a
-prior session's own artefacts before it was used on anything new.
-
-**7. EVERYTHING ON STATE 69 §8 ITEMS 3 AND 5, AND STATE 68's §9 AND §10, IS UNTOUCHED.**
-`viaduct-under` never reaches a fully baked canyon field (25 of 30 slots, every run); the sea's
-farthest band and the haze; the fifteen uncounted `river:moving` instances; the straddle carriers'
-0.42 m legs.
+**5. THE SEAM AND THE RIVER BLEED.** Session 70 measured the sea seam at five poses and found that
+`span` takes the river at 130 m from a pavement. Untouched here by instruction, and it is still the
+largest live defect in the water.
