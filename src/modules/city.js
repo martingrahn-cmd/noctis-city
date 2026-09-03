@@ -5590,11 +5590,21 @@ export function createCity(options = {}) {
            * the aircraft is being worked rather than parked.
            */
           for (let j = 0; j < 2; j++) {
-            const bz = -R / 2 + 24 + j * 58;
+            /**
+             * THE BRIDGE STANDS AT ITS OWN STAND, and the two numbers are the
+             * generator's: a stand sits at `pierM/2 - 20` and `+38` off the
+             * pier's centre, so the rotunda is at the same offsets. The first
+             * arm derived them separately and the bridges met the apron 18 m
+             * from the aircraft they serve — CONTRACT §9.1, two expressions
+             * for one position.
+             */
+            const bz = j === 0 ? -20 : 38;
             for (const sx of [-1, 1]) {
               put(sx * (W / 2 + 1.6), Hh * 0.55, bz, 3.2, 4.6, 3.2, trim, 0.6);
-              put(sx * (W / 2 + 9.0), Hh * 0.58, bz, 12.0, 2.9, 3.0, trim, 0.6);
-              put(sx * (W / 2 + 15.6), Hh * 0.52, bz, 3.4, 3.4, 3.6, [0.20, 0.205, 0.215], 0.55);
+              put(sx * (W / 2 + 12.0), Hh * 0.58, bz + sx * 1.2, 19.0, 2.9, 3.0, trim, 0.6);
+              put(sx * (W / 2 + 22.5), Hh * 0.50, bz + sx * 3.4, 4.0, 3.6, 4.2, [0.20, 0.205, 0.215], 0.55);
+              glow(sx * (W / 2 + 12.0), Hh * 0.62, bz + sx * 1.2 + 1.6, 17.0, 1.1, sx < 0 ? 180 : 0,
+                EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 0.9);
             }
           }
           /** A stand floodlight mast at the tip, which is what lights the apron. */
@@ -5806,6 +5816,129 @@ export function createCity(options = {}) {
           /** The stand number, as a plate on a short post at the nose. */
           put(0, 0.9, 8.4, 0.14, 1.8, 0.14, [0.19, 0.195, 0.20], 0.7);
           glow(0, 1.8, 8.4, 1.5, 0.9, 180, EMITTER_CHROMA.neonAmber, LIGHT.signPlateNits * 2.2);
+          if (f.occupied) {
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AN AEROPLANE ON THE STAND — SESSION 75, ITEM 3a.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * A narrowbody: 37 m over the fuselage, 34 m of span, 12 m to the
+             * fin. It is drawn NOSE-FORWARD IN ITS OWN FRAME and the generator
+             * yaws the stand, which is item 3b's *"one parts list, many
+             * poses"* — session 71's river movers had to earn that with a
+             * vehicle index because they move; a parked aeroplane earns it for
+             * nothing, because `put` already composes a yaw.
+             *
+             * AND IT COSTS NO DRAW. Every box below is an instance in the
+             * chunk's own `:masses` mesh and every light a quad in `city:signs`
+             * — the two routes session 74 built the whole airfield out of.
+             *
+             * SET BACK 4 m so the nose clears the pier: the stand centre is
+             * 26 m off the pier face and the nose reaches 14.5 m forward of it.
+             */
+            const az = -4;
+            const skin = [0.60, 0.605, 0.615];
+            const belly = [0.44, 0.445, 0.455];
+            const dk = [0.10, 0.105, 0.115];
+            /** A tail flash per stand, off the index. Five aircraft, five airlines. */
+            const TAILS = [[0.30, 0.085, 0.10], [0.075, 0.17, 0.30], [0.26, 0.23, 0.07],
+              [0.075, 0.24, 0.19], [0.22, 0.09, 0.25]];
+            const tail = TAILS[f.n % TAILS.length];
+            /** Fuselage: a barrel, a nose cone and a tail cone that rises. */
+            put(0, 4.1, az, 3.9, 3.9, 27, skin, 0.34);
+            put(0, 3.6, az, 3.4, 1.6, 27, belly, 0.36);
+            put(0, 4.1, az + 15.0, 3.1, 3.2, 4.0, skin, 0.34);
+            put(0, 4.2, az + 17.4, 2.2, 2.4, 1.6, skin, 0.34);
+            put(0, 4.6, az - 15.4, 2.7, 2.9, 5.2, skin, 0.34);
+            put(0, 5.6, az - 18.6, 1.6, 1.6, 2.6, skin, 0.34);
+            /** The flight deck, and the cabin door either side of it. */
+            put(0, 5.3, az + 13.6, 2.7, 1.2, 3.2, [0.09, 0.10, 0.12], 0.14);
+            /**
+             * WINGS, SWEPT. `put`'s `yawDeg` override REPLACES the feature's
+             * yaw rather than adding to it, so the sweep is written as
+             * `f.yawDeg + angle` — the one line in this branch that has to know
+             * the stand's own heading.
+             */
+            for (const sx of [-1, 1]) {
+              put(sx * 9.6, 2.9, az - 2.6, 18.0, 0.62, 4.4, skin, 0.32, (f.yawDeg || 0) + sx * 15);
+              put(sx * 17.6, 3.6, az - 5.0, 0.4, 1.8, 1.6, skin, 0.32, (f.yawDeg || 0) + sx * 15);
+              /** Engines, under and forward of the wing, which is where they are. */
+              put(sx * 6.6, 1.9, az + 1.2, 2.9, 2.9, 5.6, [0.52, 0.525, 0.535], 0.3);
+              put(sx * 6.6, 1.9, az + 4.1, 3.1, 3.1, 0.5, dk, 0.25);
+              put(sx * 6.6, 3.1, az - 0.6, 0.9, 1.6, 3.6, skin, 0.34);
+              /** Main gear. */
+              put(sx * 3.3, 0.95, az - 1.6, 1.1, 1.9, 1.5, dk, 0.55);
+            }
+            put(0, 0.95, az + 11.0, 0.8, 1.9, 0.9, dk, 0.55);
+            /**
+             * THE FIN AND THE TAILPLANE, and the fin carries the livery. It is
+             * BUILT AS A RAKED STACK rather than as one slab: the first arm
+             * drew a 7.4 x 6.4 m rectangle in flat airline colour and five of
+             * them read across the apron as billboards. A fin's leading edge is
+             * swept about 40 degrees and its chord halves toward the tip, and
+             * three stepped boxes carry both.
+             */
+            put(0, 6.2, az - 14.2, 0.64, 3.2, 6.4, tail, 0.36);
+            put(0, 9.0, az - 15.4, 0.60, 2.6, 4.8, tail, 0.36);
+            put(0, 11.1, az - 16.4, 0.56, 1.9, 3.2, tail, 0.36);
+            put(0, 12.2, az - 17.0, 0.52, 1.0, 2.0, skin, 0.34);
+            for (const sx of [-1, 1]) {
+              put(sx * 3.6, 5.4, az - 16.4, 6.6, 0.5, 3.2, skin, 0.32, (f.yawDeg || 0) + sx * 12);
+            }
+            /**
+             * THE CABIN, LIT. One strip a side and it is the whole night read
+             * of a parked aeroplane — a dark hull with a line of windows in it
+             * is unmistakable and a lit hull is a bus.
+             */
+            for (const sx of [-1, 1]) {
+              glow(sx * 2.02, 4.6, az + 0.5, 24.0, 0.5, sx < 0 ? 90 : 270,
+                EMITTER_CHROMA.tungsten, LIGHT.signPlateNits * 0.85);
+            }
+            glow(0, 5.3, az + 15.3, 2.4, 1.0, 0, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 0.9);
+            /**
+             * NAVIGATION LIGHTS: RED TO PORT, GREEN TO STARBOARD, and they are
+             * SINGLE-SIDED ON PURPOSE — item 1's `glowOmni` is for fixtures
+             * that are omnidirectional in the world, and a nav light is the
+             * canonical example of one that is not. Facing outboard is the
+             * whole information the light carries.
+             */
+            put(-17.9, 3.6, az - 5.4, 0.5, 0.5, 0.5, dk, 0.4);
+            put(17.9, 3.6, az - 5.4, 0.5, 0.5, 0.5, dk, 0.4);
+            glow(-18.2, 3.6, az - 5.4, 0.45, 0.45, 90, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 4.5);
+            glow(18.2, 3.6, az - 5.4, 0.45, 0.45, 270, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 4.5);
+            glowOmni(0, 6.4, az - 19.4, 0.45, 0.45, 0, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 3.5);
+            glowOmni(0, 6.3, az, 0.5, 0.5, 0, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 3.0);
+            /**
+             * ── GROUND SERVICE ─────────────────────────────────────────────
+             *
+             * Item 3d, and the harbour's movers are the template one landscape
+             * over: what makes a quay read as working is the plant standing
+             * about on it. Three states off the index, so a row of stands is
+             * not one stand repeated.
+             */
+            put(0, 1.0, az + 19.6, 2.4, 1.7, 4.2, [0.50, 0.42, 0.10], 0.6);
+            put(0, 2.0, az + 20.4, 1.8, 1.2, 1.8, dk, 0.5);
+            if (f.service === 0) {
+              /** A fuel bowser under the starboard wing, and its hose reel. */
+              put(8.4, 1.5, az - 8.2, 3.0, 2.6, 8.4, [0.40, 0.36, 0.12], 0.62);
+              put(8.4, 3.1, az - 4.6, 2.0, 1.4, 2.4, dk, 0.5);
+            } else if (f.service === 1) {
+              /** A baggage train: a tug and three carts, drawn up at the hold. */
+              for (let k = 0; k < 4; k++) {
+                put(-7.4, 0.9, az - 5.0 + k * 3.4, 1.9, 1.6, 3.0,
+                  k === 0 ? [0.42, 0.40, 0.12] : [0.30, 0.305, 0.31], 0.6);
+              }
+              put(-7.4, 2.1, az - 5.0, 1.6, 1.0, 1.6, dk, 0.5);
+            } else {
+              /** Airstairs at the rear door and a catering lift at the front. */
+              put(-5.2, 1.6, az - 9.0, 2.4, 3.0, 5.0, [0.34, 0.345, 0.355], 0.6);
+              put(7.2, 2.2, az + 8.0, 2.6, 4.2, 5.6, [0.36, 0.33, 0.30], 0.6);
+            }
+            /** Cones at the wingtips and the nose, which is what a stand has. */
+            for (const [cx, cz] of [[-18.4, az - 5.4], [18.4, az - 5.4], [0, az + 20.6]]) {
+              put(cx, 0.35, cz, 0.5, 0.7, 0.5, [0.52, 0.24, 0.06], 0.7);
+            }
+          }
         } else if (f.kind === 'aftank') {
           /**
            * A FUEL TANK — SESSION 75. Three boxes at 60 degrees is a twelve-

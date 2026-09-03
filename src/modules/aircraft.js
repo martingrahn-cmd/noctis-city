@@ -77,6 +77,7 @@
 
 import * as THREE from 'three';
 import { AIRCRAFT, LIGHT, CLUSTER, RENDER } from '../core/constants.js';
+import { AIRFIELD } from '../lib/citygen.js';
 import { EMITTER_CHROMA } from '../lib/color.js';
 import { createInstanceMotion, pixelAngle, motionCutoffDistance } from '../core/instmotion.js';
 
@@ -149,6 +150,48 @@ const RING_M = 1500;
  * crosses it — which is the event it exists for.
  */
 const LEASH_SNAP_M = 600;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ONE AEROPLANE ON SHORT FINAL — SESSION 75, ITEM 3c.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * *"AN AIRCRAFT ON SHORT FINAL OVER THE APPROACH ROW is the shot this whole
+ * two-session arc exists to produce."*
+ *
+ * IT IS NOT A SEVENTH AIRFRAME. The fleet is six and stays six; while the
+ * camera is near the field, plane 0 flies the approach instead of a transit.
+ * A new role would mean a new count, a new mesh size and three `stats` fields
+ * that `landmarkcensus` and `motioncheck` read — for one aeroplane that is
+ * already in the sky. This is the same aeroplane doing something different.
+ *
+ * AND IT IS GATED ON DISTANCE SO NO GATE CAN SEE IT. Every `perfcheck` route,
+ * every `lookcheck` pose and `citycheck`'s whole region are inside the city;
+ * the field is 5.06 km from the origin, so `APPROACH_RANGE_M` = 3 000 m cannot
+ * reach any of them. Outside that range this file behaves exactly as session
+ * 20 wrote it, line for line.
+ *
+ * THE SLOPE IS 3°, WHICH IS THE ONE NUMBER IN AVIATION EVERYBODY AGREES ON,
+ * and the touchdown datum is asked of the city rather than typed, because the
+ * platform's level is derived per seed (`airfieldSite`) and a literal here
+ * would be right at 1337 and wrong at 1338 — `harbourSite`'s own lesson.
+ */
+const APPROACH_RANGE_M = 3000;
+const APPROACH_SLOPE = Math.tan((3 * Math.PI) / 180);
+/**
+ * Where it is picked up, and where it goes around. Both from the threshold.
+ *
+ * 900 m OUT AND NOT 2 600, AND THE REASON IS THE CAPTURE PATH. Every frame
+ * tool runs the page with `?paused=1`, so an aeroplane seeded at the outer
+ * marker is still at the outer marker when the shutter opens — 2.6 km away and
+ * 146 m up, which is a dot. 900 m puts it on SHORT final at 57 m over the
+ * approach row, which is where item 3c wants it and is also a real point on a
+ * real approach. The path is the same either way; this is where it starts.
+ */
+const APPROACH_OUT_M = 380;
+const APPROACH_PAST_M = 700;
+/** Flare height: it does not touch down, because nothing here rolls out. */
+const APPROACH_FLARE_M = 14;
 
 /**
  * The five kinds of light on an airframe, in the order they are written into
@@ -284,6 +327,38 @@ export function createAircraft(options = {}) {
    * future system could shift.
    */
   const hash = (i, salt) => Math.abs(Math.sin((i * 12.9898 + salt * 78.233) * 43758.5453) % 1);
+
+  /**
+   * THE APPROACH'S OWN GEOMETRY, off `AIRFIELD` and the delivered ground.
+   *
+   * `AIRFIELD.cx` and `cz` are constants, so the centreline and the threshold
+   * need no seed; only the touchdown ELEVATION does, and that is read off the
+   * city module's delivered ground rather than recomputed — CONTRACT §9.1, and
+   * `groundYAt` is the same call the signal masts make.
+   */
+  const threshZ = () => AIRFIELD.cz - AIRFIELD.runM / 2;
+  function approachDatum(ctx) {
+    const city = ctx && ctx.get ? ctx.get('city') : null;
+    const y = city && city.groundYAt ? city.groundYAt(AIRFIELD.cx, threshZ()) : null;
+    return Number.isFinite(y) ? y : 10;
+  }
+  /** Is the camera near enough the field for plane 0 to be flying an approach? */
+  function approachActive(cam) {
+    const dx = cam.x - AIRFIELD.cx;
+    const dz = cam.z - threshZ();
+    return dx * dx + dz * dz < APPROACH_RANGE_M * APPROACH_RANGE_M;
+  }
+  /** Put it back at the outer marker, on the extended centreline, inbound. */
+  function seedApproach(a, ctx) {
+    a.approach = true;
+    a.hx = 0;
+    a.hz = 1;
+    a.x = AIRFIELD.cx;
+    a.z = threshZ() - APPROACH_OUT_M;
+    a.roll = 0;
+    a.groundY = approachDatum(ctx);
+    a.trips++;
+  }
 
   function seedAircraft(a, i, cam, initial) {
     /**
@@ -555,6 +630,29 @@ export function createAircraft(options = {}) {
            * derives itself from — so the two cannot disagree.
            */
           a.roll = Math.atan((a.speed * a.speed) / (9.81 * AIRCRAFT.orbitRadiusM));
+        } else if (a.approach) {
+          /**
+           * ON FINAL. Straight in on the extended centreline, descending at 3°
+           * to a flare height it holds over the runway, and picked up again at
+           * the outer marker when it has gone past. The RING test does not
+           * apply: this aeroplane is anchored to a RUNWAY and not to a camera,
+           * which is the whole difference between an approach and a transit.
+           */
+          a.z += a.speed * dt;
+          a.roll = 0;
+          const toGo = threshZ() - a.z;
+          a.y = a.groundY + Math.max(APPROACH_FLARE_M, toGo * APPROACH_SLOPE);
+          if (a.z > threshZ() + APPROACH_PAST_M || !approachActive(cam)) {
+            if (approachActive(cam)) {
+              seedApproach(a, ctxRef);
+            } else {
+              a.approach = false;
+              a.y = AIRCRAFT.planeLow + hash(a.i, 1) * (AIRCRAFT.planeHigh - AIRCRAFT.planeLow);
+              seedAircraft(a, a.i, cam, false);
+            }
+            recycled = true;
+            stats.recycledThisFrame++;
+          }
         } else {
           a.x += a.hx * a.speed * dt;
           a.z += a.hz * a.speed * dt;
@@ -562,7 +660,18 @@ export function createAircraft(options = {}) {
           const dx = a.x - cam.x;
           const dz = a.z - cam.z;
           if (dx * dx + dz * dz > RING_M * RING_M) {
-            seedAircraft(a, a.i, cam, false);
+            /**
+             * SESSION 75: near the field, plane 0 is recycled onto the
+             * approach instead of onto a fresh transit heading. Nothing else
+             * in the fleet changes and nothing anywhere changes outside
+             * `APPROACH_RANGE_M`.
+             */
+            if (a.i === 0 && approachActive(cam)) seedApproach(a, ctxRef);
+            else seedAircraft(a, a.i, cam, false);
+            recycled = true;
+            stats.recycledThisFrame++;
+          } else if (a.i === 0 && approachActive(cam)) {
+            seedApproach(a, ctxRef);
             recycled = true;
             stats.recycledThisFrame++;
           }

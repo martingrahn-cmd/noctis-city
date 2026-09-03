@@ -3525,6 +3525,34 @@ export function createTraffic(options = {}) {
              * approach have the row instead of leaving a hole in the pool.
              */
             if (landmarkOccupies(h.x, h.z)) continue;
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * NOR WHERE THERE IS NO CITY AT ALL — SESSION 75, AND IT IS THIS
+             * MODULE'S OWN TEST, ALREADY WRITTEN, NINE HUNDRED LINES UP.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `cityExtentAt(x, z) <= 0` is what the vehicle placer asks before
+             * it puts a car down. The signal loop never asked it, so the four
+             * junctions nearest the CAMERA get four heads each wherever the
+             * camera happens to be — and the lattice is arithmetic, so it has
+             * junctions everywhere. **A traffic signal showing a red lens on
+             * the airport apron**, found in a frame of the terminal stands
+             * this session and cropped to be sure of it.
+             *
+             * IT IS SESSION 35's PARAGRAPH ABOVE WITH A SECOND PREDICATE. That
+             * one added *"does a landmark stand here"*; this one adds *"is
+             * there a road network here"*, and the two are the same omission —
+             * an arithmetic lattice asked about the world it is laid over.
+             * CONTRACT §9.2's class: the 128 m junction grid is a CITY default,
+             * and 5 km out it has changed counties.
+             *
+             * COSTS NOTHING AND MOVES NOTHING IN THE CITY. Refused slots are
+             * collapsed to zero scale by the loop below, which session 35 built
+             * for exactly this, so `mesh.count` and the draw are unchanged;
+             * every junction inside `CITY.extentEdgeM` = 3 232 m is untouched,
+             * which is every junction any gate route passes.
+             */
+            if (cityExtentAt(h.x, h.z) <= 0) continue;
             const yaw = Math.atan2(h.faceX, h.faceZ);
             const cy = Math.cos(yaw);
             const sy = Math.sin(yaw);

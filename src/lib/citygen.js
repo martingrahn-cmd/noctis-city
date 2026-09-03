@@ -6691,6 +6691,18 @@ export const AIRFIELD = {
    * up through the car park.
    */
   forecourtM: 104,
+  /**
+   * ONE MILLIMETRE, AND IT IS `GROUND.crossingBias`'s NUMBER RESTATED HERE
+   * BECAUSE `parsecheck` FORBIDS THIS FILE FROM READING IT.
+   *
+   * `src/lib` may not import outside `src/lib` (session 72 paid for finding
+   * that out), and `GROUND` lives in `src/core/constants.js`. The quantity is
+   * the same one and its derivation is the same sentence: *"where a
+   * north-south strip crosses an east-west one, one of the two coplanar quads
+   * has to win or they z-fight"*. It is written here as a GEOMETRIC constant,
+   * which is the half of session 72's split that belongs in this file.
+   */
+  layerLiftM: 0.001,
 };
 
 /**
@@ -18557,22 +18569,44 @@ export function generateChunk(rootSeed, cx, cz) {
          * stack: `worldSurface` takes the maximum, so the paint's own 12 mm
          * lift is what keeps it over the runway rather than inside it.
          */
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND EACH LAYER STANDS ON THE ONE BELOW IT — SESSION 75.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Session 74 laid all six of these at the SAME `yAdd`, which is exactly
+         * coplanar, and the plan views never showed it: from 300 m up the
+         * winner is stable per quad and the field looks right. From a camera
+         * ON the apron it breaks into a 32 m staircase of grass and concrete —
+         * two surfaces at one height, resolved per pixel by depth precision.
+         *
+         * `GROUND.crossingBias` is the project's own answer to this and says so
+         * in its own words: *"where a north-south strip crosses an east-west
+         * one, one of the two coplanar quads has to win or they z-fight"*. It
+         * is 1 mm; this uses 2 and 4 of them, so a runway stands 4 mm over its
+         * own grass, which is 4 mm and is also TRUE — a runway is a slab laid
+         * on the field, not a colour of it.
+         *
+         * `plate`'s `lift` parameter has existed since session 74 and nothing
+         * had used it.
+         */
+        const LIFT = F.layerLiftM;
         plate(F.x0, F.x1, F.z0, F.z1, 'afGrass');
-        plate(F.runX0 - F.shoulderM, F.runX1 + F.shoulderM, F.runZ0 - 30, F.runZ1 + 30, 'afShoulder');
-        plate(F.runX0, F.runX1, F.runZ0, F.runZ1, 'afRunway');
+        plate(F.runX0 - F.shoulderM, F.runX1 + F.shoulderM, F.runZ0 - 30, F.runZ1 + 30, 'afShoulder', LIFT * 2);
+        plate(F.runX0, F.runX1, F.runZ0, F.runZ1, 'afRunway', LIFT * 4);
         /** The parallel taxiway and its two end links. */
         const tX = F.cx + F.taxiOffM;
-        plate(tX - F.taxiWideM / 2, tX + F.taxiWideM / 2, F.runZ0, F.runZ1, 'afTaxi');
+        plate(tX - F.taxiWideM / 2, tX + F.taxiWideM / 2, F.runZ0, F.runZ1, 'afTaxi', LIFT * 4);
         for (const tz of [F.runZ0, F.cz, F.runZ1]) {
-          plate(F.runX1, tX - F.taxiWideM / 2, tz - F.taxiWideM / 2, tz + F.taxiWideM / 2, 'afTaxi');
+          plate(F.runX1, tX - F.taxiWideM / 2, tz - F.taxiWideM / 2, tz + F.taxiWideM / 2, 'afTaxi', LIFT * 4);
         }
         /** The apron, at the threshold end the road arrives at. */
         const aZ1 = F.runZ0 + F.apronDepthM;
-        plate(tX + F.apronX0, tX + F.apronX1, F.runZ0, aZ1, 'afApron');
-        plate(tX + F.taxiWideM / 2, tX + F.apronX0, F.runZ0 + 120, F.runZ0 + 120 + F.taxiWideM, 'afTaxi');
+        plate(tX + F.apronX0, tX + F.apronX1, F.runZ0, aZ1, 'afApron', LIFT * 4);
+        plate(tX + F.taxiWideM / 2, tX + F.apronX0, F.runZ0 + 120, F.runZ0 + 120 + F.taxiWideM, 'afTaxi', LIFT * 4);
         /** The service road, inside the fence, round the two open sides. */
-        plate(F.x0 + 12, F.x1 - 12, F.z0 + 12, F.z0 + 19, 'afService');
-        plate(F.x1 - 19, F.x1 - 12, F.z0 + 12, F.z1 - 12, 'afService');
+        plate(F.x0 + 12, F.x1 - 12, F.z0 + 12, F.z0 + 19, 'afService', LIFT * 6);
+        plate(F.x1 - 19, F.x1 - 12, F.z0 + 12, F.z1 - 12, 'afService', LIFT * 6);
         /** The access spur, from the exit road up to the apron. */
         {
           const zA = F.spurZ0;
@@ -18690,7 +18724,7 @@ export function generateChunk(rootSeed, cx, cz) {
          * `worldSurface` takes the maximum and both plates are at `F.level`, so
          * this overlays rather than fights.
          */
-        plate(tmX0 - 14, tmX1 + 14, tmZ - F.termDepthM / 2 - 12, F.apZ0 + 2, 'afApron');
+        plate(tmX0 - 14, tmX1 + 14, tmZ - F.termDepthM / 2 - 12, F.apZ0 + 2, 'afApron', LIFT * 5);
         {
           const nM = Math.max(3, Math.round((tmX1 - tmX0) / 60));
           const run = (tmX1 - tmX0) / nM;
@@ -18731,13 +18765,21 @@ export function generateChunk(rootSeed, cx, cz) {
            * at the pier from either side without a second parts list.
            */
           for (let j = 0; j < 2; j++) {
-            const sz = F.apZ0 + 42 + j * 58;
+            const sz = F.apZ0 + F.pierM / 2 + (j === 0 ? -20 : 38);
             for (const side of [-1, 1]) {
-              const sx = px + side * (F.pierWideM / 2 + 21);
+              const sx = px + side * (F.pierWideM / 2 + 26);
               if (sx < b.x0 || sx >= b.x1 || sz < b.z0 || sz >= b.z1) continue;
+              const n = i * 4 + j * 2 + (side < 0 ? 0 : 1);
               features.push({
-                kind: 'afstand', x: sx, z: sz, yawDeg: side < 0 ? 90 : 270,
-                n: i * 4 + j * 2 + (side < 0 ? 0 : 1),
+                kind: 'afstand', x: sx, z: sz, yawDeg: side < 0 ? 90 : 270, n,
+                /**
+                 * FIVE OF EIGHT, and the empty ones are the point. An airport
+                 * with every stand full is a model of an airport; the gaps are
+                 * what say this one is working at a time of day.
+                 */
+                occupied: n % 8 === 3 || n % 8 === 6 ? 0 : 1,
+                /** One being pushed back, one being fuelled, the rest boarding. */
+                service: n % 3,
               });
             }
           }
@@ -18750,8 +18792,8 @@ export function generateChunk(rootSeed, cx, cz) {
         {
           const hz0 = F.apZ1 + 20;
           const hz1 = hz0 + F.hangarDepthM + 20;
-          plate(tmX0 - 4, F.apX1 + 12, hz0 - 10, hz1, 'afApron');
-          plate(F.apX0, F.apX1, F.apZ1, hz0, 'afTaxi');
+          plate(tmX0 - 4, F.apX1 + 12, hz0 - 10, hz1, 'afApron', LIFT * 4);
+          plate(F.apX0, F.apX1, F.apZ1, hz0, 'afTaxi', LIFT * 4);
           const hz = hz0 + F.hangarDepthM / 2;
           /**
            * SPACED SO THEY READ AS THREE. At 116 m on a 132 m pitch the gaps
@@ -18806,7 +18848,7 @@ export function generateChunk(rootSeed, cx, cz) {
         {
           const fz1 = F.z0 + 2;
           const fz0 = F.z0 - F.forecourtM;
-          plate(tmX0 - 16, tmX1 + 16, fz0, fz1, 'afForecourt');
+          plate(tmX0 - 16, tmX1 + 16, fz0, fz1, 'afForecourt', LIFT * 4);
           /**
            * THE CAR PARK. Rows of bays and cars in them, off the index and not
            * off a roll: consuming a shared rng here would move every feature
