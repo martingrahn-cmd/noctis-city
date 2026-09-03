@@ -5482,7 +5482,7 @@ export function createCity(options = {}) {
            * THE VOCABULARY IS LOOK.md's OWN, off the hill houses: *"an
            * L-plan of two volumes at an angle, an OVERSAILING ROOF SLAB rather
            * than a parapet, GLASS ON THE VIEW ELEVATION ONLY, and a
-           * cantilevered terrace … ten boxes and not one of them is detail"*.
+           * cantilevered terrace"* — ten boxes, and not one of them is detail.
            * A terminal is the same four moves at 300 m: one long volume, a
            * slab that oversails the apron face, glass on that face and nothing
            * on the other, and a canopy cantilevered over the forecourt.

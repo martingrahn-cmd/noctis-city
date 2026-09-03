@@ -2163,6 +2163,27 @@ into one mesh, and after that the scene had no way to say how many props it drew
 **A refactor that erases a category also erases the check on it**, and the label
 has to be written at the point where the category still exists.
 
+**A KEEP-OUT NOBODY CALLS — session 75, and it is the same variant with a
+FUNCTION instead of a config value.** Session 74 wrote `onAirfieldAt(x, z,
+pad)`, exported it, and said of it in a comment beside the platform it guards:
+*"`onAirfieldAt` keeps the countryside scatters off it, so nothing can grow
+through it."* **Nothing called it.** Measured on the 738 × 3 120 m platform and
+its forecourt at seed 1337: **45 `shed`, 18 `tower`, 89 trees, 14 rectangles of
+farm yard and 280 hedge segments** — farmhouses, barns and silos standing beside
+a runway.
+
+It survived a whole session for §0's own reason and not for a new one: the frame
+that would have shown it **cannot exist**. `CITY.groundRadius` is 640 m, so no
+camera can hold a 3 km field, and every frame session 74 did take stood ON the
+plate looking along it — where the plate is what you see. A keep-out is checked
+by looking at the ground it is supposed to have cleared, and nobody could.
+
+> **A predicate that is exported and never called is indistinguishable from one
+> that is called and always false.** Neither shows up as an error, both read as
+> a working guard in review, and the only way to tell them apart is to count
+> what is standing where the guard says nothing should be. Count it once, at
+> the time it is written.
+
 **An argument dropped by a forwarder.** `city.js` measures the facade openness,
 logs it beside the roadway figure and the ratio between them, and calls
 `canyon.setFieldDefault(halfWidth, meanHeight, facadeVis)`. The forwarder in
@@ -2476,6 +2497,15 @@ was the third:
   exit road, and session 65 had already measured THAT ROAD at **0.70** from the
   sand-patch model. Two roads, one junction, one of them carrying an arterial's
   sheen across a field. Session 72, and the operator found it by looking at it.
+- **A traffic signal showing a red lens on the airport apron — session 75, and
+  it is four.** `traffic.js` emits four heads at each of the four junctions of
+  a 128 m arithmetic lattice NEAREST THE CAMERA. Session 35 gave that loop a
+  predicate — *"does a landmark stand here"* — after ten heads were found
+  standing in the weir's basin. It never got the other one. The vehicle placer
+  in the same file has asked `cityExtentAt(x, z) <= 0` since session 34; the
+  signal loop did not, so wherever the camera stands, so do the signals. The
+  128 m junction grid is a CITY default and 5 km out it has changed counties.
+  Found in a frame of the terminal stands and cropped 7× to be sure of it.
 
 **WHY IT SURVIVES, AND IT IS NOT THE SAME REASON §9.1's VARIANTS DO.** Those
 survive because their number is only read far away. This one survives because
@@ -2490,9 +2520,12 @@ whole class lives outside it.
 > behaviour, vehicle speeds, tree species — and the question to ask of it is not
 > "is this number right" but "was this number ever chosen for HERE".**
 
-The remedy is not a gate and this section does not propose one: three instances
-in seventy-three sessions is not a rate a check pays for, and the check would
-have to know what "chosen for here" means. **The remedy is that a session which
+The remedy is not a gate and this section does not propose one: four instances
+in seventy-five sessions is not a rate a check pays for, and the check would
+have to know what "chosen for here" means. **The rate is worth watching rather
+than acting on**: the first three took seventy-three sessions and the fourth
+took two, because the world grew a fifth landscape — and every one of the four
+was found by standing somewhere new and looking, none by a gate. **The remedy is that a session which
 extends the world asks the question of every default it inherits**, and writes
 the answer down beside the extension — which is what session 72's `portRoad`
 reading `exitRoadPorosity` rather than a literal is.

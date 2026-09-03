@@ -1938,6 +1938,37 @@ meanwhile survived twenty-five sessions and agrees with the delivered city to
 **1.7% on every channel**; the constant that went was the copy that never had
 one.
 
+### A SIGN FACES SOMEWHERE AND A LAMP DOES NOT — SESSION 75, 2026-09-03
+
+**82 lighting features on the airfield generated, cost nothing, and did not
+appear**, and session 74 ran out of budget before finding out why. Two causes,
+both measured, and NEITHER is the residency ring or the bounding sphere that
+looked most likely:
+
+1. **THE FACING.** `materials.sign` is `THREE.FrontSide` and a `PlaneGeometry`'s
+   front is local +Z. Every population that had ever ridden that mesh is
+   correctly single-sided — a shopfront sign, a hologram bar, a quay flood, a
+   gantry's under-portal lamp, and the aircraft nav lights added the same day
+   are all things that FACE somewhere. The airfield's runway edge lights,
+   centreline lights and approach lights are the project's first
+   **omnidirectional** fixtures, and they inherited the sign's one heading:
+   `yawDeg: 0`, so they showed their backs to anything standing south of them.
+
+   **Every night frame session 74 took looked north, because north is the
+   approach direction.** The same runway from the north end had both rows in it
+   the whole time. One quad, one heading, and the entire light diagram missing
+   from the only direction anybody was ever going to look from.
+
+2. **THE WATER.** 16 of the 30 approach stations stood on the SEABED, the
+   furthest **61.94 m below datum and 57 m under the surface**. The site survey
+   scored the 3 000 × 620 m PLATFORM and rejected any that touched the sea; the
+   chosen platform clears the coast by 370 m and the approach row needs 900.
+
+> **A quad that stands for a LAMP is drawn twice, back to back. A quad that
+> stands for a SIGN, a flood or a nav light is drawn once, facing the way the
+> real fixture faces.** The difference is not a rendering detail — it is the
+> whole of the information a red port light and a green starboard one carry.
+
 ---
 
 ## 7. How this document relates to the gates
