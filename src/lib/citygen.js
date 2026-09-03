@@ -6560,6 +6560,207 @@ export const HARBOUR = {
 };
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE GROUND A PORT STANDS ON — SESSION 72, AND IT IS THE SAME SHAPE AS A
+ * HILL'S FOOT.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * THE OPERATOR, LOOKING AT THE CAR-HEIGHT FRAME: *"the grass runs to the quay
+ * edge."* It did. Measured on that frame at five columns across the boundary
+ * between the port's plate and the field beside it:
+ *
+ *     col          400     600     800    1000    1200
+ *     plate  Y   0.5163  0.4847  0.4110  0.3921  0.4134
+ *     grass  Y   0.3366  0.3403  0.3355  0.3364  0.3392
+ *     TRANSITION ROWS BETWEEN THE TWO PLATEAUS:
+ *                     0       0       1       0       1
+ *
+ * **Zero to one pixels.** A container terminal met a meadow at a line.
+ *
+ * ── WHICH INSTRUMENT DECIDED IT, BECAUSE THE BRIEF ASKS AND THE TWO DISAGREE ─
+ *
+ * Session 64 found CHROMA was the tell on its yard pads; session 65 found
+ * LUMINANCE was the tell on the hill's grass line. Both were measured here on
+ * the same five columns, as ratios of plate against grass:
+ *
+ *     luminance   1.53   1.42   1.22   1.17   1.22     <- converges with distance
+ *     saturation  2.49   2.52   3.51   8.64   6.25     <- diverges
+ *
+ * **CHROMA DECIDED IT.** At the far end of the same edge the two surfaces are
+ * 1.17x apart in luminance — inside what a tone roll already varies a parcel by
+ * (`FARM.toneMin/Max` is 0.82 to 1.12) — and 8.6x apart in saturation. The
+ * plate's hue runs 221 near the camera to 330 far away and the grass sits at 70
+ * the whole way: a wet impervious surface is a mirror and goes neutral, and
+ * vegetation does not. So the margins below are built to bridge SATURATION,
+ * from the crop's 0.49 down to the hardstanding's 0.07, and their luminances
+ * are what the mix makes them rather than what was wanted.
+ *
+ * ── THE MARGINS ARE MIXES OF TWO THINGS ALREADY HERE ────────────────────────
+ *
+ * A port margin is not a new material, it is the two materials that made it:
+ * the aggregate that was laid and the ground it was laid on. So each band is a
+ * linear mix of `yardGround`'s worn concrete and the site's own soil, at a
+ * stated fraction, and no third reflectance is invented:
+ *
+ *     band        mix                             Y       sat    what it is
+ *     gravel      0.35 of tilled into yard      0.1448   0.160   the plate's shoulder
+ *     worn        0.70 of tilled into yard      0.1206   0.276   rutted, half-surfaced
+ *     scrub       0.55 of field into grass      0.1324   0.483   rough ground, ungrazed
+ *
+ * `scrub` is the outermost and it is a mix of the two CROPS rather than of
+ * concrete, because the outer band is ground the port has stopped using rather
+ * than ground it made — and that is why its saturation stays high. The three
+ * together take saturation 0.070 -> 0.160 -> 0.276 -> 0.483 -> 0.521, which is a
+ * monotone gradient in the quantity that was measured to be the tell — and the
+ * LUMINANCES it produces run 0.169 -> 0.145 -> 0.121 -> 0.132 -> 0.084, which
+ * are not monotone and were not chosen. That is the point of mixing rather than
+ * picking: the axis that reads is bridged and the other one lands where the
+ * materials put it.
+ *
+ * ── AND THE POROSITY, WHICH IS ITEM 3 ───────────────────────────────────────
+ *
+ * `EXIT_ROAD`'s own comment above carries the model — `porosity = 1 - MTD_ref /
+ * MTD`, anchored on dense-graded city asphalt at MTD 0.6 mm — and a port apron
+ * is exactly the class it says it can resolve and infiltration cannot.
+ *
+ *     surface                              MTD mm    porosity
+ *     dense-graded city asphalt            0.4-0.8     0.00     <- the anchor
+ *     heavy-duty concrete, brushed/tined   0.9-1.3     0.45     <- the apron
+ *     surface dressing, rural              1.5-2.5     0.70     <- session 65's road
+ *     crushed stone                        5-15        0.94     <- the gravel
+ *
+ * Sensitivity, because 1.1 is a class and not a measurement: MTD 0.9 gives
+ * 0.33 and MTD 1.3 gives 0.54, so **the answer is 0.33 to 0.54 and 0.45 is the
+ * centre**. And the gravel is a CHECK of the same kind session 65's sward was:
+ * session 55's infiltration table puts crushed stone over 100 mm/h against
+ * this city's 10 mm/h full rain, i.e. 1.00, and the relief model puts it at
+ * 0.94 — two derivations, 6% apart, neither fitted to the other.
+ *
+ * IT IS A NEW KIND AND NOT A CHANGE TO `yardGround`, and session 71 is why:
+ * `yardGround` is *"the surface `yard`, `industrial` and `port`"* and giving it
+ * a porosity would have re-sheened every car park and industrial yard in the
+ * city for the harbour's sake. That is the flood-mast head one session later.
+ */
+export const PORT_GROUND = {
+  /** Metres the made ground runs out past the plate before the crop resumes. */
+  gravelM: 14,
+  wornM: 40,
+  scrubM: 96,
+  /** MTD mm of a heavy-duty brushed concrete apron; 0.6 is the asphalt anchor. */
+  apronMTDmm: 1.1,
+  gravelMTDmm: 10,
+  /**
+   * HOW FAR A BAND BOUNDARY WANDERS AND OVER WHAT PERIOD — AND BOTH ARE SET BY
+   * THE TERRAIN MESH'S OWN NYQUIST, WHICH WAS MEASURED RATHER THAN GUESSED.
+   *
+   * The first arm used 54 m and 19 m and the frame showed neither: the port's
+   * cover rides the TERRAIN's per-vertex colour, `TERRAIN.stationM` is **32 m**,
+   * and a vertex lattice at 32 m cannot carry a feature finer than **64 m**.
+   * A 19 m tone roll is below that outright and a 54 m wobble is 1.7 samples a
+   * cycle — both are aliased into a flat wash, which is exactly what the frame
+   * came back as.
+   *
+   * So the wobble is 150 m — 4.7 samples a cycle — and the tone roll is 96,
+   * which is 3. **The near field cannot be fixed here at all**, and it is not:
+   * the crisp band the car-height camera sees is a `portGravel` STRIP of the
+   * harbour's own flat plate, which is a rectangle and has no lattice.
+   */
+  wobbleM: 34,
+  patchM: 150,
+  tonePatchM: 96,
+  /** Metres of gravel around the yard's landward edges. A lorry's turning strip. */
+  shoulderM: 13,
+};
+
+/** `1 - MTD_ref / MTD`, and the reference is `EXIT_ROAD`'s own city anchor. */
+export function porosityFromMTD(mtdMM) {
+  return Math.max(0, Math.min(1, 1 - EXIT_ROAD.textureDepthCityMM / mtdMM));
+}
+
+/**
+ * THE REFLECTANCES ARE NOT HERE AND `parsecheck` IS WHY. `src/lib` may not
+ * import `src/core`, which is the rule that keeps the generator pure — so the
+ * three MIXES live in `constants.js` → `PORT_ALBEDO`, beside the crop albedos
+ * they are made of, and this file holds the geometry and the water. The
+ * fractions they mix at are `GROUND.portMix` for the same reason.
+ *
+ * THE POROSITIES ARE HERE, because the model above is anchored on
+ * `EXIT_ROAD.textureDepthCityMM` and that lives in this file.
+ */
+
+/**
+ * AND THEIR POROSITIES, WHICH ARE NOT MONOTONE AND SHOULD NOT BE.
+ *
+ * Rough grass drains (turf, session 55's 1.00); rutted compacted ground with
+ * the surfacing worn off it PONDS — it is a building site's hardcore, which
+ * this project already measured at 0.30 and which is borrowed rather than
+ * restated; loose crushed stone drains freely again. So the margin has a wet
+ * band in the middle of it, which is exactly where a port's puddles are.
+ */
+export const PORT_POROSITY = {
+  apron: porosityFromMTD(PORT_GROUND.apronMTDmm),
+  gravel: porosityFromMTD(PORT_GROUND.gravelMTDmm),
+  worn: 0.30,
+  scrub: 1.0,
+};
+
+/**
+ * How far into the port's made ground a point is: 1 on the plate, falling to 0
+ * where the crop resumes. Smoothstepped over each band so there is no line
+ * anywhere for the eye to read as an edge — `groundTint`'s own sentence about
+ * a hill's foot, applied to a quay.
+ *
+ * THE DISTANCE IS TO THE HARBOUR RECTANGLE and not to its centre, so the apron
+ * runs out the same distance along a 448 m quay as it does off its end.
+ */
+export function portGroundAt(rootSeed, x, z) {
+  const H = HARBOUR;
+  const dx = Math.max(H.x0 - x, 0, x - H.x1);
+  /** The seaward side needs none of this: the quay wall is the edge there. */
+  const dz = Math.max(H.quayZ - z, 0, z - H.yardZ);
+  const d0 = Math.hypot(dx, dz);
+  /**
+   * THE EARLY-OUT IS BEFORE THE NOISE and it is what keeps this free. Every
+   * terrain vertex in the world asks this question; only the ones within a
+   * wobble of the quay pay for an answer.
+   */
+  if (d0 >= PORT_GROUND.scrubM + PORT_GROUND.wobbleM) return 0;
+  /**
+   * ── AND THE BANDS ARE RAGGED, WHICH IS THE HALF A RAMP DOES NOT BUY ───────
+   *
+   * The first arm was three smoothsteps on the plain distance, and the frame
+   * said what the brief had already said: *"a single new flat colour would be
+   * the same mistake in a different hue."* A radial ramp around a rectangle
+   * reads as a halo — a lighting artefact, not ground.
+   *
+   * Displacing the DISTANCE by a low-frequency noise makes every band boundary
+   * wander by up to `wobbleM` over `patchM`, so gravel reaches out in some
+   * places and scrub reaches in in others, and the three interleave instead of
+   * nesting. It is the same `smoothNoise` the terrain's own height is made of,
+   * at its own salt, so it costs one call and no new machinery.
+   */
+  const d = d0 + (smoothNoise(rootSeed, x, z, PORT_GROUND.patchM, 91) - 0.5) * 2 * PORT_GROUND.wobbleM;
+  if (d >= PORT_GROUND.scrubM) return 0;
+  const band = (a, b) => {
+    const u = Math.max(0, Math.min(1, (d - a) / (b - a)));
+    return 1 - u * u * (3 - 2 * u);
+  };
+  /** Three overlapping bands, summed to a single 0..3 depth the tint reads. */
+  return band(0, PORT_GROUND.gravelM) + band(PORT_GROUND.gravelM, PORT_GROUND.wornM)
+    + band(PORT_GROUND.wornM, PORT_GROUND.scrubM);
+}
+
+/**
+ * AND THE TONE WITHIN A BAND, at a shorter period than the bands themselves.
+ * `FARM.toneMin/toneMax` rolls one per parcel for exactly this reason — *"two
+ * adjacent fields of one reflectance are one field"* — and worn ground is more
+ * variable than a crop, not less. 0.84 to 1.16 against the farm's 0.82 to 1.12.
+ */
+export function portToneAt(rootSeed, x, z) {
+  return 0.84 + smoothNoise(rootSeed, x, z, PORT_GROUND.tonePatchM, 92) * 0.32;
+}
+
+/**
  * Is this point on the harbour? The keep-out every countryside scatter asks
  * before planting, so a hedgerow does not run across a container yard and a
  * tree does not grow on a quay.
@@ -17672,8 +17873,39 @@ export function generateChunk(rootSeed, cx, cz) {
          * behind it, and session 65's cut face draws the wall between them and
          * the wall down to the bed without a line of new code.
          */
-        plate(H.x0, H.x1, H.quayZ, H.apronZ, 'yardGround', H.apronY);
-        plate(H.x0, H.x1, H.apronZ, H.yardZ, 'yardGround', H.yardY);
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE PLATE IS PORT GROUND NOW AND NOT `yardGround` — SESSION 72.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Same reflectance, different POROSITY. `yardGround` falls through
+         * `city.js`'s `porosityFor` to **0.0** — impervious, a full mirror at
+         * this project's wet convention — which is right for the asphalt it was
+         * derived on and is why the operator's frame reads the apron as
+         * standing water. A heavy-duty brushed concrete apron is MTD 0.9-1.3 mm
+         * against dense asphalt's 0.6, so `porosity = 1 - 0.6/1.1` = **0.455**:
+         * damp and dark, not a mirror. `PORT_GROUND` carries the derivation and
+         * its sensitivity.
+         *
+         * A NEW KIND AND NOT A CHANGE TO `yardGround`, because `yardGround` is
+         * *"the surface `yard`, `industrial` and `port`"* and re-sheening every
+         * car park in the city for the harbour's sake is session 71's
+         * flood-mast head one session later.
+         *
+         * AND THE YARD'S OUTER STRIP IS GRAVEL. A terminal is not concrete to
+         * its fence: the last few metres before the boundary are the aggregate
+         * the plate was laid on, which is where lorries turn and where the
+         * surfacing stops being worth laying. It is a strip of the SAME FLAT
+         * PLATE, so it needs no terrain lattice and reads crisp at car height —
+         * which is the thing the terrain's own 32 m vertices cannot do.
+         */
+        const shoulder = PORT_GROUND.shoulderM;
+        plate(H.x0, H.x1, H.quayZ, H.apronZ, 'portApron', H.apronY);
+        plate(H.x0 + shoulder, H.x1 - shoulder, H.apronZ, H.yardZ - shoulder, 'portApron', H.yardY);
+        /** The three landward edges of the yard, as gravel. */
+        plate(H.x0, H.x1, H.yardZ - shoulder, H.yardZ, 'portGravel', H.yardY);
+        plate(H.x0, H.x0 + shoulder, H.apronZ, H.yardZ - shoulder, 'portGravel', H.yardY);
+        plate(H.x1 - shoulder, H.x1, H.apronZ, H.yardZ - shoulder, 'portGravel', H.yardY);
         /**
          * THE ROAD BRANCH — item 3c, *"a harbour with no road to it is a
          * diorama."* It climbs from the exit road to the yard in `TERRAIN`'s own
@@ -17692,7 +17924,25 @@ export function generateChunk(rootSeed, cx, cz) {
             const zs0 = zA + (zB - zA) * t1;
             const zs1 = zA + (zB - zA) * t0;
             const y = yA + (H.yardY - yA) * ((t0 + t1) / 2);
-            plate(H.branchX - H.branchHalfM, H.branchX + H.branchHalfM, zs0, zs1, 'road', y);
+            /**
+             * `portRoad` AND NOT `road` — SESSION 72, AND IT IS ITEM 3's ANSWER.
+             *
+             * The operator: *"the wet patch in the foreground reads as a puddle
+             * in a field."* It is this ramp, and it was `road` — which
+             * `city.js`'s `porosityFor` falls through to **0.0**, a full mirror
+             * at this project's wet convention. That value is dense-graded city
+             * asphalt's and it is correct on an arterial. **This is a spur off
+             * the exit road**, built to what the exit road is built to, and
+             * session 65 measured that at `1 - 0.6/2.0` = **0.70** from the same
+             * sand-patch model — so a hundred metres of rural spur was carrying
+             * a city arterial's sheen in the middle of a field, which is what a
+             * puddle looks like.
+             *
+             * `exitRoadPorosity` is the function that already holds it and
+             * `city.js` reads it for this kind, so the branch and the road it
+             * joins cannot drift apart.
+             */
+            plate(H.branchX - H.branchHalfM, H.branchX + H.branchHalfM, zs0, zs1, 'portRoad', y);
           }
         }
         /**
@@ -17854,6 +18104,58 @@ export function generateChunk(rootSeed, cx, cz) {
             height: H.shedHighM * (i === 1 ? 1.25 : 1),
             tone: 0.9 + (i % 3) * 0.12, canopy: i % 2 === 0 ? 1 : 0,
           });
+        }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE BOUNDARY FENCE — SESSION 72, ITEM 2.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * *"The quay has fenders and bollards now. The landward side ends as a
+         * line in the grass."* A port edge is an ENCLOSURE and the thing that
+         * makes it one is a fence with a gate in it — the gatehouse session 71
+         * built has been standing on an open field, controlling nothing.
+         *
+         * IT RUNS THE THREE LANDWARD EDGES and stops either side of the branch
+         * road, so the gate is the only way in. `gap` is measured from
+         * `branchX`, so the opening moves with the road rather than being a
+         * number that agrees with it today.
+         *
+         * ONE FEATURE PER SEGMENT, for `quaykit`'s reason: a feature belongs to
+         * the chunk its own position falls in, and a 448 m fence emitted from
+         * one chunk would hang 320 m outside that chunk's bounds. Short
+         * segments clip themselves by construction.
+         *
+         * IT IS NOT A REGISTRY CLAIM, and that follows the harbour's own
+         * precedent rather than being decided here: session 66 wrote *"the rule
+         * is that water and its works are not claims"* and left the cranes, the
+         * yard and the warehouses out of it. A fence is one of its works.
+         * `inHarbourAt` already keeps every countryside scatter off this ground,
+         * so nothing can grow through it.
+         */
+        {
+          const fStep = 24;
+          const gateGap = 26;
+          const fz = H.yardZ + 3;
+          const along = (a, b, z, yaw) => {
+            const n = Math.max(1, Math.round((b - a) / fStep));
+            for (let i = 0; i < n; i++) {
+              const fx = a + (i + 0.5) * ((b - a) / n);
+              if (Math.abs(fx - H.branchX) < gateGap) continue;
+              if (fx < b0.x0 || fx >= b0.x1 || z < b0.z0 || z >= b0.z1) continue;
+              features.push({ kind: 'portfence', x: fx, z, yawDeg: yaw, run: (b - a) / n, n: i });
+            }
+          };
+          const b0 = b;
+          along(H.x0, H.x1, fz, 0);
+          /** The two ends, back to the quay. Yawed 90 so the panel runs in z. */
+          for (const [ex, yaw] of [[H.x0 - 3, 90], [H.x1 + 3, 90]]) {
+            const n = Math.max(1, Math.round((fz - H.quayZ) / fStep));
+            for (let i = 0; i < n; i++) {
+              const fzz = H.quayZ + (i + 0.5) * ((fz - H.quayZ) / n);
+              if (ex < b.x0 || ex >= b.x1 || fzz < b.z0 || fzz >= b.z1) continue;
+              features.push({ kind: 'portfence', x: ex, z: fzz, yawDeg: yaw, run: (fz - H.quayZ) / n, n: i });
+            }
+          }
         }
         /** THE GATE, where the branch road arrives on the yard. */
         if (H.branchX >= b.x0 && H.branchX < b.x1 && H.yardZ + 9 >= b.z0 && H.yardZ + 9 < b.z1) {

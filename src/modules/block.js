@@ -22,7 +22,7 @@
  */
 
 import * as THREE from 'three';
-import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND, ROAD_PAINT } from '../core/constants.js';
+import { BLOCK, LIGHT, LAMP_BOWL, LUMINAIRE, GROUND, ROAD_PAINT, PORT_ALBEDO } from '../core/constants.js';
 import { EMITTER_CHROMA, kelvinToLinearRGB } from '../lib/color.js';
 import { weightedIndex } from '../lib/rng.js';
 import {
@@ -33,6 +33,7 @@ import {
   TERRAIN, terrainHeightAt, groundNormalAt, groundHeightAt, FARM, farmCrop, farmIndex,
   SEA, isSeaAt,
   HILLS, hillSurfaceAt,
+  PORT_GROUND, PORT_POROSITY, portGroundAt, portToneAt,
 } from '../lib/citygen.js';
 import { luminaireFlux } from '../lib/luminaire.js';
 
@@ -788,7 +789,25 @@ export function createBlock(options = {}) {
           if (h !== undefined && h < SEA.levelY + SEA.strandM) return 1;
           if (hillSurfaceAt(rootSeed, x, z)) return 1;
           const c = farmCrop(rootSeed, farmIndex(rootSeed, 'x', x), farmIndex(rootSeed, 'z', z));
-          return c.kind === 'grass' ? 1 : 0.85;
+          const crop = c.kind === 'grass' ? 1 : 0.85;
+          /**
+           * AND THE PORT'S MADE GROUND — SESSION 72, ON THE SAME DEPTH THE TINT
+           * READS SO THE TWO CANNOT DESCRIBE DIFFERENT BANDS.
+           *
+           * IT IS NOT MONOTONE AND IT SHOULD NOT BE. Rough grass drains (turf,
+           * session 55's 1.00); rutted ground with the surfacing worn off it
+           * PONDS — it is a building site's hardcore, which `city.js` already
+           * measures at 0.30 and which is borrowed rather than restated; loose
+           * crushed stone drains freely again at 0.94. So the margin has a wet
+           * band in the middle of it, which is where a port's puddles are.
+           */
+          const pd = portGroundAt(rootSeed, x, z);
+          if (pd <= 0) return crop;
+          const P = PORT_POROSITY;
+          const stops = [crop, P.scrub, P.worn, P.gravel];
+          const i = Math.min(2, Math.floor(pd));
+          const f = Math.min(1, pd - i);
+          return stops[i] + (stops[i + 1] - stops[i]) * f;
         };
         const tintOut = [1, 1, 1];
         const groundTint = (x, z, h) => {
@@ -818,6 +837,48 @@ export function createBlock(options = {}) {
            * into the fields, which is what a hill's foot is, and there is no
            * line anywhere for the eye to read as an edge.
            */
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AND A PORT WEARS ITS OWN GROUND — SESSION 72, AND THIS IS THE
+           * HILL'S FOOT ONE PARAGRAPH DOWN, APPLIED TO A QUAY.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * The operator: *"the grass runs to the quay edge."* Measured on the
+           * car-height frame at five columns across that boundary, the crop and
+           * the port's plate met in **zero to one pixels**. A container
+           * terminal does not meet a meadow at a line; it wears out from its
+           * own edge inward, through the aggregate it was laid on, the rutted
+           * ground where the surfacing has gone, and the rough ground it has
+           * stopped using.
+           *
+           * `portGroundAt` returns a DEPTH from 0 in the crop to 3 on the
+           * plate, smoothstepped across each of its three bands, and this walks
+           * the four reflectances that depth indexes — crop, scrub, worn,
+           * gravel. So there is no line anywhere for the eye to read as an
+           * edge, which is the sentence the hill's cover already earns below.
+           *
+           * IT COMPOSES BEFORE THE HILL AND THE STRAND rather than replacing
+           * either: a hill's foot may run into a port's margin, and the strand
+           * still wins at the waterline because it is applied last.
+           */
+          const pd = portGroundAt(rootSeed, x, z);
+          let port = null;
+          let pw = 0;
+          if (pd > 0) {
+            const A = PORT_ALBEDO;
+            const stops = [null, A.scrub, A.worn, A.gravel];
+            const i = Math.min(2, Math.floor(pd));
+            const f = Math.min(1, pd - i);
+            const lo = i === 0 ? null : stops[i];
+            const hi = stops[i + 1];
+            const ptone = portToneAt(rootSeed, x, z);
+            port = [0, 0, 0];
+            for (let k = 0; k < 3; k++) {
+              const a = lo ? lo[k] : 0;
+              port[k] = (lo ? a + (hi[k] - a) * f : hi[k]) * ptone;
+            }
+            pw = i === 0 ? f : 1;
+          }
           const hs = hillSurfaceAt(rootSeed, x, z);
           let w = 0;
           let ha = null;
@@ -852,7 +913,9 @@ export function createBlock(options = {}) {
           }
           for (let i = 0; i < 3; i++) {
             const crop = alb[i] * c.tone;
-            const cover = ha ? crop + (ha[i] * hs.tone - crop) * w : crop;
+            let cover = ha ? crop + (ha[i] * hs.tone - crop) * w : crop;
+            /** The port's made ground, over whatever the land was going to be. */
+            if (port) cover += (port[i] - cover) * pw;
             const target = cover + (GROUND.earthAlbedo[i] - cover) * strand;
             tintOut[i] = 1 + t * (target / GROUND.earthAlbedo[i] - 1);
           }

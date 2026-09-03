@@ -781,6 +781,15 @@ export const GROUND = {
    * reflectance, and `ROAD_PAINT` four paragraphs down is the same argument
    * about the same pair of files.
    */
+  /**
+   * WORN CONCRETE HARDSTANDING — the surface a car park, an industrial yard and
+   * a port apron are all made of. It was a literal inside `city.js`'s
+   * `buildGround` (`const yardAlbedo = [0.172, 0.169, 0.160]`) and is here since
+   * session 72 because `PORT_ALBEDO` mixes against it and a reflectance written
+   * in two files is CONTRACT §9.1 with a colour in it. `city.js` reads it from
+   * here now; the number is unchanged.
+   */
+  yardAlbedo: [0.172, 0.169, 0.160],
   coreAlbedo: [0.105, 0.102, 0.096],
   /**
    * THE THREE CROPS, MOVED HERE IN SESSION 63 BECAUSE A SECOND FILE NOW READS
@@ -801,6 +810,42 @@ export const GROUND = {
     tilled: [0.119, 0.097, 0.071],
   },
 };
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE PORT'S MARGIN REFLECTANCES — SESSION 72, AND EVERY ONE IS A MIX OF TWO
+ * THAT WERE ALREADY MEASURED.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `citygen.js` → `PORT_GROUND` carries the derivation, the frame measurement
+ * that chose the instrument, and the bands' geometry. What is here is the
+ * COLOUR, because `src/lib` may not import `src/core` (`parsecheck` enforces
+ * it) and `GROUND.cropAlbedo` is here.
+ *
+ * A port margin is not a new material. It is the two materials that made it:
+ * the aggregate that was laid and the ground it was laid on. So each band is a
+ * linear mix of worn concrete and the site's own soil at a stated fraction, and
+ * no fourth reflectance is invented to be defended.
+ *
+ *     band     mix                              Y        sat
+ *     gravel   0.35 of tilled into yard       0.1448    0.160
+ *     worn     0.70 of tilled into yard       0.1206    0.276
+ *     scrub    0.55 of field into grass       0.1324    0.483
+ *
+ * against `yardGround` at sat 0.070 and the crops at 0.40 to 0.52 — a monotone
+ * bridge in SATURATION, which is what session 72 measured to be the tell on
+ * this edge. The luminances are what the mix makes them.
+ */
+export const PORT_MIX = { gravel: 0.35, worn: 0.70, scrub: 0.55 };
+
+const portMix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+export const PORT_ALBEDO = {
+  gravel: portMix3(GROUND.yardAlbedo, GROUND.cropAlbedo.tilled, PORT_MIX.gravel),
+  worn: portMix3(GROUND.yardAlbedo, GROUND.cropAlbedo.tilled, PORT_MIX.worn),
+  scrub: portMix3(GROUND.cropAlbedo.grass, GROUND.cropAlbedo.field, PORT_MIX.scrub),
+};
+
 
 /**
  * ROAD PAINT — ONE THICKNESS AND ONE REFLECTANCE, READ BY BOTH STREETS.

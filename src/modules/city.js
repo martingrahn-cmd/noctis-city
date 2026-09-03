@@ -41,7 +41,7 @@
  */
 
 import * as THREE from 'three';
-import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, WATER, WATER_BODY } from '../core/constants.js';
+import { LIGHT, LAMP_BOWL, LUMINAIRE, CLUSTER, GROUND, ROAD_PAINT, SIGN_LIGHT, WATER, WATER_BODY, PORT_ALBEDO } from '../core/constants.js';
 /**
  * THE conflict table, not a copy of it — CONTRACT §9.1: *there is ONE
  * occupancy*. The advertising pillar's placement test asks this rather than
@@ -121,7 +121,8 @@ import {
    *  `terrainNormalAt`. */
   groundNormalAt,
   /** Session 65 — the ground a `yAdd` terrace is cut into. See `cutFace`. */
-  TERRAIN, terrainHeightAt
+  TERRAIN, terrainHeightAt,
+  PORT_POROSITY, exitRoadPorosity,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -1779,7 +1780,9 @@ export function createCity(options = {}) {
      *             it sits between the two at 0.105 rather than being either.
      */
     const parkingAlbedo = [0.082, 0.082, 0.086];
-    const yardAlbedo = [0.172, 0.169, 0.160];
+    /** `GROUND.yardAlbedo` since session 72 — `PORT_ALBEDO` mixes against it and
+     *  the same reflectance written in two files is CONTRACT §9.1. Unchanged. */
+    const yardAlbedo = GROUND.yardAlbedo;
     /** `GROUND.coreAlbedo` since session 51 — `block.js` lays the same surface. */
     const coreAlbedo = GROUND.coreAlbedo;
     /**
@@ -1817,6 +1820,20 @@ export function createCity(options = {}) {
       apron: walkAlbedo,
       apronGrass: grassAlbedo,
       apronYard: yardAlbedo,
+      /**
+       * THE PORT'S OWN THREE — SESSION 72. `portApron` is `yardGround`'s
+       * reflectance exactly; what it has that `yardGround` does not is a
+       * POROSITY, because a heavy-duty concrete apron is not city asphalt and
+       * `yardGround` is also every car park in the city. The two margins are
+       * mixes computed in `constants.js` → `PORT_ALBEDO` from the crops and
+       * this same worn concrete; see `citygen.js` → `PORT_GROUND` for the
+       * frame measurement that chose saturation as the axis to bridge.
+       */
+      portApron: yardAlbedo,
+      portGravel: PORT_ALBEDO.gravel,
+      portWorn: PORT_ALBEDO.worn,
+      /** The harbour's access spur. `road`'s own reflectance; see the porosity. */
+      portRoad: roadAlbedo,
     };
     const albedoFor = (kind) => GROUND_ALBEDO[kind] || walkAlbedo;
     /** Scratch for the per-rectangle tone below. `quad` copies out of it. */
@@ -1910,7 +1927,32 @@ export function createCity(options = {}) {
           : kind === 'grass' || kind === 'apronGrass' || kind === 'playField' ? 1.0
             : kind === 'path' ? 1.0
               : kind === 'siteGround' ? 0.3
-                : 0.0);
+                /**
+                 * THE PORT — SESSION 72, AND IT IS THE MTD MODEL AND NOT THE
+                 * INFILTRATION ONE, for the reason `EXIT_ROAD`'s own comment
+                 * gives: infiltration returns 0.00 for every sealed surface and
+                 * *"cannot separate a city arterial from a rural chip seal at
+                 * all"*. A port apron is exactly that class.
+                 *
+                 *   heavy-duty concrete, brushed   MTD 0.9-1.3 mm   0.455
+                 *   crushed stone                  MTD 5-15 mm      0.940
+                 *
+                 * Both come out of `citygen.js` → `porosityFromMTD` so the
+                 * anchor (dense city asphalt at 0.6 mm) is written once.
+                 * `portWorn` takes 0.30 — a building site's compacted hardcore,
+                 * which is what it is, and which this table already measures.
+                 */
+                /**
+                 * `portRoad` TAKES THE EXIT ROAD'S OWN, and it is a function
+                 * call rather than a number so the spur and the road it leaves
+                 * cannot drift apart. Session 65: `1 - 0.6/2.0` = 0.70, rural
+                 * surface dressing against dense city asphalt.
+                 */
+                : kind === 'portRoad' ? exitRoadPorosity(Infinity)
+                : kind === 'portApron' ? PORT_POROSITY.apron
+                  : kind === 'portGravel' ? PORT_POROSITY.gravel
+                    : kind === 'portWorn' ? PORT_POROSITY.worn
+                      : 0.0);
 
     /**
      * `siteGround` AND `grass` ARE BOTH `ground`, AND THE OLD MAPPING WAS TWO
@@ -1944,6 +1986,17 @@ export function createCity(options = {}) {
       parkingGround: 'ground',
       yardGround: 'ground',
       coreGround: 'ground',
+      /**
+       * SESSION 72's THREE, AND THE ROWS ARE WRITTEN FOR SESSION 31's REASON
+       * RATHER THAN DISCOVERED FOR IT: an unmapped kind matches no entry in
+       * `CATEGORIES`, so `mayOverlap` returns true against everything and the
+       * surface claims nothing at all. All three are surfaces things stand on.
+       */
+      portApron: 'ground',
+      portGravel: 'ground',
+      portWorn: 'ground',
+      /** A carriageway, like `road`: things do not stand on it. Unmapped in
+       *  `CATEGORY_FOR_GROUND` is what `road` itself is, and this matches it. */
       /**
        * SESSION 60 — A COURT IS NOT A SURFACE THINGS STAND ON, AND THE ROW
        * ABOVE SAYING SO IS WHAT PUT TWO TREES ON A BASKETBALL COURT.
@@ -5132,6 +5185,50 @@ export function createCity(options = {}) {
             put(legHalf + 4.5, 1.4, g - 6.0, 3.0, 2.8, 6.4, [0.55, 0.42, 0.06], 0.66);
             put(legHalf + 4.5, portalY * 0.55, g - 6.0, 1.2, portalY * 0.9, 1.2, [0.55, 0.42, 0.06], 0.66);
             put(legHalf + 4.5, portalY + 1.4, g - 6.0, 2.6, 1.4, 2.6, dark, 0.7);
+          }
+        } else if (f.kind === 'portfence') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * ONE BAY OF THE PORT'S BOUNDARY FENCE — SESSION 72, ITEM 2.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * A palisade on concrete posts, which is what a working port's
+           * boundary is: posts, a mesh panel between them, a rail along the
+           * top and a raked barbed arm. The arm is the part that reads at
+           * distance — a straight fence and a fence with a topping look the
+           * same in silhouette until the topping breaks the line.
+           *
+           * `put` composes only a yaw and the ground's own pitch, so a raked
+           * arm is TWO SHORT BOXES stepping outward rather than one leaning
+           * one — session 71's staircase, at 1/20th the scale.
+           *
+           * ZERO DRAW CALLS. It rides the chunk's own `:masses` mesh like the
+           * gantries and the containers do, which is premise (iii) and it
+           * holds.
+           */
+          const run = f.run;
+          const post = [0.30, 0.305, 0.30];
+          const mesh = [0.19, 0.20, 0.205];
+          const H1 = 2.45;
+          /** Posts every 3 m, and the run is what decides how many. */
+          const bays = Math.max(1, Math.round(run / 3));
+          for (let k = 0; k <= bays; k++) {
+            const px = (k / bays - 0.5) * run;
+            put(px, H1 / 2, 0, 0.16, H1, 0.16, post, 0.8);
+          }
+          /** The mesh panel, and it stops short of the ground the way one does. */
+          put(0, 0.16 + (H1 - 0.35) / 2, 0, run, H1 - 0.35, 0.04, mesh, 0.85);
+          /** The rail along the top, which is the line the eye follows. */
+          put(0, H1 + 0.06, 0, run, 0.09, 0.09, post, 0.7);
+          /** The barbed arm, raked outward as two steps. */
+          put(0, H1 + 0.28, -0.14, run, 0.05, 0.05, post, 0.7);
+          put(0, H1 + 0.48, -0.30, run, 0.05, 0.05, post, 0.7);
+          /**
+           * A SIGN ON ONE BAY IN FIVE. A fence with nothing on it is a
+           * boundary; a fence with a warning plate on it is somebody's.
+           */
+          if (f.n % 5 === 2) {
+            put(run * 0.2, 1.7, -0.06, 0.6, 0.45, 0.04, [0.55, 0.50, 0.10], 0.6);
           }
         } else if (f.kind === 'quaykit') {
           /**
