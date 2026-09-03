@@ -6448,12 +6448,51 @@ export const HARBOUR = {
    * run with a lane between each: 3 944 to 4 274 plus half a block is 4 294,
    * inside `x1` = 4 352.
    */
-  stacks: 8,
-  stackCols: 4,
-  stackPitchM: 110,
-  stackBays: 3,
-  stackRows: 4,
+  /**
+   * ── AND IT GREW AGAIN — SESSION 71, ITEM 2a ──────────────────────────────
+   *
+   * *"DEEPER STACKS, PROPER ROWS, LANES BETWEEN THEM. A yard reads by its grid
+   * and its gaps, not its box count."* Session 68's four columns at a 110 m
+   * pitch left 70 m of empty apron between blocks 39.6 m long, which is a gap
+   * with no grid in it. Five columns at 88 m and blocks 52.8 m long give a
+   * 35.2 m lane — a straddle carrier's own working width — and the block grew
+   * from 4 rows to 6, which fills the yard's 56 m band with two block rows and
+   * three lanes instead of two blocks and a lot of tarmac:
+   *
+   *              session 66   session 68     now      delivered boxes
+   *   blocks          6            8          10      5 columns x 2 rows
+   *   bays (x)        1            3           4      52.8 m per block
+   *   rows (z)        3            4           6      16.7 m per block
+   *   high            3            4         3-5      varied per block
+   *   ────────────────────────────────────────────────────────────────
+   *   boxes          54          384         960      11 520 triangles
+   *
+   * THE FIT IS ARITHMETIC AND NOT A TRY. Columns at x0 + 40 + k.88 for k = 0..4
+   * run 3 944 to 4 296, plus half a block is 4 322 — inside `x1` = 4 352. The
+   * two block rows sit at z = -172 and -146, so the lanes are 7.6 m at the
+   * apron edge, 9.2 m between them and 5.6 m at the yard's landward edge.
+   *
+   * STILL ZERO DRAW CALLS. Every box rides the chunk's own `:masses`
+   * InstancedMesh through `put()`; the brief's premise (ii) — that the yard can
+   * grow again at zero draws — holds, and this is 2.5x the boxes for none.
+   */
+  stacks: 10,
+  stackCols: 5,
+  stackPitchM: 88,
+  stackBays: 4,
+  stackRows: 6,
   stackHigh: 4,
+  /**
+   * TRANSIT SHEDS BEHIND THE YARD — item 2c. Long, low, and landward of
+   * `yardZ`, so they stand on the terrain rather than on the yard plate and
+   * step up from it the way a real terminal's sheds do. They exist to hide the
+   * yard's landward edge, which was a line against open field.
+   */
+  sheds: 4,
+  shedZ: -108,
+  shedLenM: 74,
+  shedWideM: 26,
+  shedHighM: 11,
   /**
    * ══════════════════════════════════════════════════════════════════════════
    * AND WHAT MOVES — SESSION 68, ITEM 3, AND IT IS THE OPERATOR'S HEADLINE:
@@ -17652,10 +17691,73 @@ export function generateChunk(rootSeed, cx, cz) {
            *  cz = -1 emitted a second copy of every crane 128 m from the first,
            *  which the count caught at 6 gantries against a declared 3. */
           if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+          /**
+           * AND THE THREE ARE NOT THE SAME CRANE — SESSION 71, ITEM 1b.
+           * *"Three or four identical cranes read as instances; give them
+           * different boom angles, some with the boom raised, one being
+           * serviced."* Every field below is read by `city.js`'s `gantry`
+           * branch and every one of them changes the SILHOUETTE, which is the
+           * only thing that matters at the distance this is seen from:
+           *
+           *   0   working, trolley well out over the water with a box on it
+           *   1   boom RAISED to its stowed angle — no ship under it
+           *   2   working, trolley in over the quay, and out of service with a
+           *       platform and a cherry-picker against its landward leg
+           *
+           * The heights differ too, by up to 4 m, because a terminal's cranes
+           * are bought in different decades and a row of one height is a fence.
+           */
+          const CRANE_ARMS = [
+            { boomUp: 0, trolley: 0.62, laden: 1, service: 0, tone: 1.00, dh: 0, back: 21 },
+            { boomUp: 1, trolley: 0, laden: 0, service: 0, tone: 0.86, dh: 3.5, back: 18 },
+            { boomUp: 0, trolley: 0.18, laden: 0, service: 1, tone: 1.10, dh: -2.0, back: 24 },
+          ];
+          const arm = CRANE_ARMS[i % CRANE_ARMS.length];
           features.push({
             kind: 'gantry', x: cx, z: cz, yawDeg: 0,
-            gauge: H.craneGaugeM, height: H.craneHeightM, reach: H.craneReachM,
+            gauge: H.craneGaugeM, height: H.craneHeightM + arm.dh, reach: H.craneReachM,
+            boomUp: arm.boomUp, trolley: arm.trolley, laden: arm.laden,
+            service: arm.service, tone: arm.tone, back: arm.back,
           });
+        }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE QUAY'S OWN FURNITURE — SESSION 71, ITEM 2b.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * *"THE QUAY IS BARE. Bollards, fenders on the wall, a crane rail,
+         * stacked pallets, drums, a small office, floodlight masts, a gatehouse
+         * where the road branch arrives. These are the things that make a
+         * surface into a place."*
+         *
+         * ONE FEATURE EVERY 28 m ALONG THE QUAY, and the pitch is why it is
+         * emitted this way rather than as four long boxes: a feature belongs to
+         * the chunk its position falls in, and a 448 m rail emitted from one
+         * chunk would hang 320 m outside that chunk's own bounds. Short
+         * features clip themselves by construction — the same reason `plate()`
+         * above clips its rectangles — and they also let the furniture VARY
+         * along the run instead of repeating.
+         *
+         * `n` is the station index and it is what every choice below reads, so
+         * the quay is deterministic in the seed without drawing a random number
+         * at all.
+         */
+        {
+          const qStep = 28;
+          const qN = Math.round((H.x1 - H.x0) / qStep);
+          for (let n = 0; n <= qN; n++) {
+            const qx = H.x0 + (n / qN) * (H.x1 - H.x0);
+            const qz = H.quayZ + H.craneGaugeM / 2;
+            if (qx < b.x0 || qx >= b.x1 || qz < b.z0 || qz >= b.z1) continue;
+            features.push({
+              kind: 'quaykit', x: qx, z: qz, yawDeg: 0, n,
+              gauge: H.craneGaugeM, run: qStep,
+              /** Which extras this station carries. A quay is not periodic. */
+              pallets: n % 3 === 1 ? 1 : 0,
+              drums: n % 5 === 2 ? 1 : 0,
+              hut: n % 7 === 3 ? 1 : 0,
+            });
+          }
         }
         /**
          * CONTAINER BLOCKS. The cheapest volume in the project, and stacked
@@ -17668,10 +17770,40 @@ export function generateChunk(rootSeed, cx, cz) {
           const cx = H.x0 + 40 + (i % H.stackCols) * H.stackPitchM;
           const cz = H.apronZ + 16 + Math.floor(i / H.stackCols) * 26;
           if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+          /**
+           * THE HEIGHTS VARY AND THE FRONT ROW IS LOWER — session 71. A yard
+           * stacked to one height is a wall; a yard worked from the quay is
+           * lower where the gantries reach it and higher at the back. The
+           * pattern is the index's, so it is deterministic and needs no roll.
+           */
+          const rowOfBlocks = Math.floor(i / H.stackCols);
+          const high = H.stackHigh + (rowOfBlocks === 0 ? -1 : 0) + (i % 3 === 1 ? 1 : 0);
           features.push({
             kind: 'containers', x: cx, z: cz, yawDeg: 0, chroma: i,
-            bays: H.stackBays, rows: H.stackRows, high: H.stackHigh,
+            bays: H.stackBays, rows: H.stackRows, high,
+            /** One block in four is part-worked: a notch out of its top course. */
+            worked: i % 4 === 2 ? 1 : 0,
           });
+        }
+        /**
+         * THE TRANSIT SHEDS — item 2c. Landward of the yard so they stand on
+         * the terrain, which `put()` seats them on at no cost, and staggered in
+         * z so the row is not a wall of its own.
+         */
+        for (let i = 0; i < H.sheds; i++) {
+          const cx = H.x0 + 60 + i * ((H.x1 - H.x0 - 120) / Math.max(1, H.sheds - 1));
+          const cz = H.shedZ + (i % 2 ? 15 : 0);
+          if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+          features.push({
+            kind: 'shed', x: cx, z: cz, yawDeg: 0,
+            length: H.shedLenM * (i % 2 ? 0.82 : 1), width: H.shedWideM,
+            height: H.shedHighM * (i === 1 ? 1.25 : 1),
+            tone: 0.9 + (i % 3) * 0.12, canopy: i % 2 === 0 ? 1 : 0,
+          });
+        }
+        /** THE GATE, where the branch road arrives on the yard. */
+        if (H.branchX >= b.x0 && H.branchX < b.x1 && H.yardZ + 9 >= b.z0 && H.yardZ + 9 < b.z1) {
+          features.push({ kind: 'gatehouse', x: H.branchX, z: H.yardZ + 9, yawDeg: 0 });
         }
         /**
          * ═══════════════════════════════════════════════════════════════════

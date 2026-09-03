@@ -4844,65 +4844,337 @@ export function createCity(options = {}) {
         } else if (f.kind === 'gantry') {
           /**
            * ═══════════════════════════════════════════════════════════════
-           * A PORTAL CRANE — SESSION 66, ITEM 3b, AND THE TRIANGLES GO HERE.
+           * A SHIP-TO-SHORE CONTAINER GANTRY — REBUILT IN SESSION 71.
            * ═══════════════════════════════════════════════════════════════
            *
-           * *"Cranes are the landmark. They are tall, they are legible from
-           * the city, and they are the silhouette that says harbour from two
-           * kilometres. Spend the triangles here rather than on quayside detail
-           * nobody stands next to."* So this is eleven boxes and the quay
-           * bollards are none.
+           * THE OPERATOR, LOOKING AT THE QUAY FRAME: *"two posts and a beam"*.
+           * He is right and the frame says so — three pale portals standing in
+           * a row, which is a football goal and not a crane. Session 66 built
+           * eleven boxes and spent its argument on WHY the triangles belong
+           * here rather than on the triangles. This is the spending.
            *
-           * IT IS A PORTAL AND NOT A TOWER, which is the difference between
-           * this and the `crane` branch above: a tower crane is a mast with a
-           * slewing jib and belongs on a building site, and a container crane
-           * is a gantry on rails whose boom reaches OVER THE WATER. The boom is
-           * what reads at distance and it is the one thing a tower crane cannot
-           * fake, so it is drawn at `f.reach` past the seaward leg.
+           * WHAT MAKES A GANTRY READ, and every one is a thing the eleven-box
+           * version did not have:
            *
-           * THE SEAWARD SIDE IS -Z. The quay faces north into the estuary
-           * (CONTRACT §3.1: -Z is north) and the feature is placed at
-           * `quayZ + gauge/2`, so the water is at -gauge/2 in the local frame
-           * and the boom goes that way.
+           *   THE PORTAL      legs far enough apart and a cross-beam high
+           *                   enough that lorries pass beneath. A goal has no
+           *                   headroom; a gantry's whole lower half is headroom.
+           *   THE BOOM        a TRUSS reaching out over the water — two chords
+           *                   with posts between them, not one solid bar. A bar
+           *                   is a crossbar. A truss is a crane.
+           *   THE BACK-REACH  the same truss the other way over the yard, which
+           *                   is what balances the boom and what makes the
+           *                   machine read as asymmetric rather than as a gate.
+           *   THE MACHINERY   a house on the landward side and a trolley under
+           *                   the boom. The trolley is small and it is the
+           *                   detail that says the thing works.
+           *
+           * IT IS DRAWN AS BOXES THROUGH `put()` LIKE EVERYTHING ELSE, so it
+           * costs NO draw call and NO material: every one rides the chunk's own
+           * `:masses` InstancedMesh. The brief said spend the headroom here.
+           *
+           * WHY A LADDER TRUSS AND NOT A LATTICE. `put` composes a yaw about Y
+           * and the feature's own ground PITCH, and neither will lean a bar
+           * from one chord to another — session 66 met this and left the stay
+           * out for it. So a chord pair with VERTICAL posts between them is
+           * what is available, and at the distance this is seen from it is what
+           * a lattice looks like anyway. A raised boom is a STAIRCASE of short
+           * boxes for the same reason: at 500 m it is a diagonal line, which is
+           * the whole of what a raised boom has to be.
+           *
+           * THE SEAWARD SIDE IS -Z, unchanged: the quay faces north into the
+           * estuary (CONTRACT §3.1) and the feature sits at `quayZ + gauge/2`.
            */
           const g = f.gauge / 2;
           const hgt = f.height;
           const leg = [0.30, 0.31, 0.33];
           const beam = [0.62, 0.55, 0.13];
-          /** Four legs on two rails, and the sill beams that carry them. */
+          const dark = [0.17, 0.175, 0.185];
+          /** The paint varies crane to crane so three do not read as one instanced. */
+          const tone = f.tone == null ? 1 : f.tone;
+          const boomC = [beam[0] * tone, beam[1] * tone, beam[2] * tone];
+          /** Portal headroom: a lorry with a box on it is 4.5 m. 16 is a gantry's. */
+          const portalY = 16.0;
+          const legHalf = 8.5;
+          const back = f.back || 20.0;
+
+          /* ── the rails' legs, the sills and the portal ─────────────────── */
           for (const sz of [-g, g]) {
-            for (const sx of [-6.5, 6.5]) {
-              put(sx, hgt / 2, sz, 1.5, hgt, 1.5, leg, 0.62);
+            for (const sx of [-legHalf, legHalf]) {
+              /** A leg in two courses: a fat lower one and a slimmer upper, so
+               *  the silhouette tapers instead of reading as a scaffold pole. */
+              put(sx, portalY / 2, sz, 2.6, portalY, 2.6, leg, 0.62);
+              put(sx, portalY + (hgt - portalY) / 2, sz, 1.9, hgt - portalY, 1.9, leg, 0.62);
+              /** The bogie under each leg, on the rail. */
+              put(sx, 0.9, sz, 4.6, 1.8, 3.0, dark, 0.72);
             }
-            put(0, 0.7, sz, 17.0, 1.4, 2.6, leg, 0.7);
+            /** The sill beam along the quay, tying one rail's two legs. */
+            put(0, 2.4, sz, 2 * legHalf + 4.0, 1.6, 2.4, leg, 0.7);
+            /** The portal cross-beam. Everything under this is the headroom. */
+            put(0, portalY + 1.2, sz, 2 * legHalf + 3.0, 2.4, 2.6, leg, 0.66);
+            /** Bracing, as a staircase of short posts. Six each way. */
+            for (let k = 0; k < 6; k++) {
+              const u = (k + 0.5) / 6;
+              put(-legHalf + u * 2 * legHalf, 3.6 + u * (portalY - 5.6), sz, 1.9, 1.0, 1.1, leg, 0.66);
+              put(legHalf - u * 2 * legHalf, 3.6 + u * (portalY - 5.6), sz, 1.9, 1.0, 1.1, leg, 0.66);
+            }
           }
-          /** The portal beam, and the machinery house that rides it. */
-          put(0, hgt + 1.4, 0, 5.2, 2.8, f.gauge + 3.0, beam, 0.55);
-          put(0, hgt + 4.2, 3.0, 6.0, 3.0, 9.0, leg, 0.6);
+          /** The two gauge girders, across the quay, carrying everything above. */
+          for (const sx of [-legHalf, legHalf]) {
+            put(sx, hgt - 1.2, 0, 2.2, 2.4, 2 * g + 4.0, leg, 0.6);
+          }
+          /** And the deck between them, which is what the boom springs from. */
+          put(0, hgt + 0.6, 0, 2 * legHalf + 2.0, 1.6, 10.0, beam, 0.58);
+
           /**
-           * THE BOOM, over the water, and the backreach behind. A container
-           * crane's boom is the horizontal line a harbour is recognised by, so
-           * it is one long box rather than a truss nobody can resolve.
+           * ── THE BOOM ──────────────────────────────────────────────────
+           * Two chords and the posts between them, springing from the deck and
+           * reaching `f.reach` past the seaward rail — which is `f.reach` past
+           * the quay face, because the feature sits half a gauge behind it.
+           */
+          const boomY = hgt + 1.6;
+          const SEG = 8;
+          if (f.boomUp) {
+            /**
+             * RAISED, WHICH IS WHAT A GANTRY DOES WHEN NO SHIP IS UNDER IT, and
+             * it is the cheapest variety available: one crane in three standing
+             * with its boom up is the difference between a terminal and a row
+             * of instances. 62° is a real stowed angle.
+             */
+            const rise = Math.sin((62 * Math.PI) / 180);
+            const runZ = Math.cos((62 * Math.PI) / 180);
+            for (let k = 0; k < SEG + 4; k++) {
+              const u = (k + 0.5) / (SEG + 4);
+              const d = u * f.reach;
+              put(0, boomY + d * rise, -(g + d * runZ), 3.0, 2.4, f.reach / (SEG + 4) + 1.6, boomC, 0.55);
+              put(0, boomY + d * rise + 3.2, -(g + d * runZ), 2.2, 1.4, f.reach / (SEG + 4) + 1.2, boomC, 0.55);
+            }
+          } else {
+            put(0, boomY, -(g + f.reach / 2), 3.0, 1.5, f.reach, boomC, 0.55);
+            put(0, boomY + 4.0, -(g + f.reach / 2), 2.2, 1.2, f.reach, boomC, 0.55);
+            for (let k = 0; k <= SEG; k++) {
+              const d = (k / SEG) * f.reach;
+              put(0, boomY + 2.0, -(g + d), 1.6, 4.0, 0.9, boomC, 0.6);
+            }
+            /** The tip, and a nose that is not the same section as the chord. */
+            put(0, boomY + 2.0, -(g + f.reach + 1.0), 2.0, 3.0, 2.4, boomC, 0.55);
+            /**
+             * THE TROLLEY AND ITS SPREADER, hanging under the boom at
+             * `f.trolley` of the reach. Two small boxes, and they are what says
+             * the machine is working rather than parked.
+             */
+            const td = g + (f.trolley == null ? 0.55 : f.trolley) * f.reach;
+            put(0, boomY - 1.6, -td, 3.6, 1.8, 4.4, dark, 0.6);
+            put(0, boomY - 5.4, -td, 2.6, 0.8, 12.6, [0.55, 0.42, 0.06], 0.6);
+            if (f.laden) {
+              put(0, boomY - 7.6, -td, 2.44, 2.59, 12.19, [0.10, 0.14, 0.28], 0.72);
+            }
+          }
+
+          /**
+           * ── THE BACK-REACH ────────────────────────────────────────────
+           * Over the yard, and it is the half that stops the machine reading as
+           * a gate: a gate is symmetric and a gantry is not.
+           */
+          put(0, boomY, g + back / 2, 3.0, 1.5, back, boomC, 0.55);
+          put(0, boomY + 3.4, g + back / 2, 2.0, 1.2, back, boomC, 0.55);
+          for (let k = 0; k <= 5; k++) {
+            put(0, boomY + 1.7, g + (k / 5) * back, 1.4, 3.4, 0.9, boomC, 0.6);
+          }
+
+          /**
+           * ── THE MACHINERY HOUSE, THE A-FRAME AND ITS STAYS ────────────
+           * The house sits on the landward side over the back-reach, which is
+           * where a real one is — it is the counterweight as well as the plant.
+           * The A-frame carries the stays that hold the boom, and the stays are
+           * staircases for the reason the raised boom is.
+           */
+          put(0, hgt + 4.4, g + 5.0, 8.0, 5.6, 11.0, leg, 0.6);
+          put(0, hgt + 7.6, g + 5.0, 5.0, 1.0, 8.0, dark, 0.7);
+          for (const sx of [-3.4, 3.4]) {
+            put(sx, hgt + 8.0, 0.5, 1.8, 13.0, 1.8, leg, 0.6);
+          }
+          put(0, hgt + 14.8, 0.5, 9.0, 1.6, 2.2, leg, 0.6);
+          for (let k = 1; k <= 7; k++) {
+            const u = k / 8;
+            if (!f.boomUp) {
+              put(0, hgt + 14.5 - u * 8.9, -(0.5 + u * (g + f.reach * 0.72)), 1.0, 1.0, 2.6, leg, 0.6);
+            }
+            put(0, hgt + 14.5 - u * 8.0, 0.5 + u * (g + back * 0.5), 1.0, 1.0, 2.4, leg, 0.6);
+          }
+          /**
+           * THE OPERATOR'S CAB, under the deck on the seaward side, and a stair
+           * up the landward leg. Both are small and both are what a person
+           * looks for when deciding whether a thing is a machine.
+           */
+          put(-legHalf + 1.0, hgt - 3.6, -g + 2.0, 2.4, 2.6, 2.8, [0.14, 0.16, 0.20], 0.35);
+          for (let k = 0; k < 9; k++) {
+            put(legHalf + 1.9, 1.6 + k * ((hgt - 3.0) / 9), g, 1.0, 0.5, 2.4, dark, 0.8);
+          }
+          /**
+           * A SERVICE PLATFORM AND A CHERRY-PICKER on the crane being worked
+           * on. One machine in three out of service is what a working terminal
+           * looks like at any given moment.
+           */
+          if (f.service) {
+            put(legHalf + 4.5, 1.4, g - 6.0, 3.0, 2.8, 6.4, [0.55, 0.42, 0.06], 0.66);
+            put(legHalf + 4.5, portalY * 0.55, g - 6.0, 1.2, portalY * 0.9, 1.2, [0.55, 0.42, 0.06], 0.66);
+            put(legHalf + 4.5, portalY + 1.4, g - 6.0, 2.6, 1.4, 2.6, dark, 0.7);
+          }
+        } else if (f.kind === 'quaykit') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * 28 METRES OF WORKING QUAY — SESSION 71, ITEM 2b.
+           * ═══════════════════════════════════════════════════════════════
            *
-           * IT SPRINGS FROM THE PORTAL BEAM AND THE FIRST ARM LEFT IT IN THE
-           * AIR. It was drawn at `hgt + 3.6` while the legs stop at `hgt` and
-           * the beam is 2.8 m deep about `hgt + 1.4` — so a 34 m boom hung
-           * 2.7 m clear of everything holding it, which the `sea-road` frame
-           * showed as a yellow bar floating between two masts. At the beam's own
-           * height the two overlap and the boom is carried.
+           * *"THE QUAY IS BARE."* It was: a level plate, three cranes and
+           * nothing else on 448 m of it. This is one station's worth of the
+           * things that make a surface into a place, and the whole run is
+           * fifteen of them.
+           *
+           * THE TWO CRANE RAILS ARE THE POINT OF THE WHOLE FEATURE. Item 1d —
+           * *"rails along the quay, so they look like they belong to the
+           * ground"* — and a gantry standing on nothing is the single clearest
+           * tell that it was dropped in. Each station lays its own 28 m of both
+           * rails, so the run is continuous and no chunk draws another's.
+           *
+           * The feature's origin is the crane line, at `quayZ + gauge/2`, so
+           * the seaward rail is at -gauge/2 and the quay face is there too.
            */
-          put(0, hgt + 1.4, -(g + f.reach / 2), 3.4, 2.0, f.reach, beam, 0.55);
-          put(0, hgt + 1.4, g + 7.0, 3.0, 1.8, 14.0, beam, 0.55);
+          const g = f.gauge / 2;
+          const run = f.run;
+          const rail = [0.26, 0.24, 0.22];
+          const conc = [0.44, 0.435, 0.42];
+          const dark = [0.16, 0.165, 0.175];
+          /** Both rails, and the sleeper plate under each. */
+          for (const sz of [-g, g]) {
+            put(0, 0.16, sz, run, 0.32, 1.5, conc, 0.88);
+            put(0, 0.40, sz, run, 0.22, 0.34, rail, 0.5);
+          }
           /**
-           * THE MAST, and there is no stay. A fan of stays wants a box with a
-           * PITCH and `put` composes a yaw and a pitch that reads the GROUND —
-           * session 65's, for a hedgerow on a slope — neither of which will
-           * lean a bar from a masthead to a boom tip. The first arm drew the
-           * stay as a horizontal box 8.4 m over the boom, which is a second bar
-           * floating in the air rather than a stay. One mast reads; two floating
-           * bars do not, and `good beats perfect` is this session's instruction.
+           * BOLLARDS ON THE QUAY EDGE. Two a station is 14 m apart, which is a
+           * real spacing, and they are the thing a moored hull's lines go to.
+           * A bollard is a stump with a head on it — the head is what makes it
+           * read as a bollard rather than as a post.
            */
-          put(0, hgt + 8.0, 1.0, 2.2, 13.2, 2.2, leg, 0.6);
+          for (const u of [-0.25, 0.25]) {
+            put(u * run, 0.55, -g - 2.6, 0.72, 1.10, 0.72, dark, 0.55);
+            put(u * run, 1.22, -g - 2.6, 0.98, 0.26, 0.98, dark, 0.5);
+          }
+          /**
+           * FENDERS ON THE FACE. They hang OVER the edge and down, which is
+           * what makes the quay wall read as a wall rather than as the edge of
+           * a plate — and it is the one piece of this that is visible from the
+           * water, which is where the crane line is judged from.
+           */
+          for (const u of [-0.34, 0, 0.34]) {
+            put(u * run, -1.6, -g - 3.15, 1.0, 3.4, 0.55, [0.10, 0.10, 0.11], 0.85);
+          }
+          /** A kerb along the edge, so the plate stops at something. */
+          put(0, 0.22, -g - 2.95, run, 0.44, 0.5, conc, 0.9);
+          /**
+           * AND THE CLUTTER, WHICH IS NOT ON EVERY STATION. A quay that
+           * repeats every 28 m is a texture; a quay with something on one
+           * station in three is a place. Every choice came in on the feature
+           * from the generator so this branch draws and does not decide.
+           */
+          if (f.pallets) {
+            for (let k = 0; k < 6; k++) {
+              const px = -3.5 + (k % 3) * 3.5;
+              const pz = 3.0 + Math.floor(k / 3) * 3.0;
+              const hgt = 0.9 + ((f.n + k) % 3) * 0.55;
+              put(px, hgt / 2, pz, 2.4, hgt, 2.4, [0.42, 0.33, 0.20], 0.86);
+            }
+          }
+          if (f.drums) {
+            for (let k = 0; k < 8; k++) {
+              put(-5.0 + (k % 4) * 1.3, 0.44, 6.0 + Math.floor(k / 4) * 1.3,
+                0.9, 0.88, 0.9, k % 2 ? [0.30, 0.10, 0.07] : [0.14, 0.22, 0.16], 0.6);
+            }
+          }
+          if (f.hut) {
+            /** A dockers' hut: a box, a roof band and a door-dark end. */
+            put(0, 1.6, 9.5, 6.0, 3.2, 4.0, [0.56, 0.55, 0.52], 0.8);
+            put(0, 3.35, 9.5, 6.4, 0.3, 4.4, [0.33, 0.34, 0.35], 0.7);
+            put(-3.05, 1.2, 9.5, 0.15, 2.2, 1.2, [0.13, 0.14, 0.16], 0.5);
+          }
+        } else if (f.kind === 'shed') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * A TRANSIT SHED — SESSION 71, ITEM 2c.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"WAREHOUSES AND SHEDS behind the yard, long and low, in the
+           * angular near-future vocabulary LOOK.md asks for. They also hide the
+           * yard's edge, which is currently a line."*
+           *
+           * LONG, LOW, AND RIBBED. What makes a shed read as a shed rather than
+           * as a slab is that its long wall is not flat: a portal frame every
+           * bay, a continuous eaves band, a monitor roof along the ridge, and
+           * roller doors on the end that faces the yard. All of it is boxes and
+           * all of it is one axis repeated, which is the cheapest detail there
+           * is.
+           */
+          const L = f.length;
+          const W = f.width;
+          const Hh = f.height;
+          const wall = [0.50 * f.tone, 0.505 * f.tone, 0.495 * f.tone];
+          const trim = [0.34, 0.35, 0.36];
+          const dark = [0.15, 0.155, 0.165];
+          put(0, Hh / 2, 0, L, Hh, W, wall, 0.78);
+          /** The roof: a shallow monitor along the ridge, and its eaves. */
+          put(0, Hh + 0.35, 0, L + 0.9, 0.7, W + 0.9, trim, 0.7);
+          put(0, Hh + 1.5, 0, L * 0.82, 1.6, W * 0.30, wall, 0.7);
+          put(0, Hh + 2.45, 0, L * 0.84, 0.35, W * 0.36, trim, 0.68);
+          /** Portal frames along the long wall, every 7.5 m. */
+          const bays = Math.max(2, Math.round(L / 7.5));
+          for (let k = 0; k <= bays; k++) {
+            const px = (k / bays - 0.5) * L;
+            for (const sz of [-W / 2, W / 2]) {
+              put(px, Hh * 0.5, sz, 0.5, Hh, 0.45, trim, 0.72);
+            }
+          }
+          /** A continuous band at eaves height, which is what stops the ribs
+           *  reading as a fence with a roof balanced on it. */
+          for (const sz of [-W / 2, W / 2]) {
+            put(0, Hh * 0.78, sz, L, 0.7, 0.55, trim, 0.7);
+          }
+          /** Roller doors on the yard-facing end, and a personnel door beside. */
+          for (let k = 0; k < 3; k++) {
+            put((k - 1) * (L / 4), Hh * 0.30, -W / 2 - 0.28, L / 6, Hh * 0.60, 0.25, dark, 0.6);
+          }
+          if (f.canopy) {
+            /** A loading canopy on the yard side, on two posts. */
+            put(0, Hh * 0.66, -W / 2 - 3.2, L * 0.7, 0.4, 6.4, trim, 0.72);
+            for (const px of [-L * 0.3, L * 0.3]) {
+              put(px, Hh * 0.33, -W / 2 - 6.0, 0.4, Hh * 0.66, 0.4, trim, 0.72);
+            }
+          }
+        } else if (f.kind === 'gatehouse') {
+          /**
+           * WHERE THE ROAD BRANCH ARRIVES — SESSION 71, ITEM 2b. A terminal
+           * with no gate is a car park. A cabin, a canopy over the lanes, two
+           * barriers and a sign gantry: the whole thing is what a driver sees
+           * and what says the yard is not open ground.
+           */
+          const dark = [0.15, 0.155, 0.165];
+          const trim = [0.34, 0.35, 0.36];
+          put(0, 1.75, 0, 4.4, 3.5, 3.4, [0.60, 0.60, 0.57], 0.78);
+          put(0, 3.7, 0, 4.9, 0.4, 3.9, trim, 0.7);
+          put(0, 2.0, -1.78, 3.4, 1.4, 0.12, [0.12, 0.14, 0.18], 0.2);
+          /** The canopy over both lanes, on four posts. */
+          put(0, 5.4, 0, 22.0, 0.5, 9.0, trim, 0.72);
+          for (const px of [-9.5, 9.5]) {
+            for (const pz of [-3.6, 3.6]) {
+              put(px, 2.6, pz, 0.45, 5.2, 0.45, trim, 0.72);
+            }
+          }
+          /** Two barriers, one down and one up, and their posts. */
+          for (const [px, up] of [[-6.0, 0], [6.0, 1]]) {
+            put(px, 0.9, 0, 0.35, 1.8, 0.35, dark, 0.7);
+            if (up) put(px + 0.2, 3.0, 0, 0.5, 4.0, 0.22, [0.72, 0.10, 0.08], 0.6);
+            else put(px + 3.0, 1.55, 0, 6.0, 0.22, 0.22, [0.72, 0.10, 0.08], 0.6);
+          }
         } else if (f.kind === 'containers') {
           /**
            * A CONTAINER BLOCK — the cheapest volume in the project, and the
@@ -4933,8 +5205,15 @@ export function createCity(options = {}) {
           const bays = f.bays || 1;
           const GAP = 1.0;
           for (let a = 0; a < bays; a++) {
+            /**
+             * ONE BLOCK IN FOUR IS PART-WORKED — session 71. A gantry takes a
+             * yard down bay by bay, so a terminal at any moment has a notch out
+             * of one block's top courses. It is two lines and it is the
+             * difference between a stack and a stack that somebody is using.
+             */
+            const cut = f.worked && a >= bays - 2 ? (a === bays - 1 ? 2 : 1) : 0;
             for (let r = 0; r < f.rows; r++) {
-              for (let k = 0; k < f.high; k++) {
+              for (let k = 0; k < Math.max(1, f.high - cut); k++) {
                 /**
                  * THE LIVERY TAKES THE BAY INDEX TOO. Without it every bay in
                  * a block is the same colour repeated along x, which is the
