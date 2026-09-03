@@ -195,6 +195,25 @@ const AIRFRAMES = {
    * at the distances this is seen from, a turning rotor is a disc, and four
    * blades at 5 Hz under a 60 Hz frame is a stroboscope rather than a rotor.
    * 13.4 m rotor diameter is an AW139's.
+   *
+   * ── AND IT WAS A SQUARE, WHICH IS NOT A DISC — SESSION 73, THE WALK ───────
+   *
+   * The round's own words, on `sea-harbour`: *"a grey rectangle floats in the
+   * sky."* It is this box. **13.4 x 0.09 x 13.4 is a 13.4 m SQUARE PLATE**, and
+   * the paragraph above is right about the disc and then builds the wrong
+   * shape: from underneath, a square reads as a diamond hanging in the air with
+   * a small wedge under it, which is what the frame shows. Nothing about it
+   * says helicopter.
+   *
+   * A ROTOR IS A BAR AND NOT A PLATE, at any speed a frame can catch. Four
+   * blades frozen by a shutter are a cross; blurred, they are a thin annulus
+   * seen edge-on as a LINE. Both read as a bar, and a bar is what this can be
+   * inside `BOXES_PER_AIRCRAFT` = 4 — which is fixed here and in the mesh's own
+   * row arithmetic, so a fifth box is not a one-line change.
+   *
+   * The diameter is untouched: 13.4 m is still an AW139's and `wingSpan` still
+   * reads it. What changed is the chord, 13.4 m to 2.4, and the disc is darker
+   * than the airframe because a rotor in motion is.
    */
   heli: {
     wingSpan: 13.4,
@@ -202,7 +221,7 @@ const AIRFRAMES = {
     boxes: [
       { x: 0, y: 0, z: 0, w: 2.1, h: 1.9, d: 4.6 },
       { x: 0, y: 0.35, z: 3.4, w: 0.5, h: 0.5, d: 3.4 },
-      { x: 0, y: 1.35, z: 0.2, w: 13.4, h: 0.09, d: 13.4 },
+      { x: 0, y: 1.35, z: 0.2, w: 13.4, h: 0.09, d: 2.4, dark: 1 },
       { x: 0.1, y: 0.9, z: 5.0, w: 0.14, h: 1.6, d: 0.7 },
     ],
   },
@@ -581,9 +600,15 @@ export function createAircraft(options = {}) {
           if (suppressBody) bodyMotion.carry(row);
           // A dark grey airframe. At night it is a silhouette; by day it is a
           // pale underside against a bright sky, which is what a real one is.
-          bodyCol[row * 3] = 0.40;
-          bodyCol[row * 3 + 1] = 0.41;
-          bodyCol[row * 3 + 2] = 0.43;
+          //
+          // `box.dark` IS THE ROTOR — session 73. A turning disc is not the
+          // colour of the machine under it: it is most of the way to the sky
+          // behind it, and painting it the airframe's own 0.40 is what made a
+          // 13.4 m plate read as a solid object rather than as motion.
+          const bc = box.dark ? 0.16 : 0.40;
+          bodyCol[row * 3] = bc;
+          bodyCol[row * 3 + 1] = bc * 1.025;
+          bodyCol[row * 3 + 2] = bc * 1.075;
         }
 
         /**
