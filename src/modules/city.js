@@ -4080,6 +4080,54 @@ export function createCity(options = {}) {
          * convention. CONTRACT §9 row 2: a basis in one handedness convention
          * used as the other.
          */
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * A FEATURE THAT GLOWS — SESSION 71, ITEM 4, AND THE HARBOUR IS INSIDE
+         * THE GATE.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The brief's premise (iv) asked whether the harbour falls inside the
+         * emissive ring gate. **It does**, and the gate that matters is not the
+         * one session 68 measured. Two gates exist and they are 2x apart:
+         *
+         *   `city:bowls`   is built inside `if (near)` — ring <= 2, 256-384 m.
+         *                  That is the one session 68's villas failed against a
+         *                  900 m drive reach, and it is one global emissive
+         *                  intensity with NO per-instance channel, so every
+         *                  bowl in the world is the same sodium at the same
+         *                  brightness. LOOK.md's *"warm against the city's
+         *                  cold"* is unreachable through it.
+         *   `city:signs`   is merged by `rebuildSignMesh` over EVERY resident
+         *                  chunk — ring <= 5, 640-768 m — on `materials.sign`,
+         *                  which `lights.js` gives a per-instance emissive
+         *                  through `totalEmissiveRadiance *= vColor`.
+         *
+         * So a harbour light goes in the SIGN mesh: twice the reach, one draw
+         * call that already exists, and a chroma and a gain per instance. Both
+         * `sea-road` and `sea-harbour` stand at ring 1 of the quay, so every
+         * committed pose that looks at this sees it.
+         *
+         * `nits` IS A GAIN ON `LIGHT.signPlateNits` AND IT IS COMPUTED, not
+         * typed, for the reason `ROOF_SIGN_GAIN` is: two constants that must
+         * hold a ratio may not both be literals.
+         *
+         * THE THREE PARALLEL ARRAYS ARE WRITTEN TOGETHER. `rebuildSignMesh`
+         * asserts `trade.length === matrices.length` and session 55 paid for a
+         * parallel array that ran short, so this pushes all three or none.
+         */
+        const glow = (dx, dy, dz, w, h, yawDeg, chroma, nits) => {
+          const c = Math.cos(((f.yawDeg || 0) * Math.PI) / -180);
+          const sn = Math.sin(((f.yawDeg || 0) * Math.PI) / -180);
+          const wx = f.x + dx * c - dz * sn;
+          const wz = f.z + dx * sn + dz * c;
+          const gainN = nits / LIGHT.signPlateNits;
+          signQuads.push(setMatrix(wx, y0 + dy, wz, w, h, 1, (f.yawDeg || 0) + yawDeg));
+          signTint.push({
+            albedo: [chroma[0] * gainN, chroma[1] * gainN, chroma[2] * gainN],
+            roughness: 0.1,
+          });
+          signTrade.push(null);
+        };
         const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
           const c = Math.cos(((f.yawDeg || 0) * Math.PI) / -180);
           const s = Math.sin(((f.yawDeg || 0) * Math.PI) / -180);
@@ -4829,6 +4877,19 @@ export function createCity(options = {}) {
         } else if (f.kind === 'flood') {
           put(0, 0.14, 0, 0.9, 0.28, 0.9, [0.30, 0.298, 0.288], 0.9);
           put(0, f.height * 0.5, 0, 0.20, f.height, 0.20, [0.34, 0.345, 0.352], 0.55);
+          /**
+           * AND A HEAD ON IT — session 71. A flood mast whose lamp is not lit
+           * is a pole, and this one had 14 m of pole and nothing on top. The
+           * head is a box on the structure mesh and the LIGHT is a quad on the
+           * sign mesh, aimed the way `f.aimX/aimZ` already says the mast is.
+           */
+          {
+            const ax = (f.aimX == null ? f.x : f.aimX) - f.x;
+            const az = (f.aimZ == null ? f.z : f.aimZ) - f.z;
+            const aim = (Math.atan2(ax, az) * 180) / Math.PI;
+            put(0, f.height + 0.5, 0, 2.6, 0.9, 1.2, [0.22, 0.225, 0.235], 0.6, aim);
+            glow(0, f.height + 0.4, 0, 2.4, 0.7, aim, EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 7.0);
+          }
         } else if (f.kind === 'crane') {
           /**
            * THE CRANE'S STATIC HALF: a ballast pad and the mast. What SLEWS —
@@ -5025,6 +5086,25 @@ export function createCity(options = {}) {
            * looks for when deciding whether a thing is a machine.
            */
           put(-legHalf + 1.0, hgt - 3.6, -g + 2.0, 2.4, 2.6, 2.8, [0.14, 0.16, 0.20], 0.35);
+          /**
+           * AND IT IS LIT — item 4a. Floods under the portal beam pointing at
+           * the deck below, a pair on the boom, and the cab's own window. Sodium
+           * because that is what a working quay burns and because it is WARM
+           * against the city's mercury and fluorescent, which is LOOK.md's own
+           * sentence and is the thing the lamp-bowl path could not do.
+           */
+          for (const sz of [-g, g]) {
+            for (const sx of [-legHalf, legHalf]) {
+              glow(sx, portalY + 0.2, sz + (sz < 0 ? 1.4 : -1.4), 1.7, 0.7, sz < 0 ? 180 : 0,
+                EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 5.2);
+            }
+          }
+          if (!f.boomUp) {
+            for (const d of [0.35, 0.8]) {
+              glow(0, boomY - 0.9, -(g + d * f.reach), 2.0, 0.6, 0, EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 4.4);
+            }
+          }
+          glow(-legHalf + 1.0, hgt - 3.4, -g + 0.55, 1.9, 1.5, 180, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.5);
           for (let k = 0; k < 9; k++) {
             put(legHalf + 1.9, 1.6 + k * ((hgt - 3.0) / 9), g, 1.0, 0.5, 2.4, dark, 0.8);
           }
@@ -5114,6 +5194,7 @@ export function createCity(options = {}) {
             put(0, 1.6, 9.5, 6.0, 3.2, 4.0, [0.56, 0.55, 0.52], 0.8);
             put(0, 3.35, 9.5, 6.4, 0.3, 4.4, [0.33, 0.34, 0.35], 0.7);
             put(-3.05, 1.2, 9.5, 0.15, 2.2, 1.2, [0.13, 0.14, 0.16], 0.5);
+            glow(0, 1.9, 7.45, 2.4, 1.1, 180, EMITTER_CHROMA.tungsten, LIGHT.signPlateNits * 1.2);
           }
         } else if (f.kind === 'transitshed') {
           /**
@@ -5174,6 +5255,18 @@ export function createCity(options = {}) {
           for (let k = 0; k < 3; k++) {
             put((k - 1) * (L / 4), Hh * 0.30, -W / 2 - 0.28, L / 6, Hh * 0.60, 0.25, dark, 0.6);
           }
+          /**
+           * LIT WINDOWS ALONG THE LONG WALLS — item 4a. A clerestory strip a
+           * bay wide every other bay, cold inside against the sodium outside,
+           * which is the contrast that makes both read.
+           */
+          for (let k = 0; k < bays; k += 2) {
+            const px = ((k + 0.5) / bays - 0.5) * L;
+            for (const sz of [-1, 1]) {
+              glow(px, Hh * 0.72, sz * (W / 2 + 0.22), L / bays * 0.62, 1.5,
+                sz < 0 ? 180 : 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 1.35);
+            }
+          }
           if (f.canopy) {
             /** A loading canopy on the yard side, on two posts. */
             put(0, Hh * 0.66, -W / 2 - 3.2, L * 0.7, 0.4, 6.4, trim, 0.72);
@@ -5193,6 +5286,10 @@ export function createCity(options = {}) {
           put(0, 1.75, 0, 4.4, 3.5, 3.4, [0.60, 0.60, 0.57], 0.78);
           put(0, 3.7, 0, 4.9, 0.4, 3.9, trim, 0.7);
           put(0, 2.0, -1.78, 3.4, 1.4, 0.12, [0.12, 0.14, 0.18], 0.2);
+          glow(0, 2.0, -1.86, 3.2, 1.3, 180, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.6);
+          for (const px of [-6.5, 6.5]) {
+            glow(px, 5.05, 0, 2.6, 0.7, 180, EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 3.0);
+          }
           /** The canopy over both lanes, on four posts. */
           put(0, 5.4, 0, 22.0, 0.5, 9.0, trim, 0.72);
           for (const px of [-9.5, 9.5]) {

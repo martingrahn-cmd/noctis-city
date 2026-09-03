@@ -6556,7 +6556,7 @@ export const HARBOUR = {
   /** The fairway the coaster runs, in world x, and how far off the quay it is. */
   coasterX0: 3520,
   coasterX1: 4600,
-  coasterOffM: 116,
+  coasterOffM: 172,
 };
 
 /**
