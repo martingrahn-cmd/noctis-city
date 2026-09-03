@@ -17515,7 +17515,11 @@ export function generateChunk(rootSeed, cx, cz) {
        * is the surface and the feature stands on it, which is what every
        * feature in this project except a deck park's cars already does.
        */
-      features.push({ kind: 'villa', x: hh.x, z: hh.z, yawDeg: hh.yawDeg,
+      /** `lit` is session 73's: about two in three houses have their glazed
+       *  elevation on after dark. Off the house's OWN POSITION rather than a
+       *  roll, so it is deterministic, costs no stream, and cannot reorder
+       *  anything — a hillside where every window is lit is a hotel. */
+      features.push({ kind: 'villa', lit: (Math.abs(Math.round(hh.x / 7) + Math.round(hh.z / 11)) % 3) !== 1 ? 1 : 0, x: hh.x, z: hh.z, yawDeg: hh.yawDeg,
         length: HS.houseL, depth: HS.houseD, height: HS.houseH,
         tone: hh.tone, wall: hh.wall });
       /**

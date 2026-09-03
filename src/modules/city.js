@@ -4697,6 +4697,48 @@ export function createCity(options = {}) {
             /** A boundary wall along the approach — a gate is the gap in it. */
             put(-w * 0.20, 1.0, -d * 0.95, w * 0.9, 2.0, 0.4, deck, 0.9);
           }
+          /**
+           * ═══════════════════════════════════════════════════════════════════
+           * AND SOMEBODY IS HOME — SESSION 73, THE WALK.
+           * ═══════════════════════════════════════════════════════════════════
+           *
+           * The round at midnight: *"`country-air` is almost entirely black.
+           * The hillside villas are not visible at all."* They have been dark
+           * since session 62 built them, and STATE has carried it as a deferred
+           * item for five sessions on the belief that the emissive path could
+           * not reach them.
+           *
+           * **IT CAN, AND SESSION 71 FOUND THE ROUTE WITHOUT LOOKING FOR IT.**
+           * There are two emissive meshes and they are 2x apart: `city:bowls`
+           * is built inside `if (near)` — ring <= 2, 256-384 m, which is the
+           * gate session 68 measured the villas against and the reason they were
+           * written off — while `city:signs` is merged by `rebuildSignMesh` over
+           * EVERY RESIDENT chunk, ring <= 5, 640-768 m, on a material
+           * `lights.js` gives a per-instance emissive. `glow()` is that route
+           * and it is already in this feature loop.
+           *
+           * THE GLAZED ELEVATION IS THE ONE THAT LIGHTS, which is the whole
+           * point of the house: a wall of glass facing the city, lit from
+           * inside, is what a hillside villa looks like after dark from four
+           * hundred metres. Tungsten, so it is warm against the city's cold —
+           * LOOK.md's own sentence, and the thing the lamp-bowl path cannot say
+           * because it has one global intensity.
+           *
+           * NOT EVERY HOUSE AND NOT EVERY WINDOW. `f.lit` comes off the
+           * feature's own index in `citygen.js`, so about two in three are in
+           * and the rest are dark — a hillside where every window is lit is a
+           * hotel.
+           */
+          if (f.lit) {
+            glow(-w * 0.14, h * 0.52, d / 2 + 0.14, w * 0.62, h * 0.80, 0,
+              EMITTER_CHROMA.tungsten, LIGHT.signPlateNits * 0.85);
+            glow(w * 0.30, h * 0.9, d * 0.24 + 0.14, w * 0.30, h * 0.9, 0,
+              EMITTER_CHROMA.tungsten, LIGHT.signPlateNits * 0.7);
+            /** One lamp over the door, which is what says the house is occupied
+             *  rather than that its lights were left on. */
+            glow(-w * 0.40, 4.3, -d * 0.32 + 2.9, 1.1, 0.5, (f.yawDeg || 0) + 24,
+              EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 1.4);
+          }
         } else if (f.kind === 'canopy') {
           /**
            * A ROOF ON COLUMNS — session 49. A market hall, a depot's parking

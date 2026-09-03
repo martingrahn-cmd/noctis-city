@@ -150,6 +150,26 @@ export function presets() {
     const east = hillsideHouses('1337').filter((h) => h.x > 0 && h.z > 0 && h.x < 3600);
     const cx = east.reduce((a, h) => a + h.x, 0) / Math.max(1, east.length);
     const cz = east.reduce((a, h) => a + h.z, 0) / Math.max(1, east.length);
+    /**
+     * THE HILLSIDE FROM THE CITY SIDE — SESSION 73.
+     *
+     * `country-air` stands 710 m from the villa cluster and looks at the backs
+     * of the houses; at midnight it reads as *"almost entirely black, the
+     * hillside villas are not visible at all"*, which is what session 73's
+     * round wrote down and what five sessions of STATE have carried as a
+     * defect. **The villas were dark. They are also not visible from that
+     * pose whether they are lit or not**, which is a fact about the pose.
+     *
+     * This one stands on the CITY side at 380 m, which is the side the glazed
+     * elevation faces — `villa`'s own comment: *"a wall of glass on the view
+     * side and blunt masonry everywhere else"*. Anchored on the east cluster's
+     * own centroid, so it moves with the houses.
+     */
+    out['villa-city'] = {
+      pos: [cx - 290, 55, cz - 200],
+      target: [cx + 30, 25, cz + 20],
+      fov: 55,
+    };
     out['country-air'] = {
       pos: [cx - 380, 180, cz + 600],
       target: [cx + 540, 0, cz - 130],
