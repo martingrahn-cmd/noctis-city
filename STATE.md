@@ -1,286 +1,268 @@
 # NOCTIS — STATE
 
-*End of session 71. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 12 h of
-uptime — the same boot as sessions 47–70. Every gate that reads a pixel printed
+*End of session 72. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 15 d 14 h of
+uptime — the same boot as sessions 47–71. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RAN 3.99–5.15 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the eleventh
-session running. **No millisecond below is a verdict.** This was a build session and it spent its
-time rendering frames, which is exactly what §0.2's own note says puts this machine outside the bar.
+***`load1` RAN 3.28–5.85 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the twelfth
+session running. **No millisecond below is a verdict.**
 
-Branch `claude/noctis-71-harbour-becomes-a-place`, off session 70's head.
+Branch `claude/noctis-72-the-ground-the-harbour-stands-on`, off session 71's head.
 
-**THIS SESSION SHIPPED CONTENT.** The operator's instruction was *"BUILD MORE, MEASURE LESS"*, and
-the verdict below is a frame.
-
----
-## 0. THE CRANE LINE FROM THE WATER, WHICH IS THE QUESTION
-
-**The operator, looking at the quay before this session: *"two posts and a beam."*** Session 66 built
-its container gantries as eleven boxes — four legs, a portal beam, one solid bar for a boom and a
-mast — and the frame agrees with him: three pale portals in a row on a bare plate. A football goal.
-
-`node tools/lookat.mjs --preset=harbour-air,sea-harbour,sea-road --t=0.42` is the verdict.
-**`harbour-air` is new**: 180 m over the berth, anchored on `harbourSite` so it moves if the quay
-moves. `sea-air` is 180 m over the MOUTH and shows the terminal off the edge of frame — they are not
-the same picture, and the brief's *"aerial over the harbour"* meant this one.
-
-What the frame shows now, and every line of it is a thing that was not there:
-
-```
-  three gantries, none of them the same machine   crane 0 works, its trolley RUNNING its boom
-                                                  crane 1 stands with its boom RAISED to 62 deg
-                                                  crane 2 is out of service, platform and picker
-  a portal with 16 m of headroom under it         lorries pass beneath it, and do
-  a boom that is a TRUSS and not a bar            two chords, nine posts, a tip
-  a back-reach over the yard                      so the machine is asymmetric, not a gate
-  a machinery house, an A-frame, stays, a cab     and a stair up one landward leg
-  876 containers in 10 blocks, 5 x 2, with lanes  heights varied, one block in four part-worked
-  16 stations of quay: BOTH CRANE RAILS,          bollards with heads, fenders over the face,
-    a kerb, pallets, drums, a dockers' hut        so a gantry stands on something
-  four transit sheds and a gatehouse              flanking the branch road's own approach
-  A COASTER UNDER WAY THROUGH THE MOUTH           with a bow wave and a wake
-```
-
-**AND THE STEEL WENT DARK, which is half of why it reads.** Session 66's legs were
-`[0.30, 0.31, 0.33]`. At this exposure a mid grey against a lit sky goes white and the crane
-dissolves into the horizon — which is what the before-frame shows. A gantry is recognised as a **dark
-shape with one bright horizontal in it**, so the structure is `[0.105, 0.115, 0.135]` now and the
-boom keeps its safety yellow.
+**MATERIALS AND ONE FENCE.** No mesh was added. Four ground kinds, one terrain term, twenty fence
+segments.
 
 ---
-## 1. WHAT IT COST, WHICH IS THE ONE NUMBER THAT MATTERED
+## 0. THE CAR-HEIGHT FRAME, WHICH IS THE QUESTION
+
+`node tools/lookat.mjs --preset=sea-road --t=0.42` is the operator's own frame: a car's eye at the
+branch road, 40 m landward of the yard's edge, looking at the quay — so its whole foreground is the
+ground the port stands on. **The operator: *"the grass runs to the quay edge"*, and *"the wet patch
+in the foreground reads as a puddle in a field."*** Both were true and both are measured below.
+
+Sampled at five columns across the boundary between the port's plate and the ground beside it:
 
 ```
-  DRAW CALLS      401 of 440 on `highway_speed`, IDENTICAL TO SESSIONS 67-70.
-                  Zero new. Every box is a `put()` into the chunk's own `:masses`
-                  InstancedMesh; every mover is a part in `river:moving`, which already
-                  existed. No new mesh, no new material, no new program.
-  TRIANGLES       2 451 648 on `highway_speed`, identical to sessions 67-70 — the whole
-                  harbour is 3.9 km from the origin and off every route that binds.
-                  About 13 900 added where it stands, 7.8 % of the 178 352 of headroom.
+                       col 400   600     800    1000    1200
+  BEFORE   plate  Y    0.5163  0.4847  0.4110  0.3921  0.4134     sat 0.131 -> 0.055   hue 221 -> 340
+           ground Y    0.3366  0.3403  0.3355  0.3364  0.3392     sat 0.326 -> 0.344   hue  70
+           the luminance STEP across the edge:
+                       0.1668  0.1410  0.0463  0.0589  0.0384
+
+  AFTER    plate  Y    0.3512  0.3434  0.3403  0.3434  0.3470     sat 0.074            hue 351
+           ground Y    0.4035  0.4083  0.4043  0.4080  0.4080     sat 0.355 -> 0.366   hue  50
+           the luminance STEP across the edge:
+                       0.0612  0.0612  0.0414  0.0540  0.0372
 ```
 
-**AND THE ROUTE COUNT DID MOVE ONCE, BY 576 TRIANGLES, WHICH IS §3e.** The first battery read
-2 452 224. That was the lamp head this session put on every flood mast in the city, and it is the
-only thing in this session that reached the routes at all.
-
-
-Where they went, counted from the generator's own arithmetic:
-
-```
-                          boxes before   boxes after      triangles
-  the three gantries        11 each        92, 97, 97     132 ->  3 432
-  the container yard          384             876       4 608 -> 10 512
-  16 quay stations              0             252           0 ->  3 024
-  four transit sheds            0             128           0 ->  1 536
-  one gatehouse                 0              12           0 ->    144
-  the movers                   17 inst          40         204 ->    480
-```
-
-**Premise (i) held with room to spare** — a gantry with legs, boom, back-reach and machinery house
-fits into 178 352 triangles about thirteen times over. **Premise (ii) held** — the yard grew 2.3× at
-zero draws, by the same `put()` route session 68 used.
+**The step at the near end fell from 0.167 to 0.061 — 2.7×** — and the plate is now DARKER than the
+ground it sits in rather than half again brighter, which is what a wet surface beside dry ground is.
+The ground it sits in is no longer pasture: hue 70 → 50, and it is the port's own worn ground.
 
 ---
-## 2. PREMISE (iii) IS FALSE, AND IT MADE ITEM 3 CHEAPER RATHER THAN DEARER
+## 1. THE MEASUREMENT CHOSE THE INSTRUMENT, AND IT IS NOT SESSION 65's ANSWER
 
-> *"Session 57's barges already move on the river. If that mover reaches the estuary, one hull
-> leaving is the strongest sign of life available."*
-
-**Session 57's barges do not move.** `riverCraft` is MOORED craft — static instance matrices in the
-chunk's `river:structure` mesh, rebuilt only on a chunk crossing, with no path, no speed and no
-update. Its own header says so — *"WHAT IS MOORED ON THE RIVER — SESSION 57"* — and `river.js` labels
-the drawing side *"THE MOORED CRAFT"*. **The only thing that has ever moved on water in this project
-is session 68's harbour launch**, and it was already at the harbour.
-
-So there was no river mover to extend. **There was something better.** Session 68's mover is a PARTS
-LIST with a vehicle index and one pose per vehicle per frame, all in ONE InstancedMesh — so a new
-vehicle is a new index and some parts, at **zero new draw calls**. Everything item 3 asked for went
-in that way:
+The brief asked for both and for a verdict on which decided it. On the five columns above, as ratios
+of plate against ground:
 
 ```
-  a coaster under way        78 m hull, house aft, two hatches, a mast, a bow wave and a wake
-                             3.1 m/s over x 3 520 -> 4 600: six minutes to cross the frame
-  two lorries                on the crane line, so they pass UNDER the portals
-  a third straddle carrier   in the yard's second lane
-  crane 0's trolley          running its boom out over the water and back
+  luminance   1.53   1.42   1.22   1.17   1.22      <- CONVERGES with distance
+  saturation  2.49   2.52   3.51   8.64   6.25      <- DIVERGES
 ```
 
-**AND SHE STARTS AT PHASE 1.45, NOT 0, WHICH IS SESSION 57's LESSON PAID A THIRD TIME.** A paused
-harness reads `time.now = 0`, so phase 0 is what every frame ever taken of this harbour shows — and
-phase 0 put the coaster at x = 3 520, four hundred metres west of the quay, behind every camera that
-looks at it. Session 57 shot three empty river frames before finding barges the quay wall hid;
-session 68 berthed its launch behind the `sea-harbour` camera and wrote a comment saying so. 1.45
-puts her mid-channel at x = 4 114 and heading **west, outbound**.
+**CHROMA DECIDED IT — session 64's answer, not session 65's.** At the far end of the same edge the
+two surfaces are **1.17× apart in luminance**, which is inside what `FARM.toneMin/toneMax` already
+rolls a parcel by (0.82 to 1.12), and **8.6× apart in saturation**. The reason is physical and it is
+also item 3's: a wet impervious surface is a mirror, so it goes neutral and takes the sky's hue —
+221 near the camera, 330 far away — while vegetation stays chromatic at hue 70 the whole way.
+Luminance is the axis this pair happens to share; saturation is the axis they cannot.
+
+So the margins were built to bridge SATURATION, and their luminances are what the mix makes them.
+
+### 1a. THE THREE MARGIN MATERIALS, EACH A MIX OF TWO ALREADY MEASURED
+
+A port margin is not a new material. It is the two materials that made it — the aggregate that was
+laid and the ground it was laid on — so each band is a linear mix at a stated fraction and no fourth
+reflectance is invented to be defended:
+
+```
+  band     mix                             Y        sat     porosity
+  gravel   0.35 of tilled into yard      0.1448    0.160     0.94
+  worn     0.70 of tilled into yard      0.1206    0.276     0.30
+  scrub    0.55 of field into grass      0.1324    0.483     1.00
+
+  the bridge:  yardGround 0.070 -> 0.160 -> 0.276 -> 0.483 -> grass 0.521
+  what it did: luminance  0.169 -> 0.145 -> 0.121 -> 0.132 -> 0.084   (not monotone, not chosen)
+```
+
+**THE POROSITY IS NOT MONOTONE EITHER AND SHOULD NOT BE.** Rough grass drains — session 55's turf at
+1.00. Rutted ground with the surfacing worn off it PONDS: it is a building site's compacted hardcore,
+which this project already measures at 0.30 and which is borrowed rather than restated. Loose crushed
+stone drains freely again. **So the margin has its wet band in the middle of it, which is where a
+port's puddles are.**
+
+### 1b. AND THE GRADIENT READS — ON THE AERIAL, WHICH IS THE POSE THAT CROSSES IT
+
+`harbour-air`, row 640, scanning outward from the terminal into the fields:
+
+```
+                  x 1200      x 1300      x 1400
+  BEFORE  sat     0.278       0.303       0.336
+  AFTER   sat     0.231       0.320       0.347
+```
+
+Before, the crop's saturation was already near its full value one pixel outside the plate. After, it
+**dips to 0.231 at the port's edge and climbs back to the crop's 0.347** over the next 200 px — which
+is the gradient item 1b asked for, in the axis §1 measured to be the tell.
+
+### 1c. THE COUNTRYSIDE STILL ARRIVES
+
+The port's cover is blended into the TERRAIN's own per-vertex tint by `portGroundAt`, which is
+`groundTint`'s hill-cover term one paragraph down applied to a quay — *"so a hill's foot is a band of
+scrub running out into the fields, and there is no line anywhere for the eye to read as an edge."*
+The port joins the session 62–65 sequence by the same mechanism instead of interrupting it with a
+rectangle. It composes BEFORE the hill and the strand, so a hill's foot may run into a port's margin
+and the shingle still wins at the waterline.
+
+### 1d. AND THE TERRAIN'S OWN NYQUIST IS THE LIMIT ON ALL OF IT
+
+The first arm wobbled the band boundaries at a 54 m period and rolled a tone at 19 m, and **the frame
+showed neither.** `TERRAIN.stationM` is **32 m**, so the terrain's per-vertex colour cannot carry a
+feature finer than **64 m**: 19 m is below that outright and 54 m is 1.7 samples a cycle. Both were
+aliased into a flat wash — which is exactly what the brief warned about, *"a single new flat colour
+would be the same mistake in a different hue"*, arriving through the sampling rather than through the
+choice. They are 96 m and 150 m now.
+
+**THE NEAR FIELD CANNOT BE FIXED THERE AT ALL, AND THE FRAME STILL SAYS SO.** Down the `sea-road`
+foreground the ground's luminance ranges 0.4035 to 0.4083 — **1.2 % over the whole visible column**,
+against 1.4 % before. The colour changed; the uniformity did not. Two reasons, both measured: the
+32 m lattice, and the fact that this camera stands 40 m INSIDE a 96 m margin and therefore looks
+along it rather than across it. **Near-field ground texture needs a scatter or a texture, and this
+session shipped neither** — §5 item 1.
 
 ---
-## 3. FIVE DEFECTS FOUND ON THE WAY — FOUR OF THEM THIS SESSION'S OWN
-
-### 3a. A STRADDLE CARRIER HAS RUN 6.35 m UNDERGROUND SINCE SESSION 68
-
-`buildMoving` bakes each part's `dy` once and `stepMoving` writes only x, z and yaw — so a vehicle's
-height is decided in one place and its position in another. Session 68 wrote `H.apronY` for both
-carriers and then posed carrier 1 at `z = H.apronZ - 10 + 14` = **−184**, which is on the **yard**
-plate. `apronY` is 2.117 and `yardY` is 8.470. **It ran its whole 330 m stroke buried to the portal
-beam**, in a mesh whose draw count said it was there — CONTRACT §9's shape with two platforms: the
-height of ONE level used as the height of the site.
-
-Each carrier now takes the datum of the lane it runs in, and `carrierLane` holds the height and the z
-**together**, so the two can no longer be written apart and disagree.
-
-### 3b. A SECOND `shed` BRANCH IS DEAD CODE
-
-The first arm of item 2c added `} else if (f.kind === 'shed')`. Session 49's `shed` already sits
-forty branches up the same `if/else-if` chain with five call sites — a school, a hospital slab, a
-fire station, a farmstead barn and this harbour's own two warehouses. **The first match wins**, so
-the new branch never ran, and the new emitter's `{length, width, height, tone}` arrived at a branch
-expecting `{length, depth, albedo, trim, style}`: `f.depth` undefined, a shed drawn NaN metres deep.
-**Found by reading the chain, not by the frame** — a NaN box does not draw, and an absent shed looks
-exactly like a shed that was never emitted. Renamed `transitshed`.
-
-### 3c. THE WAREHOUSES AND BOTH FLOOD MASTS STOOD INSIDE THE CONTAINER STACKS
-
-Session 66 put its two warehouses at z = −152 and −150 — inside the yard band (−188 to −132) and
-inside the block row centred at −146: a 96 × 34 m building interpenetrating four container blocks.
-Both flood masts were at `H.x0 + 40` = 3 944 and `H.yardZ − 14` = −146, which is a stack COLUMN
-centre and a block ROW centre, so each 14 m column stood through a block. Invisible in every frame
-taken since, because the blocks were three high and the shed is twelve metres tall in the same place.
-The warehouses move to the second rank inland; the masts move into the lanes.
-
-### 3d. THE EAST 28 m OF QUAY HAD NO RAIL, NO BOLLARD AND NO FENDER
-
-`quaykit`'s first arm put its stations at `H.x0 + (n / qN) * (x1 − x0)`, so the last one landed on
-x = 4 352 **exactly** — which is `chunkBounds(34, −2).x0`, the chunk EAST of the harbour, and that
-chunk fails the site's own overlap test because `min(4352, 4480) === max(3904, 4352)`. Sixteen of
-seventeen stations emitted. Stations are centred in their own run now, so every one is strictly
-inside the site. **Same class as the `cz` guard session 66 already carries a comment about**: an edge
-that is a boundary to two things at once.
-
-### 3e. AND ONE THAT `citycheck` CAUGHT AND NO FRAME WOULD HAVE
-
-The lamp head added in item 4 went on **every** `flood` feature. There are NINE emitters of that
-kind — construction sites, canopies, yards — and **all nine pass `aimX`**, so nothing in the feature
-could tell a quay mast from a building site's. The gate said so within the hour:
+## 2. THE PLATE, THE SPUR, AND WHY THEY ARE NEW KINDS
 
 ```
-  forbidden delivered overlaps      5  ->  12     new: prop(bin) x site(flood:)      0.034 m2
-                                                       prop(cabinet) x site(flood:)  0.169 m2
-  delivered sign quads in region   2 647 -> 2 713
-  highway_speed triangles      2 451 648 -> 2 452 224
+  kind          albedo                porosity   what it is
+  portApron     yardGround's exactly    0.455    heavy-duty brushed concrete
+  portGravel    PORT_ALBEDO.gravel      0.940    the yard's 13 m shoulder strip
+  portWorn      PORT_ALBEDO.worn        0.300    the terrain margin's middle band
+  portRoad      road's exactly          0.700    the harbour's access spur
 ```
 
-A 2.6 × 1.2 m head on a 0.20 m mast claims **thirteen times** the ground the mast does, and 66 of
-them stand in a city that was laid out around a pole. `f.head` is set by the harbour's emitter and by
-nothing else now. **CONTRACT rule 5's shape with a bin in it: a gate's number moved as a side effect
-of a change aimed somewhere else** — and the only reason it was caught is that `citycheck` counts a
-population nobody was looking at. The frames were all fine.
+**`portApron`'s 0.455 IS DERIVED AND ITS SENSITIVITY IS STATED.** `EXIT_ROAD`'s own comment carries
+the model — `porosity = 1 − MTD_ref / MTD`, anchored on dense-graded city asphalt at MTD 0.6 mm — and
+says infiltration *"cannot separate a city arterial from a rural chip seal at all"*, which is exactly
+this class. Heavy-duty brushed concrete is MTD 0.9–1.3 mm, so **0.33 to 0.54, and 0.455 is the centre
+of the class.** The gravel is a CHECK of the kind session 65's sward was: infiltration puts crushed
+stone over 100 mm/h against this city's 10 mm/h full rain, i.e. 1.00, and the relief model puts it at
+0.94 — two derivations, 6 % apart, neither fitted to the other.
+
+**THEY ARE NEW KINDS AND NOT CHANGES TO `yardGround` AND `road`**, and session 71 is why:
+`yardGround` is *"the surface `yard`, `industrial` and `port`"*, so giving it a porosity would have
+re-sheened every car park in the city for the harbour's sake — the flood-mast head one session later.
 
 ---
-## 4. THE LIGHT, AND PREMISE (iv) IS TRUE FOR A BETTER REASON THAN THE BRIEF GAVE
+## 3. ITEM 3, AND PREMISE (ii) IS FALSE
 
-**The harbour is inside the emissive gate. There are TWO gates and they are 2× apart:**
+> *(ii) that the wet patch is item 1's defect rather than its own*
+
+**FALSE. It was its own, and it was the branch road.** The wedge in the operator's foreground is the
+100 m ramp from the exit road up to the yard, and it was `kind: 'road'` — which falls through
+`city.js`'s `porosityFor` to **0.0**, a full mirror at this project's wet convention. That value is
+dense-graded city asphalt's and it is correct on an arterial. **This is a spur off the exit road**,
+and session 65 measured that road at `1 − 0.6/2.0` = **0.70** from the same sand-patch model. A
+hundred metres of rural spur was carrying a city arterial's sheen in the middle of a field, which is
+what a puddle looks like.
+
+`portRoad` reads `exitRoadPorosity` rather than a number, so the spur and the road it joins cannot
+drift apart. **The wetness was not deleted** — the frame is still wet by convention and the road is
+still glossy and dark; what went is the mirror.
+
+---
+## 4. ITEM 2 — THE FENCE, AND ITEM 1d's CENSUS
+
+**Twenty segments** on the three landward edges, stopping 26 m either side of `branchX` so the
+gatehouse session 71 built is the only way in. Posts every 3 m, a mesh panel that stops short of the
+ground, a top rail, a raked barbed arm as two stepped boxes — `put` composes only a yaw and the
+ground's pitch, so a rake is session 71's staircase at a twentieth of the scale — and a warning plate
+on one bay in five. **ZERO draw calls: it rides the chunk's own `:masses` mesh**, which is premise
+(iii) and it holds.
+
+**IT IS NOT A REGISTRY CLAIM**, following the harbour's own precedent rather than a decision taken
+here: session 66 wrote *"the rule is that water and its works are not claims"* and left the cranes,
+the yard and the warehouses out. `inHarbourAt` already keeps every countryside scatter off this
+ground, so nothing can grow through it.
+
+**`roughcensus` READS 30 DISTINCT SURFACES, 39 CONSTRUCTION SITES, 0 UNCLASSIFIED, 0 IMPERVIOUS BY
+DEFAULT, and 4 rows crossed with 0 disagreements — unchanged from session 65, because this session
+added NO MESH.** And the reason it is unchanged is worth writing down: **its unit is a
+`new THREE.Mesh(` construction site and it cannot see a ground KIND at all.** What classifies a kind
+is three tables in `city.js`, and all four new kinds are in all three:
 
 ```
-  city:bowls    built inside `if (near)` — ring <= 2, 256-384 m. The gate session 68's villas
-                failed against a 900 m drive reach. ONE global emissive intensity and no
-                per-instance channel, so every bowl in the world is the same sodium at the
-                same brightness: LOOK.md's "warm against the city's cold" cannot be said
-                through it at all.
-  city:signs    merged by `rebuildSignMesh` over EVERY resident chunk — ring <= 5, 640-768 m
-                — on `materials.sign`, which `lights.js` gives a per-instance emissive
-                through `totalEmissiveRadiance *= vColor`.
+  GROUND_ALBEDO         fall-through is walkAlbedo — an unmapped kind renders as PAVEMENT
+  porosityFor           fall-through is 0.0        — an unmapped kind is a MIRROR
+  CATEGORY_FOR_GROUND   unmapped matches no CATEGORY — the surface CLAIMS NOTHING (session 31)
 ```
 
-So the harbour's lights are **sign quads**: twice the reach, a draw call that already exists, a
-chroma and a gain per instance, and **no cluster light slot taken**. `sea-road` and `sea-harbour`
-both stand at ring 1 of the quay, so every committed pose that looks at this sees it.
-
-Lit: four portal-corner floods on every gantry, two more along each boom, the operator's cab, a
-proper head on each flood mast aimed the way the mast already said it was aimed, clerestory strips
-along the transit sheds, the gatehouse window and its canopy, and the dockers' hut. **Sodium outside
-and cold fluorescent inside**, which is the contrast that makes both read.
-
-`glow()` writes `signQuads`, `signTint` and `signTrade` together or not at all — `rebuildSignMesh`
-asserts their lengths match and session 55 paid for a parallel array that ran short.
-
-**WHAT IT DOES NOT BUY, said out loud: these quads GLOW, they do not ILLUMINATE.** Nothing is lit by
-them. The actual illumination on the quay is still session 66's eight `lamp` features and the three
-`flood` masts, which take real cluster slots. At `t = 0.92` the terminal reads as a line of warm
-lights along a dark quay with one bright pool where a mast is aimed — which is what a port looks like
-at night, and is also less than a session with a light budget could do.
+Three silent fall-throughs, all of them plausible-looking, and the census sees none of them. That is
+the shape of session 64's `block:ground` defaulting to (0,0) since session 1, one table over.
 
 ---
 ## 5. GATE STATE
 
-**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE SIXTH SESSION RUNNING.** The
-battery below is the SECOND of two: the first ran on the source that carried §3e's flood head, and it
-is what caught it. This one ran on what ships.
+**ALL EIGHT RAN. `perfcheck` COMPLETED THE WHOLE BATTERY FOR THE SEVENTH SESSION RUNNING.**
 
 ```
   gate            exit   verdict   seconds  load1 in     out
-  parsecheck         0     GREEN       4.0      5.28    5.10
-  faultcheck         0     GREEN      27.7      5.10    5.12
-  lookcheck          1       RED      51.8      5.12    5.01    THE IDENTICAL THREE
-  windcheck          0     GREEN      41.1      5.01    4.88
-  inputcheck         0     GREEN      17.4      4.88    5.46
-  gateaudit          1       RED      78.1      5.46    5.06    the carried `control failed`
-  citycheck          1       RED     126.1      5.06    4.67    IDENTICAL TO SESSIONS 57-70
-  perfcheck          1       RED    1102.8      4.67    4.62
+  parsecheck         0     GREEN       3.6      3.97    3.89
+  faultcheck         0     GREEN      28.6      3.89    3.86
+  lookcheck          1       RED      50.8      3.86    3.55    THE IDENTICAL THREE
+  windcheck          0     GREEN      40.4      3.55    5.85
+  inputcheck         0     GREEN      17.6      5.85    5.72
+  gateaudit          1       RED      78.5      5.72    4.62    the carried `control failed`
+  citycheck          1       RED     127.5      4.62    5.85    IDENTICAL TO SESSIONS 57-71
+  perfcheck          1       RED    1102.6      5.85    4.51
 
-  4 of 8 RED — the same four as sessions 53-70. NO FIFTH RED.
+  4 of 8 RED — the same four as sessions 53-71. NO FIFTH RED.
 ```
 
-**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–70 ON EVERY COUNT, AFTER §3e AND NOT BEFORE:**
-clumping CV **0.393**, **5** delivered forbidden overlaps, **2 of 2 647** signs inside a building,
-**1 004 of 284 918** bare walkable samples, occupancy **18 799 / 19 087**. The harbour added 409
-features and roughly 1 400 boxes to the world and moved none of them, because every one of them is
-3.9 km outside that gate's 100-chunk region.
+**THE TWO CONSTRAINTS DID NOT MOVE AT ALL, WHICH IS MORE THAN THE BRIEF ASKED FOR** (*"both numbers
+should barely move"*):
 
-`lookcheck`'s three are `distinct:midnight|dusk` at **0.02846** against a floor of 0.03,
-`facadeAlbedo` and `facadeNeighbours` — the same three, at the same numbers, as sessions 53–70.
+```
+  highway_speed   401 draws of 440              IDENTICAL TO SESSIONS 67-71
+                  2 451 648 tris of 2 630 000   IDENTICAL TO SESSIONS 67-71
+```
+
+Four ground kinds and a twenty-segment fence cost nothing, because a ground kind is per-vertex
+attributes on one merged `city:ground` mesh and the fence rides the chunk's own `:masses`.
+
+**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–71 ON EVERY COUNT:** clumping CV **0.393**, **5**
+delivered forbidden overlaps, **2 of 2 647** signs inside a building, **1 004 of 284 918** bare
+walkable samples, occupancy **18 799 / 19 087**. The harbour is 3.5 km outside its region and the
+four new kinds are emitted nowhere else.
+
+`lookcheck`'s three are `distinct:midnight|dusk` at **0.02846** against 0.03, `facadeAlbedo` and
+`facadeNeighbours` — the same three at the same numbers as sessions 53–71.
 
 **EVERY `perfcheck` VIOLATION IS CARRIED OR IS A TIMING ABSOLUTE FROM A LOADED MACHINE**, at `load1`
-**4.67** against CONTRACT §0.2's bar of 1.6. The non-timing ones:
+**5.85** against CONTRACT §0.2's bar of 1.6. The non-timing ones:
 
 ```
-  downtown_dense  frame entropy  4.992   floor 5
-  night_rain      frame entropy  4.968   per run 4.810 / 4.978 / 4.968   spread 0.168
-  highway_speed   dark gap at the ground   70% of 64 vehicles   floor 75%
-  highway_speed   non-monotone tone        58% of 64 vehicles   floor 75%
+  downtown_dense  frame entropy  4.975   floor 5
+  highway_speed   dark gap at the ground   71% of 59 vehicles   floor 75%
+  highway_speed   non-monotone tone        54% of 59 vehicles   floor 75%
 ```
 
-The silhouette bars read 75 % and 52 % over 71 vehicles in session 70 and 70 % and 58 % over 64 here,
-with nothing in the routes changed — which is the sampling population `silhouettes.$estimator`
-already describes. **And `night_rain`'s entropy spread is 0.168 against a 0.032 breach for the second
-session running**, which is §6 item 4.
+The silhouette bars have read 75/52 over 71 vehicles, 70/58 over 64, and 71/54 over 59 across
+sessions 70–72 with nothing in the routes changed — which is the sampling population
+`silhouettes.$estimator` already describes.
 
 ---
 ## 6. WHAT TO DO FIRST NEXT TIME
 
-**1. LOOK AT THE HARBOUR AND SAY WHAT IS STILL WRONG.** This session built roughly and on purpose —
-*"many things built roughly beats one built perfectly"* — and frames are the only judge that has run
-on any of it. The container blocks read as a grid from 500 m and as a wall from the gate; the transit
-sheds are ribbed boxes; nothing on the quay has been looked at from reading distance.
+**1. THE NEAR-FIELD GROUND IS STILL ONE FLAT COLOUR AND THE REASON IS MEASURED.** 1.2 % of luminance
+range over the whole visible foreground of the car-height frame. The terrain's 32 m vertex lattice
+cannot carry anything finer than 64 m, and ground RECTANGLES cannot help either — they are flat at
+one `y` and the terrain outside the harbour is not, which is why session 63 replaced the
+countryside's quads with the terrain mesh in the first place. **What is left is a scatter** — stones,
+tufts, rubble, spoil as instanced boxes through `put()`, which costs no draw and is the vocabulary
+the yard and the hedgerows already use. That is the next honest step and it is not a big one.
 
-**2. THE MOORED HULLS HAVE NO NAV LIGHTS AND THE COASTER HAS NONE EITHER.** `harbourCraft` is drawn
-by `river.js`'s own `push` into `river:structure`, which is not the sign mesh, so the `glow()` route
-this session opened does not reach it. A red and a green on a moving hull is the cheapest sign of
-life left unbought.
+**2. NOTHING HAS BEEN LOOKED AT FROM THE SIDES OR THE BACK.** The margin runs 96 m out on three
+edges and only two poses look at any of it. A camera east of `x1` or south of the fence would say
+whether the bands read as bands or as a halo from any angle but the aerial's.
 
-**3. `sea-road` IS THE ONLY POSE AT CAR HEIGHT AND IT NEARLY DIED THIS SESSION.** The first arm
-spread four transit sheds evenly and put two of them 3 m either side of that camera; the frame came
-back as two white walls with a slot between them. They flank the gate now and the 134 m window is the
-road's own approach. **Any future building landward of `yardZ` has to be checked against that pose
-before it is committed.**
+**3. THE MOORED HULLS STILL HAVE NO NAV LIGHTS** — session 71's own §6 item 2, untouched.
 
-**4. THE TWO THINGS SESSION 70 LEFT, BOTH STILL TRUE AND NEITHER TOUCHED.** `perfcheck` captures with
-no `settle()` at all, so its frames are the only ones left in the repo that are not phase-normalised;
-and its entropy floor is a §0.1 case in the open — `night_rain` read 4.947 / 4.972 / 5.095 across
-three runs against a floor of 5, asserted on a single draw whose spread is five times the breach. The
-four `trade-*` look frames still differ run to run by 3.1–8.1 MB, entirely in the vehicles.
+**4. THE TWO SESSION-70 ITEMS, BOTH STILL TRUE.** `perfcheck` captures with no `settle()`, so its
+frames are the only ones in the repo that are not phase-normalised; and its entropy floor is a §0.1
+case in the open. The four `trade-*` look frames still differ run to run, entirely in the vehicles.
 
-**5. THE SEAM AND THE RIVER BLEED.** Session 70 measured the sea seam at five poses and found that
-`span` takes the river at 130 m from a pavement. Untouched here by instruction, and it is still the
-largest live defect in the water.
+**5. THE SEAM AND THE RIVER BLEED.** Session 70 measured the sea seam at five poses and found `span`
+takes the river at 130 m from a pavement. Untouched by instruction for two sessions now, and still
+the largest live defect in the water.
