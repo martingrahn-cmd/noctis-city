@@ -6624,9 +6624,34 @@ export const AIRFIELD = {
   /** Stations: one feature per this many metres of runway, chunk-safe by
    *  construction — `quaykit`'s reason, and a 3 km rect is 24 chunks wide. */
   stationM: 60,
-  /** The approach row, out beyond the south threshold. 900 m is ICAO's. */
+  /** The approach row, out beyond each threshold. 900 m is ICAO's. */
   approachM: 900,
   approachStepM: 30,
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * HOW FAR ABOVE THE WATER AN APPROACH MAST HAS TO STAND — SESSION 75.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * Session 74's approach row ran a fixed 900 m south of the threshold and
+   * **sixteen of its thirty stations stood on the seabed**, the furthest of
+   * them 61.94 m below datum and 57 m under the surface. That is why the night
+   * approach frame was black, and it is not a residency ring and not a
+   * bounding sphere: the lights were drawn, in the water, where no camera in
+   * the air can see them.
+   *
+   * THE SITE SURVEY IS NOT WRONG AND THAT IS THE POINT. It scored the
+   * 3 000 x 620 m PLATFORM and rejected any that touched the sea, and the
+   * chosen one clears the coast by 370 m. The approach row needs 900. A
+   * predicate that was right about the rectangle it was given, asked about a
+   * rectangle 900 m longer — CONTRACT §9's own subject, and the second time
+   * this exact 900 m has caught the airfield out: session 74's emission gate
+   * used the platform's z extent for the same reason and emitted 4 of 30.
+   *
+   * So the row walks outward from its threshold and STOPS at the water, and
+   * the number is a freeboard rather than a depth: a mast wants dry ground
+   * under it, not merely ground.
+   */
+  approachDryM: 1.0,
   /** Light spacing along the runway edge. 60 m is the real figure. */
   edgeStepM: 60,
 };
@@ -18443,7 +18468,8 @@ export function generateChunk(rootSeed, cx, cz) {
        * rectangle used as the bound of something that leaves it.
        */
       const gz0 = F.z0 - F.approachM - F.approachStepM;
-      if (ov(F.x0, F.x1, b.x0, b.x1) && ov(gz0, F.z1, b.z0, b.z1)) {
+      const gz1 = F.z1 + F.approachM + F.approachStepM;
+      if (ov(F.x0, F.x1, b.x0, b.x1) && ov(gz0, gz1, b.z0, b.z1)) {
         const plate = (px0, px1, pz0, pz1, kind, lift = 0) => {
           const cx0 = Math.max(px0, b.x0);
           const cx1 = Math.min(px1, b.x1);
@@ -18527,20 +18553,38 @@ export function generateChunk(rootSeed, cx, cz) {
         }
         /**
          * THE APPROACH ROW, and item 3a is right that it is the single most
-         * recognisable light pattern there is. 900 m of crossbars out beyond the
-         * south threshold, over ground the platform does not reach — so each
-         * bar sits on the terrain at its own height rather than on the plate.
+         * recognisable light pattern there is. Crossbars out beyond each
+         * threshold, over ground the platform does not reach — so each bar sits
+         * on the terrain at its own height rather than on the plate.
+         *
+         * TWO ROWS AND NOT ONE, AND THE SOUTH ONE STOPS AT THE WATER — session
+         * 75, item 1. Session 74 built one row of thirty at the south end and
+         * sixteen of them stood on the seabed (`AIRFIELD.approachDryM`). The
+         * north end is dry for all thirty, measured on the same centreline:
+         * 7.07 m at the first station and 7.24 m at the last. So the field gets
+         * the row it can actually stand up, at the end that can carry it, and
+         * the short end is short because the coast is there — which is what a
+         * coastal airport looks like.
+         *
+         * THE WALK BREAKS RATHER THAN FILTERS, and that is deliberate: an
+         * approach row with a hole in it is not an approach row. It stops at
+         * the first wet station and every chunk computes the same stopping
+         * point, because the test reads the terrain and not the chunk.
          */
         {
           const nA = Math.round(F.approachM / F.approachStepM);
-          for (let i = 1; i <= nA; i++) {
-            const az = F.runZ0 - i * F.approachStepM;
-            if (F.cx < b.x0 || F.cx >= b.x1 || az < b.z0 || az >= b.z1) continue;
-            features.push({
-              kind: 'afapproach', x: F.cx, z: az, yawDeg: 0, i,
-              /** A crossbar every 150 m, which is what an ALS actually has. */
-              bar: i % 5 === 0 ? 1 : 0,
-            });
+          for (const [tz, dir, yaw] of [[F.runZ0, -1, 0], [F.runZ1, 1, 180]]) {
+            for (let i = 1; i <= nA; i++) {
+              const az = tz + dir * i * F.approachStepM;
+              if (isSeaAt(rootSeed, F.cx, az)) break;
+              if (terrainHeightAt(rootSeed, F.cx, az) < SEA.levelY + F.approachDryM) break;
+              if (F.cx < b.x0 || F.cx >= b.x1 || az < b.z0 || az >= b.z1) continue;
+              features.push({
+                kind: 'afapproach', x: F.cx, z: az, yawDeg: yaw, i,
+                /** A crossbar every 150 m, which is what an ALS actually has. */
+                bar: i % 5 === 0 ? 1 : 0,
+              });
+            }
           }
         }
         /** The perimeter fence, and the gate where the spur arrives. */

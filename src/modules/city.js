@@ -4237,6 +4237,40 @@ export function createCity(options = {}) {
           });
           signTrade.push(null);
         };
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * A LAMP IS SEEN FROM BOTH SIDES AND A SIGN IS NOT — SESSION 75,
+         * ITEM 1, AND IT IS HALF OF WHY THE AIRFIELD WAS BLACK.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `materials.sign` is `THREE.FrontSide`, which is correct for every
+         * population that has ever ridden this mesh: a shopfront sign, a
+         * hologram bar, a quay flood and a gantry's under-portal lamp are all
+         * things that face somewhere. A PlaneGeometry's front is local +Z, and
+         * `afstrip` and `afapproach` both carry `yawDeg: 0`, so every runway
+         * edge light, every centreline light and every approach light in
+         * session 74 presented its back face to anything standing SOUTH of it.
+         *
+         * **Every night frame session 74 shot looked north**, because north is
+         * the approach direction, so it saw the backs of all of them. The same
+         * runway photographed from the north end is in `af-down-runway` and the
+         * two rows are there. One quad, one heading, and a whole diagram
+         * missing from the only direction anybody was ever going to look from.
+         *
+         * TWO QUADS AND NOT `DoubleSide`, because the material is shared with
+         * the whole city and a side flag on it would change 2 647 signs to fix
+         * 300 lights. Exactly coplanar and exactly opposed, so they cannot
+         * z-fight: whichever one faces the camera is the only one rasterised.
+         *
+         * IT IS NOT A GENERAL REPAIR AND MUST NOT BECOME ONE. A flood aimed at
+         * a quay is single-sided because a flood IS single-sided. This is for
+         * the fixtures that are omnidirectional in the world, which the
+         * airfield is the first population in this project to have.
+         */
+        const glowOmni = (dx, dy, dz, w, h, yawDeg, chroma, nits) => {
+          glow(dx, dy, dz, w, h, yawDeg, chroma, nits);
+          glow(dx, dy, dz, w, h, yawDeg + 180, chroma, nits);
+        };
         const put = (dx, dy, dz, sx, sy, sz, albedo, rough, yawDeg) => {
           const c = Math.cos(((f.yawDeg || 0) * Math.PI) / -180);
           const s = Math.sin(((f.yawDeg || 0) * Math.PI) / -180);
@@ -5332,12 +5366,12 @@ export function createCity(options = {}) {
           if (f.edge) {
             for (const sx of [-1, 1]) {
               put(sx * (half + 2.4), 0.16, 0, 0.34, 0.32, 0.34, [0.20, 0.205, 0.21], 0.6);
-              glow(sx * (half + 2.4), 0.30, 0, 0.5, 0.34, 0,
+              glowOmni(sx * (half + 2.4), 0.30, 0, 0.5, 0.34, 0,
                 EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 6.5);
             }
             /** And a centreline light every other station. */
             if (f.n % 2 === 0) {
-              glow(0, 0.02, 0, 0.5, 0.5, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 3.0);
+              glowOmni(0, 0.02, 0, 0.5, 0.5, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 3.0);
             }
           }
         } else if (f.kind === 'afthresh') {
@@ -5367,11 +5401,22 @@ export function createCity(options = {}) {
            * THRESHOLD LIGHTS: a green wing bar facing out and a red one facing
            * in, on the same housings, which is what a real threshold has.
            */
+          /**
+           * AND THE TWO COLOURS WERE FACING THE WRONG WAYS — session 75. The
+           * feature's local +Z points INTO the field at both ends (the piano
+           * keys are at `dz = 22`), so a green plate at local yaw 0 shows
+           * green to somebody standing ON the runway and red to the aircraft
+           * on final. It is the one piece of aviation colour everybody knows
+           * and it was inside out; the frame that caught it is `af-look-north`,
+           * where the threshold reads as a red bar seen from the approach.
+           * The PLATES were already on the right sides of the housing — only
+           * the two headings were swapped.
+           */
           for (let k = -7; k <= 7; k++) {
             const lx = (k / 7) * (half + 2.0);
             put(lx, 0.16, 1.0, 0.34, 0.32, 0.34, [0.20, 0.205, 0.21], 0.6);
-            glow(lx, 0.30, 0.82, 0.5, 0.34, 0, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 5.5);
-            glow(lx, 0.30, 1.18, 0.5, 0.34, 180, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 5.5);
+            glow(lx, 0.30, 0.82, 0.5, 0.34, 180, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 5.5);
+            glow(lx, 0.30, 1.18, 0.5, 0.34, 0, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 5.5);
           }
         } else if (f.kind === 'afapproach') {
           /**
@@ -5392,11 +5437,11 @@ export function createCity(options = {}) {
            */
           const post = [0.19, 0.195, 0.20];
           put(0, 0.55, 0, 0.22, 1.1, 0.22, post, 0.7);
-          glow(0, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
+          glowOmni(0, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
           if (f.bar) {
             for (const k of [-2, -1, 1, 2]) {
               put(k * 4.5, 0.55, 0, 0.22, 1.1, 0.22, post, 0.7);
-              glow(k * 4.5, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
+              glowOmni(k * 4.5, 1.15, 0, 0.7, 0.45, 0, EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 7.5);
             }
           }
         } else if (f.kind === 'afsock') {
