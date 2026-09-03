@@ -8392,6 +8392,66 @@ export function createCity(options = {}) {
         const split = 4;
         bytes += lathe(prof.slice(0, split + 1), 28, 0, LIGHT.condenserFloodNits, ':flood');
         bytes += lathe(prof.slice(split), 28);
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND IT HAS A SURFACE NOW — SESSION 73, THE WALK.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The round's own words: *"`condenser-street` is seventy per cent a
+         * blank cream curve. No windows, no panels, no scale, no way to tell
+         * what the object is."* A lathe with one material has no surface
+         * information at all, and a 260 m one fills the frame with it.
+         *
+         * WHAT A COOLING TOWER ACTUALLY HAS, and all three are boxes on a
+         * circle, which is the crown's own trick one ring down:
+         *
+         *   MERIDIAN RIBS   a shell this size is cast in vertical lifts and the
+         *                   construction joints read as ribs. They also give the
+         *                   eye something to measure the waist against, which is
+         *                   the whole reason the shape is legible.
+         *   THE AIR INLET   the bottom eight metres of a natural-draught tower
+         *                   is OPEN — a colonnade of raking legs with dark
+         *                   between them. It is the one feature that says the
+         *                   thing breathes.
+         *   A CORNICE       a heavier ring at the throat and another at the lip.
+         *
+         * ZERO NEW DRAW CALLS: every box goes into `landmark:condenser`, which
+         * `addInstanced` already builds at the bottom of this function.
+         */
+        {
+          const RIBS = 36;
+          const rAt = (t) => {
+            const w = 2 * t - 1;
+            return l.radiusWaist + (w < 0 ? (l.radiusBase - l.radiusWaist) * w * w
+              : (l.radiusTop - l.radiusWaist) * w * w);
+          };
+          const shade = [albedo[0] * 0.86, albedo[1] * 0.86, albedo[2] * 0.86];
+          for (let i = 0; i < RIBS; i++) {
+            const a = (i / RIBS) * Math.PI * 2;
+            const ca = Math.cos(a);
+            const sa = Math.sin(a);
+            /** The rib, in eight lifts, each following the profile at its own height. */
+            for (let k = 1; k < 9; k++) {
+              const t = 0.035 + (k / 9) * 0.95;
+              const r = rAt(t) + 0.35;
+              push(l.x + ca * r, l.height * t, l.z + sa * r,
+                0.9, (l.height * 0.95) / 9, 0.7, (-a * 180) / Math.PI, shade, rough);
+            }
+            /** The inlet colonnade: a raking leg every rib, dark between them. */
+            const rBase = rAt(0.0) - 0.6;
+            push(l.x + ca * rBase, 4.6, l.z + sa * rBase,
+              1.6, 9.2, 1.7, (-a * 180) / Math.PI, shade, rough);
+          }
+          /** The throat ring and the lip ring, as short chords on a circle. */
+          for (const [t, depth] of [[0.5, 2.2], [0.985, 2.6]]) {
+            const r = rAt(t) + 0.5;
+            for (let i = 0; i < 48; i++) {
+              const a = (i / 48) * Math.PI * 2;
+              push(l.x + Math.cos(a) * r, l.height * t, l.z + Math.sin(a) * r,
+                (2 * Math.PI * r) / 48 * 1.08, depth, 0.9, (-a * 180) / Math.PI, shade, rough);
+            }
+          }
+        }
         // The open lattice crown, as a ring of fins.
         for (let i = 0; i < 24; i++) {
           const a = (i / 24) * Math.PI * 2;
@@ -9083,6 +9143,64 @@ export function createCity(options = {}) {
           prof.push([l.radius * 0.94 * Math.cos((t * Math.PI) / 2), l.drum + (l.height - l.drum) * Math.sin((t * Math.PI) / 2)]);
         }
         bytes += lathe(prof, 32);
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE EXCHANGE HAD NOTHING ON IT — SESSION 73, THE WALK.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The round: *"a smooth brown dome with nothing on it, over a very
+         * large empty wet plaza."* A dome is a shape a person already knows, so
+         * a bare one does not read as unfinished — it reads as a MODEL of a
+         * dome, which is worse.
+         *
+         * Three things, and every dome ever built has all three: RIBS on the
+         * meridians, a CORNICE where the drum meets the shell, and OPENINGS in
+         * the drum. The openings are the ones that give it scale — a dome with
+         * windows in its drum is forty metres tall and one without is any size
+         * at all.
+         */
+        {
+          const RIBS = 20;
+          const shade = [albedo[0] * 0.82, albedo[1] * 0.82, albedo[2] * 0.82];
+          const dark = [0.09, 0.085, 0.08];
+          for (let i = 0; i < RIBS; i++) {
+            const a = (i / RIBS) * Math.PI * 2;
+            const ca = Math.cos(a);
+            const sa = Math.sin(a);
+            const yaw = (-a * 180) / Math.PI;
+            /** The meridian rib, six segments up the shell's own profile. */
+            for (let k = 0; k < 6; k++) {
+              const t = (k + 0.5) / 6;
+              const r = l.radius * 0.94 * Math.cos((t * Math.PI) / 2) + 0.3;
+              const y = l.drum + (l.height - l.drum) * Math.sin((t * Math.PI) / 2);
+              push(l.x + ca * r, y, l.z + sa * r, 0.7, (l.height - l.drum) / 6 * 1.15, 0.6, yaw, shade, rough);
+            }
+            /** A tall opening in the drum, every other bay. */
+            if (i % 2 === 0) {
+              push(l.x + ca * (l.radius + 0.15), l.drum * 0.56, l.z + sa * (l.radius + 0.15),
+                2.6, l.drum * 0.52, 0.5, yaw, dark, 0.3);
+            }
+            /** A pilaster between the openings. */
+            push(l.x + ca * (l.radius + 0.35), l.drum * 0.5, l.z + sa * (l.radius + 0.35),
+              1.1, l.drum, 0.9, yaw + 9, shade, rough);
+          }
+          /** The cornice at the springing, and the plinth at grade. */
+          for (const [y, h, over] of [[l.drum + 0.5, 1.6, 1.9], [1.0, 2.0, 1.4]]) {
+            for (let i = 0; i < 40; i++) {
+              const a = (i / 40) * Math.PI * 2;
+              const r = l.radius + over * 0.5;
+              push(l.x + Math.cos(a) * r, y, l.z + Math.sin(a) * r,
+                (2 * Math.PI * r) / 40 * 1.08, h, over, (-a * 180) / Math.PI, shade, rough);
+            }
+          }
+          /** A lantern on the crown, which is what a dome is for. */
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * Math.PI * 2;
+            push(l.x + Math.cos(a) * 3.2, l.height + 2.4, l.z + Math.sin(a) * 3.2,
+              1.5, 5.0, 1.1, (-a * 180) / Math.PI, shade, rough);
+          }
+          push(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, shade, rough);
+        }
         break;
       }
       case 'basin': {
@@ -9317,6 +9435,50 @@ export function createCity(options = {}) {
           [l.radiusTop * 0.98, l.height - 2.5], [l.radiusTop, l.height - 1.2],
           [l.radiusTop * 0.9, l.height], [0.02, l.height],
         ], 44);
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * A SMOOTH WHITE CONE WITH NOTHING ON IT — SESSION 73, THE WALK.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The round's own words, and the frame is `dish-street`. The comment
+         * above says *"a civic hall with no windows at all, which is the whole
+         * of its character"* — and that is a good decision that was never
+         * carried out. **No windows is not the same as no surface.** A blank
+         * concrete hyperbolic funnel is one of the most articulated objects
+         * ever built: it is board-marked, it is ribbed on the rake, and it has a
+         * lip you could walk round.
+         *
+         * So: RIBS ON THE RAKE, following the cone's own line rather than
+         * vertical, a heavy LIP at the top where the profile already turns, and
+         * a GLAZED SLOT at the base — because a civic hall has a way in, and one
+         * dark aperture at ground level gives the whole 58 m its scale.
+         */
+        {
+          const RIBS = 44;
+          const shade = [albedo[0] * 0.88, albedo[1] * 0.88, albedo[2] * 0.88];
+          const glass = [0.055, 0.062, 0.075];
+          for (let i = 0; i < RIBS; i++) {
+            const a = (i / RIBS) * Math.PI * 2;
+            const ca = Math.cos(a);
+            const sa = Math.sin(a);
+            const yaw = (-a * 180) / Math.PI;
+            /** The rib climbs the rake in seven steps, each at its own radius. */
+            for (let k = 0; k < 7; k++) {
+              const t = (k + 0.5) / 7;
+              const r = (l.radiusBase + (l.radiusTop - l.radiusBase) * t) + 0.3;
+              push(l.x + ca * r, 1.2 + (l.height - 3.7) * t, l.z + sa * r,
+                0.8, (l.height - 3.7) / 7 * 1.2, 0.55, yaw, shade, rough);
+            }
+            /** The lip, a chord ring at the rim. */
+            push(l.x + ca * (l.radiusTop + 0.5), l.height - 1.6, l.z + sa * (l.radiusTop + 0.5),
+              (2 * Math.PI * l.radiusTop) / RIBS * 1.1, 2.4, 1.3, yaw, shade, rough);
+            /** And the entrance glazing, all the way round the narrow foot. */
+            if (i % 2 === 0) {
+              push(l.x + ca * (l.radiusBase + 0.1), 2.6, l.z + sa * (l.radiusBase + 0.1),
+                (2 * Math.PI * l.radiusBase) / RIBS * 1.7, 4.4, 0.5, yaw, glass, 0.18);
+            }
+          }
+        }
         break;
       }
       default:
