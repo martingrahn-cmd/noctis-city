@@ -25,7 +25,7 @@
 import {
   LANDMARKS, landmarkAABB, viaductArc,
   CITY, exitRoadZ, terrainHeightAt, hillsideHouses,
-  harbourSite, riverCentreAt,
+  harbourSite, riverCentreAt, airfieldSite,
 } from '../../src/lib/citygen.js';
 
 /**
@@ -237,6 +237,74 @@ export function presets() {
     out['sea-air'] = {
       pos: [CITY.extentEdgeM - 132, 180, riverCentreAt(CITY.extentEdgeM) + 230],
       target: [H.x1 + 900, 0, riverCentreAt(H.x1) - 620],
+      fov: 55,
+    };
+  }
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * THE FOUR AIRFIELD POSES — SESSION 75, AND SESSION 74 OWED THEM.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * STATE 74 §6 item 3, in its own words: the three frames that session
+   * judged the airfield by *"are `--pos` arguments in a STATE file, which is
+   * exactly the 'a frame produced by a command in a shell nobody kept' that
+   * `poses.mjs` exists to prevent"*. These are those frames, derived off
+   * `airfieldSite` — the same record the generator builds from — so they
+   * cannot drift from where the airfield is.
+   *
+   * EVERY ONE OF THEM STANDS INSIDE THE 640 m GROUND RING OF ITS OWN SUBJECT,
+   * which is item 4b's rule and is not a detail: session 74's first two
+   * aerials came back as empty farmland and were CORRECT, because a camera far
+   * enough back to hold a 3 km runway has none of it resident. Each pose says
+   * below what it is meant to prove, so a frame that stops proving it is a
+   * frame somebody can notice — session 73 found three of nineteen committed
+   * poses that showed nothing, and `country-air` answered WRONGLY for five
+   * sessions.
+   */
+  {
+    const F = airfieldSite('1337');
+    const pierX = F.apX0 + 10 + (F.apX1 - 8 - (F.apX0 + 10)) * 0.25;
+    /**
+     * `af-apron` — 190 m out on the apron, looking back at the terminal.
+     * PROVES: the frontage reads as a terminal (glazed elevation, oversailing
+     * slab), the piers reach into the apron, and the stands have aeroplanes on
+     * them with their service plant. The whole subject is inside 250 m.
+     */
+    out['af-apron'] = {
+      pos: [F.apX0 + 162, 26, F.apZ0 + 190],
+      target: [pierX - 4, 8, F.apZ0 + 65],
+      fov: 56,
+    };
+    /**
+     * `af-forecourt` — over the access spur where it arrives, looking north at
+     * the front door. PROVES: the road arrives AT something, the car park is
+     * occupied, and the control tower stands against the sky from the road —
+     * which is item 2c's whole claim and cannot be judged from airside.
+     */
+    out['af-forecourt'] = {
+      pos: [F.spurX, 26, F.z0 - F.forecourtM - 14],
+      target: [F.spurX, 14, F.z0 + 30],
+      fov: 64,
+    };
+    /**
+     * `af-hangar` — square on the west hangar's door, 115 m out. PROVES item
+     * 2b's *"a hangar is a box whose entire end opens"*: the opening, the
+     * stacked leaves, the lit back wall and the aeroplane inside it.
+     */
+    out['af-hangar'] = {
+      pos: [F.apX0 + 68, 15, F.apZ1 - 50],
+      target: [F.apX0 + 72, 14, F.apZ1 + 60],
+      fov: 62,
+    };
+    /**
+     * `af-approach` — on the extended centreline 350 m out, looking down the
+     * runway. PROVES item 1: that the approach row, the threshold and the
+     * runway edge rows are VISIBLE, which they were not until this session.
+     * Take it at `--t=0` or it proves nothing at all.
+     */
+    out['af-approach'] = {
+      pos: [F.cx, 30, F.runZ0 - 350],
+      target: [F.cx, 10, F.runZ0 + 550],
       fov: 55,
     };
   }
