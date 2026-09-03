@@ -6654,6 +6654,43 @@ export const AIRFIELD = {
   approachDryM: 1.0,
   /** Light spacing along the runway edge. 60 m is the real figure. */
   edgeStepM: 60,
+  /**
+   * ═════════════════════════════════════════════════════════════════════════
+   * THE BUILDINGS — SESSION 75, ITEM 2, AND EVERY NUMBER IS OFF THE APRON.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * The layout is decided by where session 74 already put the road. The spur
+   * arrives at `spurX` on the platform's south edge, the apron is the 320 x
+   * 300 m rectangle immediately north of it, and a terminal is the building
+   * that separates one from the other. So the terminal is a 56 m strip along
+   * the apron's south edge with its glazed face north onto the stands and its
+   * forecourt south onto the road, and NOTHING NEW HAS TO BE ROUTED to it: it
+   * is standing on the junction that already existed.
+   *
+   * ITS DEPTH IS WHAT THE PLATFORM HAS. `z0` is 60 m south of the runway
+   * threshold and the apron starts at the threshold, so 56 m is the room
+   * between them with a 2 m margin either side. A regional terminal really is
+   * 40-60 m deep; the fit is not a coincidence so much as it is what a 60 m
+   * platform margin was always going to allow.
+   */
+  termDepthM: 56,
+  termHeightM: 15,
+  /** Two piers north into the apron, with stands either side of each. */
+  pierM: 124,
+  pierWideM: 34,
+  /** The hangars, on their own apron north of the passenger one. */
+  hangarDepthM: 90,
+  hangarHeightM: 24,
+  /** The tower. Small and tall, and it is the silhouette from the road. */
+  towerHeightM: 34,
+  /**
+   * THE LANDSIDE FORECOURT, SOUTH OF THE PLATFORM AND OUTSIDE THE FENCE. It is
+   * the only piece of this airfield that is NOT on the platform, so it is the
+   * only piece that needs the keep-out widening — `onAirfieldAt` below adds it
+   * to the south bound, or the countryside's hedgerows and field scatter grow
+   * up through the car park.
+   */
+  forecourtM: 104,
 };
 
 /**
@@ -6731,6 +6768,18 @@ export function airfieldSite(rootSeed) {
     spurX: A.cx + A.taxiOffM + (A.apronX0 + A.apronX1) / 2,
     spurZ0: exitRoadZ(A.cx + A.taxiOffM + (A.apronX0 + A.apronX1) / 2),
     spurZ1: A.cz - halfRun - A.marginM,
+    /**
+     * THE APRON'S OWN RECTANGLE — SESSION 75. Session 74 computed it inline in
+     * `generateChunk` and every building this session adds is positioned off
+     * it, so it is derived ONCE here instead of four times there. CONTRACT
+     * §9.1: two expressions for one rectangle is the arrangement that puts a
+     * pier 20 m into a taxiway.
+     */
+    tX: A.cx + A.taxiOffM,
+    apX0: A.cx + A.taxiOffM + A.apronX0,
+    apX1: A.cx + A.taxiOffM + A.apronX1,
+    apZ0: A.cz - halfRun,
+    apZ1: A.cz - halfRun + A.apronDepthM,
     samples: hs.length,
   };
   return airfieldCacheOut;
@@ -6740,9 +6789,10 @@ export function airfieldSite(rootSeed) {
 export function onAirfieldAt(x, z, pad = 0) {
   const A = AIRFIELD;
   const halfRun = A.runM / 2;
+  /** Session 75: the forecourt hangs off the south edge and is airfield too. */
   return x > A.cx - A.wideM / 2 - A.shoulderM - A.marginM - pad
     && x < A.cx + A.taxiOffM + A.apronX1 + A.marginM + pad
-    && z > A.cz - halfRun - A.marginM - pad
+    && z > A.cz - halfRun - A.marginM - A.forecourtM - pad
     && z < A.cz + halfRun + A.marginM + pad;
 }
 
@@ -17543,7 +17593,30 @@ export function generateChunk(rootSeed, cx, cz) {
      * a filling station; a farm on a hillside is a photograph. Both are
      * conditions on where rather than rolls.
      */
-    if (!nearRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)) {
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND NOT ON THE AIRFIELD — SESSION 75, AND `onAirfieldAt` HAD NEVER BEEN
+     * CALLED BY ANYTHING.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Session 74 wrote it, exported it, and said of it in a comment beside the
+     * platform: *"`onAirfieldAt` keeps the countryside scatters off it, so
+     * nothing can grow through it."* Nothing called it. Measured over the 738 x
+     * 3 120 m platform and its forecourt, seed 1337: **45 `shed`, 18 `tower`,
+     * 89 trees and 46 rectangles of farm yard** in the chunks it covers, with
+     * farmhouses, barns and silos standing beside the runway.
+     *
+     * CONTRACT §9.1's *"a value written in config that the code does not
+     * read"*, with a FUNCTION instead of a value — and it survived a session
+     * because the aerials that would have shown it could not exist (STATE 74
+     * §0) and every frame that was taken stood on the plate looking along it.
+     *
+     * THE TEST GOES AFTER THE ROLL, not before it. `cr.chance` must be
+     * consumed at the same point in the stream in every chunk or the whole
+     * countryside downstream of an airfield chunk moves.
+     */
+    if (!nearRoad && cr.chance(K.farmChance) && !onHill(mx, mz, 60)
+      && !onAirfieldAt(mx, mz, 70)) {
       const fx = mx + cr.range(-28, 28);
       const fz = mz + cr.range(-28, 28);
       const fy = terrainHeightAt(rootSeed, fx, fz);
@@ -17917,6 +17990,7 @@ export function generateChunk(rootSeed, cx, cz) {
              */
             if (Math.hypot(px, pz) <= TERRAIN.rampStartM) continue;
             if (inHarbourAt(px, pz, 24)) continue;
+            if (onAirfieldAt(px, pz, 24)) continue;
             const hs = hillSurfaceAt(rootSeed, px, pz);
             if (!hs) continue;
             /**
@@ -18467,7 +18541,7 @@ export function generateChunk(rootSeed, cx, cz) {
        * quay station landing on a chunk boundary, one landscape over: a
        * rectangle used as the bound of something that leaves it.
        */
-      const gz0 = F.z0 - F.approachM - F.approachStepM;
+      const gz0 = F.z0 - Math.max(F.approachM + F.approachStepM, F.forecourtM + 40);
       const gz1 = F.z1 + F.approachM + F.approachStepM;
       if (ov(F.x0, F.x1, b.x0, b.x1) && ov(gz0, gz1, b.z0, b.z1)) {
         const plate = (px0, px1, pz0, pz1, kind, lift = 0) => {
@@ -18587,6 +18661,194 @@ export function generateChunk(rootSeed, cx, cz) {
             }
           }
         }
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE BUILDINGS — SESSION 75, ITEM 2. EVERY ONE OF THEM OFF THE APRON.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * THE LAYOUT IS DECIDED BY WHERE SESSION 74 PUT THE ROAD. The spur
+         * arrives at `spurX` on the platform's south edge; the apron is the
+         * rectangle immediately north of it; a terminal is the building that
+         * separates one from the other. Nothing new is routed and nothing is
+         * moved: the front door is the junction that already existed, and the
+         * terminal's centre module lands on `spurX` because it is derived from
+         * the same apron the spur was.
+         *
+         * SPLIT INTO MODULES FOR `quaykit`'s REASON. A 302 m building emitted
+         * from one chunk hangs 150 m outside the chunk that owns it; short
+         * modules clip themselves and let the frontage VARY, which is what
+         * stops a terminal reading as one extruded rectangle.
+         */
+        const tmX0 = F.apX0 + 10;
+        const tmX1 = F.apX1 - 8;
+        const tmZ = F.apZ0 - 2 - F.termDepthM / 2;
+        /**
+         * AND THE APRON RUNS UP TO THE BUILDING. The platform's `afGrass`
+         * otherwise shows in the 2 m between the terminal's face and the apron
+         * edge, which the first frame delivered as a green stripe along the
+         * whole 300 m frontage — a lawn between a terminal and its stands.
+         * `worldSurface` takes the maximum and both plates are at `F.level`, so
+         * this overlays rather than fights.
+         */
+        plate(tmX0 - 14, tmX1 + 14, tmZ - F.termDepthM / 2 - 12, F.apZ0 + 2, 'afApron');
+        {
+          const nM = Math.max(3, Math.round((tmX1 - tmX0) / 60));
+          const run = (tmX1 - tmX0) / nM;
+          /** The module the road arrives at — the one that gets the entrance. */
+          const doorK = Math.round((F.spurX - tmX0) / run - 0.5);
+          for (let k = 0; k < nM; k++) {
+            const mx = tmX0 + (k + 0.5) * run;
+            if (mx < b.x0 || mx >= b.x1 || tmZ < b.z0 || tmZ >= b.z1) continue;
+            features.push({
+              kind: 'afterm', x: mx, z: tmZ, yawDeg: 0, n: k, nOf: nM,
+              run, depth: F.termDepthM, height: F.termHeightM,
+              door: k === doorK ? 1 : 0,
+              /** The ends are solid, which is what stops a glass tube. */
+              endCap: k === 0 ? -1 : k === nM - 1 ? 1 : 0,
+            });
+          }
+        }
+        /**
+         * TWO PIERS NORTH INTO THE APRON, with a stand either side of each at
+         * two depths. A pier is what turns a frontage into an airport: it is
+         * the reason aircraft are arranged around something instead of parked
+         * in a line, and it costs one box vocabulary.
+         */
+        const piers = [tmX0 + (tmX1 - tmX0) * 0.25, tmX0 + (tmX1 - tmX0) * 0.75];
+        for (let i = 0; i < piers.length; i++) {
+          const px = piers[i];
+          const pz = F.apZ0 + F.pierM / 2;
+          if (px >= b.x0 && px < b.x1 && pz >= b.z0 && pz < b.z1) {
+            features.push({
+              kind: 'afpier', x: px, z: pz, yawDeg: 0, n: i,
+              run: F.pierM, wide: F.pierWideM, height: 9,
+            });
+          }
+          /**
+           * THE STANDS. Nose-in to the pier, which is why the west side is
+           * yawed 90 and the east side 270: `put` maps local +Z to world +X at
+           * yaw 90, so an aircraft drawn nose-forward in its own frame points
+           * at the pier from either side without a second parts list.
+           */
+          for (let j = 0; j < 2; j++) {
+            const sz = F.apZ0 + 42 + j * 58;
+            for (const side of [-1, 1]) {
+              const sx = px + side * (F.pierWideM / 2 + 21);
+              if (sx < b.x0 || sx >= b.x1 || sz < b.z0 || sz >= b.z1) continue;
+              features.push({
+                kind: 'afstand', x: sx, z: sz, yawDeg: side < 0 ? 90 : 270,
+                n: i * 4 + j * 2 + (side < 0 ? 0 : 1),
+              });
+            }
+          }
+        }
+        /**
+         * THE HANGARS, on their own apron north of the passenger one. A hangar
+         * is a box whose whole end opens and the DOOR IS THE ENTIRE TELL — a
+         * shed with a personnel door is a shed at any size.
+         */
+        {
+          const hz0 = F.apZ1 + 20;
+          const hz1 = hz0 + F.hangarDepthM + 20;
+          plate(tmX0 - 4, F.apX1 + 12, hz0 - 10, hz1, 'afApron');
+          plate(F.apX0, F.apX1, F.apZ1, hz0, 'afTaxi');
+          const hz = hz0 + F.hangarDepthM / 2;
+          /**
+           * SPACED SO THEY READ AS THREE. At 116 m on a 132 m pitch the gaps
+           * were 16 m and 6 m and the frame delivered one 340 m wall — a
+           * hangar row reads by the SLOTS between the doors as much as by the
+           * doors, which is session 71's gantry finding with a bigger box.
+           */
+          const hangars = [
+            [tmX0 + 58, 104, F.hangarHeightM, 1],
+            [tmX0 + 186, 100, F.hangarHeightM, 0],
+            [tmX0 + 292, 76, F.hangarHeightM - 6, 1],
+          ];
+          for (let i = 0; i < hangars.length; i++) {
+            const [hx, run, height, open] = hangars[i];
+            if (hx < b.x0 || hx >= b.x1 || hz < b.z0 || hz >= b.z1) continue;
+            features.push({
+              kind: 'afhangar', x: hx, z: hz, yawDeg: 0, n: i,
+              run, depth: F.hangarDepthM, height, open,
+              /** One of them has something in it, which is half the point. */
+              occupied: i === 0 ? 1 : 0,
+            });
+          }
+        }
+        /**
+         * THE CONTROL TOWER. Beside the apron's east edge, where it sees the
+         * full length of the runway and stands against the sky from the road.
+         * Session 71's gantry lesson applies exactly: DARK SHAFT, ONE BRIGHT
+         * HORIZONTAL. Pale steel goes white against a lit sky and the shape
+         * disappears; the cab band is what carries the silhouette.
+         */
+        {
+          const wx = F.apX1 + 26;
+          const wz = F.apZ0 + 34;
+          if (wx >= b.x0 && wx < b.x1 && wz >= b.z0 && wz < b.z1) {
+            features.push({ kind: 'aftower', x: wx, z: wz, yawDeg: 0, height: F.towerHeightM });
+          }
+        }
+        /**
+         * ── LANDSIDE ───────────────────────────────────────────────────────
+         *
+         * *"Cheap boxes, and they are what stops the terminal reading as a
+         * model on a table."* The forecourt is the one piece of this airfield
+         * that is not on the platform, so it is a `yAdd` TERRACE and session
+         * 65's cut face draws its own riser — 1.34 m at the road end, which is
+         * a kerb-and-bank rather than a wall.
+         *
+         * `afForecourt` AND NOT `parkingGround` — CONTRACT §9.2 asked of a
+         * default BEFORE it travelled. The city's car park falls through
+         * `porosityFor` to 0.0, a full mirror, which is right under a city
+         * block and is not a thing anybody chose for a field 5 km out.
+         */
+        {
+          const fz1 = F.z0 + 2;
+          const fz0 = F.z0 - F.forecourtM;
+          plate(tmX0 - 16, tmX1 + 16, fz0, fz1, 'afForecourt');
+          /**
+           * THE CAR PARK. Rows of bays and cars in them, off the index and not
+           * off a roll: consuming a shared rng here would move every feature
+           * downstream of it in the chunk.
+           */
+          for (let r = 0; r < 3; r++) {
+            const cz = fz0 + 20 + r * 26;
+            const nC = 14;
+            for (let c = 0; c < nC; c++) {
+              const cx = tmX0 + 6 + c * ((tmX1 - tmX0 - 12) / (nC - 1));
+              if (Math.abs(cx - F.spurX) < 16) continue;
+              if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
+              const i = r * nC + c;
+              if (i % 3 === 1) continue;
+              features.push({
+                kind: 'parked', x: cx, z: cz, yawDeg: r % 2 ? 0 : 180,
+                vehicle: i % 7 === 3 ? 'van' : 'car', chroma: i % 6,
+              });
+            }
+          }
+          /** A fire station, and two service sheds, on the west end. */
+          const svc = [
+            [tmX0 - 6, fz0 + 34, 34, 18, 8.5, 'dock'],
+            [tmX0 + 30, fz0 + 12, 22, 12, 5.0, 'window'],
+          ];
+          for (const [sx, sz, L, D, Hh] of svc) {
+            if (sx < b.x0 || sx >= b.x1 || sz < b.z0 || sz >= b.z1) continue;
+            features.push({
+              kind: 'shed', x: sx, z: sz, yawDeg: 0, length: L, depth: D,
+              height: Hh, floors: 1, style: 'dock',
+              albedo: [0.34, 0.30, 0.28], trim: [0.26, 0.245, 0.24],
+            });
+          }
+          /** And the fuel farm, on the airside corner where the spur passes. */
+          for (let i = 0; i < 3; i++) {
+            const kx = tmX1 - 4 + (i % 2) * 26;
+            const kz = fz0 + 26 + Math.floor(i / 2) * 30 + (i % 2) * 14;
+            if (kx < b.x0 || kx >= b.x1 || kz < b.z0 || kz >= b.z1) continue;
+            features.push({ kind: 'aftank', x: kx, z: kz, yawDeg: i * 17, n: i,
+              radius: i === 2 ? 5.0 : 7.0, height: i === 2 ? 7.0 : 9.5 });
+          }
+        }
         /** The perimeter fence, and the gate where the spur arrives. */
         {
           const step = 30;
@@ -18598,6 +18860,14 @@ export function generateChunk(rootSeed, cx, cz) {
               const fx = along === 'x' ? t : fixed;
               const fz = along === 'x' ? fixed : t;
               if (along === 'x' && Math.abs(fx - F.spurX) < gap && fixed === F.z0 + 4) continue;
+              /**
+               * AND THE TERMINAL IS THE FENCE WHERE IT STANDS — session 75.
+               * The building straddles `z0 + 4`, which is where session 74's
+               * south run is, so a fence drawn through it is a palisade in a
+               * departure lounge. A terminal separating landside from airside
+               * IS the boundary, and this is that sentence in one line.
+               */
+              if (along === 'x' && fixed === F.z0 + 4 && fx > tmX0 - 3 && fx < tmX1 + 3) continue;
               if (fx < b.x0 || fx >= b.x1 || fz < b.z0 || fz >= b.z1) continue;
               features.push({ kind: 'portfence', x: fx, z: fz, yawDeg: yaw, run: (a1 - a0) / n, n: i });
             }
@@ -18671,6 +18941,8 @@ export function generateChunk(rootSeed, cx, cz) {
       const halfZ = (sn * K.hedgeSegM + cs * 2 * K.hedgeHalfT) / 2;
       /** Not across a quay: session 66's harbour is a keep-out, not a claim. */
       if (inHarbourAt(x, z, K.hedgeSegM / 2)) return;
+      /** Nor across a runway — session 75, and see `onAirfieldAt`'s own note. */
+      if (onAirfieldAt(x, z, K.hedgeSegM / 2)) return;
       const box = claimAt('feature', x, z, halfX, halfZ,
         { y0: 0, y1: K.hedgeHeightM * 1.2, owner: 'country:hedge' });
       if (reg.conflict(box)) return;

@@ -1847,6 +1847,7 @@ export function createCity(options = {}) {
       afService: AIRFIELD_ALBEDO.taxi,
       afGrass: AIRFIELD_ALBEDO.grass,
       afPaint: AIRFIELD_ALBEDO.paint,
+      afForecourt: AIRFIELD_ALBEDO.forecourt,
     };
     const albedoFor = (kind) => GROUND_ALBEDO[kind] || walkAlbedo;
     /** Scratch for the per-rectangle tone below. `quad` copies out of it. */
@@ -1986,7 +1987,7 @@ export function createCity(options = {}) {
                  * this and nothing else.
                  */
                 : kind === 'afRunway' || kind === 'afPaint' ? 0.40
-                : kind === 'afTaxi' || kind === 'afService' ? 0.25
+                : kind === 'afTaxi' || kind === 'afService' || kind === 'afForecourt' ? 0.25
                 : kind === 'afApron' ? PORT_POROSITY.apron
                 : kind === 'afShoulder' ? 0.60
                 : kind === 'afGrass' ? 1.0
@@ -2051,6 +2052,8 @@ export function createCity(options = {}) {
       afApron: 'ground',
       afService: 'ground',
       afGrass: 'ground',
+      /** Session 75: the landside forecourt. People stand on a car park. */
+      afForecourt: 'ground',
       /** A carriageway, like `road`: things do not stand on it. Unmapped in
        *  `CATEGORY_FOR_GROUND` is what `road` itself is, and this matches it. */
       /**
@@ -5467,6 +5470,368 @@ export function createCity(options = {}) {
           put(-6, 9.3, 0, 1.0, 0.7, 1.0, [0.16, 0.165, 0.17], 0.6);
           glow(-6, 9.3, 0.55, 0.9, 0.6, 0, EMITTER_CHROMA.neonGreen, LIGHT.signPlateNits * 9.0);
           glow(-6, 9.3, -0.55, 0.9, 0.6, 180, EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 9.0);
+        } else if (f.kind === 'afterm') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * ONE MODULE OF THE TERMINAL — SESSION 75, ITEM 2a.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"A TERMINAL IS A LONG LOW BUILDING WITH A GLAZED FACE TO THE
+           * APRON, and that is most of what makes it read."*
+           *
+           * THE VOCABULARY IS LOOK.md's OWN, off the hill houses: *"an
+           * L-plan of two volumes at an angle, an OVERSAILING ROOF SLAB rather
+           * than a parapet, GLASS ON THE VIEW ELEVATION ONLY, and a
+           * cantilevered terrace … ten boxes and not one of them is detail"*.
+           * A terminal is the same four moves at 300 m: one long volume, a
+           * slab that oversails the apron face, glass on that face and nothing
+           * on the other, and a canopy cantilevered over the forecourt.
+           *
+           * LOCAL +Z IS THE APRON. `yawDeg` is 0 and the feature stands south
+           * of it, so every glazed thing below is at +dz and every landside
+           * thing at -dz. Written once, in one frame.
+           */
+          const L = f.run;
+          const D = f.depth;
+          const Hh = f.height;
+          const wall = [0.34, 0.345, 0.355];
+          const trim = [0.26, 0.265, 0.275];
+          const dark = [0.11, 0.115, 0.125];
+          const glass = [0.055, 0.062, 0.075];
+          put(0, Hh / 2, 0, L, Hh, D, wall, 0.72);
+          /**
+           * THE OVERSAILING SLAB, and it oversails the APRON side by 8 m —
+           * which is a canopy over the stands as well as a roofline, and is
+           * the one move that stops this being a box with a stripe on it.
+           */
+          put(0, Hh + 0.55, 3.6, L + 0.6, 1.1, D + 7.2, trim, 0.66);
+          put(0, Hh + 1.5, -D * 0.18, L * 0.86, 0.8, D * 0.42, wall, 0.7);
+          /**
+           * THE GLAZED FACE. A single band from 1.4 m to the slab, mullioned
+           * every 6 m, and the mullions are what make glass read as glass
+           * rather than as a dark panel: the eye reads the RHYTHM.
+           */
+          const gy = (1.4 + (Hh - 1.4)) / 2;
+          const gh = Hh - 2.2;
+          put(0, gy, D / 2 + 0.16, L - 1.2, gh, 0.32, glass, 0.07);
+          glow(0, gy, D / 2 + 0.38, L - 1.8, gh - 0.5, 0,
+            EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.25);
+          const mull = Math.max(2, Math.round(L / 6));
+          for (let k = 0; k <= mull; k++) {
+            put((k / mull - 0.5) * L, gy, D / 2 + 0.42, 0.34, gh + 0.4, 0.34, trim, 0.55);
+          }
+          put(0, 1.0, D / 2 + 0.2, L, 2.0, 0.5, trim, 0.7);
+          /**
+           * THE LANDSIDE ELEVATION IS SOLID, WITH A BAND. Glass on the view
+           * elevation ONLY is LOOK.md's sentence and it is also true of every
+           * terminal ever built: the road side is check-in walls and plant.
+           */
+          put(0, Hh * 0.74, -D / 2 - 0.16, L - 1.2, 1.5, 0.3, trim, 0.66);
+          for (let k = 0; k < 3; k++) {
+            put((k - 1) * (L / 3.2), Hh * 0.40, -D / 2 - 0.14, L / 6, 2.2, 0.26, glass, 0.1);
+          }
+          if (f.endCap) {
+            /** A solid end volume, taller by a storey, closing the run. */
+            put(f.endCap * (L / 2 - 4), Hh * 0.62, -D * 0.06, 8.0, Hh * 1.24, D * 0.9, trim, 0.72);
+          }
+          if (f.door) {
+            /**
+             * THE ENTRANCE, and the canopy over the forecourt is cantilevered
+             * on two posts rather than carried on a colonnade — the hill
+             * houses' fourth move, at the one place a person arrives.
+             */
+            put(0, Hh * 0.30, -D / 2 - 5.2, 26, 0.5, 10.4, trim, 0.66);
+            for (const px of [-11, 11]) put(px, Hh * 0.15, -D / 2 - 9.4, 0.5, Hh * 0.30, 0.5, trim, 0.66);
+            put(0, 1.9, -D / 2 - 0.2, 14, 3.8, 0.4, glass, 0.07);
+            glow(0, 1.9, -D / 2 - 0.44, 13, 3.4, 180,
+              EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.9);
+            /** And the name over the door, which is the only warm light on it. */
+            glow(0, Hh * 0.80, -D / 2 - 0.3, 16, 1.4, 180,
+              EMITTER_CHROMA.neonCyan, LIGHT.signPlateNits * 2.6);
+          }
+          /** Apron floodlights on the roof, aimed north over the stands. */
+          if (f.n % 2 === 0) {
+            put(0, Hh + 2.6, D / 2 - 1.0, 0.5, 2.2, 0.5, dark, 0.7);
+            glow(0, Hh + 3.4, D / 2 - 0.6, 1.8, 0.7, 0,
+              EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 5.0);
+          }
+        } else if (f.kind === 'afpier') {
+          /**
+           * A PIER — SESSION 75, ITEM 2a. A low glazed finger reaching north
+           * into the apron with a stand either side of it, and four airbridges.
+           *
+           * WHY A PIER AND NOT A LONGER FRONTAGE: a frontage puts aircraft in a
+           * LINE, and a line of aircraft beside a building is a car park. A
+           * pier puts them AROUND something, which is the arrangement the eye
+           * reads as an airport from any height.
+           */
+          const W = f.wide;
+          const R = f.run;
+          const Hh = f.height;
+          const wall = [0.34, 0.345, 0.355];
+          const trim = [0.26, 0.265, 0.275];
+          const glass = [0.055, 0.062, 0.075];
+          put(0, Hh / 2, 0, W, Hh, R, wall, 0.72);
+          put(0, Hh + 0.5, 0, W + 4.4, 1.0, R + 2.2, trim, 0.66);
+          /** Glazed both long sides, because a pier is seen from both stands. */
+          for (const sx of [-1, 1]) {
+            put(sx * (W / 2 + 0.16), Hh * 0.62, 0, 0.32, Hh * 0.52, R - 2.0, glass, 0.07);
+            glow(sx * (W / 2 + 0.38), Hh * 0.62, 0, R - 2.6, Hh * 0.48, sx < 0 ? 90 : 270,
+              EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.15);
+          }
+          const bays = Math.max(3, Math.round(R / 12));
+          for (let k = 0; k <= bays; k++) {
+            const pz = (k / bays - 0.5) * R;
+            for (const sx of [-1, 1]) put(sx * (W / 2 + 0.42), Hh * 0.62, pz, 0.3, Hh * 0.56, 0.3, trim, 0.55);
+          }
+          /**
+           * THE AIRBRIDGES, one per stand. A rotunda on the pier, a tube out,
+           * and a cab at the end — three boxes each, and the tube is what says
+           * the aircraft is being worked rather than parked.
+           */
+          for (let j = 0; j < 2; j++) {
+            const bz = -R / 2 + 24 + j * 58;
+            for (const sx of [-1, 1]) {
+              put(sx * (W / 2 + 1.6), Hh * 0.55, bz, 3.2, 4.6, 3.2, trim, 0.6);
+              put(sx * (W / 2 + 9.0), Hh * 0.58, bz, 12.0, 2.9, 3.0, trim, 0.6);
+              put(sx * (W / 2 + 15.6), Hh * 0.52, bz, 3.4, 3.4, 3.6, [0.20, 0.205, 0.215], 0.55);
+            }
+          }
+          /** A stand floodlight mast at the tip, which is what lights the apron. */
+          put(0, Hh + 5.0, R / 2 - 2.0, 0.5, 9.0, 0.5, [0.15, 0.155, 0.165], 0.7);
+          for (const yaw of [90, 270]) {
+            glow(0, Hh + 9.0, R / 2 - 2.0, 2.4, 0.8, yaw,
+              EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 6.0);
+          }
+        } else if (f.kind === 'afhangar') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * A HANGAR — SESSION 75, ITEM 2b, AND THE DOOR IS THE WHOLE TELL.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"HANGARS ARE BIG DOORS. The door is the whole tell — a hangar is a
+           * box whose entire end opens."* A shed with a personnel door is a
+           * shed at any size, so the money goes on the opening: a full-width
+           * frame, a lintel deep enough to carry it, and leaves that stack.
+           *
+           * THE DOOR FACES THE APRON, which is local -Z: the feature's yaw is 0
+           * and the hangar apron lies south of it.
+           */
+          const L = f.run;
+          const D = f.depth;
+          const Hh = f.height;
+          /**
+           * THE DOOR IS ONLY A DOOR IF IT IS A DIFFERENT COLOUR FROM THE WALL,
+           * and the first frame proved it: wall 0.30, frame 0.23 and leaves
+           * 0.27 delivered three grey boxes with faint vertical seams. The
+           * leaves are now the darkest surface on the building and the frame
+           * the palest, so the opening reads at 500 m as a rectangle in a wall
+           * rather than as panelling.
+           */
+          const wall = [0.30, 0.305, 0.315];
+          const trim = [0.23, 0.235, 0.245];
+          const frame = [0.46, 0.465, 0.47];
+          const leaf = [0.145, 0.15, 0.16];
+          const dark = [0.045, 0.048, 0.055];
+          const dh = Hh * 0.80;
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AN OPEN HANGAR IS A SHELL AND A CLOSED ONE IS A BOX — SESSION 75.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * The first arm drew the solid mass in both cases and put a black
+           * slab across the doorway to stand for the opening. It reads as an
+           * opening and it is a LID: nothing behind it can ever be seen, so
+           * item 2b's *"one open with something inside it"* had an aircraft in
+           * it that no camera could reach. A box cannot be cut here any more
+           * than the ground could be — session 74's finding, one scale down —
+           * so an open hangar is assembled from the walls it actually has and
+           * the doorway is the volume nobody built.
+           */
+          if (f.open) {
+            put(0, Hh / 2, D / 2 - 0.7, L, Hh, 1.4, wall, 0.75);
+            for (const sx of [-1, 1]) put(sx * (L / 2 - 0.7), Hh / 2, 0, 1.4, Hh, D, wall, 0.75);
+            put(0, Hh - 0.5, 0, L, 1.0, D, wall, 0.75);
+            put(0, dh + (Hh - dh) / 2 - 0.5, -D / 2 + 0.7, L, Hh - dh, 1.4, wall, 0.75);
+          } else {
+            put(0, Hh / 2, 0, L, Hh, D, wall, 0.75);
+          }
+          /** A shallow curved-looking roof: three steps, which reads as a barrel. */
+          put(0, Hh + 0.5, 0, L + 1.0, 1.0, D + 1.0, trim, 0.68);
+          put(0, Hh + 1.7, 0, L * 0.72, 1.4, D * 0.80, wall, 0.72);
+          /** The door frame: two piers and a lintel the full width. */
+          for (const sx of [-1, 1]) put(sx * (L / 2 - 1.6), dh / 2, -D / 2 - 0.3, 3.2, dh, 1.2, frame, 0.66);
+          put(0, dh + 1.4, -D / 2 - 0.3, L, 2.8, 1.4, frame, 0.66);
+          if (f.open) {
+            /**
+             * OPEN: the opening is a dark recess and the leaves are STACKED at
+             * one end, which is what an open hangar looks like — the doors do
+             * not vanish, they concertina.
+             */
+            /**
+             * THE BACK WALL, LIT, is what an open hangar reads by at night and
+             * what gives the thing inside it a ground to stand against by day.
+             * A `glow` quad is vertical by construction (`setMatrix` yaws about
+             * Y and nothing pitches it), so the interior light is the back wall
+             * facing out and not a ceiling facing down — which is also where a
+             * hangar's own worklights point.
+             */
+            put(0, dh * 0.5, D / 2 - 1.5, L - 3.0, dh, 0.4, dark, 0.6);
+            for (let k = 0; k < 4; k++) {
+              put(-L / 2 + 3.2 + k * 0.9, dh / 2, -D / 2 - 0.1, 0.8, dh - 0.4, 3.0, leaf, 0.62);
+            }
+            /** Lit inside, and it is the only reason an open hangar reads at night. */
+            glow(0, dh * 0.46, D / 2 - 1.8, L - 5.5, dh * 0.80, 180,
+              EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 1.15);
+            /** Worklights on the door header, aimed in over the floor. */
+            for (const px of [-L * 0.28, L * 0.28]) {
+              glow(px, dh + 1.2, -D / 2 + 1.5, 3.2, 0.9, 0,
+                EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 2.4);
+            }
+            if (f.occupied) {
+              /**
+               * SOMETHING INSIDE IT — item 2b's own *"one open with something
+               * inside it"*. A fuselage and a tail, seen end-on through the
+               * door, which is all that is visible from an apron anyway.
+               */
+              const az = -D * 0.06;
+              put(0, 4.2, az, 5.6, 5.2, 30, [0.62, 0.625, 0.63], 0.34);
+              put(0, 5.4, az - 12.5, 3.4, 2.8, 5.0, [0.16, 0.17, 0.19], 0.18);
+              put(0, 3.4, az + 2, 27, 1.1, 12, [0.60, 0.605, 0.61], 0.34);
+              put(0, 9.6, az + 13, 0.9, 9.0, 7.0, [0.60, 0.605, 0.61], 0.34);
+              put(0, 4.6, az + 13.6, 11.0, 0.8, 4.0, [0.60, 0.605, 0.61], 0.34);
+              for (const sx of [-1, 1]) put(sx * 8.5, 2.4, az + 1, 3.2, 3.0, 6.0, [0.20, 0.205, 0.215], 0.4);
+              put(0, 1.1, az - 9, 3.0, 2.2, 3.0, dark, 0.55);
+            }
+          } else {
+            /** CLOSED: leaves and their ribs, which is a wall with a rhythm. */
+            const leaves = 6;
+            for (let k = 0; k < leaves; k++) {
+              put((k / (leaves - 1) - 0.5) * (L - 3.4), dh / 2, -D / 2 - 0.05,
+                (L - 3.4) / leaves - 0.25, dh, 0.5, leaf, 0.66);
+            }
+            for (let k = 0; k < 4; k++) {
+              put(0, dh * (0.18 + k * 0.22), -D / 2 - 0.32, L - 3.6, 0.28, 0.3, frame, 0.6);
+            }
+          }
+          /**
+           * RIBS ON THE BACK AND THE TWO ENDS — AND NOT ON THE DOOR, WHICH IS
+           * WHAT THE FIRST FRAME CAUGHT. Ribs stand 0.43 m proud and the door
+           * leaves 0.30 m, so a rib on the door wall is drawn IN FRONT of the
+           * door: three hangars came back as a ribbed wall with no opening in
+           * it at all, which is the one thing item 2b says a hangar must have.
+           */
+          const ribs = Math.max(3, Math.round(L / 11));
+          for (let k = 0; k <= ribs; k++) {
+            put((k / ribs - 0.5) * L, Hh * 0.5, D / 2 + 0.22, 0.55, Hh, 0.42, trim, 0.72);
+          }
+          const dribs = Math.max(2, Math.round(D / 12));
+          for (let k = 0; k <= dribs; k++) {
+            const pz = (k / dribs - 0.5) * D;
+            for (const sx of [-1, 1]) put(sx * (L / 2 + 0.22), Hh * 0.5, pz, 0.42, Hh, 0.55, trim, 0.72);
+          }
+          put(0, Hh * 0.86, D / 2 + 0.24, L, 0.7, 0.5, trim, 0.7);
+          for (const sx of [-1, 1]) put(sx * (L / 2 + 0.24), Hh * 0.86, 0, 0.5, 0.7, D, trim, 0.7);
+          /** A door-head floodlight, aimed down at the apron in front of it. */
+          glow(0, dh + 2.2, -D / 2 - 1.0, 3.0, 0.9, 180,
+            EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 4.0);
+        } else if (f.kind === 'aftower') {
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * THE CONTROL TOWER — SESSION 75, ITEM 2c, AND IT IS SESSION 71's
+           * CRANE PROBLEM WITH A DIFFERENT SILHOUETTE.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * *"Half of why the cranes read is that DARK STEEL WITH ONE BRIGHT
+           * HORIZONTAL beats pale steel that goes white against a lit sky. THE
+           * TOWER IS THE SAME PROBLEM."* So the shaft is the darkest thing on
+           * this airfield and the cab band is the brightest, and the contrast
+           * between them is the whole object at 2 km.
+           *
+           * THE CAB IS CANTED OUT, which is the one detail that separates a
+           * control tower from a water tower or a chimney: the glass leans
+           * outward so a controller can look straight down, and the profile of
+           * that lean is the shape everybody recognises.
+           */
+          const Hh = f.height;
+          const shaft = [0.115, 0.12, 0.13];
+          const trim = [0.22, 0.225, 0.235];
+          const glass = [0.045, 0.052, 0.065];
+          /** The shaft, tapering in three stages. */
+          put(0, Hh * 0.24, 0, 7.0, Hh * 0.48, 7.0, shaft, 0.7);
+          put(0, Hh * 0.62, 0, 5.6, Hh * 0.30, 5.6, shaft, 0.7);
+          put(0, Hh * 0.79, 0, 4.8, Hh * 0.06, 4.8, trim, 0.66);
+          /** The cab: a lower canted ring, the glass, and a slab over it. */
+          put(0, Hh * 0.845, 0, 9.4, Hh * 0.05, 9.4, trim, 0.62);
+          put(0, Hh * 0.905, 0, 10.6, Hh * 0.085, 10.6, glass, 0.06);
+          for (const [dx, dz, yaw] of [[0, 5.5, 0], [0, -5.5, 180], [5.5, 0, 90], [-5.5, 0, 270]]) {
+            glow(dx, Hh * 0.905, dz, 10.0, Hh * 0.075, yaw,
+              EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 2.1);
+          }
+          put(0, Hh * 0.965, 0, 12.0, Hh * 0.045, 12.0, trim, 0.6);
+          /** Mullions on the cab, and the ladder up the shaft. */
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            put(Math.cos(a) * 5.3, Hh * 0.905, Math.sin(a) * 5.3, 0.4, Hh * 0.09, 0.4, trim, 0.55);
+          }
+          for (let k = 0; k < 6; k++) put(3.7, Hh * (0.08 + k * 0.12), 0, 0.9, 0.16, 0.5, trim, 0.7);
+          /** The mast, and the obstruction light on it. */
+          put(0, Hh * 1.06, 0, 0.35, Hh * 0.14, 0.35, trim, 0.7);
+          for (const yaw of [0, 180]) {
+            glow(0, Hh * 1.135, 0, 0.7, 0.7, yaw, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 5.0);
+          }
+        } else if (f.kind === 'afstand') {
+          /**
+           * AN AIRCRAFT STAND — SESSION 75, AND IT IS PAINT.
+           *
+           * A stand reads by its lead-in line, its stop bar and its box, all of
+           * which are 12 mm boxes on the apron for `afstrip`'s own reason: a
+           * ground rect would become `worldSurface`'s maximum and the player
+           * would walk on the paint instead of the concrete.
+           *
+           * LOCAL +Z IS THE NOSE DIRECTION. The generator yaws the feature so
+           * that is true from either side of a pier, so everything here is
+           * written once for an aircraft facing +Z.
+           */
+          const paint = [0.66, 0.62, 0.22];
+          const white = [0.62, 0.62, 0.60];
+          /** The lead-in line, running back from the stop bar. */
+          put(0, 0.006, -13, 0.5, 0.012, 34, paint, 0.55);
+          /** The stop bar, and the two wing-tip clearance marks. */
+          put(0, 0.006, 5.0, 8.0, 0.012, 0.6, paint, 0.55);
+          for (const sx of [-1, 1]) {
+            put(sx * 17, 0.006, -8, 0.45, 0.012, 26, white, 0.55);
+            put(sx * 17, 0.006, 5.0, 5.0, 0.012, 0.45, white, 0.55);
+          }
+          /** The stand number, as a plate on a short post at the nose. */
+          put(0, 0.9, 8.4, 0.14, 1.8, 0.14, [0.19, 0.195, 0.20], 0.7);
+          glow(0, 1.8, 8.4, 1.5, 0.9, 180, EMITTER_CHROMA.neonAmber, LIGHT.signPlateNits * 2.2);
+        } else if (f.kind === 'aftank') {
+          /**
+           * A FUEL TANK — SESSION 75. Three boxes at 60 degrees is a twelve-
+           * sided drum, which is a cylinder at any distance an airfield is seen
+           * from, and it is three instances rather than a lathe and a mesh.
+           * Session 73's fifth red is the reason a lathe is not reached for
+           * here: `lathe()` names a mesh and an airfield is already many
+           * populations sharing one prefix.
+           */
+          const r = f.radius;
+          const Hh = f.height;
+          const tone = [0.40, 0.405, 0.40];
+          const trim = [0.26, 0.265, 0.27];
+          for (let k = 0; k < 3; k++) {
+            put(0, Hh / 2, 0, r * 1.86, Hh, r * 1.86, tone, 0.46, (f.yawDeg || 0) + k * 30);
+            put(0, Hh + 0.35, 0, r * 1.94, 0.7, r * 1.94, trim, 0.5, (f.yawDeg || 0) + k * 30);
+          }
+          /** Bands round it, a stair, and the bund wall that catches a spill. */
+          for (const hy of [Hh * 0.32, Hh * 0.68]) {
+            for (let k = 0; k < 3; k++) put(0, hy, 0, r * 1.92, 0.3, r * 1.92, trim, 0.5, (f.yawDeg || 0) + k * 30);
+          }
+          put(r + 0.6, Hh / 2, 0, 1.2, Hh, 0.5, trim, 0.7);
+          for (const [dx, dz, sx, sz] of [[0, r + 3.2, r * 2.6 + 6, 0.6], [0, -(r + 3.2), r * 2.6 + 6, 0.6],
+            [r + 3.2, 0, 0.6, r * 2.6 + 6], [-(r + 3.2), 0, 0.6, r * 2.6 + 6]]) {
+            put(dx, 0.55, dz, sx, 1.1, sz, [0.34, 0.335, 0.33], 0.8);
+          }
         } else if (f.kind === 'portfence') {
           /**
            * ═══════════════════════════════════════════════════════════════

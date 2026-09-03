@@ -863,6 +863,15 @@ const portMix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * 
  *                 SAME 0.62 diffuse `city.js` already
  *                 derives for road paint. Not a new
  *                 number: one paint, one reflectance.
+ *     afForecourt the landside car park and its access,
+ *                 SESSION 75. It is `afTaxi`'s asphalt
+ *                 and not the city's `parkingGround`,
+ *                 which falls through `porosityFor` to
+ *                 0.0 — a full mirror on a rural car
+ *                 park 5 km from the nearest arterial.
+ *                 CONTRACT §9.2 asked of a default
+ *                 BEFORE it travelled, which is the
+ *                 whole of what that section wants.
  *
  * `afRunway` IS NOT `road`. A runway is grooved Portland cement concrete, not
  * dense-graded bituminous city arterial: it is paler, it is far less saturated,
@@ -876,6 +885,7 @@ export const AIRFIELD_ALBEDO = {
   apron: GROUND.yardAlbedo,
   grass: portMix3(GROUND.cropAlbedo.grass, GROUND.cropAlbedo.field, 0.30),
   paint: [0.62, 0.62, 0.60],
+  forecourt: [0.100, 0.098, 0.094],
 };
 
 export const PORT_ALBEDO = {
