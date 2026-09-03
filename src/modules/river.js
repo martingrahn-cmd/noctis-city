@@ -838,7 +838,19 @@ export function createRiver(options = {}) {
   function buildMoving(x0, x1) {
     movingParts = null;
     const H = harbourSite(rootSeed);
-    if (H.x1 < x0 || H.x0 > x1) {
+    /**
+     * THE TEST IS THE MOVERS' OWN EXTENT AND NOT THE QUAY'S — SESSION 71.
+     * Session 68 keyed this on `H.x0/H.x1`, which was right while everything
+     * that moved was on the quay. The coaster runs from x = 3 520, 384 m west
+     * of `x0`, and a mesh whose existence is decided by a rectangle the vehicle
+     * has left is a vehicle that vanishes at the interesting end of its run.
+     * One extent, computed once, and the bounding sphere below reads the same
+     * two numbers — which is the arrangement that stopped session 68's mover
+     * being culled into nothing.
+     */
+    const mX0 = Math.min(H.x0 - 120, HARBOUR.coasterX0) - 40;
+    const mX1 = Math.max(H.x0 - 120 + HARBOUR.launchRunM, HARBOUR.coasterX1) + 40;
+    if (mX1 < x0 || mX0 > x1) {
       replaceInstanced('river:moving', materials.structure, [], [], {}, (m) => { movingMesh = m; });
       return;
     }
@@ -863,15 +875,86 @@ export function createRiver(options = {}) {
      * therefore mostly legs: the box it carries hangs INSIDE its own portal,
      * which is what makes the silhouette read at five hundred metres.
      */
+    /**
+     * EACH CARRIER TAKES THE DATUM OF THE PLATFORM IT RUNS ON — SESSION 71,
+     * AND CARRIER 1 WAS 6.35 m UNDERGROUND FOR THREE SESSIONS.
+     *
+     * `dy` is baked here at build time and `stepMoving` only writes x, z and
+     * yaw, so a vehicle's height is decided by this line and by nothing else.
+     * Session 68 wrote `H.apronY` for all of them and then posed carrier 1 at
+     * z = -184 — which is on the YARD plate, 6.353 m higher than the apron. It
+     * ran its whole 330 m stroke buried to the portal beam, in a mesh whose
+     * draw count said it was there. CONTRACT §9's shape with two platforms:
+     * the height of ONE level used as the height of the site.
+     */
+    const carrierLane = [
+      { y: H.apronY, z: H.apronZ - 10 },
+      { y: H.yardY, z: H.apronZ + 29 },
+      { y: H.yardY, z: H.apronZ + 55 },
+    ];
     for (let c = 0; c < HARBOUR.carriers; c++) {
+      const baseY = carrierLane[c % carrierLane.length].y;
       for (const ex of [-3.4, 3.4]) {
         for (const ez of [-2.1, 2.1]) {
-          parts.push({ v: 1 + c, dx: ex, dy: H.apronY + 5.2, dz: ez, sx: 0.42, sy: 10.4, sz: 0.42, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:leg' });
+          parts.push({ v: 1 + c, dx: ex, dy: baseY + 5.2, dz: ez, sx: 0.42, sy: 10.4, sz: 0.42, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:leg' });
         }
       }
-      parts.push({ v: 1 + c, dx: 0, dy: H.apronY + 10.9, dz: 0, sx: 7.6, sy: 1.0, sz: 5.0, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:portal' });
-      parts.push({ v: 1 + c, dx: 0, dy: H.apronY + 1.4, dz: 0, sx: 6.2, sy: 2.6, sz: 2.5, a: [0.10, 0.14, 0.28], r: 0.72, kind: 'carrier:load' });
+      parts.push({ v: 1 + c, dx: 0, dy: baseY + 10.9, dz: 0, sx: 7.6, sy: 1.0, sz: 5.0, a: MOVING_ALBEDO.carrier, r: 0.62, kind: 'carrier:portal' });
+      parts.push({ v: 1 + c, dx: 0, dy: baseY + 1.4, dz: 0, sx: 6.2, sy: 2.6, sz: 2.5, a: [0.10, 0.14, 0.28], r: 0.72, kind: 'carrier:load' });
     }
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * A COASTER UNDER WAY THROUGH THE MOUTH — SESSION 71, ITEM 3b.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * The one thing a port can show that nothing else can. It is the same
+     * three-box hull `harbourCraft`'s moored coasters are — a hull, a house
+     * aft and a mast — at the same freeboard and draught, so a hull under way
+     * and a hull alongside are the same object in two states rather than two
+     * descriptions of a ship. Plus a bow wave, which is two flat boxes at the
+     * waterline and is the only thing that says it is MOVING rather than
+     * anchored.
+     */
+    const vCoaster = 1 + HARBOUR.carriers;
+    {
+      const drau = 3.4;
+      const free = 3.6;
+      const y0 = SEA.levelY - drau / 2 + free / 2;
+      parts.push({ v: vCoaster, dx: 0, dy: y0, dz: 0, sx: 78, sy: drau + free, sz: 13.0, a: [0.13, 0.15, 0.17], r: 0.5, kind: 'coaster:hull' });
+      parts.push({ v: vCoaster, dx: 0, dy: SEA.levelY + free + 0.5, dz: 0, sx: 78, sy: 1.0, sz: 13.4, a: [0.30, 0.28, 0.24], r: 0.7, kind: 'coaster:deck' });
+      parts.push({ v: vCoaster, dx: -26, dy: SEA.levelY + free + 4.2, dz: 0, sx: 12.0, sy: 7.4, sz: 11.0, a: [0.66, 0.66, 0.64], r: 0.6, kind: 'coaster:house' });
+      parts.push({ v: vCoaster, dx: -26, dy: SEA.levelY + free + 10.6, dz: 0, sx: 0.3, sy: 5.4, sz: 0.3, a: [0.66, 0.66, 0.64], r: 0.6, kind: 'coaster:mast' });
+      /** Two hatch coamings, so the deck is not a plank. */
+      for (const hx of [-2, 20]) {
+        parts.push({ v: vCoaster, dx: hx, dy: SEA.levelY + free + 1.6, dz: 0, sx: 20.0, sy: 1.4, sz: 10.0, a: [0.38, 0.30, 0.14], r: 0.75, kind: 'coaster:hatch' });
+      }
+      /** The bow wave, and it is what makes her read as under way. */
+      for (const wz of [-7.4, 7.4]) {
+        parts.push({ v: vCoaster, dx: 34, dy: SEA.levelY + 0.35, dz: wz, sx: 22.0, sy: 0.7, sz: 3.0, a: [0.72, 0.75, 0.78], r: 0.18, kind: 'coaster:wash' });
+      }
+      parts.push({ v: vCoaster, dx: -46, dy: SEA.levelY + 0.3, dz: 0, sx: 30.0, sy: 0.6, sz: 9.0, a: [0.60, 0.63, 0.66], r: 0.2, kind: 'coaster:wake' });
+    }
+    /**
+     * LORRIES ON THE APRON — item 3a. They run the crane line, so they pass
+     * UNDER the gantries' portals, which is the one thing that proves the
+     * portal has headroom in it. A cab and a box on a chassis: three boxes.
+     */
+    const vLorry = vCoaster + 1;
+    for (let l = 0; l < HARBOUR.lorries; l++) {
+      const v = vLorry + l;
+      parts.push({ v, dx: 1.2, dy: H.apronY + 1.05, dz: 0, sx: 11.0, sy: 0.5, sz: 2.5, a: [0.20, 0.20, 0.21], r: 0.7, kind: 'lorry:chassis' });
+      parts.push({ v, dx: 0.6, dy: H.apronY + 2.7, dz: 0, sx: 9.2, sy: 2.8, sz: 2.44, a: l ? [0.12, 0.26, 0.20] : [0.34, 0.14, 0.12], r: 0.72, kind: 'lorry:box' });
+      parts.push({ v, dx: -6.0, dy: H.apronY + 1.9, dz: 0, sx: 2.6, sy: 2.4, sz: 2.5, a: [0.55, 0.55, 0.53], r: 0.5, kind: 'lorry:cab' });
+    }
+    /**
+     * A CRANE TROLLEY RUNNING ITS BOOM — item 3a. It belongs to the FIRST
+     * gantry, whose static trolley the generator therefore leaves off, so the
+     * machine has exactly one. It travels in z, out over the water and back,
+     * which is the motion a container crane actually makes.
+     */
+    const vTrolley = vLorry + HARBOUR.lorries;
+    parts.push({ v: vTrolley, dx: 0, dy: HARBOUR.craneHeightM + 0.0, dz: 0, sx: 3.6, sy: 1.8, sz: 4.4, a: [0.10, 0.105, 0.115], r: 0.6, kind: 'trolley:body' });
+    parts.push({ v: vTrolley, dx: 0, dy: HARBOUR.craneHeightM - 3.8, dz: 0, sx: 2.6, sy: 0.8, sz: 12.6, a: MOVING_ALBEDO.carrier, r: 0.6, kind: 'trolley:spreader' });
     const kinds = {};
     for (const p of parts) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
     const mats = parts.map(() => setMatrix(0, 0, 0, 1, 1, 1, 0));
@@ -898,10 +981,17 @@ export function createRiver(options = {}) {
      * correctly at every instant instead of at one.
      */
     if (movingMesh) {
-      const runX = HARBOUR.launchRunM + 240;
+      /**
+       * THE SPHERE READS `mX0`/`mX1` — THE SAME TWO NUMBERS THE RESIDENCY TEST
+       * ABOVE DOES — so a vehicle cannot be admitted by one and culled by the
+       * other. Session 71 added a coaster that runs 384 m west of the quay and
+       * that is exactly the kind of change that would otherwise reproduce
+       * session 68's silent zero at one end of one circuit.
+       */
+      const zNear = HARBOUR.coasterOffM + 60;
       movingMesh.boundingSphere = new THREE.Sphere(
-        new THREE.Vector3(H.x0 - 120 + runX / 2, H.apronY + 6, (H.quayZ - 150 + H.apronZ) / 2),
-        Math.hypot(runX / 2, (H.apronZ - (H.quayZ - 150)) / 2) + 24
+        new THREE.Vector3((mX0 + mX1) / 2, H.apronY + 8, (H.quayZ - zNear + H.yardY * 0 + H.apronZ) / 2),
+        Math.hypot((mX1 - mX0) / 2, (H.apronZ - (H.quayZ - zNear)) / 2) + 40
       );
     }
   }
@@ -939,13 +1029,84 @@ export function createRiver(options = {}) {
        */
       pose.push({ x: H.x0 - 120 + u * run, z: H.quayZ - 60, yaw: dir > 0 ? 0 : 180 });
     }
+    /**
+     * THE CARRIERS, EACH IN THE LANE ITS `dy` WAS BUILT FOR. `carrierLane` in
+     * `buildMoving` owns both halves of that pairing — the height and the z —
+     * so the two can no longer be written in different places and disagree,
+     * which is the whole of how carrier 1 came to run underground.
+     */
+    const lanes = [
+      { z: H.apronZ - 10 },
+      { z: H.apronZ + 29 },
+      { z: H.apronZ + 55 },
+    ];
     for (let c = 0; c < HARBOUR.carriers; c++) {
-      // The apron, between the outer container blocks, offset half a period apart.
       const run = (HARBOUR.stackCols - 1) * HARBOUR.stackPitchM;
-      const phase = (t * HARBOUR.carrierSpeedMS) / run + c;
+      const phase = (t * HARBOUR.carrierSpeedMS) / run + c * 0.7;
       const u = tri(phase);
       const dir = (((phase % 2) + 2) % 2) < 1 ? 1 : -1;
-      pose.push({ x: H.x0 + 40 + u * run, z: H.apronZ - 10 + c * 14, yaw: dir > 0 ? 0 : 180 });
+      pose.push({ x: H.x0 + 40 + u * run, z: lanes[c % lanes.length].z, yaw: dir > 0 ? 0 : 180 });
+    }
+    /**
+     * THE COASTER, out in the fairway and heading for the mouth. Her z eases
+     * outward as she runs west, because a ship leaving a berth does not track
+     * a line parallel to the quay she has left.
+     */
+    {
+      const run = HARBOUR.coasterX1 - HARBOUR.coasterX0;
+      /**
+       * THE 1.45 IS WHERE SHE IS AT `t = 0`, AND IT IS SESSION 57's LESSON
+       * PAID FOR THE THIRD TIME.
+       *
+       * A paused harness reads `time.now = 0`, so every frame this project has
+       * ever taken of the harbour is the circuit at phase zero — and phase zero
+       * put a coaster at x = 3 520, four hundred metres west of the quay and
+       * behind every camera that looks at it. Session 57 shot three empty river
+       * frames before finding barges the quay wall hid; session 68 berthed its
+       * launch behind the `sea-harbour` camera and says so in its own comment.
+       * 1.45 puts her mid-channel at x = 4 114 and HEADING WEST — under way,
+       * outbound, in front of the cameras that judge this — because `tri(1.45)`
+       * is 0.55 and 1.45 mod 2 is past 1, which is the direction flag.
+       */
+      const phase = (t * HARBOUR.coasterSpeedMS) / run + 1.45;
+      const u = tri(phase);
+      const dir = (((phase % 2) + 2) % 2) < 1 ? 1 : -1;
+      pose.push({
+        x: HARBOUR.coasterX0 + u * run,
+        z: H.quayZ - HARBOUR.coasterOffM - (1 - u) * 46,
+        yaw: dir > 0 ? 0 : 180,
+      });
+    }
+    /**
+     * THE LORRIES, along the crane line so they pass under the portals, and
+     * offset in phase so they are not a convoy.
+     */
+    for (let l = 0; l < HARBOUR.lorries; l++) {
+      const run = H.x1 - H.x0 - 60;
+      const phase = (t * HARBOUR.lorrySpeedMS) / run + l * 1.13;
+      const u = tri(phase);
+      const dir = (((phase % 2) + 2) % 2) < 1 ? 1 : -1;
+      pose.push({
+        x: H.x0 + 30 + u * run,
+        z: H.quayZ + HARBOUR.craneGaugeM / 2 + (l ? 5.5 : -5.5),
+        yaw: dir > 0 ? 0 : 180,
+      });
+    }
+    /**
+     * THE TROLLEY, on the first gantry, running out over the water and back.
+     * `yaw: 90` because the boom lies along z and the parts are modelled along
+     * x, which is the same trick every other vehicle here uses to point.
+     */
+    {
+      const mid = (H.x0 + H.x1) / 2;
+      const cx = mid - (HARBOUR.cranes - 1) / 2 * HARBOUR.craneEveryM;
+      const cz = H.quayZ + HARBOUR.craneGaugeM / 2;
+      const u = tri((t * 1.9) / HARBOUR.craneReachM);
+      pose.push({
+        x: cx,
+        z: cz - HARBOUR.craneGaugeM / 2 - 2 - u * (HARBOUR.craneReachM - 4),
+        yaw: 90,
+      });
     }
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];

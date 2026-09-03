@@ -194,6 +194,25 @@ export function presets() {
       target: [H.x1 - 70, H.apronY + 6, H.quayZ + 10],
       fov: 60,
     };
+    /**
+     * 180 m OVER THE HARBOUR ITSELF — SESSION 71.
+     *
+     * `sea-air` below is 180 m over the MOUTH and the two are not the same
+     * frame: the mouth is 800 m west of the quay and its aerial shows the
+     * estuary with the terminal off the edge. The brief asks for *"the 180 m
+     * aerial over the harbour"*, so here it is, anchored on `harbourSite` the
+     * way the three sea poses are — it moves if the quay moves.
+     *
+     * It stands OFF THE WATER looking back at the berth so the crane line is
+     * side-on and the yard is behind it, which is the one view that shows the
+     * layout: the lanes between the blocks, the sheds behind, and whether the
+     * booms reach past the quay face.
+     */
+    out['harbour-air'] = {
+      pos: [H.x0 - 150, 180, H.quayZ - 240],
+      target: [H.x1 - 80, 0, H.apronZ],
+      fov: 55,
+    };
     /** 180 m over the mouth, the same altitude session 64 and 65 used. */
     out['sea-air'] = {
       pos: [CITY.extentEdgeM - 132, 180, riverCentreAt(CITY.extentEdgeM) + 230],

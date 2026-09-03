@@ -6490,7 +6490,7 @@ export const HARBOUR = {
    */
   sheds: 4,
   shedZ: -108,
-  shedLenM: 74,
+  shedLenM: 66,
   shedWideM: 26,
   shedHighM: 11,
   /**
@@ -6523,10 +6523,40 @@ export const HARBOUR = {
    * SPEEDS ARE REAL. 8 knots is 4.1 m/s and is the harbour speed limit in most
    * ports; a loaded straddle carrier does about 3.5 m/s. Neither is a knob.
    */
-  carriers: 2,
+  carriers: 3,
   carrierSpeedMS: 3.5,
   launchSpeedMS: 4.1,
   launchRunM: 760,
+  /**
+   * ── WHAT ELSE MOVES — SESSION 71, ITEM 3 ─────────────────────────────────
+   *
+   * THE BRIEF'S PREMISE (iii) IS FALSE AND IT IS WORTH SAYING WHY, because it
+   * makes item 3b cheaper rather than dearer. *"Session 57's barges already
+   * move on the river"* — they do not. `riverCraft` is MOORED craft: static
+   * instance matrices in the chunk's own mesh, rebuilt on a chunk crossing,
+   * with no path, no speed and no update. Its own header says so — *"WHAT IS
+   * MOORED ON THE RIVER"*. **The only thing that has ever moved on water in
+   * this project is session 68's harbour launch**, and it is already here.
+   *
+   * So there is no river mover to extend into the estuary. There is something
+   * better: session 68's mover is a PARTS LIST with a vehicle index and one
+   * pose per vehicle per frame, in ONE InstancedMesh. A new vehicle is a new
+   * index and some parts. **Everything below costs ZERO new draw calls**, which
+   * is the whole of what item 3c was worried about.
+   *
+   * THE COASTER IS THE ONE THAT MATTERS. A hull under way through the mouth is
+   * the strongest sign of life a port has, and at 6 knots over 1 100 m it takes
+   * six minutes to cross the frame — which is what makes it read as a ship
+   * rather than as an animation.
+   */
+  lorries: 2,
+  lorrySpeedMS: 6.0,
+  /** A loaded coaster's harbour speed. 6 kn is 3.1 m/s and it is not a knob. */
+  coasterSpeedMS: 3.1,
+  /** The fairway the coaster runs, in world x, and how far off the quay it is. */
+  coasterX0: 3520,
+  coasterX1: 4600,
+  coasterOffM: 116,
 };
 
 /**
@@ -17708,7 +17738,8 @@ export function generateChunk(rootSeed, cx, cz) {
            * are bought in different decades and a row of one height is a fence.
            */
           const CRANE_ARMS = [
-            { boomUp: 0, trolley: 0.62, laden: 1, service: 0, tone: 1.00, dh: 0, back: 21 },
+            /** No static trolley: crane 0's runs, out of `river.js`'s mover mesh. */
+            { boomUp: 0, trolley: -1, laden: 0, service: 0, tone: 1.00, dh: 0, back: 21 },
             { boomUp: 1, trolley: 0, laden: 0, service: 0, tone: 0.86, dh: 3.5, back: 18 },
             { boomUp: 0, trolley: 0.18, laden: 0, service: 1, tone: 1.10, dh: -2.0, back: 24 },
           ];
@@ -17745,8 +17776,18 @@ export function generateChunk(rootSeed, cx, cz) {
         {
           const qStep = 28;
           const qN = Math.round((H.x1 - H.x0) / qStep);
-          for (let n = 0; n <= qN; n++) {
-            const qx = H.x0 + (n / qN) * (H.x1 - H.x0);
+          /**
+           * STATION CENTRES, NOT STATION EDGES, AND THE FIRST ARM USED EDGES.
+           * `H.x0 + (n / qN) * (x1 - x0)` puts the last station at x = 4 352
+           * exactly — which is `chunkBounds(34, -2).x0`, so it belongs to the
+           * chunk EAST of the harbour, and that chunk fails the site's own
+           * overlap test because `min(4352, 4480) === max(3904, 4352)`. Sixteen
+           * of seventeen stations emitted and the east 28 m of quay had no
+           * rail, no bollard and no fender. Centring each station in its own
+           * `run` puts every one strictly inside the site.
+           */
+          for (let n = 0; n < qN; n++) {
+            const qx = H.x0 + (n + 0.5) * ((H.x1 - H.x0) / qN);
             const qz = H.quayZ + H.craneGaugeM / 2;
             if (qx < b.x0 || qx >= b.x1 || qz < b.z0 || qz >= b.z1) continue;
             features.push({
@@ -17790,13 +17831,26 @@ export function generateChunk(rootSeed, cx, cz) {
          * the terrain, which `put()` seats them on at no cost, and staggered in
          * z so the row is not a wall of its own.
          */
+        /**
+         * THEY FLANK THE GATE, AND THE FIRST ARM SPREAD THEM EVENLY.
+         *
+         * Four sheds at even centres put two of them 3 m either side of the
+         * `sea-road` camera — session 66's own *"a car's eye where the branch
+         * road arrives on the harbour's yard"*, which is the ONLY committed
+         * pose at car height here. The frame came back as two white walls with
+         * a slot between them. A terminal's sheds stand either side of its
+         * gate rather than across it, so they are placed off `branchX` and the
+         * 134 m window between the inner pair is the road's own approach.
+         */
         for (let i = 0; i < H.sheds; i++) {
-          const cx = H.x0 + 60 + i * ((H.x1 - H.x0 - 120) / Math.max(1, H.sheds - 1));
-          const cz = H.shedZ + (i % 2 ? 15 : 0);
+          const side = i < H.sheds / 2 ? -1 : 1;
+          const rank = i < H.sheds / 2 ? i : i - Math.floor(H.sheds / 2);
+          const cx = H.branchX + side * (100 + rank * 80);
+          const cz = H.shedZ;
           if (cx < b.x0 || cx >= b.x1 || cz < b.z0 || cz >= b.z1) continue;
           features.push({
-            kind: 'shed', x: cx, z: cz, yawDeg: 0,
-            length: H.shedLenM * (i % 2 ? 0.82 : 1), width: H.shedWideM,
+            kind: 'transitshed', x: cx, z: cz, yawDeg: 0,
+            length: H.shedLenM * (i % 2 ? 0.78 : 1), width: H.shedWideM,
             height: H.shedHighM * (i === 1 ? 1.25 : 1),
             tone: 0.9 + (i % 3) * 0.12, canopy: i % 2 === 0 ? 1 : 0,
           });
@@ -17844,7 +17898,15 @@ export function generateChunk(rootSeed, cx, cz) {
           if (lx < b.x0 || lx >= b.x1 || lz < b.z0 || lz >= b.z1) continue;
           features.push({ kind: 'lamp', x: lx, z: lz, yawDeg: 0, height: 11.0 });
         }
-        for (const q of [[H.x0 + 40, H.yardZ - 14], [H.x1 - 40, H.yardZ - 14]]) {
+        /**
+         * THE FLOOD MASTS, AND THEY WERE INSIDE THE CONTAINER STACKS TOO —
+         * session 71. `H.x0 + 40` = 3 944 is a stack COLUMN centre and
+         * `H.yardZ - 14` = -146 is a block ROW centre, so both 14 m columns
+         * stood through a block. They go in the LANES now: the x are mid-way
+         * between two columns and the z is the strip inside the yard's landward
+         * edge that no block reaches (blocks end at -137.6).
+         */
+        for (const q of [[H.x0 + 84, H.yardZ - 2], [(H.x0 + H.x1) / 2 - 12, H.yardZ - 2], [H.x1 - 100, H.yardZ - 2]]) {
           if (q[0] < b.x0 || q[0] >= b.x1 || q[1] < b.z0 || q[1] >= b.z1) continue;
           features.push({ kind: 'flood', x: q[0], z: q[1], height: 14.0, aimX: (H.x0 + H.x1) / 2, aimZ: H.quayZ });
         }
@@ -17854,8 +17916,20 @@ export function generateChunk(rootSeed, cx, cz) {
          * the farmsteads and the country houses already use. Premise (ii) said
          * the harbour needs no new geometry vocabulary and this is the half of
          * it that is simply true.
+         *
+         * ── AND THEY WERE STANDING IN THE CONTAINER STACKS — SESSION 71 ──
+         *
+         * Session 66 put them at z = -152 and -150, which is INSIDE the yard
+         * band (-188 to -132) and inside the block row centred at -146: a 96 x
+         * 34 m warehouse interpenetrating four container blocks, invisible from
+         * every frame taken since because the blocks were three high and the
+         * shed is twelve metres tall in the same place. Session 71's yard is
+         * denser and would have made it worse. They move to the SECOND RANK,
+         * inland of the transit sheds at z = -108, where the ground is higher
+         * and they read over the top of them — which is what a dock's back-of-
+         * house looks like and is also where they stop occluding the yard.
          */
-        for (const w of [[H.x0 + 90, -152, 96, 34], [H.x1 - 120, -150, 78, 30]]) {
+        for (const w of [[H.x0 + 116, -62, 96, 34], [H.x1 - 102, -60, 78, 30]]) {
           if (w[0] < b.x0 || w[0] >= b.x1 || w[1] < b.z0 || w[1] >= b.z1) continue;
           features.push({
             kind: 'shed', x: w[0], z: w[1], yawDeg: 0,

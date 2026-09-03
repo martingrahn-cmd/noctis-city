@@ -4887,9 +4887,18 @@ export function createCity(options = {}) {
            */
           const g = f.gauge / 2;
           const hgt = f.height;
-          const leg = [0.30, 0.31, 0.33];
+          /**
+           * THE STRUCTURE IS DARK AND THE BOOM IS NOT, AND THAT IS THE
+           * SILHOUETTE — session 71. Session 66's legs were [0.30, 0.31, 0.33],
+           * a mid grey, and the frame shows what a mid grey does against a lit
+           * sky at this exposure: it goes white and the crane disappears into
+           * the horizon. A gantry is recognised as a DARK shape with one bright
+           * horizontal in it, so the steel goes to a cold near-black and the
+           * boom keeps the safety yellow that carries the line.
+           */
+          const leg = [0.105, 0.115, 0.135];
           const beam = [0.62, 0.55, 0.13];
-          const dark = [0.17, 0.175, 0.185];
+          const dark = [0.06, 0.065, 0.075];
           /** The paint varies crane to crane so three do not read as one instanced. */
           const tone = f.tone == null ? 1 : f.tone;
           const boomC = [beam[0] * tone, beam[1] * tone, beam[2] * tone];
@@ -4963,11 +4972,19 @@ export function createCity(options = {}) {
              * `f.trolley` of the reach. Two small boxes, and they are what says
              * the machine is working rather than parked.
              */
-            const td = g + (f.trolley == null ? 0.55 : f.trolley) * f.reach;
-            put(0, boomY - 1.6, -td, 3.6, 1.8, 4.4, dark, 0.6);
-            put(0, boomY - 5.4, -td, 2.6, 0.8, 12.6, [0.55, 0.42, 0.06], 0.6);
-            if (f.laden) {
-              put(0, boomY - 7.6, -td, 2.44, 2.59, 12.19, [0.10, 0.14, 0.28], 0.72);
+            /**
+             * `f.trolley < 0` MEANS THIS CRANE'S TROLLEY MOVES and belongs to
+             * `river.js`'s mover mesh instead. Drawing both would put two
+             * trolleys on one boom, which is the kind of duplicate a static
+             * frame never shows and a moving one always does.
+             */
+            if (f.trolley >= 0 || f.trolley == null) {
+              const td = g + (f.trolley == null ? 0.55 : f.trolley) * f.reach;
+              put(0, boomY - 1.6, -td, 3.6, 1.8, 4.4, dark, 0.6);
+              put(0, boomY - 5.4, -td, 2.6, 0.8, 12.6, [0.55, 0.42, 0.06], 0.6);
+              if (f.laden) {
+                put(0, boomY - 7.6, -td, 2.44, 2.59, 12.19, [0.10, 0.14, 0.28], 0.72);
+              }
             }
           }
 
@@ -5098,10 +5115,24 @@ export function createCity(options = {}) {
             put(0, 3.35, 9.5, 6.4, 0.3, 4.4, [0.33, 0.34, 0.35], 0.7);
             put(-3.05, 1.2, 9.5, 0.15, 2.2, 1.2, [0.13, 0.14, 0.16], 0.5);
           }
-        } else if (f.kind === 'shed') {
+        } else if (f.kind === 'transitshed') {
           /**
            * ═══════════════════════════════════════════════════════════════
            * A TRANSIT SHED — SESSION 71, ITEM 2c.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * IT IS `transitshed` AND NOT `shed`, AND THE FIRST ARM WAS `shed`.
+           * Session 49's `shed` already exists forty branches up this same
+           * `if/else-if` chain and five call sites use it — a school, a
+           * hospital slab, a fire station, a farmstead barn and this harbour's
+           * own two warehouses. A second branch with the same name is not an
+           * override, it is DEAD CODE: the first match wins, so the new branch
+           * never ran and the new emitter's `{length, width, height, tone}`
+           * arrived at a branch expecting `{length, depth, albedo, trim,
+           * style}` — `f.depth` undefined, and a shed drawn NaN metres deep.
+           * Caught by reading the chain rather than by the frame, because a
+           * NaN box does not draw and an absent shed looks like a shed that
+           * was never emitted.
            * ═══════════════════════════════════════════════════════════════
            *
            * *"WAREHOUSES AND SHEDS behind the yard, long and low, in the
