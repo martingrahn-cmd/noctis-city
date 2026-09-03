@@ -8223,6 +8223,27 @@ export function createCity(options = {}) {
       boxes.push(setMatrix(x, y, z, sx, sy, sz, yaw));
       skin.push({ albedo: a, roughness: r });
     };
+    /**
+     * A BOX THAT BELONGS TO THE AXIS AND NOT TO ITS OWN POSITION — SESSION 73.
+     *
+     * `lathe` above already says the rule and says why: *"a lathe is one mesh,
+     * so it cannot be split between chunks: the chunk holding its axis owns
+     * it."* Session 73's landmark ribs are the SAME OBJECT as the lathe they
+     * sit on, and the first arm let `push` own each rib by its own position.
+     * A 62 m radius spills across four chunks, so three chunks that had no
+     * landmark box before acquired one — and `addInstanced` gave each of them
+     * its own `landmark:condenser` mesh. **Measured on `highway_speed`: 401
+     * draws became 413**, for three landmarks' worth of ribs, against a budget
+     * of 440 that has read 401 for six sessions.
+     *
+     * The caller checks `owns(l.x, l.z)` ONCE and then places every rib through
+     * this, which is exactly what the lathe does. The AABB of the owning
+     * chunk's mesh grows; nothing else does.
+     */
+    const pushCore = (x, y, z, sx, sy, sz, yaw = 0, a = albedo, r = rough) => {
+      boxes.push(setMatrix(x, y, z, sx, sy, sz, yaw));
+      skin.push({ albedo: a, roughness: r });
+    };
     const pushSteel = (x, y, z, sx, sy, sz, yaw = 0, a = [0.56, 0.57, 0.58], r = 0.42) => {
       if (!owns(x, z)) return;
       steel.push(setMatrix(x, y, z, sx, sy, sz, yaw));
@@ -8418,7 +8439,7 @@ export function createCity(options = {}) {
          * ZERO NEW DRAW CALLS: every box goes into `landmark:condenser`, which
          * `addInstanced` already builds at the bottom of this function.
          */
-        {
+        if (owns(l.x, l.z)) {
           const RIBS = 36;
           const rAt = (t) => {
             const w = 2 * t - 1;
@@ -8434,12 +8455,12 @@ export function createCity(options = {}) {
             for (let k = 1; k < 9; k++) {
               const t = 0.035 + (k / 9) * 0.95;
               const r = rAt(t) + 0.35;
-              push(l.x + ca * r, l.height * t, l.z + sa * r,
+              pushCore(l.x + ca * r, l.height * t, l.z + sa * r,
                 0.9, (l.height * 0.95) / 9, 0.7, (-a * 180) / Math.PI, shade, rough);
             }
             /** The inlet colonnade: a raking leg every rib, dark between them. */
             const rBase = rAt(0.0) - 0.6;
-            push(l.x + ca * rBase, 4.6, l.z + sa * rBase,
+            pushCore(l.x + ca * rBase, 4.6, l.z + sa * rBase,
               1.6, 9.2, 1.7, (-a * 180) / Math.PI, shade, rough);
           }
           /** The throat ring and the lip ring, as short chords on a circle. */
@@ -8447,7 +8468,7 @@ export function createCity(options = {}) {
             const r = rAt(t) + 0.5;
             for (let i = 0; i < 48; i++) {
               const a = (i / 48) * Math.PI * 2;
-              push(l.x + Math.cos(a) * r, l.height * t, l.z + Math.sin(a) * r,
+              pushCore(l.x + Math.cos(a) * r, l.height * t, l.z + Math.sin(a) * r,
                 (2 * Math.PI * r) / 48 * 1.08, depth, 0.9, (-a * 180) / Math.PI, shade, rough);
             }
           }
@@ -9159,7 +9180,7 @@ export function createCity(options = {}) {
          * windows in its drum is forty metres tall and one without is any size
          * at all.
          */
-        {
+        if (owns(l.x, l.z)) {
           const RIBS = 20;
           const shade = [albedo[0] * 0.82, albedo[1] * 0.82, albedo[2] * 0.82];
           const dark = [0.09, 0.085, 0.08];
@@ -9173,15 +9194,15 @@ export function createCity(options = {}) {
               const t = (k + 0.5) / 6;
               const r = l.radius * 0.94 * Math.cos((t * Math.PI) / 2) + 0.3;
               const y = l.drum + (l.height - l.drum) * Math.sin((t * Math.PI) / 2);
-              push(l.x + ca * r, y, l.z + sa * r, 0.7, (l.height - l.drum) / 6 * 1.15, 0.6, yaw, shade, rough);
+              pushCore(l.x + ca * r, y, l.z + sa * r, 0.7, (l.height - l.drum) / 6 * 1.15, 0.6, yaw, shade, rough);
             }
             /** A tall opening in the drum, every other bay. */
             if (i % 2 === 0) {
-              push(l.x + ca * (l.radius + 0.15), l.drum * 0.56, l.z + sa * (l.radius + 0.15),
+              pushCore(l.x + ca * (l.radius + 0.15), l.drum * 0.56, l.z + sa * (l.radius + 0.15),
                 2.6, l.drum * 0.52, 0.5, yaw, dark, 0.3);
             }
             /** A pilaster between the openings. */
-            push(l.x + ca * (l.radius + 0.35), l.drum * 0.5, l.z + sa * (l.radius + 0.35),
+            pushCore(l.x + ca * (l.radius + 0.35), l.drum * 0.5, l.z + sa * (l.radius + 0.35),
               1.1, l.drum, 0.9, yaw + 9, shade, rough);
           }
           /** The cornice at the springing, and the plinth at grade. */
@@ -9189,17 +9210,17 @@ export function createCity(options = {}) {
             for (let i = 0; i < 40; i++) {
               const a = (i / 40) * Math.PI * 2;
               const r = l.radius + over * 0.5;
-              push(l.x + Math.cos(a) * r, y, l.z + Math.sin(a) * r,
+              pushCore(l.x + Math.cos(a) * r, y, l.z + Math.sin(a) * r,
                 (2 * Math.PI * r) / 40 * 1.08, h, over, (-a * 180) / Math.PI, shade, rough);
             }
           }
           /** A lantern on the crown, which is what a dome is for. */
           for (let i = 0; i < 10; i++) {
             const a = (i / 10) * Math.PI * 2;
-            push(l.x + Math.cos(a) * 3.2, l.height + 2.4, l.z + Math.sin(a) * 3.2,
+            pushCore(l.x + Math.cos(a) * 3.2, l.height + 2.4, l.z + Math.sin(a) * 3.2,
               1.5, 5.0, 1.1, (-a * 180) / Math.PI, shade, rough);
           }
-          push(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, shade, rough);
+          pushCore(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, shade, rough);
         }
         break;
       }
@@ -9453,7 +9474,7 @@ export function createCity(options = {}) {
          * a GLAZED SLOT at the base — because a civic hall has a way in, and one
          * dark aperture at ground level gives the whole 58 m its scale.
          */
-        {
+        if (owns(l.x, l.z)) {
           const RIBS = 44;
           const shade = [albedo[0] * 0.88, albedo[1] * 0.88, albedo[2] * 0.88];
           const glass = [0.055, 0.062, 0.075];
@@ -9466,15 +9487,15 @@ export function createCity(options = {}) {
             for (let k = 0; k < 7; k++) {
               const t = (k + 0.5) / 7;
               const r = (l.radiusBase + (l.radiusTop - l.radiusBase) * t) + 0.3;
-              push(l.x + ca * r, 1.2 + (l.height - 3.7) * t, l.z + sa * r,
+              pushCore(l.x + ca * r, 1.2 + (l.height - 3.7) * t, l.z + sa * r,
                 0.8, (l.height - 3.7) / 7 * 1.2, 0.55, yaw, shade, rough);
             }
             /** The lip, a chord ring at the rim. */
-            push(l.x + ca * (l.radiusTop + 0.5), l.height - 1.6, l.z + sa * (l.radiusTop + 0.5),
+            pushCore(l.x + ca * (l.radiusTop + 0.5), l.height - 1.6, l.z + sa * (l.radiusTop + 0.5),
               (2 * Math.PI * l.radiusTop) / RIBS * 1.1, 2.4, 1.3, yaw, shade, rough);
             /** And the entrance glazing, all the way round the narrow foot. */
             if (i % 2 === 0) {
-              push(l.x + ca * (l.radiusBase + 0.1), 2.6, l.z + sa * (l.radiusBase + 0.1),
+              pushCore(l.x + ca * (l.radiusBase + 0.1), 2.6, l.z + sa * (l.radiusBase + 0.1),
                 (2 * Math.PI * l.radiusBase) / RIBS * 1.7, 4.4, 0.5, yaw, glass, 0.18);
             }
           }
