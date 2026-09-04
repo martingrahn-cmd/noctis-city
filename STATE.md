@@ -1,549 +1,505 @@
 # NOCTIS — STATE
 
-*End of session 76. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
-**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 16 d 1 h of
-uptime — the same boot as sessions 47–76. Every gate that reads a pixel printed
+*End of session 77. **The machine was checked first, printed, recorded — CONTRACT §0.1.**
+**Mac mini, `Mac16,10`, Apple M4, 10 cores, 24 GB**, macOS 15.2, `node v22.22.0`, 16 d 17 h of
+uptime — the same boot as sessions 47–77. Every gate that reads a pixel printed
 `ANGLE (Apple, ANGLE Metal Renderer: Apple M4)`.*
 
-***`load1` RAN 2.2–3.4 THROUGH THIS SESSION***, over CONTRACT §0.2's bar of 1.6 for the
-sixteenth session running, and quieter than session 75's 3.2–7.0. **No millisecond below is a
-verdict.**
+***`load1` READ 1.60 AT THE START OF THIS SESSION*** — **exactly CONTRACT §0.2's bar**, for the
+first time in seventeen sessions. It did not stay there; each gate below prints its own.
 
-Branch `claude/noctis-76-the-night`, off session 75's head.
+Branch `claude/noctis-77-instruments-and-the-quay`, off session 76's head.
 
-**THE NIGHT. THE LIGHTS EXISTED AND NOTHING THEY SHONE ON WAS LIT.**
+**THE INSTRUMENTS, AND THE QUAY.** Five items, four of them repairs to the things that measure.
 
 **THE FRAMES, AND `--t=0` OR THEY PROVE NOTHING:**
 
 ```
-  node tools/lookat.mjs --preset=af-apron,af-hangar,af-forecourt,af-approach --t=0
-  node tools/lookat.mjs --pos=5180,26,270 --target=5180,10,470 --fov=56 --t=0 --name=af-apron-back
-  node tools/lookat.mjs --pos=5086,12,600 --target=5090,8,470  --fov=62 --t=0 --name=af-hangar-out
+  node tools/lookat.mjs --preset=sea-harbour,sea-road --t=0
 ```
 
-**THE LAST TWO ARE THE OPPOSED BEARINGS AND THEY ARE HALF OF THIS SESSION'S METHOD, NOT AN
-APPENDIX. EACH OF THEM FOUND SOMETHING THE COMMITTED POSE CANNOT SHOW** — §3 and §1d — and between
-them they cost two frames.
-
-> A third was taken and is NOT in that list, because it does not do what its name said.
-> `--pos=5151,20,645 --target=5151,8,500` was meant to oppose `af-hangar`; it stands in the gap
-> BETWEEN two hangars and looks down a corridor at a slot of apron. It is a real frame of a real
-> thing and it opposes nothing. `af-hangar-out` stands inside the open hangar and looks back out,
-> which is the bearing that actually reverses the door view. **A pose that does not do what it is
-> named for is session 73's finding, and it took one look at the delivered PNG to catch — which is
-> the entire argument for looking at them.**
+Those two are the OPPOSED BEARINGS and they already were: `sea-harbour` stands in the fairway 106 m
+off the berth looking ESE, `sea-road` stands on the yard looking WSW. Between them they show the
+quay lit and the yard not, which is exactly what was built.
 
 ---
-## 0. WHAT LIGHTS THE GROUND IN THIS PROJECT — ITEM 1, AND THE BRIEF'S FIRST PREMISE IS FALSE
+## 0. HOW MANY OF THE FOUR STANDING REDS SURVIVE AN HONEST ENTROPY FLOOR — ALL FOUR
 
-**THIS PROJECT HAS LOCAL GROUND ILLUMINATION AND HAS HAD IT SINCE SESSION 1.** The brief's
-premise (i) — *"the city's night look is achieved by something other than local illumination, and
-whatever it is can be extended outward"* — is **false in both halves**. There is no fake. There is
-CONTRACT §5.6's clustered forward+ renderer, 384 slots in a data texture, and **two streamed pools
-that hand those slots out**. Nothing needed extending. The airfield was simply never put on the
-route.
-
-There are exactly **two `THREE.Light`s in the whole project** — `lighting:sun` and `lighting:moon`,
-both `DirectionalLight`, both in `src/modules/lighting.js`. No `PointLight`, no `SpotLight`, no
-`RectAreaLight`, anywhere. That is not the absence of local lighting; it is §5.6 saying local lights
-do not live in three's uniform array.
-
-### 0a. THE THREE MECHANISMS, AND ONLY TWO OF THEM DEPOSIT LIGHT
+Four gates have been red since session 53 and the brief's premise (ii) was that at least one would
+not survive. **It is false, and the arithmetic is not close.**
 
 ```
-  updateLampPool    city.js   98 slots x (beam + spill).  Candidates: rec.lamps, ranked by
-                    DISTANCE.  Five luminaires ride it — street lamp, park lamp, car-park
-                    column, site flood, yard flood.       *** REAL LIGHT ***
-
-  updateSignPool    city.js   16 slots.  Candidates: rec.signEmitters, ranked by I·cosθ/d²,
-                    which is the LUX each would put on the camera.  Six chromas.
-                                                          *** REAL LIGHT ***
-
-  glow()            city.js:4230.  Pushes a matrix into `signQuads`, a tint into `signTint`
-                    and a `null` into `signTrade`.  That is the entire body.
-                                                          *** NOTHING. ***
+  lookcheck    3 violations — distinct:midnight|dusk, facadeAlbedo, facadeNeighbours.
+               NONE IS ENTROPY. Survives untouched.
+  gateaudit    red DOWNSTREAM of lookcheck, with no assertion of its own about entropy.
+               Survives as long as lookcheck does.
+  citycheck    4 violations — clumping CV, a sign inside a building, two occupancy rows.
+               NONE IS ENTROPY. Survives untouched.
+  perfcheck    FIFTEEN violations in session 76. TWO were entropy. Twelve remain (a third
+               went with the fleet's new placement, see §9), and eleven of those are
+               milliseconds under load, which CONTRACT §0.2 says are not verdicts in the
+               red direction at all.
 ```
 
-**`glow()` IS A LAMP-SHAPED HOLE IN THE DARK AND THAT IS EXACTLY WHAT THE WHOLE OUTER WORLD HAD.**
-The function that claims a cluster slot for an emissive panel is `pushSignLight` (`city.js:3509`),
-and **its only five callers are shop fascias, roof cabinets, blades and pylons** — `city.js:3758,
-3767, 3800, 3874, 3908`. Every one of the airfield's ~570 emitters, and every villa window and quay
-flood built since session 68, goes through `glow()` instead.
+**THE ENTROPY FLOOR ACCOUNTED FOR 2 OF 15 VIOLATIONS ON ONE GATE AND 0 ON THE OTHER THREE.** It was
+never load-bearing for a single gate's colour. What it was doing was worse than that: asserting a
+property it cannot measure, in the one gate whose reds nobody reads any more because eleven of them
+are the machine.
 
-`city:bowls` deposits nothing either, and cannot: it is ring ≤ 2 on ONE GLOBAL EMISSIVE INTENSITY
-with no per-instance channel. Session 71 named it and the naming still stands.
-
-### 0b. AND `uGroundLighting`'s 16 LUX IS NOT THE NIGHT FILL — PREMISE (ii) IS FALSE TOO
-
-It is `LIGHT.streetAverageLux`, handed by `lighting.js:129` to `sky.setGroundLighting` when the
-photocell closes, written into the **SKY LUT's LOWER HEMISPHERE** (`sky.js:355`) and thence through
-PMREM into the scene's environment map. Its own comment says what it is for: *"the lower hemisphere
-is a lit surface at night, not a hole"*. It is a **global ambient with no position** — the same
-number at the apron as on the pavement it was derived for — and it is one of three terms, not the
-whole. At midnight the measured horizontal ambient is **3.24 lx**, of which `moonRedistribution`
-= 0.85 has moved 85% of the skyglow into the moon's directional term.
-
-### 0c. SO THE MEASUREMENT, TAKEN BEFORE ONE LINE WAS WRITTEN
-
-`tools/radianceprobe.mjs` standing at the committed `af-apron` pose, midnight, dry:
-
-```
-  lamp pool   0 active of 0 candidates within one chunk
-  sign pool   0 active of 0 candidates
-  clustered   1 resident, peak froxel 1 of 96
-  roles       aircraft:1 traffic:96 stall:12 block:56 lamp:192 sign:16   373 of 384
-
-  DARKEST surface   0.081 cd/m²  ->  code value 11 of 255
-  MEDIAN  surface   0.203 cd/m²  ->  code value 10
-  87.8% of every surface in the frame under 16/255
-```
-
-**192 LAMP SLOTS AND 16 SIGN SLOTS STOOD PARKED BELOW THE WORLD AT ZERO INTENSITY** while sessions
-74 and 75 built roughly five hundred and seventy emitting quads five kilometres away. A terminal,
-two piers, three hangars, a tower, six aeroplanes and 44 approach stations, and the field's own
-concrete was code value 10.
-
-### 0d. WHICH MAKES ITEM 1d's QUESTION ANSWER ITSELF
-
-The brief asked *"if the project has no local ground illumination at all and the city fakes it, say
-what the fake is, and then the item is to extend the fake."* There is no fake, so the item was never
-to build lighting or to extend anything — **it was to emit thirteen `flood` features.** The whole
-of §1 below is a hundred lines of derivation around one call that was already there.
+**AND THE HONEST NUMBER IS SMALLER STILL, BECAUSE THE CAPTURE WAS UNSETTLED.** §1 measured that
+settling `perfcheck`'s screenshot lifts `downtown_dense` from 4.898 to 5.082 — over the OLD floor.
+So one of the two entropy reds was the capture and not the content, and the floor change was never
+what stood between that route and green. Both facts are stated together because either alone would
+flatter this session.
 
 ---
-## 1. THE APRON, AND AN AEROPLANE ON A STAND
+## 1. `perfcheck` WAS THE LAST CAPTURE PATH IN THE PROJECT WITHOUT A `settle()`
 
-**THIRTEEN FLOODLIGHT MASTS, ON THE ROUTE THE CITY HAS HAD SINCE SESSION 21.** A `flood` feature
-already carries a mast, a pad, a head, an emissive rack AND a record in the streamed lamp pool.
-Session 21 built it for a construction site; session 54 gave it a second luminaire; session 71 put
-three on the harbour. **The airfield is the only landscape in this project that never asked for one.**
+**ITEM 1a — THE COST, BEFORE THE DECISION AND NOT AFTER IT.** `settle(4)` renders
+`pad + 8 + TAA.settleFrames(32) + 4` = **44 to 51 frames, mean 47.5**. Twelve route captures plus
+nine silhouette poses is 21 settles, about 1 000 frames, which at the 13–26 ms this machine delivers
+is **18–26 s on a gate that takes 1 135 — under 2%.**
 
-> **A CORRECTION TO THIS SESSION'S OWN FIRST COMMIT MESSAGE**, which says *"Ten apron floodlight
-> masts"* and *"Nine of ten are within reach"*. It was true of the layout when it was written and
-> the siting changed twice after it under §1c. **Counted out of the generator at seed 1337: 13
-> masts**, in four rows of 4 / 2 / 4 / 3, of which **10 stand within the 210 m reach of the
-> `af-apron` eye and only 4 would have stood within the 128 m cut §2b replaced.** Every measured
-> luminance figure in that commit message is from the delivered layout and stands.
+**WHAT IT WAS CAPTURING.** `waitForCity` polls a worker in blocks of ten frames, so the frame index
+at capture is a wall-clock race — session 69 measured **2 808 to 3 038 over 35 runs of one source**.
+`post.frameIndex` drives an 8-sample Halton jitter, and session 70 measured the eight phases of one
+unmodified source differing pairwise by **57 801 to 78 979 bytes of 3 499 200**. On top of that the
+TAA history was an 1 800-frame MOVING-camera accumulation and the exposure meter was wherever its
+1.9 s time constant had reached.
 
-```
-                                        before        after
-  lamp pool                        0 of 0         10 of 10 candidates
-  clustered resident                    1              14
-  peak froxel                      1 of 96        12 of 96
-  draws AT THE APRON                   76              78     (+2, and see §5)
+**PLACED AFTER `report()` AND EVERY OTHER READ, AND THAT PLACEMENT IS THE WHOLE OF WHY IT IS SAFE.**
+Every millisecond, draw call, triangle and census is already in a variable before the settle runs.
+`highway_speed`'s 404 of 440 is four sessions old and is the number this project compares everything
+against.
 
-  DARKEST surface                  0.081           0.133  cd/m²    1.6x
-  p10                              0.194           0.387           2.0x
-  MEDIAN                           0.203           0.531           2.6x
-  p90                              0.313           2.884           9.2x
-  under 16/255                     87.8%           72.2%
-```
-
-Same pose, same seed, same hour, same wetness, both frames on disk:
-`tools/shot-out/s76-apron-{before,after}-t0.png`.
-
-### 1a. `LIGHT.apronFloodCandela` — THE FIFTH IN THE FAMILY, AND IT IS NOT A SITE FLOOD
-
-Pushing an apron mast through the existing `flood` feature unchanged would have handed it
-`siteFloodCandela` — because `city.js` discriminates its two floods by MOUNTING HEIGHT and a 25 m
-mast clears every threshold there is. **That is CONTRACT §9.2 exactly**, a city default travelling
-unquestioned into a fifth landscape, and it is the class session 72's rural spur and STATE 75 §3's
-traffic signal both belong to. The discriminator is not wrong. The fixture is not in its table.
+**ITEM 1c, MEASURED — `downtown_dense`, three runs, before and after:**
 
 ```
-  the standard   ICAO Annex 14 Vol I, apron floodlighting:  20 lx average horizontal on an
-                 aircraft stand, uniformity not below 0.25.  It is the SAME 20 lx as
-                 `yardFloodCandela`'s EN 12464-2 loading zone — an aircraft stand IS a loading
-                 bay — and 0.40x a construction site's 50 lx, because nobody on an apron is
-                 working in a hole.
-
-  the geometry   mast `AIRFIELD.mastHeightM` = 25 m, aiming `AIRFIELD.mastAimM` = 55 m out.
-                 slant  d = hypot(25, 55) = 60.42 m
-
-  the window     FIRST, and this is the rule the project has now got wrong three times:
-                 R >= 60.42 / 0.293 = 206.2  ->  210 m,  window (1 - 60.42/210)² = 0.5074
-
-  the intensity  THROUGH it:  I = E·d²/window = 20 x 3650.6 / 0.5074 = 143 875  ->  144 000 cd
-
-  checked backwards (§9 rule 2):  I·window/d² = 20.02 lx at the aim point.
-  all three ratios (§9 rule 4):   2.40x a site flood, 40.0x a yard flood, 21.2x a street lamp,
-                                  from a mast 2.78x a site mast's height.  The 40x against an
-                                  IDENTICAL 20 lx is the throw and nothing else.
+                        unsettled (s76)         settled (s77)
+  draws                     326                     326
+  triangles             2 114 082               2 114 082
+  instances / materials 267 862 / 67            267 862 / 67
+  entropy per run    [4.814 4.898 5.034]     [5.082 5.149 5.065]
+  entropy spread          0.220                   0.084      2.6x tighter
+  entropy median          4.898                   5.082
+  mean per run       [.1108 .1177 .1226]     [.1243 .1278 .1241]
+  mean spread            0.0118                  0.0037      3.2x tighter
 ```
 
-### 1b. AND ITS OPTIC, WHICH IS A SEPARATE HALF (CONTRACT §5.9)
+> **THOSE TWO SPREAD FIGURES ARE ONE SAMPLE AND THE FULL BATTERY DID NOT REPRODUCE THEM.** See §9:
+> across four routes settling moved the spread down on one and up on three, and this same route
+> measured 0.084 in one settled three-run sample and 0.180 in another. The COUNTS below are the
+> result; the spread reduction is not.
 
-A peak candela means nothing without the distribution it is the peak of. `APRON_FLOOD_OPTIC`:
-**circular** (`alongAxis` zeroed — an apron is 320 × 300 m and a floodlight aimed across it is a
-cone, not a lantern stretched along a road), **no batwing** (`peakCos` 0 — the 1/cos³ rise
-compensates a road's distance from a lamp overhead, and a mast already aiming at the far end of its
-own pool would brighten the edge and dim the middle), **36 degrees** solved from the pool rather
-than picked (`atan(40 / 60.42)` = 33.5°, so 36 at the cutoff and 25 where the smoothstep starts —
-a NEMA 4 floodlight), and **`fluorescentCold`**, which is free because `EMITTER_CHROMA` is
-luminance-normalised and is LOOK.md §3's *"colour opposition"* asked of the one large cold ground
-surface in a sodium world.
+**NOT ONE COUNT MOVED AND BOTH LEVEL STATISTICS DID.** That is item 1c's warning arriving: **every
+`entropy` and `meanLuminance` figure in every STATE before this session describes an unsettled
+capture** and is not comparable with what this gate prints from now on. The timing series, the draw
+calls, the triangles and every census are unaffected by construction and were measured to be.
 
-### 1c. THE SITING IS THE FRAMES', AND THREE ARMS WERE THROWN AWAY BY THEM
-
-**This is the part worth reading.** Every one of these was found by looking, not by arithmetic.
-
-1. **AN 82 / 114 / 82 PITCH SHOWED THE 114.** A 26 m stripe of black apron between two lit ones, at
-   the exact x where the pools stopped meeting. The pitch is derived from the cone now — the pool is
-   `60.42 × tan 36` = **43.9 m** either side, so the pitch must be under **87.8 m**, and it is 80.
-2. **TWO ROWS ON ONE HEADING PUT THEIR DARK RINGS EITHER SIDE OF THE POSE.** A mast lights the
-   ground in FRONT of it: the cone's near edge meets the concrete `25/tan(24.4 + 36)` = **14 m**
-   out, so every mast stands in a ring of its own dark. Two rows 90 m apart both throwing south put
-   one ring at z 391–419 and the other at 481–509, and `af-apron` stands at z 440 looking straight
-   down the seam. The frame came back with a black band across its lower third. **The rows face each
-   other now**, which is also how an apron is really lit, and it buys the aeroplanes as well as the
-   concrete.
-3. **AN 80 m PITCH STOOD A 25 m MAST 2.5 m OFF `af-apron`'s SIGHT LINE, 35 m IN FRONT OF IT.** A
-   column up the middle of the frame from the sky to the apron. A pose is an instrument; a mast
-   planted in one is a defect this session introduced and the frame is what found it. The middle row
-   is on the **piers' own centrelines** now, which is where its pools wanted to be anyway — each
-   mast's 43.9 m pool then lands on the two stands that pier serves.
-
-Delivered: four masts on the apron's south edge throwing north, two on the piers' axes throwing
-south at the north stand row, four on the north edge throwing south over the open apron, and three
-in the gaps BETWEEN the hangars — the only ground on that apron no aeroplane crosses. Their pitch is
-the hangar row's 123 m and not this derivation's 87.8, so the hangar apron is lit in three pools with
-dark between them, and **that is a siting the buildings dictate rather than a number anybody chose.**
-
-### 1d. DIRECTIONAL — ITEM 3b — AND THE OPPOSED FRAME SAYS THE FIXTURE HAS TWO EMITTERS, NOT ONE
-
-The rack is `glow` and **not** `glowOmni`, and that part is right. Session 75's repair exists for
-fixtures that are omnidirectional IN THE WORLD — a runway edge light is a lens on a stalk in the
-middle of a field. A floodlight has a reflector behind it and a glass front, and the back of one is a
-black box. `materials.sign` being `FrontSide` delivers exactly that, and the racks of the whole south
-row are dark bars in `af-apron-back`.
-
-**AND THE MASTS ARE STILL LIT FROM BEHIND, WHICH I ONLY FOUND BECAUSE I LOOKED.**
-`tools/shot-out/af-hangar-out-s76-t0-wet.png` stands inside the open hangar looking 350 m south, so
-every mast in it is seen from its back, and **two of them have bright white heads.** That is not the
-rack. `city.js`'s `flood` branch has pushed a `city:bowls` instance at the head since session 21 —
-one global emissive intensity, no per-instance channel, and **omnidirectional by construction** —
-and it is the emitter you actually see from behind.
-
-> **A FIXTURE IS NOT AN EMITTER, AND ITEM 3b's RULE HAS TO BE DECLARED PER EMITTER.** This mast
-> carries two that disagree: a directional rack and an omnidirectional bowl, in two different meshes
-> with two different reach rings. Saying "an apron flood is directional" is true of the half I wrote
-> and false of the half I inherited. Neither is wrong — a real floodlight housing does have a bright
-> body — but the claim as I first recorded it was wrong, and one opposed frame is what cost it.
+One instantaneous stat moved as it should: peak froxel occupancy on that route reads 44 of 96
+against session 76's 49 — a per-frame state, 47 frames later, not a count of content.
 
 ---
-## 2. TWO DEFECTS FOUND ON THE WAY, BOTH CONTRACT §9 CLASSES
+## 2. THE ENTROPY FLOOR ASSERTED A PROPERTY IT CANNOT MEASURE
 
-### 2a. THE OPTIC BELONGED TO THE POOL SLOT AND NOT TO THE LUMINAIRE
+### 2a. WHICH ONE WAS LYING — THE COMMENT, AND IT WAS ESTABLISHED FROM THE CODE
 
-`updateLampPool` reassigns a fixed set of slots to whichever lamps are nearest and writes
-`position`, `direction`, `radius`, `intensity` and `alongAxis` every frame. **It has never written
-`coneOuter`, `coneInner`, `peakCos`, `alongScale`, `acrossScale`, `sourceRadius` or `color`.** Those
-were set once at `lights.add` to a street lantern's values and have stood there for every fixture
-that has taken a slot since.
+`perfcheck.mjs:1297` is `entropy: median(perRunLevel.map(s => s.entropy))` and `assertRoute` reads
+`metrics.entropy`. **The code pools.** The log line saying *"ASSERTED ON THE LAST OF THESE, NOT
+POOLED"* has been false since session 21 and **printed its own refutation every run**: session 76
+delivered `[4.814 4.898 5.034]` and asserted **4.898**, which is the median.
 
-**SO ALL NINE EXISTING FLOOD MASTS THROW A STREET LANTERN'S BEAM** — 60 000 cd through
-`LUMINAIRE.alongRoadRad` = 68°, elongated 2.39× across a ROAD AXIS they do not have, with a 1/cos³
-batwing peaking 57° off nadir, in sodium whatever the lamp is. Six site masts, three on the harbour.
+It was checked from the source and not from that coincidence, because an output that agrees with a
+comment by accident is how this survives. Repaired, and the spread — computed since session 21,
+never printed — is printed beside the estimate now.
 
-**`updateSignPool` FORTY LINES DOWN GETS THIS RIGHT AND SAYS SO IN ITS OWN COMMENT**: *"a slot
-reassigned from a cyan blade to a sodium fascia does not keep the cyan."* Two pools, one shape, one
-written after the other, and only one carrying the rule. CONTRACT §9.1 with the reader missing rather
-than the value.
+### 2b. AND THE FRAME ON DISK WAS NOT THE FRAME ASSERTED ON
 
-Repaired **unconditionally** — all seven fields, every frame, from `l.optic` or from `LANTERN_OPTIC`.
-Writing them conditionally would be worse than not writing them: a slot that kept an apron mast's
-36° cone and then took a street lamp would light one pool of pavement and leave the kerb dark, *and
-it would do it only when the player walked past a mast* — a defect that comes and goes with the
-camera, which is what session 74 paid a whole session for. **The nine existing masts keep exactly the
-beam they had** (`l.optic` undefined falls through to the lantern); moving them is §6 item 1.
+`perf-out/<route>.png` was `last.shot` while both level statistics are the median of three. Session
+76 failed `downtown_dense` on 4.898 and **wrote the 5.034 frame** — the run that passed. This gate's
+own last line says *"look at them before changing any numbers in budget.json"*, so a reader who did
+what it asked was looking at the wrong run. It writes the median run's frame now.
 
-### 2b. THE CANDIDATE CUT WAS A STREET LAMP'S 128 m ON A 320 m APRON
+### 2c. THE FLOOR — 5.0 → 4.3, A REPLACEMENT DERIVATION AND NOT A LOWERED NUMBER
 
-`d2 > CITY.chunkSize²` was the whole cut. For a street lamp 128 m is generous three times over — its
-falloff window is 30 m, so a lamp at 128 m is already clipped to nothing. **The 128 is a STREAMING
-number, not a photometric one.** Measured at the committed pose: four of the ten masts were being
-refused at 144 m, sixteen metres outside a bound derived for a fixture that throws a sixth as far.
+`$screenshotEntropy_s17` ends *"DO NOT LOWER THIS NUMBER AGAIN WITHOUT REPLACING THIS DERIVATION."*
+This replaces it, and the reason is not that the gate was inconvenient.
 
-Counted out of the generator at the committed pose: **the 128 m cut passes 4 of the 13 masts. The
-luminaire's own window passes 10**, and the three it still refuses are at 212, 214 and 221 m — past
-where their own falloff has anything left to give.
-
-It is the luminaire's own window now, floored at one chunk. **Provably inert in the city, and the
-arithmetic says so rather than the intent**: `max` can only ADD, and it adds nothing for a street
-lamp (30), a park lamp (30), a column (30) or a yard flood (40) — every one keeps 128 exactly. The
-one city fixture it touches is the site flood, 128 → 130, whose own falloff delivers
-`60 000 × (1 − 129/130)² / 129²` = **2.1e-7 lx** in the annulus. Not a small change — no change.
-
-**AND IT WAS MEASURED AT THE STREET LOOK EYE, BEFORE AND AFTER, BECAUSE THE CITY'S POOL IS NOT
-SATURATED** (29 candidates against 98 slots, so a new candidate WOULD light):
+**THE MEASUREMENT THAT KILLS THE OLD CLAIM.** One pose, two runs of `lookat --params=fill=0.0` and
+`fill=1.0` — the two extremes of the frontage-fill law, a ~60% swing in the city's building
+population and the largest content change one parameter can make here:
 
 ```
-                     before          after
-  lamp pool     29 of 29        29 of 29 candidates
-  sign pool      3 of 3          3 of 3
-  clustered        105             105 resident, peak froxel 26 of 96
-  draws            296             296
+  entropy 5.338 -> 5.308   =  0.030 bits
 ```
 
-Identical in every quantity.
+against a run-to-run spread on the same routes of **0.220, 0.269 and 0.233**. **THE SIGNAL IS AN
+EIGHTH OF THE NOISE.** No floor at any value separates a full city from a sparse one on this
+statistic, so *"the screen is near-empty"* was never a threshold set too tight — it was a claim the
+statistic cannot make.
+
+**AND IT WAS NOT MONOTONE IN ITS OWN PROPERTY.** Normalised by `maxEntropyAtMean` — the ceiling this
+gate already prints beside every entropy — session 76's four medians are `downtown_dense` **0.7685**,
+`night_rain` **0.7923**, `player` **0.7833**, `highway_speed` **0.8653**. **THE TWO RED ROUTES
+BRACKET THE GREEN ONE.** 5.0 is an absolute floor on a quantity the mean bounds, so it discriminated
+by BRIGHTNESS — exactly the defect `$screenshotEntropy_s16` proved for 6.8 and only half-corrected,
+by lowering the number instead of removing the mean-dependence.
+
+**AND THE NOISE HAS A NAME THAT SESSION 17 ALREADY WROTE DOWN**: *"a vehicle coming to rest at the
+lens"*. `player` is the only one of the four routes that walks the PAVEMENT rather than the crown of
+the road, so nothing can drive past its lens — and its entropy spread is **0.015**, a fifteenth of
+the other three. Session 76's delivered `downtown_dense` frame has a car filling the bottom fifth of
+it. **It is the same mechanism as §4's `trade-*` frames: one defect wearing two instruments.**
+
+**4.3 IS TWO-SIDED AND MEASURED** over 30 real frames on disk put through this gate's own
+`imageStats`. From above, the twelve delivered observations span 4.814–6.944. From below, the
+emptiest real frames this renderer makes are the countryside at midnight — `country-car` reads
+**3.825** with 99.0% of its surfaces under 16/255 and no carriageway visible in it — and the
+airfield's darkest committed poses read 3.269–3.853. The gap is **3.853 to 4.814**; its midpoint is
+4.33 → **4.3**, clearing both populations by 0.45–0.51 against a worst spread of 0.269. Both margins
+are 1.7x the noise. 5.0 was never clear in either direction.
+
+**THE WEAKNESS, STATED:** the lower anchor is a different SCENE, because nothing in the harness can
+render a route pose with its world removed. A session that adds that capture should re-derive.
+
+**AND A SECOND FALSIFYING CASE, BECAUSE THE FIRST HELD NOTHING HONEST.** `solidPNG(128)` reads
+entropy 0 and would reject at a floor of 0.5 — it proves the assertion is WIRED and nothing about
+its VALUE, and the value is what moved. `levelsPNG(16)` is **exactly 4.000 bits** (verified: k
+levels give log2 k), so it rejects at 4.3 and would pass anything at or under 4.0.
+`perfcheck --falsify`: **75/75 rejected, 72 sites, coverage 100%.**
 
 ---
-## 3. THE OPPOSED BEARINGS, AND WHAT THE SECOND ONE FOUND
+## 3. THE POSE AUDIT — AND THE GENERATOR IS THE FINDING
 
-Item 3c cost two frames and it earned them. `af-apron-back`
-(`tools/shot-out/af-apron-back-s76-t0-wet.png`) stands at z 270, south of the stands, looking north —
-the reverse of the committed pose.
+Seven of the twenty-three presets come from one loop that stands the eye back by
+`max(70, height*1.5, halfExtent + 55)` and snaps one axis to the 128 m road lattice. **That formula
+guarantees the landmark FITS IN A 55 DEGREE FRAME. It never asks whether anything is in the way** —
+and `tools/poseprobe.mjs` has existed since session 26 to ray-test exactly that. The generator does
+not call it. **A mechanism exists and nothing calls it: the seventh instance.**
 
-**THE AEROPLANES' SOUTH FACES ARE DARK, AND THE COMMITTED POSE CANNOT SHOW IT.** From `af-apron` the
-north faces are lit and the frame is honest; from the other side every airframe is a silhouette with
-a bright wing root. **It is not a bug in the masts and no aiming fixes it.** The south stand row sits
-28 m from the south mast line, and a source 25 m up at 28 m away arrives at `atan(25/28)` = **41.8°
-above horizontal** — it lights the TOP of a fuselage, not its side. Vertical illuminance on an
-aircraft comes from a mast far enough away to be shallow, and the only thing 44 m south of that stand
-row is the terminal.
+Ray-tested against the delivered building occluders, and then the accused were LOOKED AT, which is
+the half that mattered:
 
-**WHICH IS THE INTERESTING PART.** The terminal's apron elevation is five glazed panels of
-58.6 × 12.3 m at 107.5 cd/m² — **3 600 m² of Lambertian emitter at half a city window's nits**,
-44 m from the stands, at exactly the shallow angle a fuselage side needs. As `pushSignLight` it
-would be `I = nits × A` ≈ 77 400 cd per module, comparable to an apron mast and shaped like a wall.
-**`pushSignLight` is in scope at `glow()`** — both live in `buildChunkBody`, with no function
-boundary between them — so this is a two-line change, not a mechanism.
+| pose | verdict |
+|---|---|
+| `weir-street`, `stack-street` | blocked, already recorded. The calibration — both fall out of the arithmetic alone. |
+| **`condenser-street`** | **THE EYE STOOD INSIDE THE DISH.** Confirmed by frame. |
+| `arch-street` | accused of 0% visibility; **THE FRAME REFUTES THE MODEL** — a leg and its stays are there. It still does not read as a 96 m arch. |
+| `sea-road` | STATE 70 §3e recorded *"does not show the sea"*. Never fixed; four commits have touched that file since. |
+| `af-approach` | proves its approach row and threshold. Its *"and the runway edge rows"* is **4 stations of 50**. |
+| `mast-street`, `dish-street`, `exchange-street` | clear. |
 
-**IT IS NOT MADE THIS SESSION AND THE REASON IS A NUMBER.** `SIGN_LIGHT.cutoffM` is 128 m from the
-CAMERA, and `af-apron` stands 192 m from those panels — so the pool would refuse them at the one
-pose that needs them. Widening it is §2b's repair on the sign pool, and unlike the lamp pool's it is
-**not** provably inert: the street eye holds 3 sign candidates against 16 slots, so every new
-candidate lights, and `band:midnight` sits **0.00243** below its ceiling on an instrument whose
-run-to-run spread is 0.0001. That is a change that must be made with a look battery around it and it
-is §6 item 1.
+**THE ONE REPAIR.** The stand-off comment already says the eye is kept *"outside ITS OWN footprint —
+a 44 m overhang seen from 30 m inside it is a photograph of a ceiling."* **There are eight landmarks
+and the guard was written for one**, so the snap that puts the eye on a carriageway was free to put
+it under a neighbour. Measured over all seven: exactly one is inside another's AABB.
+`condenser-street`'s `rawX` = −149.2 snaps to **−128**, a road line through the DISH at (−150, −160)
+— eye-to-dish axis 25.7 m against a 48.2 m half-extent. **The delivered noon frame is the underside
+of the dish across 60% of it, with the 260 m condenser it is named for nowhere in it.** A photograph
+of a ceiling, as promised, from the landmark next door. The guard tests every landmark now;
+`condenser-street` moves −128 → −256 and no other pose moves.
 
----
-## 4. THE OTHER TWO DARK PLACES
+**AND THE REPAIRED FRAME STILL DOES NOT SHOW THE CONDENSER.** Removing the ceiling did not deliver
+the subject — the street canyon is in the way, which is `stack-street`'s defect and needs a re-sited
+eye rather than a snap. **A pose can be wrong in more than one way at once, and fixing the one you
+measured does not make the frame true.** Recorded rather than patched.
 
-### 4a. THE HARBOUR — THE BRIEF'S PREMISE IS HALF WRONG AND THE FRAME IS STILL DARK
-
-*"Session 71 built quay lights as sign quads at no light slot. Check whether they light anything."*
-**They do.** Session 71 also emitted **8 `lamp` features at 11 m and 3 `flood` masts at 14 m**
-(`citygen.js:18478, 18490`), which are eleven real records in the streamed pool. The premise is
-false and the harbour has had local light for five sessions.
-
-**AND IT IS STILL DARKER THAN THE UNLIT AIRFIELD WAS.** At `sea-harbour`, midnight:
-
-```
-  lamp pool   2 active of 2 candidates       <- 2 of its 11 fixtures are within reach
-  MEDIAN surface   0.129 cd/m²               <- against the unlit apron's 0.203
-  96.6% of every surface under 16/255        <- against the unlit apron's 87.8%
-  max 3.89 cd/m²  —  nothing in the frame is bright
-```
-
-The quay reads as silhouette only: two gantries against the horizon glow, a quay edge, one boat with
-a lit cabin. Session 71's dark-steel decision is correct and holds — but with two fixtures in reach
-and no fill, the working surface is unusable. **It is the same item as §1 with the same repair and it
-was not reached.**
-
-**ONE ALARM, REPRODUCED TWICE AND NOT CHASED.** Both harbour probes printed **`clustered 99
-resident, peak froxel 96 of 96`** — identical on two separate runs, so it is deterministic and not a
-streaming race. `lights.lightCount` is the number of lights actually packed into the data texture
-that frame, so 99 lights are ON at a quay whose own fixtures contribute **2 lamp candidates and 0
-sign candidates**. 97 of them come from somewhere this session did not identify.
-
-**AND 96 IS TWO CONSTANTS AT ONCE**, which is exactly the coincidence CONTRACT §9 is about:
-`CLUSTER.maxPerCluster` is 96 and `CLUSTER.trafficLightReserve` is 96. A froxel holding 96 is either
-at its cap or holding the whole traffic pool, and the printed number cannot tell you which. For
-scale, the same probe reads **14 resident / peak 12** at the apron and **105 resident / peak 26** at
-the street eye — so it is the harbour that is odd, not the instrument. `lights.js` already keeps
-`clustersAtCap`, `overflowEver` and `peakOccupancyEver`, and `tools/clustercheck.mjs` drives them.
-§6 item 2.
-
-### 4b. THE COUNTRY ROAD — IT DOES NOT READ, AND THERE ARE FOUR REASONS
-
-The brief said *"if it reads, say so and leave it."* It does not read. `country-car`, midnight:
-
-```
-  green code value   min 9   p10 9   p25 10   MEDIAN 10   p75 11   p90 12
-  99.0% of every surface in the frame under 16/255
-  MEDIAN surface 0.172 cd/m²
-```
-
-The whole frame is four code values wide. There is no carriageway in it — no edge, no markings, no
-distinction between the road and the field beside it. The reasons are all correct decisions:
-
-1. **No lighting, and it should have none.** Session 62 was right, and the predicate is one line —
-   `if (chunk.beyondCity) continue;` at `city.js:7386`.
-2. **The centre line stops 568 m short.** 34 dashes over the 200 m taper (`block.js:3246`), then
-   768 m of unmarked road to the rim.
-3. **Nothing out there carries a headlight.** `traffic.js:2978` refuses a vehicle at
-   `cityExtentAt(x, z) <= 0` — the SAME boundary that keeps the lamps off. The 96 slots of
-   `CLUSTER.trafficLightReserve` are 48 vehicles × 2 headlights and none of them may come here.
-4. **And the paint's retroreflection is explicitly not modelled** — `ROAD_PAINT.albedo`'s own
-   comment: *"glass beads send a headlight's own light back along the beam, which is most of what
-   makes a line read at night from a car. This project has no retroreflective BRDF."*
-
-**So the road is unlit by design, unmarked for three quarters of its length by omission, unvisited by
-the only fixture that could light it, and made of paint whose night behaviour is a stated gap.** All
-four are defensible alone. The frame is what shows what they are together, and the repair is a
-headlight on the eye — a `player.js` question, not a night-content one.
+LOOK.md §7 carries the rule now, beside the band rules: **a pose is stated with what it proves, and
+a night subject is shot from two opposed bearings.**
 
 ---
-## 5. THE COST, AND WHAT DID NOT MOVE
+## 4. THE FOUR `trade-*` FRAMES ARE REPRODUCIBLE, AND IT WAS ONE LINE
 
-**THE LOOK GATE IS NOT THE JUDGE, AND THE BRIEF'S STRUCTURAL CLAIM IS FALSE.** The brief opened
-*"THIS SESSION IS DIFFERENT FROM THE LAST FOURTEEN IN ONE STRUCTURAL WAY: THE LOOK GATE IS THE JUDGE
-... both look eyes stand inside the city and both see midnight and dusk. A moved band is real
-evidence here for the first time in a long while."*
+Session 70 measured them differing run to run by 3.1–8.1 MB, *"entirely THE VEHICLES, with the
+buildings, road, pavement, pedestrians and street furniture identical to the byte"*, named it a
+second race orthogonal to the jitter phase it had just repaired, and did not chase it. STATE 69 §8
+item 3 has carried it since. **No code was ever written against it.**
 
-Both eyes do see midnight. **Neither can see the airfield.** `street` is at (70, 1.74, 0.9) and
-`trade` at (−251.94, 1.70, 291.58); the apron's centre is (5178, 400). Computed, not recalled:
-**5 124 m and 5 431 m to the apron, 4 594 m and 4 912 m to the nearest edge of the platform** —
-outside the 640 m ground ring, outside `CLUSTER.far` = 320 m, and no gate route, pose or census
-sample names the airfield. Session 75 measured the same thing twice. **A band moving in this session
-would have been a defect, not evidence**, and the one change that could have moved one (§2b) was
-proved inert at the eye before it was committed.
-
-**ALL EIGHT RAN, ONCE, AND THERE WAS NO SECOND BATTERY BECAUSE THERE WAS NO FIFTH RED.**
+**AND THE RECORD WAS WRONG ABOUT THE MECHANISM.** STATE 69 says traffic *"reseeds against the
+resident ring, which arrives on the worker's schedule"*. Every refusal `seed()` consults —
+`riverNoRoad`, `landmarkOccupies`, `blockNoRoad`, `cityExtentAt` — is a **pure function of position
+and rootSeed**. Not one reads a streamed chunk. The worker's schedule reached the fleet through the
+**FRAME COUNT**:
 
 ```
-  highway_speed   404 draws of 440              IDENTICAL TO SESSIONS 73, 74 AND 75
-                  2 466 960 tris of 2 630 000   IDENTICAL TO SESSIONS 73, 74 AND 75
-                  wall p95 13.00 ms [13.0 13.0 13.2]  spread 0.2   froxel 17 of 96
+  traffic.js   if (rng.next() < 0.004) veh.latTarget = rng.range(-1.1, 1.1);
+```
+
+draws from the shared `traffic:layout` stream **every frame, per moto, unconditional on dt** — and
+`ctx.rng` caches one stream per name, so its POSITION is state. 17 motos of 120 at seed 1337, so the
+stream advanced **~17.07 draws per rendered frame**, under `?paused=1`, where nothing moves at all.
+`setShot('trade')` then jumps the camera **433.75 m** against `SIM_RADIUS` 190, so every one of the
+120 bodies fails the ring test on the next rebuild and is recycled through `seed()`: **7 272 draws
+in one frame**, from wherever the stream had reached — `240 + 7 272 + 17.07*F`, with `F` the frames
+since boot, which `waitForCity` sets in blocks of ten on a worker's wall clock. **Ten frames moves
+the stream 171 draws and re-places the whole fleet.**
+
+**MEASURED, TWO RUNS EACH, md5 of all four `trade-*` frames:**
+
+```
+  before   A  d774f2bd  0bb28eac  b3fa07b7  49f51122
+           B  7a7f6527  48b40b64  21fe2092  44046210     ALL FOUR DIFFER
+  after    E  6e31e5e4  6e5e2d43  61480ac7  e26bc4c9
+           F  6e31e5e4  6e5e2d43  61480ac7  e26bc4c9     ALL FOUR IDENTICAL
+```
+
+**AND IT COSTS NOTHING.** Every look band unchanged to the printed digit — midnight 0.1096, dusk
+0.1552, stddev 0.139/0.129, emitters 84/76, `distinct:midnight|dusk` **0.02846** — the identical
+three violations and no new one. `highway_speed`: **404 draws of 440, 2 466 960 triangles**, 348 868
+instances, 73 materials, froxel 17 of 96. Sessions 73–76 exactly.
+
+The gate is correct on its own terms too: a per-FRAME Bernoulli trial makes a moto change its mind
+twice as often at 120 fps as at 60.
+
+> **A FIRST ARM GATED ON `step`, WHICH IS NOT IN SCOPE THERE.** It quarantined the whole traffic
+> module, and both runs came back byte-identical — *a frame with no vehicles in it trivially is* —
+> which looked exactly like success. `lookcheck` printed `hard:console` and `hard:faults:midnight`,
+> and CONTRACT §2.1's quarantine is what stopped a green-looking artefact from being believed. **The
+> near-miss is worth more than the fix and it is recorded in the source beside it.**
+
+---
+## 5. THE QUAY, AND FOUR DEFECTS IN THE THREE MASTS THAT WERE THERE
+
+**Measured at `sea-harbour`, t=0, dry, across the session:**
+
+```
+                       s76        after §6      after the masts
+  lamp pool          2 of 2       2 of 2           5 of 5
+  clustered            99            3                7
+  peak froxel       96 of 96      3 of 96          6 of 96
+  median surface    0.1291       0.1292           0.1903        1.47x
+  p90 surface       0.382        0.382            0.514         1.35x
+  max               3.89         3.89             5.67
+  under 16/255      96.6%        96.6%            93.1%
+  draws               78           78               78
+```
+
+The median moves only 1.47x because most of that frame is open water — the camera stands 106 m off
+the berth in the fairway. **What moved is the SUBJECT**: the quay is a lit strip with its pool on
+the concrete, the crane rails and bollards are legible, the water carries a sodium reflection the
+length of the berth, and **the gantries are dark steel against lit ground** — which is session 71's
+whole argument working for the first time, because until now there was nothing behind them to be
+dark against.
+
+**`LIGHT.quayFloodCandela` IS DERIVED AND NOT BORROWED.** EN 12464-2's exterior-work table gives a
+cargo quay's *"cargo handling, loading and unloading"* **30 lx at Uo 0.25**, against ICAO's 20 lx on
+an aircraft stand — 1.5x, because a gantry is putting a 30-tonne box on a lorry. Reusing 144 000
+would have been §9.2 with a number this project derived itself two sessions ago.
+
+```
+  mast 30 m on the YARD (y 8.470), aiming z -220 on the QUAY (y 2.117)
+  throw 36.0   drop 30 + 6.353 = 36.353   slant d 51.16   depression 45.3 deg
+  R >= 51.16/0.293 = 174.6 -> 180 m,   window (1 - 51.16/180)^2 = 0.5123
+  I = 30 x 2617.3 / 0.5123 = 153 275  ->  153 000 cd
+  BACK-CHECK  I*w/d^2 = 29.95 lx.
+  RATIOS: 1.06x an apron mast, 2.55x a site flood, 42.5x a yard flood, 22.5x a street lamp,
+  from a mast 1.20x an apron mast's height.
+```
+
+Two independent derivations landing 6% apart is the reassurance that neither was fitted to the
+other: 1.5x the illuminance over a 0.85x shorter slant nearly cancels.
+
+**FOUR DEFECTS IN SESSION 71'S THREE MASTS, none of them the one session 71 was fixing when it last
+moved them:**
+
+1. **THEY STOOD IN A MOVING STRADDLE CARRIER'S LANE.** `river.js` runs carrier 2 along z = −133 with
+   a 5.0 m portal, swept band z[−135.5, −130.5]; all three masts sat at z = −134. The portal passed
+   through each column once a stroke. Session 71 moved them out of the container blocks and into a
+   vehicle.
+2. **TWO OF THREE AIMED PAST THEIR OWN WINDOW.** One shared aim point at the quay's midpoint: slant
+   167.0 / 91.9 / 153.9 m against `siteFloodRadiusM` 130, and the Frostbite window is **exactly zero
+   at and beyond R**.
+3. **THE AIM IGNORED THE 6.353 m TERRACE.** `city.js` took the drop as the mast's own height — true
+   on a site, false on a quay, where `harbourSite` delivers two terraces. Delivered depressions 4.81
+   / 8.77 / 5.22 degrees against the 15.8 the crane line needs, so **no existing mast's beam axis met
+   ground inside its own radius**; the west one reached quay level 243 m out, over open water.
+   `f.aimDrop` fixes it and defaults to 0, so every site and yard flood keeps the vector it had.
+4. **THEY BURNED AT NOON**, because `updateLampPool` exempts a flood from the photocell by testing
+   `l.candela === LIGHT.siteFloodCandela` — a VALUE standing in for a FIXTURE, §9's own shape. A quay
+   flood carries a different candela and so follows the photocell.
+
+**SIX MASTS IN THE ONE LANE THAT TAKES THEM.** The yard's only band clear of both container rows AND
+all three carrier runs is z in [−188, −180.195], 7.81 m — the strip against the terrace edge. The
+pitch is the quay's run over six, **74.67 m**, and `QUAY_FLOOD_OPTIC`'s 37 degree cone is solved FROM
+that pitch. (The airfield solved its pitch from its cone; the same equation read the other way,
+because there the apron's width was free and here it is not.)
+
+**AND THE SEATS WERE CHECKED AGAINST ALL THREE COMMITTED POSES BEFORE THEY WERE WRITTEN.** Worst
+plan clearance to any axis is **15.3 m**. `x = 4058` is absent on purpose: it is the obvious gantry
+mid-gap and it is **2.8 m off `sea-road`'s axis** — session 76's mistake sitting in a different
+landscape, waiting.
+
+Sodium and not the apron's cold white, because session 71 built this harbour *"warm sodium outside,
+cold fluorescent in"* and every outdoor emitter obeys it. Dark steel `[0.105, 0.115, 0.135]`, the
+gantries' own: session 71 took the cranes off pale steel because *"pale steel goes white against a
+lit sky"* and then stood three masts beside them in exactly the pale steel it had removed — a
+decision made in the crane's branch that never reached the mast's. **A default that did not travel
+FAR ENOUGH, at a range of thirty metres.**
+
+---
+## 6. THE SATURATED FROXEL WAS 96 HEADLAMPS ON A CAR PARK AT SEA
+
+Session 76 read `clustered 99 resident, peak froxel 96 of 96` at the harbour twice and did not chase
+it. 96 is both `CLUSTER.maxPerCluster` and `CLUSTER.trafficLightReserve`, so the print could not say
+which. **It was the second: the whole traffic headlamp pool, stacked on seven points inside 4.41 m
+of each other, 163 m out over open water.**
+
+1. Outside `CITY.extentEdgeM` = 3 232 m there is no lattice, so all twelve candidates in `seed()`
+   fail the extent test `traffic.js` has carried since session 34 and `best` stays null.
+2. **THE FALLBACK HAS NO EXTENT TEST OF ITS OWN.** It parks the body at `cam.x + SIM_RADIUS*0.8` on
+   the camera's own z-line. Its comment calls itself reachable *"only if the ring is degenerate"*;
+   outside the city it is **every seed**.
+3. The recycle pass then judges that same position off-road — on the `cityExtentAt(pos.x, pos.z) <= 0`
+   line it already carries — and seeds it again. **Measured at the `sea-harbour` eye over 240 frames:
+   28 920 fallbacks, 120.5 per frame. Every vehicle, every frame, forever.**
+4. **THE ONE SWITCH THAT TURNS A HEADLAMP OFF IS DEAD CODE.** `lit = min(lampPool.length 96,
+   lampOrder.length 120)` is always 96, which is `lampPool.length`, so `if (k >= lit)` never runs.
+   All 96 have been lit everywhere in the world at night on `lampsOn` alone.
+5. Identical positions give identical froxel boxes, so all 96 land in each of the same 18 froxels:
+   peak 96 of 96, `clustersAtCap` 18, and **`overflow` FALSE** — the cap is breached on the 97th
+   push, so a froxel that is exactly full reports clean.
+
+This is STATE 75 §3's traffic-signal defect again, **in the same file, one function over**: a
+predicate applied to the main path and not to the branch beside it. It is also the **sixth** "a
+mechanism exists and nothing calls it".
+
+**THE FIX DOES NOT ADD A SWITCH — IT MAKES THE DEAD ONE REACHABLE.** `seed()` records `veh.onRoad`,
+false exactly when the fallback fires, and `lampOrder` is built from the bodies that are on a road.
+
+```
+                       before      after
+  clustered resident      99          3
+  peak froxel          96 of 96    3 of 96
+  median surface       0.1291      0.1292
+  under 16/255          96.6%       96.6%
+```
+
+**NINETY-SIX LIGHTS REMOVED AND THE PICTURE DID NOT MOVE** — a median that shifts by one part in ten
+thousand. **A COST defect and not a look one**: a 96-iteration loop in every lit fragment of the left
+19% of that frame, delivering nothing because the region is open sea and `HEAD_RADIUS` is 20 m.
+Sixty sessions of frames could not have shown it.
+
+**AND IT CANNOT MOVE THE CITY, BY ARITHMETIC AND THEN BY MEASUREMENT.** The street look eye before
+and after: 296 draws, 29 of 29 lamp candidates, 3 of 3 sign, 105 clustered resident, peak froxel 26
+of 96, adapted L 0.933811, median surface 0.97384, brightest 1938.36038. **Identical in every
+figure.** Item 6c: the six new quay masts took the peak from 3 to 6 of 96 — they did not make it
+worse.
+
+---
+## 9. THE COST
+
+**ALL EIGHT RAN, ONCE. 4 OF 8 RED — THE SAME FOUR AS SESSIONS 53–76. NO FIFTH RED.**
+
+```
+  highway_speed   404 draws of 440              IDENTICAL TO SESSIONS 73, 74, 75 AND 76
+                  2 466 960 tris of 2 630 000   IDENTICAL TO SESSIONS 73, 74, 75 AND 76
+                  348 868 instances, 73 materials, froxel 17 of 96
 
   gate            exit   verdict   seconds  load1 in
-  parsecheck         0     GREEN       3.7      2.67
-  faultcheck         0     GREEN      28.2      2.61
-  lookcheck          1       RED      50.4      3.27    THE IDENTICAL THREE
-  windcheck          0     GREEN      40.9      3.14
-  inputcheck         0     GREEN      17.5      3.40
-  gateaudit          1       RED      78.1      3.64    downstream of lookcheck, as always
-  citycheck          1       RED     127.0      3.85    IDENTICAL TO SESSIONS 57-75
-  perfcheck          1       RED    1134.8      3.91
-
-  4 of 8 RED — the same four as sessions 53-75. NO FIFTH RED.
+  parsecheck         0     GREEN       3.7      2.85
+  faultcheck         0     GREEN      28.3      2.85
+  lookcheck          1       RED      50.8      3.04    THE IDENTICAL THREE
+  windcheck          0     GREEN      40.6      3.52
+  inputcheck         0     GREEN      17.5      4.45
+  gateaudit          1       RED      77.8      4.50    downstream of lookcheck, as always
+  citycheck          1       RED     127.8      4.10    IDENTICAL TO SESSIONS 57-76
+  perfcheck          1       RED    1088.8      4.07    12 violations, down from 15
 ```
 
-**AN AIRFIELD LIT FROM THIRTEEN MASTS COST THE BINDING ROUTE THE SAME TWO INTEGERS FOR THE FOURTH
-SESSION RUNNING.** `roles` on every route still reads `lamp:192 sign:16` — the pools are the same
-size and the masts took slots that were already allocated.
+**`perfcheck` TOOK 1 088.8 s AGAINST SESSION 76's 1 134.8 WITH THE SETTLE ADDED** — the 2% it costs
+is inside the run-to-run variation of the gate's own wall clock, which is the honest way to report a
+2% cost on a machine at `load1` 4.
 
-**`lookcheck` IS THE IDENTICAL THREE AND ONE NUMBER PROVES THE SESSION IS INERT THERE.**
-`distinct:midnight|dusk` delivered **0.02846** against its floor of 0.03 — **the same five decimals
-as before the session**, on an instrument LOOK.md §7 has re-derived three times and measured as
-deterministic to 1e-5 for a fixed build. `band:midnight` mean **0.1096** against its 0.112 ceiling,
-unmoved. The other two are `facadeAlbedo` and `facadeNeighbours`, both dusk material findings, both
-unchanged since session 53.
+**`lookcheck` IS THE IDENTICAL THREE AND `distinct:midnight|dusk` READS 0.02846** — the same five
+decimals as sessions 76 and 75, after a session that made every vehicle in the world reproducible.
+**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–76**: CV 0.393, 5 forbidden overlaps, 2 647 sign
+quads, 1 004 of 284 918 bare samples, occupancy **18 799 / 19 087**.
 
-**`citycheck` IS BYTE-IDENTICAL TO SESSIONS 57–75**: CV 0.393, 5 forbidden overlaps, **2 647 sign
-quads** of which 2 are inside a building, 1 004 of 284 918 bare samples, occupancy **18 799 / 19 087**.
-The airfield's thirteen new emissive racks do not appear in that 2 647 because they are 4 594 m
-outside its region, which is what a change 5 km out should do.
+**`perfcheck` WENT 15 VIOLATIONS TO 12.** The two entropy reds are gone, and so is
+`highway_speed`'s roofline red — that third one is §4's doing, not §2's: the fleet is placed
+differently now, and the silhouette sampler measured 57 vehicles where session 76 measured 73.
+**Eleven of the twelve that remain are milliseconds and frame counts under `load1` 4.07**, which
+CONTRACT §0.2 says are not verdicts in the red direction. The twelfth is the vehicle tone profile.
 
-**`windcheck` GREEN, 570 rows all `ok`.** The masts add no mesh: the column and pad are chunk
-`:masses` instances, the head is one more, and the rack is a `city:signs` quad.
+### AND THE BATTERY CORRECTS THIS SESSION'S OWN §1
 
-**AND `perfcheck`'s ENTROPY FLOOR IS §0.1 IN THE OPEN, ON TWO ROUTES, AND IT IS NOT THIS SESSION'S
-CONTENT.** Item 4b asked which it was. It is the assertion.
+§1 reports the entropy spread falling from 0.220 to 0.084 on `downtown_dense`, measured on one
+`perfcheck --route=downtown_dense` run of three. **The full battery does not reproduce it:**
 
 ```
-  night_rain       entropy 4.921 < 5      per run 4.899 / 5.132 / 4.921   spread 0.233
-  downtown_dense   entropy 4.898 < 5      per run 4.814 / 4.898 / 5.034   spread 0.220
+  route            s76 spread   s77 spread   s77 median
+  downtown_dense      0.220        0.180        5.023
+  highway_speed       0.269        0.307        6.784
+  night_rain          0.233        0.262        4.859
+  player              0.015        0.030        5.742
 ```
 
-**The breaches are 0.079 and 0.102 against within-battery spreads of 0.233 and 0.220 — 34% and 46%
-of the instrument's own noise**, and in both cases one of the three runs cleared the floor outright.
-Neither route can see the airfield: `night_rain` runs from (300, 0, −2) to (−400, 0, 1) and
-`downtown_dense` is the origin block. Both were red before this session.
+**Settling did not systematically tighten the spread.** One route fell, three rose, and the same
+route measured 0.084 in one settled sample and 0.180 in another. **A three-run spread is not a
+spread measurement**, which is CONTRACT §0.1's own subject arriving inside a number this session
+quoted, and §1's "2.6x tighter" should be read as one sample and not a result.
 
-**AND THE TOOL PRINTS A SENTENCE THAT ITS OWN NUMBER REFUTES, IN THE SAME BLOCK.** Under
-`downtown_dense` it printed `per run: entropy [4.814 4.898 5.034] — ASSERTED ON THE LAST OF THESE,
-NOT POOLED`, and then asserted **4.898**, which is the median. `perfcheck.mjs:1297` has taken the
-median of three since session 21; the sentence at `perfcheck.mjs:2522` has been false for
-fifty-five sessions and is what put "asserted on a single draw" into this session's brief. §6 item 6.
+**IT DOES NOT WEAKEN §2 — IT STRENGTHENS IT.** The signal a floor would have to resolve is 0.030
+bits; the noise is 0.18 to 0.31 and is not reliably reducible by settling. What settling did buy is
+what it was for: a fixed jitter phase, a dropped history and a converged meter, so the frame is a
+picture of the content rather than of the wall clock.
 
-**NO MILLISECOND HERE IS A VERDICT.** Six of the eight browser gates started above CONTRACT §0.2's
-quiet bar of 1.6, at 2.61 to 3.91, and the suite says so itself. `highway_speed`'s 13.00 ms is the
-same figure session 75's first battery reported and 3.2 ms below its second, on identical content.
+**AND IT NAMES THE RESIDUAL COUPLING FOR THE NEXT SESSION.** §4 made the vehicles reproducible for a
+PAUSED capture, and a perf route is paused — but `perfcheck`'s **300 warmup frames run with the loop
+free-running before `setTimeOfDay` pauses it**, so `dt > 0` there and the moto line draws a
+wall-clock-dependent number of times from `traffic:layout` before the route begins. That is the same
+mechanism §4 closed, through the one door §4 left open.
 
-<!-- GATES -->
-
-**AND THE APRON'S OWN NUMBERS, RE-MEASURED ON THE SHIPPED THIRTEEN-MAST LAYOUT** — because the
-reading quoted in the first commit message came from an intermediate one, and a number nobody
-re-measured after the last edit is a number nobody measured:
-
-```
-  lamp pool   10 active of 10 candidates      (13 masts stand; 3 are past their own falloff)
-  sign pool    0 active of 0
-  clustered   14 resident, peak froxel 12 of 96
-  draws       78
-```
 
 ---
-## 6. WHAT TO DO FIRST NEXT TIME
+## 7. WHAT TO DO FIRST NEXT TIME
 
-**1. THE TERMINAL GLAZING IS A 3 600 m² LAMP AND IT LIGHTS NOTHING — §3.** Two lines through
-`pushSignLight`, which is already in scope at `glow()`. What it costs is `SIGN_LIGHT.cutoffM`, and
-that one is NOT inert: 3 candidates against 16 slots at the street eye means every new candidate
-lights, and `band:midnight` has 0.00243 of headroom against a 0.0001 spread. Do it with a look
-battery around it and a paired A/B — and note that `distinct:midnight|dusk` is **deterministic to
-1e-5 for a fixed build** (LOOK.md §7, three re-derivations), so that A/B is admissible.
+**1. THE YARD IS 20 lx AND THERE IS NOWHERE TO PUT A MAST.** EN 12464-2 gives the container yard its
+own level and §5 lit only the quay's 30. `sea-road` looks north across the yard and it is still
+black. The mid lane leaves 2.31 m beside carrier lane 1 and the landward lane 2.31 m beside carrier
+lane 2, against a 3.4 m pad. **A yard fixture has to be building-mounted, on the transit sheds**, and
+it is a second derivation.
 
-**2. `clustered 99 resident, peak froxel 96 of 96` AT THE HARBOUR — §4a.** Reproduced on two runs.
-96 is both `CLUSTER.maxPerCluster` and `CLUSTER.trafficLightReserve`, so the print cannot say whether
-that froxel is at its cap or holding the traffic pool — and either answer is a finding 3.5 km from
-the nearest city light. The apron reads 14/12 and the street 105/26 at the same instrument. Start at
-`lights.clustersAtCap` and `lights.overflowEver`, which are already kept, and at whether
-`traffic.js`'s 96 headlight slots are dark out there — `cityExtentAt(x, z) <= 0` refuses the
-VEHICLES (`traffic.js:2978`), and whether it also refuses their lights was not established.
+**2. `sea-road` DOES NOT SHOW THE SEA AND STATE 70 §3e SAID SO.** Seven sessions, four commits to
+`poses.mjs`, none of them touching it. The mechanism is measured: the eye sits at `yardY + 1.6` =
+10.070 m and the sight line crosses two container rows stacked 3–5 high. **It is the one liar in the
+set that a taller eye fixes** — try `--pos=4132,18,-92`, the same x and z eight metres up.
 
-**3. NINE FLOOD MASTS THROW A STREET LANTERN'S BEAM — §2a.** The mechanism to fix it shipped this
-session (`l.optic`); what did not ship is the two optics — a construction mast's and a quay mast's —
-because deriving them is a session's work and doing it badly would move the harbour and two block
-interiors in a session that was about the airfield.
+**3. `condenser-street` STILL DOES NOT SHOW THE CONDENSER** — §3. `arch-street` and `stack-street`
+are the same defect. The real repair is to make the `-street` generator call `poseprobe`, which has
+existed since session 26 for exactly this.
 
-**4. THE HARBOUR QUAY IS DARKER THAN THE UNLIT AIRFIELD WAS — §4a.** Median 0.129 cd/m², 96.6%
-under 16/255, two fixtures in reach of eleven. Same item as §1, same repair, not reached.
+**4. THE TERMINAL GLAZING IS A 3 600 m² LAMP AND IT LIGHTS NOTHING** — STATE 76 §3, unchanged. Two
+lines through `pushSignLight`, which is already in scope at `glow()`. What it costs is
+`SIGN_LIGHT.cutoffM`, and that one is not inert: 3 candidates against 16 slots at the street eye
+means every new candidate lights.
 
-**5. TWO CORRECTIONS TO STATE 75, BOTH CODE-AGAINST-COMMENT.**
-   - **THERE ARE SIX AEROPLANES ON THE STANDS, NOT FIVE.** `citygen.js`'s own comment says *"FIVE OF
-     EIGHT, and the empty ones are the point"*; the line under it is
-     `occupied: n % 8 === 3 || n % 8 === 6 ? 0 : 1`, which refuses exactly two. Measured out of the
-     generator: 8 stands, **6 occupied, 2 empty** (n = 3 and n = 6). STATE 75 §2 and its commit
-     message both repeat the comment.
-   - **`AIRFIELD.edgeStepM` = 60 IS DECLARED AND NEVER READ.** The runway edge lights come one per
-     `afstrip` station and that pitch is `runM / stationM`. The two agree at 60 by coincidence of two
-     constants, not by derivation. CONTRACT §9.1's *"a value the code does not read"*, and it is the
-     same shape as session 75's own `onAirfieldAt`. `afPaint` is a second instance: an albedo row, a
-     porosity row and a documented absence from `CATEGORY_FOR_GROUND`, and **nothing anywhere pushes
-     a ground rect of that kind.**
+**5. NINE FLOOD MASTS THREW A STREET LANTERN'S BEAM AND SIX OF THEM STILL DO.** §5 gave the quay's
+its own optic; the six construction masts and the yard floods still inherit `LANTERN_OPTIC` — 68
+degrees, sodium, elongated 2.39x across a road axis they do not have, with a 1/cos³ batwing peaking
+57 degrees off nadir. Deriving a site mast's optic is a session's item.
 
-**6. THE BRIEF'S §4 WAS WRONG ABOUT `night_rain`, IN A WAY WORTH FIXING IN THE TOOL.** It is not a
-look-gate band — there is no `entropy` anywhere in `lookcheck`, `lookassert`, `lookmetrics` or
-`look-budget.json`. It is `tools/budget.json` → `floors.screenshotEntropy` = 5.0, asserted in
-`perfcheck.mjs`, and **it has been the MEDIAN OF THREE RUNS since session 21**
-(`perfcheck.mjs:1297`), not a single draw. `perfcheck.mjs:2522` still prints *"ASSERTED ON THE LAST
-OF THESE, NOT POOLED"*, which has been false for fifty-five sessions. One line, and it is the kind of
-stale sentence that put this claim in a brief.
+**6. THE PHOTOCELL EXEMPTION TESTS A VALUE FOR A FIXTURE.** `l.candela === LIGHT.siteFloodCandela` is
+how `updateLampPool` decides a flood burns by day. It is §9's shape and it is now load-bearing in the
+other direction: the quay masts follow the photocell only because their candela happens to differ.
+A `dayBurn` flag on the record is one line and nobody has spent it.
 
-**7. THE APRON PEDESTRIANS ARE STILL A CITY DEFAULT THAT TRAVELS.** STATE 75 §6 item 3 flagged them
-by eye. They are now LIT, which makes them countable: `af-hangar` has four people standing in a flood
-pool on the airside of a fence at midnight, and `af-apron` has a dozen more. Same class as §5 above,
-and this session's floodlighting is what turned "measured only by eye" into "visible in a committed
-frame".
+**7. `perfcheck`'s ENTROPY SPREAD IS 0.084 AND ITS SIGNAL IS 0.030.** §1 and §2. Settling took the
+noise down 2.6x and the statistic still cannot resolve what a floor would want to assert. The
+remaining noise is the vehicle at the lens; §4 made the vehicles reproducible for a PAUSED capture,
+and a perf route is paused, so the next battery should show a smaller spread again. **Measure it
+before deriving anything from it.**
 
-**7b. THE FLOODLIT APRON FORESHORTENS TO NOTHING FROM A LOW EYE AT RANGE.** `af-hangar-out` looks
-350 m down the field from 12 m up and the concrete between the masts reads black, while the same
-concrete at 60–120 m in `af-apron` and `af-hangar` reads as lit. That is what a 20 lx pool does at
-grazing incidence and it is not obviously a defect — but it is the answer to *"how far does an apron
-read"*, and nobody has asked what the field should look like from the runway.
-
-**8. THE THREE STANDING ITEMS, UNCHANGED.** `perfcheck` captures with no `settle()`; its entropy
-floor's margin is smaller than its spread (§0.1 with a statistic instead of a millisecond); the four
-`trade-*` look frames differ run to run entirely in the vehicles.
+**8. THE THREE STANDING ITEMS.** `citycheck`'s saturation peak is an extreme-value statistic with a
+0.8-point spread and belongs under §0.1 like the rest; the headroom probe's `neverExceedNative`
+defect is untouched; `AIRFIELD.edgeStepM` and `afPaint` are still declared and never read.
 
 ---
-## 7. THE FOUR PREMISES
+## 8. THE FOUR PREMISES
 
 | | premise | verdict |
 |---|---|---|
-| (i) | the city's night look is achieved by something other than local illumination, and that can be extended outward | **FALSE, both halves.** CONTRACT §5.6's clustered forward+ has been the night look since session 1: 384 slots, a 98-slot lamp pool and a 16-slot sign pool. There is no fake and nothing to extend — the airfield was never put on the route. §0 |
-| (ii) | `uGroundLighting`'s 16 lux is the whole of the night fill | **FALSE.** It is `LIGHT.streetAverageLux` written into the SKY LUT's lower hemisphere and delivered through PMREM as a positionless global ambient. It is one of three terms; the measured horizontal ambient at midnight is 3.24 lx, and 85% of that is the moon after `moonRedistribution`. §0b |
-| (iii) | apron floodlighting costs no draw by the harbour's route | **TRUE ON THE BINDING ROUTE, AND +2 WHERE IT STANDS.** `highway_speed` does not move — it is 4 117 m away. At the apron itself the frame goes 76 → 78 draws, because the two merged lamp meshes did not exist out there until something emitted a lamp. Zero light slots were added: the masts in reach take theirs from the 98 that were parked below the world at zero intensity. §1, §5 |
-| (iv) | adding light at midnight moves at least one look band, and the paired A/B can separate that from the entropy floor's spread | **FALSE, AND IT COULD NOT HAVE BEEN OTHERWISE.** Both look eyes are ~5 km from the airfield. No band can move; a band that DID move would have been a defect. The entropy floor is not a look band at all — it is `perfcheck`'s, and it is a median of three rather than the single draw the brief describes. §5, §6 item 6 |
+| (i) | settling `perfcheck` moves at least one of its printed figures | **TRUE, and only the ones it should.** Entropy median 4.898 → 5.082 and mean 0.1177 → 0.1243; spreads 2.6x and 3.2x tighter. Not one count moved: 326 draws, 2 114 082 triangles, 267 862 instances, 67 materials. §1 |
+| (ii) | at least one of the four standing reds does not survive an honest entropy floor | **FALSE, and not close.** The floor was 2 of 15 violations on one gate and 0 on the other three. All four survive. And one of the two was the unsettled capture rather than the content — settling alone lifts `downtown_dense` over the OLD floor. §0 |
+| (iii) | the `trade-*` divergence is in vehicle update order rather than vehicle geometry | **TRUE, and sharper than that.** It is neither order nor geometry but the POSITION OF A SHARED RNG STREAM: one line drew from `traffic:layout` every frame per moto, so a ten-frame `waitForCity` block moved the stream 171 draws and re-placed all 120 bodies at the trade reseed. Fixed; all four frames byte-identical over two runs. §4 |
+| (iv) | the quay's repair is the airfield's, through the same existing call | **TRUE IN THE CALL AND FALSE IN THE NUMBER.** Same `flood` feature, same pool, same +0 on the binding route — but a cargo quay is EN 12464-2's 30 lx against an aircraft stand's ICAO 20, and the harbour has a 6.353 m terrace the airfield does not, which broke the aim vector for every mast session 71 built. Reusing the apron's number would have been the §9.2 this session found four more instances of. §5 |

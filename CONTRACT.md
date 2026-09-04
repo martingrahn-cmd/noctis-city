@@ -2593,6 +2593,57 @@ extends the world asks the question of every default it inherits**, and writes
 the answer down beside the extension — which is what session 72's `portRoad`
 reading `exitRoadPorosity` rather than a literal is.
 
+### 9.3 A mechanism exists and nothing calls it — session 77, and it is seven
+
+§9.1's first variant is *a value written in config that the code does not read*.
+This is its general form and it has now outgrown that heading: **a mechanism is
+built, commented, and never wired to the thing it was built for.** It is not the
+same failure as §9.2's — that one is a right number in the wrong county, and
+this one is a right answer nobody asks for.
+
+Seven, and not one of them was found by a gate:
+
+- **`noctisRough` never reached `block:ground`** — session 1 wrote the attribute
+  and the terrain never got it, so the earth plane was a mirror for
+  sixty-two sessions.
+- **`onAirfieldAt` was exported with a comment describing work it never did**
+  (session 75). Fourteen farmsteads and 280 hedge segments stood on a runway.
+- **`plate()`'s `lift` argument had existed since session 74 and nothing passed
+  it**, so six airfield ground layers were exactly coplanar.
+- **`cityExtentAt` was never asked by `traffic.js`'s signal loop** while the
+  vehicle placer in the same file had asked since session 34 — a traffic signal
+  showing a red lens on an airport apron.
+- **`glow()` pushes a `null` where `pushSignLight` claims a light slot**
+  (session 76). Every villa window, quay flood and airfield light built since
+  session 62 was an emitter that deposited nothing.
+- **`if (k >= lit)` in `traffic.js`'s headlamp assignment is unreachable**
+  (session 77): `lit = min(lampPool.length 96, lampOrder.length 120)` is always
+  96, which is `lampPool.length`. The one switch that turns a headlamp off had
+  never run, and 96 of them burned everywhere in the world at night.
+- **`tools/poseprobe.mjs` has ray-tested landmark stand-offs since session 26
+  and the pose generator does not call it** (session 77). Seven presets are
+  built by a formula that guarantees the subject FITS IN THE FRAME and never
+  asks whether anything is in the way; three of the seven are blocked.
+
+**WHY IT SURVIVES, AND IT IS NOT §9.2's REASON.** A default in the wrong county
+is confirmed by every reader standing near the origin. **This one is confirmed
+by the COMMENT.** Six of the seven have a paragraph beside them describing the
+work they do, and a reader who checks the paragraph against the intent finds
+them agreeing — because the paragraph and the intent are the same sentence. The
+only thing that disagrees is the call graph, and nothing in review reads that.
+
+> **A MECHANISM IS NOT WIRED UNTIL SOMETHING IT AFFECTS HAS BEEN MEASURED
+> MOVING.** Not "the function is exported", not "the branch is written", not
+> "the comment says it guards the platform" — a number that changes when the
+> mechanism is removed. `grep` for the callers of anything this session adds,
+> and if the only hit is its own definition, it is not built yet.
+
+The remedy is the cheapest in this document and it is one command: **when a
+session writes a mechanism, it greps for its own callers before writing the
+comment that describes it.** Five of the seven above would have died to
+`grep -n "onAirfieldAt\|pushSignLight\|poseprobe" src tools` at the moment
+they were written.
+
 ---
 
 ## 10. Session ritual
