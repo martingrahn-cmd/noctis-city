@@ -46,18 +46,56 @@
  * a teleport into a building is a bug the map should refuse to create and the
  * only honest source for "may a person stand here" is the thing the player
  * itself asks.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * AND SINCE SESSION 79 IT IS A MAP OF THE WORLD AND NOT OF THE CITY.
+ *
+ * The operator, walking the running build: he has never seen the harbour or the
+ * airfield, *"det ar langt att ga till dem"*, and the map could not take him
+ * there. It was built in session 19 when the city WAS the world, so its extent
+ * came from `LANDMARKS` — the furthest of which is the condenser at 706 m — and
+ * `EXTENT_M` came out at 846. Sessions 62-77 then put a countryside, 179 hills,
+ * an estuary, a harbour at x 4 128 and an airfield at x 4 750 outside it, and
+ * none of it was on the map. He could teleport only to places he could already
+ * walk to.
+ *
+ * **THE EXTENT IS DERIVED FROM THE WORLD'S OWN DATA, and it is 9 821 m across
+ * and not 8 000.** The brief asked for 8 km; the airfield's platform runs
+ * x 4 660 to 5 398 and its north approach row reaches z 4 150, so a map of
+ * +-4 000 m centred on the origin CLIPS THE WHOLE AIRFIELD. `worldView()` below
+ * takes the union of every authored feature and centres on it, so the number
+ * moves when the world does rather than when somebody remembers to move it.
+ *
+ * **AND THE RELIEF IS WHAT MAKES IT A LANDSCAPE.** `terrainHeightAt` is exactly
+ * 0.000000 inside `CITY.extentEdgeM` and runs -70.9 to +106.0 outside it, so
+ * one scalar per pixel draws the hills, the estuary's cut, the airfield's
+ * platform and the flat plate the city stands on, and the city becomes one
+ * region of the map rather than the whole of it.
  */
 
 import {
   CITY,
   LANDMARKS,
   RIVER,
+  SEA,
+  HARBOUR,
+  AIRFIELD,
+  EXIT_ROAD,
   riverEdges,
   riverEnvelope,
   bridgeX,
   landmarkAABB,
   viaductArc,
   viaductPiers,
+  terrainHeightAt,
+  seaCells,
+  cityExtentAt,
+  hillMasses,
+  hillsideHouses,
+  harbourSite,
+  airfieldSite,
+  exitRoadZ,
+  exitRoadHalfM,
 } from '../lib/citygen.js';
 
 const DEG = Math.PI / 180;
@@ -180,27 +218,81 @@ export function createUi(options = {}) {
   let activeRate = 1;
   let activePreset = -1;
   let activeWeather = -1;
+  /**
+   * `ctx.config.seed` as a STRING, the same value `city.js` hands
+   * `generateChunk` — the generator hashes its argument, so `1337` and `'1337'`
+   * are two different worlds and the map must be shown the one being drawn.
+   */
+  let rootSeed = '1337';
+  /** `worldView`'s answer, and the relief raster. Both are per-seed and static. */
+  let worldCache = null;
+  let reliefCache = null;
 
   /**
-   * HALF-WIDTH OF THE MAPPED WORLD, in metres.
+   * THE MAPPED WORLD — CENTRE AND HALF-WIDTH IN METRES, FROM THE DATA.
+   * ==================================================================
+   * SESSION 79. Session 19's version took the maximum over `LANDMARKS` alone
+   * and got ±846 m, which was the whole world when it was written and is now
+   * the middle 8.6% of one.
    *
-   * `CITY.geometryRadius` chunks of city are built around the camera, but the
-   * LANDMARKS are authored at fixed positions and are the point of the map, so
-   * the extent is derived from them rather than from the streaming ring: the
-   * furthest is the condenser at (−430, −560) and the mast at (470, 430), so
-   * the authored world spans about ±560 m. `+ 220` leaves the outermost
-   * landmark clear of the edge by more than its own footprint (the condenser's
-   * base radius is 62 m and the weir's is 105 m), so nothing the map exists to
-   * show is clipped by the frame it is shown in.
+   * THE UNION OF EVERY AUTHORED FEATURE, and each term is here because
+   * dropping it clips something the operator asked to be able to reach:
+   *
+   *   the city rim        `CITY.extentEdgeM` = 3 232, the disc every road is in
+   *   the landmarks       unchanged from session 19, still the point of the city
+   *   the hills           179 masses at seed 1337, centres 3 354–4 010 m out,
+   *                       footprints reaching 418 m past their own centres
+   *   the harbour         x 3 904–4 352 and its branch road back to z −132
+   *   the airfield        the platform x 4 660–5 398, PLUS `approachM` past the
+   *                       north threshold — the approach row runs to z 4 150 and
+   *                       is the thing that is worth flying at midnight
+   *   the exit road       to `rimM` = 4 000 both ways
+   *   the villas          22 of them, x −3 985 to 3 854
+   *
+   * **MEASURED: bbox x [−4 063, 5 398], z [−4 323, 4 210], centre (667, −57),
+   * half 4 731.** The margin is 180 m — more than the largest hill footprint
+   * this leaves at the rim — so the half is 4 911 and the map is 9 821 m across.
+   *
+   * IT IS NOT CENTRED ON THE ORIGIN AND THAT IS THE POINT. The world is
+   * asymmetric: everything session 62–77 added is east. Centring on the origin
+   * would need a half of 5 398 to hold the airfield and would spend 1 335 m of
+   * the west edge on empty skirt. The centre is where the world is.
    */
-  const EXTENT_M = (() => {
-    let m = 0;
+  function worldView(seed) {
+    if (worldCache && worldCache.seed === seed) return worldCache;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    const add = (ax0, ax1, az0, az1) => {
+      x0 = Math.min(x0, ax0, ax1);
+      x1 = Math.max(x1, ax0, ax1);
+      z0 = Math.min(z0, az0, az1);
+      z1 = Math.max(z1, az0, az1);
+    };
+    add(-CITY.extentEdgeM, CITY.extentEdgeM, -CITY.extentEdgeM, CITY.extentEdgeM);
     for (const l of LANDMARKS) {
       const a = landmarkAABB(l);
-      m = Math.max(m, Math.abs(a.x0), Math.abs(a.x1), Math.abs(a.z0), Math.abs(a.z1));
+      add(a.x0, a.x1, a.z0, a.z1);
     }
-    return m + 220;
-  })();
+    // `ecc` stretches a hill along `bearingDeg`; the reach is the long axis, so
+    // this is a bound and not the shape.
+    for (const h of hillMasses(seed)) {
+      const r = h.foot * (h.ecc || 1);
+      add(h.x - r, h.x + r, h.z - r, h.z + r);
+    }
+    const hb = harbourSite(seed);
+    add(hb.x0, hb.x1, hb.quayZ, hb.branchZ1);
+    const af = airfieldSite(seed);
+    add(af.x0, af.x1, Math.min(af.z0, af.spurZ0), af.z1 + AIRFIELD.approachM);
+    add(-EXIT_ROAD.rimM, EXIT_ROAD.rimM, -80, 80);
+    for (const v of hillsideHouses(seed)) add(v.x - 20, v.x + 20, v.z - 20, v.z + 20);
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const half = Math.max(x1 - cx, cx - x0, z1 - cz, cz - z0) + 180;
+    worldCache = { seed, cx, cz, half, bbox: { x0, x1, z0, z1 } };
+    return worldCache;
+  }
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -261,6 +353,163 @@ export function createUi(options = {}) {
     y: view.size / 2 + (z - view.cz) / view.mpp,
   });
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * THE RELIEF — ONE SCALAR PER PIXEL, AND IT IS WHAT MAKES THIS A LANDSCAPE.
+   * ═══════════════════════════════════════════════════════════════════════════
+   * SESSION 79, item 1c. `terrainHeightAt(rootSeed, x, z)` is the same function
+   * `block:ground` builds its vertices from, so shading by it shows the hills,
+   * the estuary's cut, the airfield's platform shoulder and the flat plate the
+   * city stands on — the landform, not a diagram of it.
+   *
+   * MEASURED: **exactly 0.000000 inside `CITY.extentEdgeM`** (the function's own
+   * early return at `citygen.js:3380`), and **−70.9 to +106.0 m outside it** over
+   * 63 001 samples at 32 m stations. So the city reads as one flat region and
+   * everything session 62–77 built has shape.
+   *
+   * ── WHY IT IS A CACHED RASTER AND NOT A PER-FRAME LOOP ──────────────────────
+   *
+   * `update()` redraws the map on every frame it is open. `terrainHeightAt`
+   * costs **1 027 ns outside the city and 24 ns inside it** (measured, warm, 200 k
+   * iterations), so a 512² sample of the world is about 165 ms — a fifth of a
+   * second, once, and eleven frames a second for ever if it were done per frame.
+   * The world is static and the seed does not change, so this is built on the
+   * first `M` and blitted afterwards.
+   *
+   * **512 IS DERIVED AND NOT CHOSEN.** The canvas is capped at 1 100 px, so a
+   * raster cell at 512 is 2.15 map pixels — the coarsest that cannot show its own
+   * grid once `imageSmoothingEnabled` interpolates it. Doubling to 1 024 costs
+   * 660 ms for a cell nobody can see.
+   *
+   * ── THE SEA IS THE TERRAIN'S OWN CONTOUR AND THE FLOOD FILL'S OWN CELL ──────
+   *
+   * `river.js` draws the water as one quad per `seaCells` cell and lets the LAND
+   * occlude it — its own note: *"the coast is wherever the terrain rises through
+   * that plane"*, and the fill is *"dilated by one cell"* so the quad edge is
+   * always under ground. A map that drew the cells as-is would therefore put
+   * 128 m of water on dry land. So a pixel is sea when BOTH hold: its own
+   * terrain is under `SEA.levelY` (the contour, at map resolution) AND its cell
+   * is in the fill (which is what keeps an inland hollow from becoming a lake —
+   * `seaCells`'s own first arm had 1 377 of 2 541 exit-road samples come back as
+   * sea for exactly that reason). The fill test is one array index, so this
+   * costs one `terrainHeightAt` per pixel and nothing else.
+   */
+  const RELIEF_N = 512;
+
+  /**
+   * THE HYPSOMETRIC RAMP. Six stops over the measured range, and the hues are
+   * the world's own: `SEA` blue for water, `COUNTRYSIDE`'s olive field for the
+   * low ground, `HILLS.woodAlbedo`'s dark green for the wooded flanks and its
+   * `hillAlbedo` grey-brown for the crowns. Lifted well off the linear
+   * reflectances those constants carry — a map is UI and is read in sRGB on a
+   * dark ground, not lit — but ordered the same way, so a wooded hill reads
+   * darker than the field it stands in exactly as it does in the world.
+   */
+  const LAND_STOPS = [
+    { h: -70, c: [13, 13, 12] },
+    { h: -12, c: [22, 22, 18] },
+    { h: 0, c: [31, 31, 25] },
+    { h: 18, c: [42, 45, 29] },
+    { h: 55, c: [35, 44, 27] },
+    { h: 108, c: [72, 70, 55] },
+  ];
+
+  function rampAt(h) {
+    if (h <= LAND_STOPS[0].h) return LAND_STOPS[0].c;
+    for (let i = 1; i < LAND_STOPS.length; i++) {
+      const b = LAND_STOPS[i];
+      if (h > b.h) continue;
+      const a = LAND_STOPS[i - 1];
+      const u = (h - a.h) / (b.h - a.h);
+      return [
+        a.c[0] + (b.c[0] - a.c[0]) * u,
+        a.c[1] + (b.c[1] - a.c[1]) * u,
+        a.c[2] + (b.c[2] - a.c[2]) * u,
+      ];
+    }
+    return LAND_STOPS[LAND_STOPS.length - 1].c;
+  }
+
+  /**
+   * A HILLSHADE OFF THE RASTER ITSELF, from the north-west, so the landform has
+   * a direction. Not `terrainNormalAt` — that is a central difference at 0.5 m
+   * and would resolve nothing at a 19 m cell; the gradient that matters here is
+   * the one between neighbouring PIXELS, which is the shape the eye is being
+   * shown. It is the only term in this file that is a picture rather than a
+   * measurement, and it is applied as a multiplier so the ramp still carries the
+   * height.
+   */
+  function reliefCanvas(seed, world) {
+    if (reliefCache && reliefCache.seed === seed) return reliefCache.canvas;
+    const N = RELIEF_N;
+    const cv = document.createElement('canvas');
+    cv.width = N;
+    cv.height = N;
+    const g = cv.getContext('2d');
+    const img = g.createImageData(N, N);
+    const d = img.data;
+    const cells = seaCells(seed);
+    const step = (world.half * 2) / N;
+    const x0 = world.cx - world.half;
+    const z0 = world.cz - world.half;
+    const h = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) {
+      const z = z0 + (j + 0.5) * step;
+      for (let i = 0; i < N; i++) {
+        h[j * N + i] = terrainHeightAt(seed, x0 + (i + 0.5) * step, z);
+      }
+    }
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const k = j * N + i;
+        const y = h[k];
+        // The flood fill, as an index. `seaCells` lays cells on centres.
+        const ci = Math.round((x0 + (i + 0.5) * step - cells.x0) / cells.cell);
+        const cj = Math.round((z0 + (j + 0.5) * step - cells.z0) / cells.cell);
+        const inFill = ci >= 0 && ci < cells.nx && cj >= 0 && cj < cells.nz
+          && cells.on[cj * cells.nx + ci];
+        let r;
+        let gg;
+        let b;
+        if (y < SEA.levelY && inFill) {
+          // Depth below the water plane, over `SEA.deepM` = 62 m, which is what
+          // the generator itself calls deep water.
+          const u = Math.min(1, (SEA.levelY - y) / SEA.deepM);
+          r = 16 + (5 - 16) * u;
+          gg = 44 + (14 - 44) * u;
+          b = 66 + (34 - 66) * u;
+        } else {
+          const c = rampAt(y);
+          // Hillshade: the pixel-to-pixel gradient, lit from the north-west.
+          const hx = h[k + (i + 1 < N ? 1 : 0)] - h[k - (i > 0 ? 1 : 0)];
+          const hz = h[k + (j + 1 < N ? N : 0)] - h[k - (j > 0 ? N : 0)];
+          const shade = Math.max(0.45, Math.min(1.95, 1 + (hx + hz) * 0.024));
+          r = c[0] * shade;
+          gg = c[1] * shade;
+          b = c[2] * shade;
+        }
+        const o = k * 4;
+        d[o] = r;
+        d[o + 1] = gg;
+        d[o + 2] = b;
+        d[o + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    reliefCache = { seed, canvas: cv };
+    return cv;
+  }
+
+  /** A world-space rectangle, as canvas pixels. */
+  function worldRect(g, x0, z0, x1, z1, fill, stroke) {
+    const a = toPx(Math.min(x0, x1), Math.min(z0, z1));
+    const b = toPx(Math.max(x0, x1), Math.max(z0, z1));
+    const w = Math.max(1, b.x - a.x);
+    const h = Math.max(1, b.y - a.y);
+    if (fill) { g.fillStyle = fill; g.fillRect(a.x, a.y, w, h); }
+    if (stroke) { g.strokeStyle = stroke; g.strokeRect(a.x, a.y, w, h); }
+  }
+
   function drawMap(ctx) {
     if (!mapCanvas) return;
     const size = Math.min(
@@ -270,24 +519,66 @@ export function createUi(options = {}) {
     );
     mapCanvas.width = size;
     mapCanvas.height = size;
-    view = { cx: 0, cz: 0, mpp: (EXTENT_M * 2) / size, size };
+    const world = worldView(rootSeed);
+    view = { cx: world.cx, cz: world.cz, mpp: (world.half * 2) / size, size };
+    const EXTENT_M = world.half;
 
     const g = mapCanvas.getContext('2d');
     g.fillStyle = '#07080a';
     g.fillRect(0, 0, size, size);
 
-    // --- the street grid. Roads run on every chunk boundary in both axes.
-    g.strokeStyle = '#161b21';
-    g.lineWidth = Math.max(1, (CITY.roadHalfWidth * 2) / view.mpp);
-    const first = Math.ceil(-EXTENT_M / CITY.chunkSize);
-    const last = Math.floor(EXTENT_M / CITY.chunkSize);
+    /**
+     * --- THE LANDFORM, FIRST AND UNDER EVERYTHING. One blit of the cached
+     * raster. `imageSmoothingEnabled` is left on: the raster is a sampling of a
+     * continuous field and nearest-neighbour would draw its own 19 m lattice,
+     * which is the map claiming a resolution the sampling does not have.
+     */
+    g.imageSmoothingEnabled = true;
+    g.drawImage(reliefCanvas(rootSeed, world), 0, 0, size, size);
+
+    /**
+     * --- THE CITY'S OWN GROUND. `terrainHeightAt` is 0 over the whole disc, so
+     * the relief cannot distinguish the city from the flat country beside it —
+     * `cityExtentAt` can, and it is the same falloff `densityAt` multiplies by.
+     * Drawn as the disc's rim rather than as a fill, because filling it would
+     * hide the relief the ramp already put there.
+     */
+    {
+      const c = toPx(0, 0);
+      const r = CITY.extentEdgeM / view.mpp;
+      const grad = g.createRadialGradient(c.x, c.y, (CITY.extentCoreM / view.mpp) * 0.6, c.x, c.y, r);
+      grad.addColorStop(0, 'rgba(112,104,92,0.42)');
+      grad.addColorStop(1, 'rgba(112,104,92,0.04)');
+      g.fillStyle = grad;
+      g.beginPath(); g.arc(c.x, c.y, r, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(168,158,132,0.42)';
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(c.x, c.y, r, 0, Math.PI * 2); g.stroke();
+    }
+
+    /**
+     * --- the street grid. Roads run on every chunk boundary in both axes, and
+     * the lattice is CLIPPED TO THE CITY DISC since session 79: `cityExtentAt`
+     * is 0 past `extentEdgeM` and there is no carriageway out there, so drawing
+     * the arithmetic lattice over the whole 9.8 km would be the map making the
+     * same claim `traffic.js`'s signal loop made until session 75 — a lattice
+     * asserted over a world it was never laid on.
+     */
+    g.strokeStyle = 'rgba(126,134,146,0.34)';
+    g.lineWidth = Math.max(0.5, (CITY.roadHalfWidth * 2) / view.mpp);
+    const E = CITY.extentEdgeM;
+    const first = Math.ceil(-E / CITY.chunkSize);
+    const last = Math.floor(E / CITY.chunkSize);
     for (let i = first; i <= last; i++) {
       const w = i * CITY.chunkSize;
-      const a = toPx(w, -EXTENT_M);
-      const b = toPx(w, EXTENT_M);
+      // Chord of the disc at this offset, so a road stops where the city does.
+      const halfChord = Math.sqrt(Math.max(0, E * E - w * w));
+      if (halfChord < 1) continue;
+      const a = toPx(w, -halfChord);
+      const b = toPx(w, halfChord);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-      const c = toPx(-EXTENT_M, w);
-      const d = toPx(EXTENT_M, w);
+      const c = toPx(-halfChord, w);
+      const d = toPx(halfChord, w);
       g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(d.x, d.y); g.stroke();
     }
 
@@ -298,14 +589,24 @@ export function createUi(options = {}) {
      * through `riverEnvelope()`, which is a BOUND and is 147.6 m wide where the
      * channel's mean is 104.6.
      */
-    g.fillStyle = '#0b1a24';
+    /**
+     * AND IT IS CLIPPED TO +-4 000 SINCE SESSION 79, WHICH IS WHERE THE WATER
+     * IS. `riverEdges(x)` is a sinusoid and answers everywhere; the drawn strip
+     * is `river.js:1174`'s `const extent = 4000` — the earth plane's own
+     * half-width — and east of `SEA.mouthM` the estuary is already in the relief
+     * raster's sea. Running the polygon to the map's own +-4 911 would draw a
+     * 900 m canal across dry countryside, which is a map asserting geometry
+     * nobody emits.
+     */
+    const RIVER_X = 4000;
+    g.fillStyle = '#12303f';
     g.beginPath();
-    for (let x = -EXTENT_M; x <= EXTENT_M; x += 8) {
+    for (let x = -RIVER_X; x <= RIVER_X; x += 8) {
       const e = riverEdges(x);
       const p = toPx(x, e.north);
-      if (x === -EXTENT_M) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+      if (x === -RIVER_X) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
     }
-    for (let x = EXTENT_M; x >= -EXTENT_M; x -= 8) {
+    for (let x = RIVER_X; x >= -RIVER_X; x -= 8) {
       const e = riverEdges(x);
       const p = toPx(x, e.south);
       g.lineTo(p.x, p.y);
@@ -321,10 +622,140 @@ export function createUi(options = {}) {
     for (let i = -6; i <= 6; i++) crossingXsOnMap.push(bridgeX(i));
     for (const ex of RIVER.extraCrossingsX) crossingXsOnMap.push(ex);
     for (const bx of crossingXsOnMap) {
-      if (Math.abs(bx) > EXTENT_M) continue;
+      if (Math.abs(bx) > CITY.extentEdgeM) continue;
       const a = toPx(bx, env.z0 - 12);
       const b = toPx(bx, env.z1 + 12);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE COUNTRY ROAD, THE HARBOUR AND THE AIRFIELD — SESSION 79, ITEM 1.
+     * ═══════════════════════════════════════════════════════════════════════
+     * The three things the operator has never seen, and the reason he has never
+     * seen them is that they were not on this map. Every number below is read
+     * out of `citygen.js` at this seed by the same functions `block.js` and
+     * `river.js` build the geometry from, so the map cannot show a harbour
+     * somewhere the harbour is not.
+     */
+    const harbour = harbourSite(rootSeed);
+    const airfield = airfieldSite(rootSeed);
+
+    /**
+     * --- THE EXIT ROAD. `exitRoadZ(x)` is tabulated once at module scope in the
+     * generator and read by `block.js` for the ribbon, so this is the road's own
+     * centreline including its three shifts — the bend reaches z = −64.84 at
+     * x = 3 616, which is the only feature between the city and the coast.
+     *
+     * PAST `rimM` = 4 000 THE TABLE CLAMPS and the road is dead straight at
+     * z = −30.0188 out to `TERRAIN.skirtM`. That constant z is exactly what
+     * `harbourSite.branchZ0` and `airfieldSite.spurZ0` both inherit — the branch
+     * and the spur hang off the straight section — so drawing the road to the
+     * map edge is drawing the ribbon `block.js` actually emits.
+     */
+    g.strokeStyle = '#9b937f';
+    g.lineJoin = 'round';
+    // The map's own two edges in x, so neither arm is drawn past the frame.
+    const edgeE = world.cx + EXTENT_M;
+    const edgeW = -(world.cx - EXTENT_M);
+    for (const [side, far] of [[-1, edgeW], [1, edgeE]]) {
+      g.beginPath();
+      for (let ax = CITY.extentEdgeM; ax <= far; ax += 16) {
+        const x = side * ax;
+        const p = toPx(x, exitRoadZ(x));
+        if (ax === CITY.extentEdgeM) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+      }
+      // `exitRoadHalfM` tapers 7.5 → 3.5 over `taperM`; at 19 m a pixel this is
+      // sub-pixel either way, so the line is drawn at a legible minimum and the
+      // taper is not a claim this map makes.
+      g.lineWidth = Math.max(1.4, (exitRoadHalfM(EXIT_ROAD.rimM) * 2) / view.mpp);
+      g.stroke();
+    }
+
+    // --- the harbour branch and the airfield spur, both off the straight road.
+    g.lineWidth = Math.max(1.2, (HARBOUR.branchHalfM * 2) / view.mpp);
+    {
+      const a = toPx(harbour.branchX, harbour.branchZ0);
+      const b = toPx(harbour.branchX, harbour.branchZ1);
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      const c = toPx(airfield.spurX, airfield.spurZ0);
+      const d = toPx(airfield.spurX, airfield.spurZ1);
+      g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(d.x, d.y); g.stroke();
+    }
+
+    /**
+     * --- THE HARBOUR. Three terraces at three levels — quay face at
+     * `quayZ` −224, apron to `apronZ` −188 at y 2.117, container yard to
+     * `yardZ` −132 at y 8.470 — over a 448 m run. The three cranes stand on the
+     * apron at `craneEveryM` 140 and the four transit sheds at `shedZ` −108.
+     */
+    worldRect(g, harbour.x0, harbour.quayZ, harbour.x1, harbour.apronZ, '#4a5058', null);
+    worldRect(g, harbour.x0, harbour.apronZ, harbour.x1, harbour.yardZ, '#585b52', null);
+    worldRect(g, harbour.x0, harbour.quayZ, harbour.x1, harbour.yardZ, null, '#98a2ac');
+    g.fillStyle = '#c8ad72';
+    for (let c = 0; c < HARBOUR.cranes; c++) {
+      const cx2 = harbour.x0 + (harbour.x1 - harbour.x0) * ((c + 0.5) / HARBOUR.cranes);
+      worldRect(g, cx2 - 6, harbour.quayZ, cx2 + 6, harbour.quayZ + HARBOUR.craneGaugeM, '#c8ad72', null);
+    }
+    for (let i = 0; i < HARBOUR.sheds; i++) {
+      const sx = harbour.x0 + (harbour.x1 - harbour.x0) * ((i + 0.5) / HARBOUR.sheds);
+      worldRect(g, sx - HARBOUR.shedLenM / 2, harbour.shedZ - HARBOUR.shedWideM / 2,
+        sx + HARBOUR.shedLenM / 2, harbour.shedZ + HARBOUR.shedWideM / 2, '#6b6f66', null);
+    }
+
+    /**
+     * --- THE AIRFIELD, WHICH IS ABOUT THE SIZE OF THE CITY. A 3 000 m runway
+     * against a 3 232 m city radius: at world scale it is a real object and not
+     * a dot, which is item 1d and is the reason the extent had to grow rather
+     * than the airfield shrink.
+     *
+     * The platform, the runway, the parallel taxiway at `taxiOffM` = 118 and the
+     * apron are all `airfieldSite`'s own rectangles. The APPROACH ROWS are drawn
+     * because they are the reason to go there at midnight, and because they are
+     * asymmetric in a way no map has ever shown.
+     *
+     * **AND THE ASYMMETRY GOES THE OTHER WAY FROM THE OBVIOUS READING.**
+     * CONTRACT §3.1 is `+X east, −Z north`, so `runZ0` = 250 is the NORTH
+     * threshold and `runZ1` = 3 250 is the SOUTH one — the smaller z is the
+     * further north. The sea is north (its cells run z −5 248 to −128), so it is
+     * the NORTH row that walks into the water and breaks: **14 masts of 30,
+     * stopping at z −170**, against the south row's full 30 reaching z 4 150.
+     * Counted here, in Node, against the generator's own break rule, because a
+     * threshold called by the wrong compass point is exactly CONTRACT §9's
+     * shape with a bearing.
+     */
+    worldRect(g, airfield.x0, airfield.z0, airfield.x1, airfield.z1, 'rgba(120,124,110,0.30)', 'rgba(160,168,150,0.45)');
+    worldRect(g, airfield.runX0 - AIRFIELD.shoulderM, airfield.runZ0,
+      airfield.runX1 + AIRFIELD.shoulderM, airfield.runZ1, '#3e4247', null);
+    worldRect(g, airfield.runX0, airfield.runZ0, airfield.runX1, airfield.runZ1, '#5b6068', null);
+    worldRect(g, airfield.tX - AIRFIELD.taxiWideM / 2, airfield.runZ0,
+      airfield.tX + AIRFIELD.taxiWideM / 2, airfield.runZ1, '#4a4f55', null);
+    worldRect(g, airfield.apX0, airfield.apZ0, airfield.apX1, airfield.apZ1, '#54585c', '#8d949c');
+    g.fillStyle = '#d8c48a';
+    for (const [z0a, dir] of [[airfield.runZ0, -1], [airfield.runZ1, 1]]) {
+      for (let i = 1; i <= AIRFIELD.approachM / AIRFIELD.approachStepM; i++) {
+        const z = z0a + dir * i * AIRFIELD.approachStepM;
+        // The row walks out and BREAKS at the first station that is not dry —
+        // `citygen.js`'s own emission rule, and it is why the south row is 14
+        // masts and the north row is 30.
+        if (terrainHeightAt(rootSeed, airfield.cx, z) < SEA.levelY + AIRFIELD.approachDryM) break;
+        const p = toPx(airfield.cx, z);
+        const w = i % 5 === 0 ? 3 : 1.4;
+        g.fillRect(p.x - w, p.y - 0.7, w * 2, 1.4);
+      }
+    }
+
+    /**
+     * --- THE HILLSIDE VILLAS. 22 of them at this seed, on the shoulders of the
+     * hills at 3 293–4 079 m. They are on the map because `country-air` is one
+     * of the three committed poses LOOK.md §7 records as lying about its own
+     * subject — it looked at their deliberately blank backs from 710 m and STATE
+     * repeated *"the villas are dark"* for five sessions on its authority.
+     */
+    g.fillStyle = '#d6b98a';
+    for (const v2 of hillsideHouses(rootSeed)) {
+      const p = toPx(v2.x, v2.z);
+      g.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
     }
 
     /**
@@ -352,23 +783,58 @@ export function createUi(options = {}) {
       }
     }
 
-    // --- the eight landmarks, marked AND NAMED. They are the point.
+    /**
+     * --- the eight landmarks, marked AND NAMED. They are the point of the city
+     * half of this map, and SESSION 79 HAD TO STAGGER THE LABELS.
+     *
+     * All eight stand inside r = 706 m. At session 19's 11.2 m a pixel that was
+     * 126 px of separation and the names sat beside their own boxes; at this
+     * map's 19.2 m a pixel it is 74 px and seven of the eight names overlapped
+     * into one illegible block — which the first frame of this item showed
+     * plainly. So the label is lifted onto a stack ordered by z, with a leader
+     * back to its own marker: the marker stays where the landmark is and the
+     * name is somewhere it can be read, which is the ordinary answer and is why
+     * every printed map does it.
+     */
+    const named = LANDMARKS.filter((l) => l.kind !== 'viaduct')
+      .slice()
+      .sort((a, b) => a.z - b.z);
     g.textBaseline = 'middle';
     g.font = '11px ui-monospace, Menlo, monospace';
-    for (const l of LANDMARKS) {
-      if (l.kind === 'viaduct') continue;
-      const a = landmarkAABB(l);
-      const p0 = toPx(a.x0, a.z0);
-      const p1 = toPx(a.x1, a.z1);
-      g.fillStyle = 'rgba(196,150,86,0.22)';
-      g.fillRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-      g.strokeStyle = '#c49656';
-      g.lineWidth = 1;
-      g.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-      const c = toPx(l.x, l.z);
-      g.fillStyle = '#e8d7b4';
-      g.fillText(`${l.name}  ${Math.round(l.height)} m`, c.x + 6, c.y);
+    {
+      const anchor = toPx(0, 0);
+      const rowH = 14;
+      const top = anchor.y - ((named.length - 1) * rowH) / 2;
+      const labelX = anchor.x + CITY.extentCoreM / view.mpp * 0.55;
+      named.forEach((l, i) => {
+        const a = landmarkAABB(l);
+        const p0 = toPx(a.x0, a.z0);
+        const p1 = toPx(a.x1, a.z1);
+        g.fillStyle = 'rgba(206,158,88,0.30)';
+        g.fillRect(p0.x, p0.y, Math.max(2, p1.x - p0.x), Math.max(2, p1.y - p0.y));
+        g.strokeStyle = '#c49656';
+        g.lineWidth = 1;
+        g.strokeRect(p0.x, p0.y, Math.max(2, p1.x - p0.x), Math.max(2, p1.y - p0.y));
+        const c = toPx(l.x, l.z);
+        const ly = top + i * rowH;
+        g.strokeStyle = 'rgba(196,150,86,0.45)';
+        g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(labelX - 4, ly); g.stroke();
+        g.fillStyle = '#e8d7b4';
+        g.fillText(`${l.name}  ${Math.round(l.height)} m`, labelX, ly);
+      });
     }
+
+    /**
+     * --- and the three places outside the city are named where they stand,
+     * because out here there is nothing to collide with.
+     */
+    g.fillStyle = '#cfd8e0';
+    g.fillText('harbour', toPx(harbour.x1, harbour.apronZ).x + 8, toPx(harbour.x1, harbour.apronZ).y);
+    // Placed INSIDE the platform: `airfield.x1` is 180 m from the map's own east
+    // edge — which is the derived margin — so a label hung outside it is cut off.
+    g.fillText('airfield', toPx(airfield.x0, airfield.cz).x - 62, toPx(airfield.x0, airfield.cz).y);
+    g.fillText('estuary', toPx(SEA.mouthM + 320, riverEdges(SEA.mouthM + 320).north - 90).x,
+      toPx(SEA.mouthM + 320, riverEdges(SEA.mouthM + 320).north - 90).y);
 
     // --- the origin block, which is where every fixed shot in the project is.
     const o0 = toPx(-168, -46);
@@ -394,10 +860,30 @@ export function createUi(options = {}) {
     g.lineTo(me.x + (fx / fl) * 14, me.y + (fz / fl) * 14);
     g.stroke();
 
-    // --- north, because a map without one is a picture.
+    /**
+     * --- north, because a map without one is a picture, AND A SCALE BAR,
+     * because at 9 821 m across "how far is that" stopped being obvious. The
+     * bar is a round number of kilometres chosen so it is between a fifth and a
+     * third of the frame, so it is a bar and not a hairline.
+     */
+    g.fillStyle = '#c3cbd4';
+    g.font = '12px ui-monospace, Menlo, monospace';
+    g.fillText('N', size / 2 - 4, 16);
+    const barM = [500, 1000, 2000, 5000].find((m) => m / (EXTENT_M * 2) > 0.18) || 5000;
+    const barPx = barM / view.mpp;
+    const bx0 = 16;
+    const by = size - 22;
+    g.strokeStyle = '#c3cbd4';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(bx0, by - 4); g.lineTo(bx0, by); g.lineTo(bx0 + barPx, by); g.lineTo(bx0 + barPx, by - 4);
+    g.stroke();
+    g.fillText(`${barM >= 1000 ? `${barM / 1000} km` : `${barM} m`}`, bx0 + barPx + 8, by - 1);
     g.fillStyle = '#8b939c';
-    g.fillText('N', size / 2 - 4, 14);
-    g.fillText(`${Math.round(EXTENT_M * 2)} m across`, 10, size - 12);
+    g.fillText(
+      `${Math.round(EXTENT_M * 2)} m across   eye ${cam.position.x.toFixed(0)}, ${cam.position.z.toFixed(0)}`,
+      16, size - 40
+    );
   }
 
   /**
@@ -435,6 +921,36 @@ export function createUi(options = {}) {
         `the map will not teleport somewhere the player could not have walked`;
       return;
     }
+    /**
+     * AND THE SEA, WHICH `walkableAt` DOES NOT BLOCK — SESSION 79, and it is a
+     * defect this map created by growing.
+     *
+     * `city.walkableAt` blocks buildings, landmark ground, the origin block and
+     * `inRiver`. It has never blocked `isSeaAt`, because until this session no
+     * map could put a click on the sea: session 19's extent was +-846 m and the
+     * estuary starts at x 3 300. Measured before this guard: a click at
+     * (4 500, −600) was accepted and put the player on the seabed at
+     * **y −60.451 m** under 55 m of water.
+     *
+     * THE TEST IS THE RASTER'S OWN, not `isSeaAt`. `isSeaAt` reads the fill's
+     * 128 m cell, which is dilated by one cell on purpose (`river.js`'s note),
+     * so it says "sea" up to 128 m inland — a predicate that refuses dry land is
+     * the wrong direction for a thing that only ever says no. The pair used
+     * here — under `SEA.levelY` AND in the fill — is the coast the terrain
+     * itself draws, which is where `river.js` says the shoreline is.
+     */
+    const seaGrid = seaCells(rootSeed);
+    const si = Math.round((x - seaGrid.x0) / seaGrid.cell);
+    const sj = Math.round((z - seaGrid.z0) / seaGrid.cell);
+    const inFill = si >= 0 && si < seaGrid.nx && sj >= 0 && sj < seaGrid.nz
+      && seaGrid.on[sj * seaGrid.nx + si];
+    if (inFill && terrainHeightAt(rootSeed, x, z) < SEA.levelY) {
+      mapFoot.textContent =
+        `refused: ${x.toFixed(0)}, ${z.toFixed(0)} is open water ` +
+        `${(SEA.levelY - terrainHeightAt(rootSeed, x, z)).toFixed(1)} m deep — ` +
+        `the map will not teleport somewhere the player could not have walked`;
+      return;
+    }
     player.teleport(x, null, z);
     const line = player.line ? player.line() : '';
     mapFoot.textContent = line.split('\n').pop().trim();
@@ -452,6 +968,16 @@ export function createUi(options = {}) {
 
     init(ctx) {
       if (typeof document === 'undefined') return {};
+
+      /**
+       * THE SEED, AS A STRING, AND IT IS THE SAME LINE `city.js:11162` AND
+       * `river.js:1170` BOTH WRITE. The generator hashes its `rootSeed`
+       * argument, so `1337` and `'1337'` are two different worlds — a map that
+       * defaulted to the module-scope literal would be right at 1337 and would
+       * silently draw a different world at any other seed, which is
+       * `harbourSite`'s own recorded lesson (`aircraft.js:177`).
+       */
+      rootSeed = String(ctx.config.seed);
 
       const style = el('style');
       style.textContent = CSS;
