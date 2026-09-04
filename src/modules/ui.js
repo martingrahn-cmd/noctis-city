@@ -97,6 +97,14 @@ import {
   exitRoadZ,
   exitRoadHalfM,
 } from '../lib/citygen.js';
+/**
+ * `GROUND.earth` is the datum `block:ground`'s vertices are written at —
+ * `GROUND.earth + terrainHeightAt(x, z)`, `block.js:1705` — so a destination
+ * that wants to know how high its own eye is standing has to add it. CONTRACT
+ * §2.2 allows `../core/**`; `src/lib` may not, which is why the constant lives
+ * there and the terrain function lives in the lib.
+ */
+import { GROUND } from '../core/constants.js';
 
 const DEG = Math.PI / 180;
 
@@ -202,6 +210,12 @@ const CSS = `
 #noctis-map.on{display:flex}
 #noctis-map canvas{cursor:crosshair;border:1px solid #2a2f36;border-radius:4px;background:#07080a;max-width:96vw;max-height:88vh}
 #noctis-map .foot{position:fixed;left:0;right:0;bottom:10px;text-align:center;font:12px/1.5 ui-monospace,Menlo,monospace;color:#8b939c;white-space:pre}
+#noctis-map .dests{width:236px;max-height:88vh;overflow-y:auto;margin-right:14px;font:12px/1.4 ui-monospace,Menlo,monospace;color:#cfd4da}
+#noctis-map .dests h4{margin:10px 0 4px 2px;font:11px/1.4 ui-monospace,Menlo,monospace;color:#7d858e;text-transform:uppercase;letter-spacing:.08em}
+#noctis-map .dests h4:first-child{margin-top:0}
+#noctis-map .dests button{display:block;width:100%;text-align:left;font:inherit;color:#cfd4da;background:#14171b;border:1px solid #2a2f36;border-radius:3px;padding:5px 8px;margin:0 0 3px 0;cursor:pointer}
+#noctis-map .dests button:hover{background:#242a31;border-color:#4b5661}
+#noctis-map .dests button .t{float:right;color:#8b939c}
 `;
 
 export function createUi(options = {}) {
@@ -224,9 +238,13 @@ export function createUi(options = {}) {
    * are two different worlds and the map must be shown the one being drawn.
    */
   let rootSeed = '1337';
-  /** `worldView`'s answer, and the relief raster. Both are per-seed and static. */
+  /** `worldView`'s answer, the relief raster and the destinations. All per-seed. */
   let worldCache = null;
   let reliefCache = null;
+  let destCache = null;
+  /** The time-preset button row, so an arrival can mark the preset it chose. */
+  let presetRow = null;
+  let destPanel = null;
 
   /**
    * THE MAPPED WORLD — CENTRE AND HALF-WIDTH IN METRES, FROM THE DATA.
@@ -329,6 +347,280 @@ export function createUi(options = {}) {
   function markGroup(container, index) {
     const kids = container.querySelectorAll('button');
     for (let i = 0; i < kids.length; i++) kids[i].dataset.on = i === index ? '1' : '0';
+  }
+
+  // -------------------------------------------------------------------------
+  // the destinations
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * NAMED DESTINATIONS — SESSION 79, ITEM 2. A LIST, NOT PIXEL-HUNTING.
+   * ═══════════════════════════════════════════════════════════════════════════
+   * Clicking a point on a map of a 9 821 m world means guessing: one map pixel
+   * is 19.2 m and the airfield's apron is 320 m wide, which is seventeen pixels
+   * somewhere in the bottom-right eighth of the frame. A list means arriving.
+   *
+   * ── EVERY DESTINATION IS A POSE AND IS STATED WITH WHAT IT PROVES ──────────
+   *
+   * LOOK.md §7, and the rule was bought at a high price: three of the
+   * twenty-three committed poses did not show their subject. `country-air`
+   * looked at the villas' deliberately blank backs from 710 m and STATE
+   * repeated its wrong answer for five sessions; `condenser-street` is the
+   * underside of a different landmark across 60% of frame; `af-hangar-back`
+   * opposes nothing but a corridor between two hangars. So each entry below
+   * carries `proves`, and each was SHOT before it was shipped.
+   *
+   * ── THE SEVEN INSIDE THE CITY CAME OUT OF `poseprobe` ──────────────────────
+   *
+   * CONTRACT §9.3's seventh row is *"`tools/poseprobe.mjs` has ray-tested
+   * landmark stand-offs since session 26 and the pose generator does not call
+   * it"*. It is still not called by the generator — that is a separate item —
+   * but it WAS called to author these, once per landmark, and the eye each one
+   * carries is a pose it returned as clear. Its own advisory `fill` column is
+   * quoted beside each. Three of the seven have narrow clear runs and are worth
+   * naming: the weir has exactly ONE clear azimuth of the twenty-four tested
+   * (315 degrees, 3 poses of 79), the condenser has three, and the arch has
+   * four — which is the same street canyon `arch-street` and `stack-street`
+   * have been blocked by since session 73.
+   *
+   * ── AND A DESTINATION CARRIES ITS OWN GROUND HEIGHT WHERE A STRUCTURE
+   *    STANDS, AND ONLY THERE ─────────────────────────────────────────────────
+   *
+   * Item 2d. `player.teleport(x, null, z)` asks `city.worldSurfaceAt`, which
+   * falls through to `block.surfaceAt` = `GROUND.earth + groundHeightAt(x, z)`
+   * — a PURE function of position — wherever no chunk is resident. So on
+   * ordinary terrain, `null` is right on the first frame and needs nothing
+   * streamed.
+   *
+   * **WHERE A STRUCTURE STANDS IT IS NOT.** Measured in the running page, the
+   * same query before and after the world arrived:
+   *
+   *     harbour quay   pre-stream  −11.918 m   arrived   2.117 m   (apronY)
+   *     harbour yard   pre-stream    8.042 m   arrived   8.576 m   (yardY)
+   *     airfield apron pre-stream    9.279 m   arrived  10.296 m   (level)
+   *
+   * A teleport reads the surface at the instant it happens, which is the world
+   * the player is LEAVING; the quay is fourteen metres out. `player.js` lifts
+   * the feet when the plate arrives and prints `player:bigstep` — *"a spawn or
+   * a teleport into something solid"* — so nobody is trapped, but the arrival
+   * is a lurch and the warning is a lie about its own cause. The four
+   * destinations that stand on a built plate therefore carry `harbourSite`'s
+   * and `airfieldSite`'s own levels, which are camera-independent.
+   */
+  function destinations(seed) {
+    if (destCache && destCache.seed === seed) return destCache.list;
+    const H = harbourSite(seed);
+    const A = airfieldSite(seed);
+    const eyeH = 1.74;
+    const L = (name) => LANDMARKS.find((l) => l.name === name);
+
+    /**
+     * A POSE FROM AN EYE AND A TARGET, which is the shape `lookat.mjs --pos
+     * --target` takes and therefore the shape a verifying frame can be shot in.
+     * The yaw is CONTRACT §3.1's: −z is north and three.js looks down local −z,
+     * so `atan2(-dx, -dz)` is the heading that puts the target on the axis.
+     */
+    const pose = (eye, look, extra) => {
+      /**
+       * A `null` FEET HEIGHT MEANS "the terrain", AND THE PITCH STILL HAS TO
+       * KNOW IT. `teleport(x, null, z)` resolves it against the live world; this
+       * resolves the same number in closed form so the pitch is computed from
+       * where the eye will actually be. Inside `CITY.extentEdgeM` this is
+       * exactly `GROUND.earth`, because `terrainHeightAt` is exactly 0 there.
+       *
+       * **IT IS THE TERRAIN AND NOT THE LANDMARK GROUND, and the weir is the
+       * one place that shows.** Standing on the basin's rim the live surface is
+       * −0.80 m and this says −0.02: `basinSurfaceAt` is a landmark's own
+       * ground and no pure terrain function carries it. The teleport is
+       * unaffected — it passes `null` and the live query answers — and the
+       * error reaches only the pitch, at 0.78 m over a 208 m sightline, which
+       * is 0.21 degrees. Written down rather than fixed, because fixing it
+       * means giving this function a second ground model and CONTRACT §9.1 is a
+       * list of what two ground models cost.
+       */
+      const feetY = eye[1] == null ? GROUND.earth + terrainHeightAt(seed, eye[0], eye[2]) : eye[1];
+      const dx = look[0] - eye[0];
+      const dy = look[1] - (feetY + eyeH);
+      const dz = look[2] - eye[2];
+      const flat = Math.hypot(dx, dz);
+      return {
+        eye,
+        look,
+        /** Where the eye will stand, for the map marker and the printed line. */
+        feetY,
+        yawDeg: Math.atan2(-dx, -dz) / DEG,
+        pitchDeg: Math.atan2(dy, flat) / DEG,
+        ...extra,
+      };
+    };
+
+    const list = [
+      // ── the world ────────────────────────────────────────────────────────
+      pose([H.x0 + 26, H.apronY, H.quayZ + 18], [H.x1 - 52, H.apronY + 16, H.quayZ + 12], {
+        key: 'harbour-quay',
+        group: 'the world',
+        label: 'harbour quay',
+        t: 0.78,
+        proves: 'the working quay east along the apron: three portal cranes on their rails, '
+          + 'the container stacks either side and the open sea past the quay face. '
+          + 'DUSK AND NOT MIDNIGHT, AND THE MIDNIGHT ARM IS THE REASON — shot at t 0.0 the '
+          + 'same frame is very nearly black, because `glow()` pushes an emissive quad and '
+          + 'no light candidate (CONTRACT §9.3, fifth row, session 76, unrepaired). The quay '
+          + 'floods are visible and light nothing.',
+      }),
+      pose([H.branchX - 60, H.yardY, H.yardZ - 8], [H.x1 - 30, H.yardY + 12, H.shedZ + 6], {
+        key: 'harbour-yard',
+        group: 'the world',
+        label: 'harbour yard',
+        t: 0.78,
+        proves: 'the container yard and the four transit sheds from the branch road, '
+          + '6.35 m above the apron. Dusk, because the yard is the one part of the harbour '
+          + 'that reads by its own colour rather than by a lamp.',
+      }),
+      pose([A.cx, A.level, A.runZ0 + 450], [A.cx, A.level + 1.7, A.runZ0 - 900], {
+        key: 'airfield-threshold',
+        group: 'the world',
+        label: 'airfield — north threshold',
+        t: 0.78,
+        proves: 'standing ON the runway 450 m inside the NORTH threshold, looking out over '
+          + 'it: the centreline, the two edge rows, the terminal frontage on the right and '
+          + 'the hills past the coast. `runZ0` = 250 is the north end — CONTRACT §3.1 is '
+          + '−Z north — so this is the row the sea cuts to 14 masts of 30. '
+          + 'DUSK, AND ITEM 2c IS REFUTED BY THE FRAME: the brief said an approach row at '
+          + 'noon shows nothing and wants midnight, and at midnight it shows nothing either '
+          + '— the same §9.3 fifth row as the quay. Dusk is what shows the row AND the runway.',
+      }),
+      pose([(A.apX0 + A.apX1) / 2, A.level, A.apZ0 + 270], [(A.apX0 + A.apX1) / 2, A.level + 10, A.apZ0 - 20], {
+        key: 'airfield-apron',
+        group: 'the world',
+        label: 'airfield — apron',
+        t: 0.78,
+        proves: 'the apron looking north at the terminal: its 302 m of modular frontage, the '
+          + 'two piers reaching into the stands, the four apron floodlight masts and the '
+          + '34 m control tower on the right. Dusk, for the same measured reason as the quay.',
+      }),
+      pose([3420, null, -450], [3900, 10, -560], {
+        key: 'estuary-mouth',
+        group: 'the world',
+        label: 'estuary mouth',
+        t: 0.5,
+        proves: 'the last quay wall on the north bank running out into open water, with the '
+          + 'harbour cranes on the far shore. `SEA.mouthM` is 3 300 and `flareM` 760, so this '
+          + 'is where the river stops being a channel — and it is the frame `bankIsLanded` '
+          + 'was written for in session 68, when this wall used to carry on over the sea.',
+      }),
+      pose([3283, null, 725], [3300, 12, 930], {
+        key: 'hillside-villas',
+        group: 'the world',
+        label: 'hillside villas',
+        t: 0.5,
+        proves: 'FIVE of the twenty-two villas at once, on one hill shoulder, from 205 m '
+          + 'downhill and in front of them — the tightest cluster at this seed, centred '
+          + '(3 283, 925). `country-air` stood 710 m off their deliberately blank BACKS and '
+          + 'STATE read "the villas are dark" off it for five sessions; this is the other '
+          + 'side, at noon, where the shoulder band `HILLSIDE.shoulderMin/Max` puts them.',
+      }),
+      pose([3616, null, exitRoadZ(3616) + 10], [4100, 14, exitRoadZ(4100) - 6], {
+        key: 'country-road',
+        group: 'the world',
+        label: 'the country road out',
+        t: 0.5,
+        proves: 'the exit road at its extreme bend — z −64.84 at x 3 616, the deepest of the '
+          + 'three shifts — looking east down the straight toward the harbour branch.',
+      }),
+
+      // ── the city ─────────────────────────────────────────────────────────
+      pose([70, null, 0.9], [-160, 22, 0.9], {
+        key: 'origin-block',
+        group: 'the city',
+        label: 'the origin block',
+        t: 0.5,
+        proves: "the gate's own eye — the street every fixed shot in this project is taken "
+          + 'from, and the street LOOK.md §0 calls an empty slab.',
+      }),
+      pose([-251.94, null, 291.58], [-270, 3.4, 394], {
+        key: 'trading-street',
+        group: 'the city',
+        label: 'a trading street',
+        t: 0.78,
+        proves: "`camera.js` SHOTS.trade EXACTLY — the gate's second eye, a north-south "
+          + 'street in chunk (−3, 3) carrying eleven trades of five kinds. Its target is '
+          + 'the gate\u2019s own, at azimuth 280 of nine clear of thirty-nine tested by '
+          + '`poseprobe`. A first arm here aimed EAST instead of down the street and '
+          + 'delivered a blank brick wall with pedestrians against it.',
+      }),
+      pose([-430, null, -940], [L('condenser').x, 130, L('condenser').z], {
+        key: 'condenser',
+        group: 'the city',
+        label: 'condenser  260 m',
+        proves: 'poseprobe, d 380 m az 270 deg, fill 65.3%. Three clear azimuths of 24.',
+      }),
+      pose([248.24, null, -493.19], [L('stack').x, 66, L('stack').z], {
+        key: 'stack',
+        group: 'the city',
+        label: 'stack  132 m',
+        proves: 'poseprobe, d 200 m az 255 deg, fill 63.4%. The stepped terrace session 78 '
+          + 'gave floor bands, galleries and corner piers to.',
+      }),
+      pose([-22.59, null, 35.45], [L('arch').x, 48, L('arch').z], {
+        key: 'arch',
+        group: 'the city',
+        label: 'arch  96 m',
+        proves: 'poseprobe, d 160 m az 285 deg, fill 70.9%. AND THE AZIMUTH IS THE ITEM: '
+          + 'the arch spans 118 m along X, so its own clear azimuth 0 — which is the fullest '
+          + 'frame poseprobe reports — looks straight down the span and delivers a column. '
+          + 'A stand-off test answers "is anything in the way" and not "is this broadside", '
+          + 'which is why the frame is still the check.',
+      }),
+      pose([200, null, -110], [L('exchange').x, 23, L('exchange').z], {
+        key: 'exchange',
+        group: 'the city',
+        label: 'exchange  46 m',
+        proves: 'poseprobe, d 80 m az 0 deg, fill 87.6%. Its lantern cap drew nothing at all '
+          + 'until session 78 fixed an eight-argument call.',
+      }),
+      pose([-24.43, null, -126.35], [L('dish').x, 29, L('dish').z], {
+        key: 'dish',
+        group: 'the city',
+        label: 'dish  58 m',
+        proves: 'poseprobe, d 130 m az 15 deg, fill 72.2%.',
+      }),
+      pose([670, null, 430], [L('mast').x, 93, L('mast').z], {
+        key: 'mast',
+        group: 'the city',
+        label: 'mast  186 m',
+        t: 0.78,
+        proves: 'poseprobe, d 200 m az 0 deg, fill 83.4%. DUSK AND NOT MIDNIGHT: a 91-member '
+          + 'lattice reads by silhouette, and the midnight arm is a black sky with a city '
+          + 'glow under it and no mast in it. `LANDMARKS` calls it guyed and the word "guy" '
+          + 'appears nowhere in `src/`.',
+      }),
+      pose([L('weir').x, null, L('weir').z - L('weir').radius + 1], [L('weir').x, -8, L('weir').z + L('weir').radius - 1], {
+        key: 'weir',
+        group: 'the city',
+        label: 'weir basin',
+        proves: 'ON THE RIM, looking across and down. `basinProfile` is a 105 m lip at '
+          + '+0.4 m over a floor at −10.9, and a bowl cannot be seen into from outside it: '
+          + "poseprobe's own best pose, 320 m out at its one clear azimuth of 24, delivers a "
+          + 'street with people on it and no basin at all. The line of sight from an eye at '
+          + '1.74 over a lip at 0.4 does not reach a floor 10.9 m down until 424 m past it, '
+          + 'and the bowl is 210 m across. 26 149 m2 and 4 999 m2 of jointless concrete, '
+          + 'the two biggest single surfaces in the city.',
+      }),
+      pose([0, null, 121], [0, 16, 11], {
+        key: 'viaduct',
+        group: 'the city',
+        label: 'the viaduct',
+        t: 0.78,
+        proves: 'UNDER THE DECK, from the south, looking north along the street it crosses: '
+          + 'the soffit at 18.2 m, the piers and the whole arc going over. The one structure '
+          + 'in the city that is not orthogonal to the grid and the most articulated object '
+          + 'in the project. A first arm stood 240 m east on poseprobe\u2019s fullest '
+          + 'azimuth and delivered a shopfront wall.',
+      }),
+    ];
+    destCache = { seed, list };
+    return list;
   }
 
   // -------------------------------------------------------------------------
@@ -844,6 +1136,28 @@ export function createUi(options = {}) {
     g.strokeRect(o0.x, o0.y, o1.x - o0.x, o1.y - o0.y);
     g.setLineDash([]);
 
+    /**
+     * --- THE DESTINATIONS, MARKED WHERE THEY STAND AND POINTING WHERE THEY
+     * LOOK. A destination is a pose and not a place, so the marker carries the
+     * bearing too — which is also the cheapest check on the list itself: a
+     * tick whose whisker points away from its own subject is a pose that has
+     * stopped proving what it says it proves, and LOOK.md §7 says that is a
+     * defect somebody can notice.
+     */
+    for (const d of destinations(rootSeed)) {
+      const p = toPx(d.eye[0], d.eye[2]);
+      const q = toPx(d.look[0], d.look[2]);
+      const dl = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+      g.strokeStyle = 'rgba(122,196,214,0.55)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(p.x, p.y);
+      g.lineTo(p.x + ((q.x - p.x) / dl) * 13, p.y + ((q.y - p.y) / dl) * 13);
+      g.stroke();
+      g.fillStyle = '#7ac4d6';
+      g.beginPath(); g.arc(p.x, p.y, 2.6, 0, Math.PI * 2); g.fill();
+    }
+
     // --- where the eye is now.
     const cam = ctx.camera;
     const me = toPx(cam.position.x, cam.position.z);
@@ -957,6 +1271,41 @@ export function createUi(options = {}) {
     setMapOpen(ctx, false);
   }
 
+  /**
+   * ARRIVING. One call, and the three things a destination carries.
+   *
+   * `resetHistory` is `teleport`'s own (`player.js`), and `setTimeOfDay` emits
+   * `discontinuous: true` for the same reason — CONTRACT §5.10, a previous
+   * frame that describes a different world.
+   */
+  function goTo(ctx, d) {
+    const player = ctx.get('player');
+    if (!player || !player.teleport) {
+      mapFoot.textContent = 'no player module — add ?player=1 to the URL';
+      return;
+    }
+    player.teleport(d.eye[0], d.eye[1], d.eye[2], d.yawDeg, d.pitchDeg);
+    /**
+     * A DESTINATION MAY CARRY A TIME OF DAY AS A SUGGESTION — item 2c, and it
+     * is a suggestion in the plainest sense: it sets the four-preset menu that
+     * already exists and the operator can press any other one. The airfield's
+     * approach row at noon shows nothing.
+     */
+    if (d.t != null) {
+      const time = ctx.get('time');
+      if (time) {
+        time.setTimeOfDay(d.t);
+        const i = PRESETS.findIndex((pp) => pp.t === d.t);
+        if (i >= 0 && presetRow) { activePreset = i; markGroup(presetRow, i); }
+      }
+    }
+    mapFoot.textContent =
+      `${d.label} — ${d.eye[0].toFixed(0)}, ${d.feetY.toFixed(2)}, ${d.eye[2].toFixed(0)}  ` +
+      `yaw ${d.yawDeg.toFixed(0)}\u00b0 pitch ${d.pitchDeg.toFixed(0)}\u00b0` +
+      `${d.t == null ? '' : `  t ${d.t}`}\n${d.proves}`;
+    setMapOpen(ctx, false);
+  }
+
   function setMapOpen(ctx, on) {
     mapOpen = !!on;
     mapWrap.classList.toggle('on', mapOpen);
@@ -990,6 +1339,7 @@ export function createUi(options = {}) {
       const timeRow = el('div', 'row');
       timeRow.appendChild(el('span', 'lbl', 'time'));
       const presetBox = el('span', 'row');
+      presetRow = presetBox;
       presetBox.style.background = 'none';
       presetBox.style.padding = '0';
       PRESETS.forEach((p, i) => {
@@ -1138,7 +1488,32 @@ export function createUi(options = {}) {
       mapWrap = el('div');
       mapWrap.id = 'noctis-map';
       mapCanvas = el('canvas');
-      mapFoot = el('div', 'foot', 'click a walkable place to teleport — M or Esc to close');
+      mapFoot = el('div', 'foot',
+        'click a walkable place to teleport, or pick a destination — M or Esc to close');
+
+      /**
+       * THE DESTINATION PANEL. Plain buttons in two groups, and the groups are
+       * "the world" first because the world is what the operator has never
+       * seen. Each button's `title` is the pose's own `proves` sentence, so the
+       * claim travels with the thing that makes it.
+       */
+      destPanel = el('div', 'dests');
+      let lastGroup = null;
+      for (const d of destinations(rootSeed)) {
+        if (d.group !== lastGroup) {
+          destPanel.appendChild(el('h4', null, d.group));
+          lastGroup = d.group;
+        }
+        const b = button(d.label, () => goTo(ctx, d));
+        b.title = d.proves;
+        if (d.t != null) {
+          const t = el('span', 't', PRESETS.find((pp) => pp.t === d.t).label);
+          b.appendChild(t);
+        }
+        destPanel.appendChild(b);
+      }
+
+      mapWrap.appendChild(destPanel);
       mapWrap.appendChild(mapCanvas);
       mapWrap.appendChild(mapFoot);
       document.body.appendChild(mapWrap);
@@ -1186,6 +1561,21 @@ export function createUi(options = {}) {
           weather: activeWeather < 0 ? null : WEATHER[activeWeather].label,
         }),
         openMap: (on) => setMapOpen(ctx, on !== false),
+        /**
+         * The destinations, for a probe. No verdicts — and it hands out the
+         * SAME objects the buttons call `goTo` with, so a frame shot from this
+         * list is a frame of the pose that ships. A verification that rebuilt
+         * the pose beside the thing it verifies is CONTRACT §9.1's own subject
+         * with a camera, which is the mistake `tools/lib/poses.mjs` was created
+         * in session 70 to stop.
+         */
+        destinationList: () => destinations(rootSeed),
+        goTo: (key) => {
+          const d = destinations(rootSeed).find((q) => q.key === key);
+          if (!d) return false;
+          goTo(ctx, d);
+          return true;
+        },
       };
     },
 

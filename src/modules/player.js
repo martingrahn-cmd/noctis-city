@@ -671,11 +671,31 @@ export function createPlayer(options = {}) {
          * `setShotAt` — a gate whose subject the operator places measures the
          * operator.
          */
-        teleport: (x, y, z, yawDeg) => {
+        teleport: (x, y, z, yawDeg, pitchDeg) => {
           feet.set(x, y != null ? y : 0, z);
           readSurface(ctx, feet.x, feet.z);
           if (y == null) feet.y = surface.y;
           if (yawDeg != null) yaw = yawDeg * DEG;
+          /**
+           * AND A PITCH — SESSION 79, AND IT IS AN ARGUMENT AND NOT A FEATURE.
+           *
+           * The map's destination list arrives at a POSE, and LOOK.md §7's rule
+           * — bought at the price of three committed poses that lied about
+           * their own subject — is that a pose is stated with what it proves.
+           * A destination that puts the operator 200 m from a 186 m mast and
+           * leaves the pitch wherever the last mouse movement left it does not
+           * show the mast; a `--target` in `lookat.mjs` is three numbers and a
+           * yaw alone is one, so verifying a destination with a frame and
+           * delivering it with a yaw would be verifying a different pose from
+           * the one shipped.
+           *
+           * Clamped by the same `PLAYER.maxPitchRad` the mouse is, because a
+           * destination is not licensed to put the eye somewhere the controller
+           * would refuse to hold it.
+           */
+          if (pitchDeg != null) {
+            pitch = Math.max(-PLAYER.maxPitchRad, Math.min(PLAYER.maxPitchRad, pitchDeg * DEG));
+          }
           fallVel = 0;
           /**
            * THE TAA HISTORY IS A DESCRIPTION OF A DIFFERENT WORLD NOW — session
