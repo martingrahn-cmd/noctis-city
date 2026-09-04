@@ -3430,8 +3430,112 @@ export function createTraffic(options = {}) {
          * sits beside — only when a new worst is found.
          */
         worstStopLineWitness: null,
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * THE CENSUS `worstStopLineM` CANNOT SEE — SESSION 79, ITEM 4.
+         * ═══════════════════════════════════════════════════════════════════
+         * The operator, walking the running build: *"cars stop in the middle of
+         * the road, and I think it goes red for them AFTER they have passed, so
+         * they stop at the next line, which is the far side of the junction."*
+         *
+         * **RIGHT PREDICATE, WRONG POINT — §9's oldest class, and this time it
+         * is the OBSERVER's point rather than the code's.** There is no far-side
+         * line. `nextJunctionAhead` returns only lattice nodes ahead in `dir`
+         * and `− STOP_LINE` always subtracts back TOWARD the vehicle, so the bar
+         * a `+x` driver obeys is `jx − 9.00` and the bar at `jx + 9.00` belongs
+         * to the opposing approach and is unreachable by any expression here.
+         * Swept over the real constants: `toStop = 0` puts the NOSE on 119.00
+         * for every body length, which is `stoplineprobe`'s own
+         * `past junction min −15.000 median −11.700 max −10.100` in closed form
+         * (`−(9.00 + len/2)` for bus, wedge, moto).
+         *
+         * **AND HE IS RIGHT THAT CARS STOP IN THE MIDDLE OF THE ROAD.** They do
+         * it with PERMISSION, and permission is exactly what `worstStopLineM`
+         * filters out: it is written only inside `if (veh.cleared !== nextJ)`.
+         * A vehicle that entered on green KEEPS its permission through the box
+         * — the code says so on purpose, *"the one thing worse than entering on
+         * red is stopping in the middle"* — so every vehicle that stops in the
+         * middle is, by construction, invisible to the statistic that exists to
+         * find vehicles stopped in the wrong place. The gate reads
+         * `raw 0  GREEN` while a 12 m bus stands with its nose 3.55 m past a
+         * junction centre.
+         *
+         * That is not a new mechanism. `budget.json` → `$minStopLineM_MEASURED_RED`
+         * named it in SESSION 21 — *"VEHICLES QUEUE INTO THE JUNCTION BOX. Car
+         * following stops a vehicle behind the one in front wherever that is,
+         * and nothing stops it entering a box whose exit is blocked"* — and
+         * asked for a re-measurement at dt = 1/60 and then an exit reservation.
+         * The re-measurement is these four counters. The reservation is not
+         * built, and item 4e says to say the cost rather than build it.
+         *
+         * COSTS: two comparisons per STOPPED vehicle. `stats.stopped` is 6 to 20
+         * of 120 on this route, and nothing here runs for a moving body.
+         */
+        inBoxStopped: 0,
+        inBoxStoppedPermitted: 0,
+        inBoxStoppedPastCentre: 0,
+        inBoxWitness: null,
+        /**
+         * AND THE OTHER HALF, WHICH IS §9.3'S CLASS EXACTLY. Vehicle-frames in
+         * which a vehicle is held at a bar for a junction WHOSE CROSSING ROAD
+         * DOES NOT EXIST — the river took it, or the origin block, or a
+         * landmark's footprint.
+         *
+         * Three readers of "is there a junction here" and they ask three
+         * different questions. The signal HEAD asks `landmarkOccupies` (session
+         * 35) and `cityExtentAt` (session 75), both at the head's own position.
+         * The PAINT asks `onRoad` before it draws a bar (`citygen.js`, the
+         * marking clip). **The braking point asks nothing at all.** So a vehicle
+         * can be held at a red for a crossing that is 100 m of open water, which
+         * is a car stopped in the middle of the road with nothing crossing it —
+         * and it is the operator's sentence with a different mechanism under it.
+         *
+         * Counted and not repaired, for item 4e's reason: `nextJunctionAhead` is
+         * called once per vehicle per frame and making it skip a node means
+         * giving it the vehicle's axis and line and a loop, which changes what
+         * every vehicle in the fleet does. That is a traffic-model change and
+         * the brief says to say the cost.
+         */
+        heldAtPhantomJunction: 0,
+        /**
+         * Run-cumulative. Turn exits at which the carried-over `cleared` would
+         * have equalled the junction ahead on the NEW road — permission granted
+         * by a coincidence of arithmetic. See the turn-exit block. Session 79.
+         */
+        staleTurnPermission: 0,
+        turnExits: 0,
         signalHeads: 0,
       };
+
+      /**
+       * "Does the road this junction is named for actually exist" — memoised,
+       * because the answer is a property of the world and not of the frame.
+       * Key is `axis,jNode,jLine`; the value is the reason or null.
+       */
+      const crossingCache = new Map();
+      const crossingMissing = (axis, jNode, jLineM) => {
+        const key = `${axis},${jNode},${jLineM}`;
+        const hit = crossingCache.get(key);
+        if (hit !== undefined) return hit;
+        // The junction centre, in world terms. `axis` 0 runs along x.
+        const jx = axis === 0 ? jNode : jLineM;
+        const jz = axis === 0 ? jLineM : jNode;
+        // The CROSSING road is the one on the other axis through that centre.
+        let why = null;
+        if (riverNoRoad(rootSeed, jx, jz, axis !== 0)) why = 'river';
+        else if (blockNoRoad(jx, jz)) why = 'block';
+        else if (landmarkOccupies(jx, jz)) why = 'landmark';
+        else if (cityExtentAt(jx, jz) <= 0) why = 'no city';
+        crossingCache.set(key, why);
+        return why;
+      };
+      /**
+       * Which nodes the cache has been asked about and what it said. Published
+       * on `stats()` so a probe can NAME the junctions rather than only count
+       * them — CONTRACT §7.2's rule that a count is paired with the thing it
+       * counted. Bounded by the lattice the camera has visited.
+       */
+      const phantomSeen = new Map();
 
       /** Hoisted for `writeSignals`: the frame loop must not allocate. */
       /**
@@ -3747,6 +3851,11 @@ export function createTraffic(options = {}) {
          */
         stats.frameWorstStopLineM = Infinity;
         stats.frameWorstStopLineWitness = null;
+        stats.inBoxStopped = 0;
+        stats.inBoxStoppedPermitted = 0;
+        stats.inBoxStoppedPastCentre = 0;
+        stats.inBoxWitness = null;
+        stats.heldAtPhantomJunction = 0;
 
         for (const bucket of tracks.values()) {
           for (let i = 0; i < bucket.length; i++) {
@@ -4058,6 +4167,65 @@ export function createTraffic(options = {}) {
               if (nose > near && tail < far) stats.pedConflictFrames++;
             }
 
+            /**
+             * THE CENSUS, AND IT IS OUTSIDE THE PERMISSION BRANCH ON PURPOSE —
+             * SESSION 79, ITEM 4. See `stats.inBoxStopped` for the argument.
+             *
+             * `past` is the ORIGIN's signed distance beyond the junction centre;
+             * `nose` and `tail` are the body's two ends on the same axis. The
+             * junction box is `roadHalfWidth` square about the centre, so any
+             * body with `nose > −7.5` and `tail < 7.5` has metal in it.
+             *
+             * `stats.stopped` is 6 to 20 of 120 on this route, so this runs a
+             * few times a frame and never for a moving body.
+             */
+            if (veh.v < 0.05) {
+              const past = (along - nextJ) * veh.dir;
+              const nose = past + frontM;
+              const tail = past - frontM;
+              const half = CITY.roadHalfWidth;
+              if (nose > -half && tail < half) {
+                stats.inBoxStopped++;
+                if (veh.cleared === nextJ) stats.inBoxStoppedPermitted++;
+                if (past > 0) stats.inBoxStoppedPastCentre++;
+                if (!stats.inBoxWitness || nose > stats.inBoxWitness.noseIntoBoxM) {
+                  stats.inBoxWitness = {
+                    /** How far the NOSE is past the junction centre. */
+                    noseIntoBoxM: +nose.toFixed(3),
+                    pastJunctionM: +past.toFixed(3),
+                    toStopM: +toStop.toFixed(3),
+                    type: type.name,
+                    lenM: type.len,
+                    permitted: veh.cleared === nextJ,
+                    phase,
+                    /** Which line it is testing against, in world coordinates. */
+                    barAtM: nextJ - veh.dir * STOP_LINE,
+                    junctionAtM: nextJ,
+                    axis: veh.axis,
+                    lineM: veh.line * CITY.chunkSize,
+                  };
+                }
+              }
+              /**
+               * AND WHETHER THE JUNCTION IT IS TESTING AGAINST HAS A CROSSING
+               * ROAD AT ALL. Only for a stopped body, so the memoised predicate
+               * runs a handful of times a frame.
+               */
+              if (toStop < 1.0) {
+                const lineM = veh.line * CITY.chunkSize;
+                const why = crossingMissing(veh.axis, nextJ, lineM);
+                if (why) {
+                  stats.heldAtPhantomJunction++;
+                  const jx = veh.axis === 0 ? nextJ : lineM;
+                  const jz = veh.axis === 0 ? lineM : nextJ;
+                  const k = `${jx},${jz}`;
+                  const rec = phantomSeen.get(k);
+                  if (rec) rec.samples++;
+                  else phantomSeen.set(k, { x: jx, z: jz, why, samples: 1 });
+                }
+              }
+            }
+
             if (veh.cleared !== nextJ) {
               limit = Math.min(limit, Math.sqrt(Math.max(0, 2 * BRAKE_A * Math.max(0, toStop))));
               if (veh.v < 0.05 && toStop < 1.0) {
@@ -4348,6 +4516,40 @@ export function createTraffic(options = {}) {
             veh.dir = exitDir;
             veh.s = entryLine * CITY.chunkSize + exitDir * (TURN_RADIUS + LANE_OFFSET[1] + over);
             veh.lastJ = null;
+            stats.turnExits++;
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND THE PERMISSION, WHICH `seed()` CLEARS AND THIS DID NOT —
+             * SESSION 79, ITEM 4.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `seed()` carries the paragraph, two thousand lines up, and it is
+             * this exact hazard: *"a junction id is a world coordinate, so on a
+             * lattice of identical 128 m spacing a stale one can equal the id
+             * of the junction it has just been re-seeded in front of. That is
+             * permission to run a red light, granted by a coincidence of
+             * arithmetic."*
+             *
+             * A TURN EXIT IS THE SAME RE-SEATING. `axis`, `line`, `dir` and `s`
+             * all change meaning in the four lines above and `lastJ` is nulled
+             * for it; `cleared` — the one that is a bare world coordinate — was
+             * carried over.
+             *
+             * **AND THE COINCIDENCE IS NOT RARE, IT IS ARITHMETIC.** `cleared`
+             * is `turn.j` = `jLine · 128`. The exit position is
+             * `entryLine · 128 + exitDir · 13.25`, so `nextJunctionAhead` on it
+             * is `(entryLine + exitDir) · 128`. The two are equal whenever
+             * `jLine === entryLine + exitDir` — a junction index one step from a
+             * line index, which happens all over a lattice whose two indices are
+             * independent. `stats.staleTurnPermission` counts it.
+             *
+             * One assignment, in the shape the file already uses six lines up.
+             */
+            if (veh.cleared !== null
+              && veh.cleared === nextJunctionAhead(veh.s, veh.dir)) {
+              stats.staleTurnPermission++;
+            }
+            veh.cleared = null;
             veh.turn = null;
             veh.indicating = 0;
           }
@@ -4855,6 +5057,14 @@ export function createTraffic(options = {}) {
             ...stats,
             /** Held vehicles by junction, this frame. An instrument; no threshold. */
             queueByJunction: Object.fromEntries(queueNow),
+            /**
+             * Every junction a stopped vehicle has been held at whose CROSSING
+             * ROAD does not exist, with the reason and how many vehicle-samples
+             * it took. Run-cumulative, because the answer is a property of the
+             * world and the camera visits each node once. CONTRACT §7.2: a
+             * count is paired with the thing it counted, so this names them.
+             */
+            phantomJunctions: [...phantomSeen.values()].sort((a, b) => b.samples - a.samples),
             body: bodyMotion.stats,
             light: lightMotion.stats,
             wheel: wheelMotion.stats,

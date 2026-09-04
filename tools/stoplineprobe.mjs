@@ -39,6 +39,30 @@
  * fixed speed because `traffic.js` seeds and recycles relative to the eye. No
  * placement, no integration and no signal logic is re-implemented.
  *
+ * ---------------------------------------------------------------------------
+ * SESSION 79 — AND IT NOW PRINTS THE POPULATION THE GATE CANNOT SEE.
+ *
+ * The operator, walking the running build: *"cars stop in the middle of the
+ * road, and I think it goes red for them AFTER they have passed, so they stop
+ * at the next line, which is the far side of the junction."*
+ *
+ * This probe's session-34 arm answers the first half and refutes the second:
+ * `worstStopLineM` is exactly 0, every held vehicle stands with its nose ON its
+ * bar, and there is no far-side line for any expression in `traffic.js` to
+ * return. But it answered that question about the WRONG POPULATION.
+ * `worstStopLineM` is written only inside `if (veh.cleared !== nextJ)`, and a
+ * vehicle that entered the box on green KEEPS its permission all the way
+ * through — deliberately, `traffic.js` says so — so **every vehicle that stops
+ * in the middle of a junction is excluded from the statistic that exists to
+ * find vehicles stopped in the wrong place.**
+ *
+ * So the second half of this print is the census: stopped bodies with metal
+ * inside a junction box, split by permission and by whether the origin has
+ * passed the centre; the deepest one, with THE LINE IT IS TESTING AGAINST AND
+ * WHERE THAT LINE IS; and the junctions whose crossing road does not exist at
+ * all, which the signal head refuses to stand at and the braking point has
+ * never asked about.
+ *
  * Usage:
  *   node tools/stoplineprobe.mjs                 12 signal cycles
  *   node tools/stoplineprobe.mjs --cycles=20
@@ -86,6 +110,17 @@ let held = 0;
 let framesWithHold = 0;
 let recycles = 0;
 
+/** Session 79's census, accumulated over the run. See the header. */
+let inBoxFrames = 0;
+let inBoxPermitted = 0;
+let inBoxPastCentre = 0;
+let phantomSamples = 0;
+let deepest = null;
+/** Episodes: a run of consecutive frames with somebody in a box. */
+let episodes = 0;
+let episodeRun = 0;
+let longestEpisode = 0;
+
 for (let f = 0; f < FRAMES; f++) {
   time.now = f * DT;
   time.frame = f;
@@ -105,6 +140,20 @@ for (let f = 0; f < FRAMES; f++) {
   if (s.frameWorstStopLineWitness) {
     witnesses.push({ frame: f, tSim: +(f * DT).toFixed(2), ...s.frameWorstStopLineWitness });
   }
+  inBoxFrames += s.inBoxStopped;
+  inBoxPermitted += s.inBoxStoppedPermitted;
+  inBoxPastCentre += s.inBoxStoppedPastCentre;
+  phantomSamples += s.heldAtPhantomJunction;
+  if (s.inBoxStopped > 0) {
+    episodeRun++;
+    if (episodeRun === 1) episodes++;
+    if (episodeRun > longestEpisode) longestEpisode = episodeRun;
+  } else {
+    episodeRun = 0;
+  }
+  if (s.inBoxWitness && (!deepest || s.inBoxWitness.noseIntoBoxM > deepest.noseIntoBoxM)) {
+    deepest = { frame: f, tSim: +(f * DT).toFixed(2), ...s.inBoxWitness };
+  }
 }
 
 const s = api.stats();
@@ -123,10 +172,16 @@ console.log(`${s.vehicles} vehicles, ${recycles} recycles over the run, ${frames
 console.log(`\nworstStopLineM = ${worst === Infinity ? 'Infinity — NOBODY WAS EVER HELD (unrun, not a pass)' : `${worst.toFixed(3)} m   raw ${worst}   ${worst < 0 ? 'RED' : 'GREEN'}`}` +
   `   against the floor of 0 in budget.json → trafficLights.minStopLineM`);
 
+/**
+ * SESSION 79: GUARDED RATHER THAN AN EARLY `exit(0)`. The census below is a
+ * DIFFERENT POPULATION and has to print whether or not a vehicle without
+ * permission was ever held — an early exit here is how the second half of this
+ * probe would silently not run on the day it mattered, which is the shape of
+ * every gate this project has had to repair for going quiet.
+ */
 if (!witnesses.length) {
   console.log('\nNo witness recorded — either nothing was held, or the witness field is not being written.');
-  process.exit(0);
-}
+} else {
 
 const q = (list, f) => {
   const a = [...list].sort((x, y) => x - y);
@@ -174,3 +229,69 @@ if (settled.length) {
   console.log('  reservation would not move this number, and building one would be a repair for a defect');
   console.log('  that is not there — CONTRACT §9 row 21a, with a junction instead of a viaduct deck.');
 }
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SESSION 79 — THE POPULATION THE STATISTIC ABOVE EXCLUDES BY CONSTRUCTION.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+console.log(`\n== STOPPED WITH METAL INSIDE A ${(2 * 7.5).toFixed(1)} m JUNCTION BOX, OVER ${FRAMES} FRAMES ==`);
+console.log('  `worstStopLineM` above is written ONLY for a vehicle WITHOUT permission (traffic.js).');
+console.log('  A vehicle that entered on green KEEPS permission through the box, on purpose, so every');
+console.log('  one of these is invisible to it. This is the operator\'s "cars stop in the middle of the road".\n');
+console.log(`  vehicle-frames stopped with body in a box            ${inBoxFrames}`);
+console.log(`    of those, HOLDING PERMISSION (invisible above)     ${inBoxPermitted}`);
+console.log(`    of those, ORIGIN past the junction centre          ${inBoxPastCentre}`);
+console.log(`  episodes (runs of consecutive frames)                ${episodes}` +
+  `${episodes ? `, longest ${longestEpisode} frames = ${(longestEpisode * DT).toFixed(2)} s` : ''}`);
+
+if (deepest) {
+  console.log('\n  THE DEEPEST ONE, AND THE LINE IT WAS TESTING AGAINST — item 4c:');
+  console.log(`    a ${deepest.type} (${deepest.lenM.toFixed(2)} m) at t = ${deepest.tSim} s, axis ${deepest.axis}, line ${deepest.lineM} m`);
+  console.log(`    junction centre at    ${deepest.junctionAtM.toFixed(2)} m along its own axis`);
+  console.log(`    the bar it is testing ${deepest.barAtM.toFixed(2)} m  ` +
+    `= junction ${deepest.barAtM < deepest.junctionAtM ? '−' : '+'} ${Math.abs(deepest.junctionAtM - deepest.barAtM).toFixed(2)} m ` +
+    `— the NEAR side, which is where it should be`);
+  console.log(`    its nose is           ${deepest.noseIntoBoxM.toFixed(3)} m PAST the junction centre`);
+  console.log(`    its origin is         ${deepest.pastJunctionM.toFixed(3)} m past the centre`);
+  console.log(`    toStop                ${deepest.toStopM.toFixed(3)} m, permitted ${deepest.permitted}, phase ${deepest.phase}`);
+  console.log('    THE BAR IS ON THE NEAR SIDE AND IT IS 9.00 m FROM THE CENTRE. There is no far-side');
+  console.log('    line: `nextJunctionAhead` returns lattice nodes AHEAD and `− STOP_LINE` subtracts back');
+  console.log('    toward the vehicle, so `jx + 9.00` belongs to the opposing approach and is unreachable.');
+  console.log('    The operator\'s predicate is right and his point is wrong — CONTRACT §9\'s oldest class.');
+} else {
+  console.log('\n  NOBODY EVER STOPPED INSIDE A BOX IN THIS RUN.');
+}
+
+const phantom = api.stats().phantomJunctions || [];
+console.log('\n== HELD AT A BAR FOR A JUNCTION WITH NO CROSSING ROAD ==');
+console.log('  The signal HEAD asks `landmarkOccupies` (s35) and `cityExtentAt` (s75) before it stands;');
+console.log('  the PAINT asks `onRoad` before it draws a bar. The BRAKING POINT asks nothing at all.\n');
+console.log(`  vehicle-samples held at a phantom junction           ${phantomSamples}`);
+console.log(`  distinct junctions                                  ${phantom.length}`);
+for (const j of phantom.slice(0, 8)) {
+  console.log(`    (${j.x}, ${j.z})  crossing road taken by ${j.why}  ${j.samples} samples`);
+}
+if (!phantom.length) {
+  console.log('    none on this route — which is a statement about the route, not about the lattice.');
+}
+
+/**
+ * AND THE ONE THING THAT WAS REPAIRED RATHER THAN COUNTED — session 79.
+ * `seed()` nulls `veh.cleared` on a re-seat with a paragraph saying why; the
+ * TURN EXIT re-seats a vehicle onto a different road in the same way and did
+ * not. Counted before it was fixed, so the fix's own reach is on the record.
+ */
+const st = api.stats();
+console.log('\n== STALE PERMISSION CARRIED THROUGH A TURN ==');
+console.log(`  turn exits over the run                             ${st.turnExits}`);
+console.log(`  at which the carried `+'`cleared`'+` equalled the junction ahead   ${st.staleTurnPermission}`);
+console.log('  `cleared` is a bare world coordinate and the exit lands at');
+console.log('  `entryLine·128 + exitDir·13.25`, so the two coincide whenever');
+console.log('  `jLine === entryLine + exitDir` — a junction index one step from a line index.');
+console.log(`  ${st.staleTurnPermission === 0
+  ? 'LATENT ON THIS ROUTE, NOT DELIVERED: the camera walks one axis, so the two indices'
+    + '\n  stay far apart. It is nulled at the exit now, which changes nothing measurable here'
+    + '\n  and closes a coincidence `seed()` has had a paragraph about since session 18.'
+  : 'DELIVERED — and each one was permission to run a red, granted by arithmetic.'}`);
