@@ -9676,6 +9676,88 @@ export function createCity(options = {}) {
           // The planted terrace on each setback.
           push(l.x, h * (i + 1) + 0.5, l.z, hx - 1.5, 1.0, hz - 1.5, yaw,
             [0.07, 0.11, 0.05], 0.95);
+
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * AND THE FLOORS AND THE GALLERIES — SESSION 78, AND THIS WAS THE
+           * BAREST OBJECT IN THE CITY BY A WIDE MARGIN.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * Counted out of the running code: the stack was **14 boxes and 168
+           * triangles**, one albedo, one roughness. Seven plain cuboids, each
+           * 18.86 m tall, the largest with a single unbroken face of
+           * **1 470.9 m²** and 27 245 m² of wall in all — with no window, rib,
+           * course, cornice, joint or opening anywhere on it. `LANDMARKS` calls
+           * it a *"Mass-timber stepped RESIDENTIAL terrace"*: twenty-seven
+           * thousand square metres of dwelling with no way to see out.
+           *
+           * SESSION 73 DETAILED THREE OF THE EIGHT — condenser, exchange, dish,
+           * the three lathes — and wrote the sentence this repairs: **"no
+           * windows is not the same as no surface."** Its ranked defect #6,
+           * *"LARGE BARE SURFACES WITH NOTHING ON THEM, NOT FIXED"*, was scoped
+           * to ground scatter, so nothing in sessions 73-77 ever came back to
+           * the five box landmarks. The walk that opened this session found the
+           * stack from 1.3 km away as a blank cream wedge on the skyline, which
+           * is what STATE 73 §3 blamed on the `stack-street` POSE.
+           *
+           * THE VOCABULARY IS THE ONE ALREADY PAID FOR. `pushCore` is the same
+           * helper the exchange's pilasters, cornice and plinth ride, and every
+           * box here lands in the same `landmark:<name>:mass` InstancedMesh —
+           * **no new mesh, no new material, zero extra draw calls.**
+           *
+           * WHAT IT GETS, and all three are what a stepped timber terrace IS
+           * rather than decoration:
+           *
+           *   FLOOR BANDS   a slab edge every storey. `STOREY_M` = 3.4 m is a
+           *                 dwelling's floor-to-floor, so a step of 18.86 m is
+           *                 five of them, and the band is what gives a viewer a
+           *                 SCALE — session 73's own finding about the
+           *                 exchange's drum openings, which is that the
+           *                 openings are what say how big the thing is.
+           *   GALLERIES     a recessed balcony run under each band on the two
+           *                 long faces. Set back 0.55 m at 0.10 of the wall's
+           *                 albedo so the shadow does the work, which is
+           *                 exactly the arrangement the viaduct's abutment
+           *                 recess uses.
+           *   CORNER PIERS  the mass-timber frame expressed at the four
+           *                 corners, 1.2 m proud, breaking the 78 m face into
+           *                 three reads instead of one.
+           *
+           * COST, counted from the code rather than estimated: a step is
+           * 18.857 m, so `floors` is `round(18.857 / 3.4)` = **6**; each step
+           * takes 6 bands + 2 x 5 galleries + 4 piers = 20 boxes, and all seven
+           * steps clear the `hx <= 6` break (78.0 down to 25.2 m). **140 boxes,
+           * 1 680 triangles** against 163 040 of headroom — **1.03% of it, and
+           * 0 draws.** The band pitch is 18.857/6 = 3.14 m, so the largest
+           * unbroken face falls from **1 470.9 m² to about 245 m²** — a sixth,
+           * and broken again by the galleries on the two long faces.
+           */
+          const STOREY_M = 3.4;
+          const floors = Math.max(1, Math.round(h / STOREY_M));
+          const band = albedo.map((c) => c * 0.82);
+          const recess = albedo.map((c) => c * 0.10);
+          for (let k = 1; k <= floors; k++) {
+            const y = h * i + (k / floors) * h;
+            /** The slab edge, proud of the wall on all four sides. */
+            push(l.x, y, l.z, hx + 0.5, 0.34, hz + 0.5, yaw, band, 0.86);
+            /**
+             * The gallery under it, on the two faces the step is widest across.
+             * Inset on the OTHER axis so the run stops short of the corner
+             * piers rather than cutting through them.
+             */
+            if (k < floors) {
+              const gy = y - 1.35;
+              push(l.x, gy, l.z + hz / 2 - 0.55, hx - 3.4, 2.1, 0.5, yaw, recess, 0.9);
+              push(l.x, gy, l.z - hz / 2 + 0.55, hx - 3.4, 2.1, 0.5, yaw, recess, 0.9);
+            }
+          }
+          /** The frame at the corners: three reads across a 78 m face. */
+          for (const sx of [-1, 1]) {
+            for (const sz of [-1, 1]) {
+              push(l.x + sx * (hx / 2 - 0.6), h * (i + 0.5), l.z + sz * (hz / 2 - 0.6),
+                1.2, h, 1.2, yaw, band, 0.8);
+            }
+          }
         }
         break;
       }
@@ -10379,7 +10461,30 @@ export function createCity(options = {}) {
             pushCore(l.x + Math.cos(a) * 3.2, l.height + 2.4, l.z + Math.sin(a) * 3.2,
               1.5, 5.0, 1.1, (-a * 180) / Math.PI, shade, rough);
           }
-          pushCore(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, shade, rough);
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * EIGHT ARGUMENTS INTO A SEVEN-ARGUMENT SLOT — SESSION 78.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * `pushCore(x, y, z, sx, sy, sz, yaw = 0, a = albedo, r = rough)`.
+           * This read `pushCore(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, shade,
+           * rough)` — so **`shade`, a three-element array, landed in `yawDeg`**
+           * and `rough`, a number, landed in `a`. `setMatrix` does
+           * `tmpEuler.set(0, yawDeg * DEG, 0)` on an array, which is **NaN**,
+           * and `addInstanced` then does `setRGB(a[0], a[1], a[2])` on a number,
+           * which is three `undefined`s. The exchange's lantern cap has been an
+           * instance with a NaN matrix and an undefined colour since session 73
+           * built it: it draws nothing, degrades nothing, and warns nobody.
+           *
+           * It is CONTRACT §9's shape with an ARGUMENT POSITION — one quantity
+           * standing in for another because the call site counted wrong — and
+           * it is invisible for the same reason session 75's black hangar lid
+           * was: a thing that fails to draw and a thing that was never emitted
+           * look identical in a frame.
+           *
+           * The yaw a cap wants is the lantern's own, which is 0.
+           */
+          pushCore(l.x, l.height + 5.4, l.z, 8.0, 1.0, 8.0, 0, shade, rough);
         }
         break;
       }
