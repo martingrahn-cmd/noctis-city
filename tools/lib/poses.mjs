@@ -88,9 +88,49 @@ export function presets() {
      * in the carriageway — which is where a person looking at a landmark is.
      */
     const rawX = l.x + d * 0.72;
-    const snapX = Math.round(rawX / 128) * 128;
+    const pz = l.z + Math.sign(d) * Math.hypot(d, d * 0.72) * 0.86;
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND OUTSIDE EVERY OTHER LANDMARK'S FOOTPRINT TOO — SESSION 77, AND THE
+     * COMMENT FOUR LINES UP DESCRIBED THE DELIVERED FRAME EXACTLY.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * It says the stand-off keeps the camera *"outside ITS OWN footprint — a
+     * 44 m overhang seen from 30 m inside it is a photograph of a ceiling."*
+     * There are eight landmarks and the guard was written for one of them, so
+     * the snap that puts the eye on a carriageway was free to put it under a
+     * different landmark.
+     *
+     * MEASURED OVER ALL SEVEN `-street` POSES: exactly one is inside another's
+     * AABB, and it is `condenser-street`. `rawX` = −149.2 snaps to **−128**,
+     * which is a 128 m road line that runs through the DISH at (−150, −160) —
+     * eye-to-dish axis 25.7 m, well inside its 48.2 m half-extent. The
+     * delivered frame at noon is **the underside of the dish across 60% of it,
+     * with the 260 m condenser this pose is named for nowhere in the frame at
+     * all.** A photograph of a ceiling, as promised, from the landmark next
+     * door.
+     *
+     * That is worse than `viaduct-under`, which session 70 retired for being
+     * 60.3% one wall: this one shows a DIFFERENT SUBJECT. And it is worse than
+     * `country-air`, which at least looks at the right buildings.
+     *
+     * The repair steps out along the same 128 m lattice until the eye is clear
+     * of every landmark, which keeps the pose on a carriageway — the property
+     * the snap exists for. `condenser-street` moves −128 → −256 and no other
+     * pose moves at all.
+     */
+    const insideAny = (x, z) => LANDMARKS.some((o) => {
+      const b = landmarkAABB(o);
+      return x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1;
+    });
+    let snapX = Math.round(rawX / 128) * 128;
+    if (insideAny(snapX, pz)) {
+      for (const k of [1, -1, 2, -2, 3, -3]) {
+        if (!insideAny(snapX + k * 128, pz)) { snapX += k * 128; break; }
+      }
+    }
     out[`${name}-street`] = {
-      pos: [snapX, eye, l.z + Math.sign(d) * Math.hypot(d, d * 0.72) * 0.86],
+      pos: [snapX, eye, pz],
       target: [l.x, Math.max(4, l.height * 0.45), l.z],
       fov: 55,
     };

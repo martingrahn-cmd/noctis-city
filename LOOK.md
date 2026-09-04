@@ -2374,6 +2374,65 @@ further 0.008, or about three more code values of black. **That is the whole
 size of the argument, and it is a question for the operator rather than a
 decision for a session.**
 
+### A POSE IS AN INSTRUMENT — SESSION 77, 2026-09-04, AND IT IS A RULE NOW
+
+Three committed poses have been found lying and each cost more than the frame
+that found it. **`country-air`** looks at the villas' deliberately blank backs
+from 710 m, so it read black whether they were lit or not, and STATE repeated
+*"the villas are dark"* for five sessions on its authority — worse than showing
+nothing, because it answered and was believed. **`viaduct-under`** was 60.3% one
+building wall a few metres from the lens and judged the whole of session 67's
+item 1; retired in session 70. **`af-hangar-back`** was taken in session 76 as
+an opposed bearing and opposes nothing — it looks down a corridor between two
+hangars.
+
+> **A POSE IS STATED WITH WHAT IT PROVES, AND A POSE THAT STOPS PROVING IT IS A
+> DEFECT SOMEBODY CAN NOTICE.** That is the whole of the rule and it is cheap:
+> the sentence goes beside the coordinates, and any session can read the
+> sentence and then the frame.
+>
+> **AND A NIGHT SUBJECT IS SHOT FROM TWO OPPOSED BEARINGS.** Session 76 bought
+> that rule for two frames and it immediately caught two of its own claims — a
+> mast row that reads lit from behind because a `flood` carries an
+> omnidirectional bowl as well as a directional rack, and a frame it had itself
+> named an opposed bearing and which was not one.
+
+**THE WHOLE COMMITTED SET WAS AUDITED IN SESSION 77 AND THE GENERATOR IS THE
+FINDING, NOT THE POSES.** Seven of the twenty-three presets are built by one
+loop in `tools/lib/poses.mjs`, which stands the eye back by
+`max(70, height·1.5, halfExtent + 55)` and snaps one axis to the 128 m road
+lattice. That formula guarantees the landmark FITS IN A 55° FRAME. **It never
+asks whether anything is in the way** — and `tools/poseprobe.mjs` has existed
+since session 26 to ray-test exactly that, and the generator does not call it.
+A mechanism exists and nothing calls it, which is now the seventh instance in
+this project.
+
+What the audit found, by ray-testing every `-street` pose against the delivered
+building occluders and then LOOKING at the ones it accused:
+
+| pose | verdict |
+|---|---|
+| `weir-street`, `stack-street` | blocked, and already recorded. The calibration: both fall out of the arithmetic alone. |
+| **`condenser-street`** | **the eye stood inside the DISH.** Confirmed by frame: the delivered noon shot is the underside of a different landmark across 60% of it, with the 260 m condenser nowhere in it. |
+| `arch-street` | accused of 0% visibility; **the frame refutes the model** — a leg and its stays are there. It still does not read as a 96 m arch. |
+| `sea-road` | STATE 70 §3e recorded that it *"does not show the sea"*. Never fixed; four commits have touched that file since. |
+| `af-approach` | proves its approach row and threshold. Its *"and the runway edge rows"* is **4 stations of 50**. |
+| `mast-street`, `dish-street`, `exchange-street` | clear. |
+
+**THE ONE REPAIR MADE, AND WHY ONLY ONE.** The stand-off comment says the eye is
+kept *"outside ITS OWN footprint — a 44 m overhang seen from 30 m inside it is a
+photograph of a ceiling"*. There are eight landmarks and the guard was written
+for one, so the snap that puts the eye on a carriageway was free to put it under
+a neighbour. Exactly one of the seven is affected and the frame is exactly what
+the comment predicts. The guard now tests every landmark; `condenser-street`
+moves x −128 → −256 and no other pose moves.
+
+**AND THE REPAIRED FRAME STILL DOES NOT SHOW THE CONDENSER**, which is the part
+worth carrying forward. Removing the ceiling did not deliver the subject: the
+street canyon is in the way, which is `stack-street`'s and `arch-street`'s defect
+and needs a re-sited eye rather than a snap. **A pose can be wrong in more than
+one way at once, and fixing the one you measured does not make the frame true.**
+
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 
 Written as a question and not a statement, per §8. Session 44 made rainfall a
