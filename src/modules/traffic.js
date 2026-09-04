@@ -3114,7 +3114,10 @@ export function createTraffic(options = {}) {
           const score = initial ? 0 : ahead;
           if (score > bestScore) { bestScore = score; best = { axis, line, dir, lane, s }; }
         }
+        /** Session 77 — false exactly when the fallback below fires. See `veh.onRoad`. */
+        let onRoad = true;
         if (!best) {
+          onRoad = false;
           // Twelve candidates all inside the clearance or outside the ring is
           // possible only if the ring is degenerate. Park it at the far edge of
           // the camera's own street, which is always outside both.
@@ -3178,6 +3181,33 @@ export function createTraffic(options = {}) {
         veh.servedAt = null;
         veh.stopRec = null;
         veh.recycled = true;
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND WHETHER IT IS ON A ROAD AT ALL — SESSION 77.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * `placed` is set unconditionally below and means *"this body has a
+         * position other seeds must avoid"*. It is TRUE for the fallback too,
+         * and the fallback is a body on bare ground. Nothing has ever asked the
+         * second question, so nothing could tell the two apart.
+         *
+         * Outside `CITY.extentEdgeM` the fallback is not the degenerate case
+         * its own comment calls it — **it is every seed, every frame**. There is
+         * no lattice out there, so all twelve candidates fail the extent test
+         * eighteen lines up, `best` stays null, and the fallback parks the body
+         * at `cam.x + SIM_RADIUS·0.8` with no extent test of its own. The
+         * recycle pass then judges that same position off-road (the
+         * `cityExtentAt(pos.x, pos.z) <= 0` line it already carries) and seeds
+         * it again. Measured at the harbour eye, 240 frames: **28 920
+         * fallbacks, 120.5 per frame — every vehicle, every frame, forever.**
+         *
+         * It is the same defect as STATE 75 §3's traffic signal, in the same
+         * file, one function over: the vehicle placer has asked
+         * `cityExtentAt(x, z) <= 0` since session 34 and the FALLBACK never
+         * did. A predicate applied to the main path and not to the branch
+         * beside it.
+         */
+        veh.onRoad = onRoad;
         /**
          * From here this vehicle is somewhere real, so it becomes an obstacle
          * for every later seed. Set LAST, after `best` has been written, so a
@@ -4523,7 +4553,48 @@ export function createTraffic(options = {}) {
          */
         if (lampPool.length) {
           lampOrder.length = 0;
-          for (let i = 0; i < vehicles.length; i++) lampOrder.push(i);
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * A BODY THAT IS NOT ON A ROAD DOES NOT GET A HEADLAMP — SESSION
+           * 77, AND IT IS THE LINE BELOW THAT MAKES THE NEXT ONE REACHABLE.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * `lampOrder` was every vehicle index, so `lampOrder.length` was
+           * `VEHICLE_COUNT` = 120, `lit` was `min(96, 120)` = 96 = the pool's
+           * own length, and **`if (k >= lit)` on the next line could never
+           * run.** The one switch that turns a headlamp off has been dead code
+           * since it was written; every one of the 96 has been lit at every
+           * point in the world at night, on `lampsOn` alone.
+           *
+           * MEASURED, AND IT IS A FROXEL AND NOT A PHOTON. At the `sea-harbour`
+           * eye all 120 bodies take the seed fallback every frame, which parks
+           * them at `cam.x + SIM_RADIUS·0.8` on the camera's own z-line — so
+           * the nearest 96 headlamps sit on **seven distinct points inside
+           * 4.41 m of each other**, 163 m out over open water. Identical
+           * positions produce identical froxel boxes, so all 96 land in each of
+           * the same **18 froxels: `peak 96 of 96`, `clustersAtCap 18`,
+           * `overflow FALSE`** — the cap is only breached on the 97th push, so
+           * a froxel that is exactly full reports clean. Session 76 saw
+           * `clustered 99 resident, peak froxel 96 of 96` twice at that pose
+           * and could not say what was in it. This is what was in it: 96 + the
+           * two quay lamps' beam and spill + the orbiter's searchlight.
+           *
+           * It costs a 96-iteration loop in every lit fragment of the left 19%
+           * of that frame and delivers nothing — the region is open sea, and
+           * `HEAD_RADIUS` is 20 m. **A cost defect, not a look defect**, which
+           * is why sixty sessions of frames never showed it.
+           *
+           * IT CANNOT MOVE ANYTHING INSIDE THE CITY, and that is arithmetic
+           * rather than hope: the fallback fires only when all twelve
+           * candidates fail `cityExtentAt(x, z) <= 0`, which cannot happen
+           * inside `CITY.extentEdgeM`. There, every body is `onRoad`, this
+           * filter removes nobody, `lampOrder.length` is 120 as before and
+           * `lit` is 96 as before.
+           */
+          for (let i = 0; i < vehicles.length; i++) {
+            if (vehicles[i].onRoad === false) continue;
+            lampOrder.push(i);
+          }
           lampOrder.sort((a, b) => vehicles[a].d2 - vehicles[b].d2);
           const lit = Math.min(lampPool.length, lampOrder.length);
           for (let k = 0; k < lampPool.length; k++) {
