@@ -2962,6 +2962,44 @@ export function createCity(options = {}) {
     elongated: false,
   };
   /**
+   * A CONTAINER QUAY'S FLOODLIGHT MAST — session 77. `LIGHT.quayFloodCandela`
+   * carries the intensity's derivation; this is the shape it arrives in.
+   *
+   * CIRCULAR AND WITHOUT A BATWING, for the reasons `APRON_FLOOD_OPTIC` gives
+   * — a quay is a 448 × 92 m rectangle and a mast throwing across it is a cone,
+   * and a fixture already aimed at the far end of its own pool must not have
+   * 1/cos³ brighten the far edge again.
+   *
+   * 37 DEGREES, SOLVED FROM THE SPACING AND NOT FROM A PATCH. Six masts over
+   * the quay's 448 m give a pitch of 74.67 m, so pools meet when the half-width
+   * at the aim point reaches half of that: `atan(37.33 / 51.16)` = **36.1°**,
+   * and 37 leaves 1.3 m of overlap. The airfield solved its pitch from its cone
+   * and this solves its cone from its pitch, which is the same equation read
+   * the other way — there the apron's width was free and here the quay's is
+   * not, because the masts have to sit in the one 7.81 m lane the container
+   * blocks and the carrier runs leave open.
+   *
+   * SODIUM, AND IT IS SESSION 71'S SCHEME RATHER THAN A NEW DECISION. That
+   * session built this harbour *"warm sodium outside and cold fluorescent in"*
+   * and every outdoor emitter on the site obeys it — the gantries' under-portal
+   * floods, the boom floods, the gatehouse canopy. The airfield's masts are
+   * `fluorescentCold` because a metal-halide apron opposes a sodium city; the
+   * quay's are sodium because the quay is already sodium, and two landscapes
+   * that read as different KINDS of night is worth more than one more cold
+   * surface. `EMITTER_CHROMA` is luminance-normalised, so the choice costs
+   * nothing and the derived intensity stands either way.
+   */
+  const QUAY_FLOOD_OPTIC = {
+    chroma: EMITTER_CHROMA.sodium,
+    coneOuter: (37 * Math.PI) / 180,
+    coneInner: (26 * Math.PI) / 180,
+    peakCos: 0,
+    alongScale: 1,
+    acrossScale: 1,
+    sourceRadius: 0.9,
+    elongated: false,
+  };
+  /**
    * m. Half the column's claim, which is the pole's widest radius: the taper in
    * `buildGeometries` is `CylinderGeometry(0.11, 0.15)`. Read by the claim
    * pushed in `buildChunkBody`, by the ad pillar's refusal and by the corner
@@ -5174,10 +5212,24 @@ export function createCity(options = {}) {
            * landscape that also moves nine masts in three others is a change
            * whose gate numbers nobody can attribute.
            */
-          const stem = f.apron === 1 ? 0.70 : 0.20;
-          const pad = f.apron === 1 ? 3.2 : 0.9;
+          const highMast = f.apron === 1 || f.quay === 1;
+          const stem = f.quay === 1 ? 0.80 : f.apron === 1 ? 0.70 : 0.20;
+          const pad = f.quay === 1 ? 3.4 : f.apron === 1 ? 3.2 : 0.9;
+          /**
+           * AND A QUAY MAST IS DARK STEEL — SESSION 77, WHICH IS SESSION 71'S
+           * OWN ARGUMENT APPLIED TO THE THING IT WAS MADE FOR.
+           *
+           * That session took the gantries to `[0.105, 0.115, 0.135]` because
+           * *"pale steel goes white against a lit sky and the shape
+           * disappears"* — and then stood three floodlight masts beside them in
+           * `[0.34, 0.345, 0.352]`, which is the pale steel it had just
+           * removed, because the mast is a shared feature kind and the decision
+           * was made in the crane's branch. A default that did not travel FAR
+           * ENOUGH: the same §9.2 shape, at a range of thirty metres.
+           */
+          const steel = f.quay === 1 ? [0.105, 0.115, 0.135] : [0.34, 0.345, 0.352];
           put(0, 0.14, 0, pad, 0.28, pad, [0.30, 0.298, 0.288], 0.9);
-          put(0, f.height * 0.5, 0, stem, f.height, stem, [0.34, 0.345, 0.352], 0.55);
+          put(0, f.height * 0.5, 0, stem, f.height, stem, steel, 0.55);
           /**
            * AND A HEAD ON IT — session 71, ON THE HARBOUR'S MASTS AND NOT ON
            * EVERY MAST IN THE CITY.
@@ -5221,12 +5273,20 @@ export function createCity(options = {}) {
              * disagree about a lamp's colour is `pushSignLight`'s own rule
              * (*"the light and the panel cannot disagree"*) with a mast.
              */
-            const rack = f.apron === 1;
+            const rack = highMast;
             const hw = rack ? 5.4 : 2.6;
             const hd = rack ? 1.8 : 1.2;
             put(0, f.height + 0.5, 0, hw, 0.9, hd, [0.22, 0.225, 0.235], 0.6, aim);
+            /**
+             * THE RACK IS THE COLOUR OF ITS OWN BEAM. `pushSignLight`'s rule —
+             * *"the light and the panel cannot disagree about what colour the
+             * sign is"* — with a mast: an apron rack is `fluorescentCold`
+             * because `APRON_FLOOD_OPTIC` is, and a quay rack is sodium
+             * because `QUAY_FLOOD_OPTIC` is and because session 71 built this
+             * whole harbour warm outside.
+             */
             glow(0, f.height + 0.4, 0, hw - 0.2, 0.7, aim,
-              rack ? EMITTER_CHROMA.fluorescentCold : EMITTER_CHROMA.sodium,
+              f.apron === 1 ? EMITTER_CHROMA.fluorescentCold : EMITTER_CHROMA.sodium,
               LIGHT.signPlateNits * (rack ? 11.0 : 7.0));
           }
         } else if (f.kind === 'crane') {
@@ -7753,7 +7813,28 @@ export function createCity(options = {}) {
           const py = baseY + f.height;
           const dx = f.aimX - px;
           const dz = f.aimZ - pz;
-          const dy = -f.height;
+          /**
+           * ═══════════════════════════════════════════════════════════════
+           * THE AIM'S DROP IS THE MAST'S HEIGHT PLUS ANY STEP UNDER IT —
+           * SESSION 77, AND THE HARBOUR HAS A 6.353 m STEP.
+           * ═══════════════════════════════════════════════════════════════
+           *
+           * `-f.height` assumes the aim point is at the MAST'S OWN BASE LEVEL,
+           * which is true of a construction site and of an apron and is false
+           * of a quay. `harbourSite` delivers two terraces — the working quay
+           * at y 2.117 and the yard at 8.470 — and session 71's three masts
+           * stand on the yard aiming at a point on the quay, so their beam
+           * axis was 6.353 m too shallow. Extended, the west mast's axis
+           * reaches quay level 243 m out, over open water: **no existing quay
+           * mast's beam touches ground anywhere inside its own falloff
+           * window.** Coded depression 4.81 / 8.77 / 5.22 degrees against the
+           * 15.8 the crane line needs.
+           *
+           * `aimDrop` is metres of extra fall from the mast's base to the aim
+           * point, and it defaults to 0 so every existing site and yard flood
+           * keeps exactly the vector it had.
+           */
+          const dy = -(f.height + (f.aimDrop || 0));
           const len = Math.hypot(dx, dy, dz) || 1;
           bowls.push(setMatrix(px, py, pz, 0.66, 0.42, 0.66, 0));
           /**
@@ -7811,12 +7892,22 @@ export function createCity(options = {}) {
            * 25 m. One number, two readers (§9.1).
            */
           const apron = f.apron === 1;
-          const site = !apron && f.height > DEAD_ZONE.yardLightHeightM;
+          /**
+           * AND A FOURTH FLOOD — SESSION 77, ON THE SAME ARGUMENT THE APRON'S
+           * MADE: the discriminator is the TASK and not the mounting height.
+           * EN 12464-2 gives a cargo quay 30 lx where ICAO gives an aircraft
+           * stand 20, so `quayFloodCandela` is derived and not borrowed. Its
+           * whole derivation is beside the constant.
+           */
+          const quay = f.quay === 1;
+          const site = !apron && !quay && f.height > DEAD_ZONE.yardLightHeightM;
           lamps.push({
             x: px, y: py, z: pz, axis: 'x', side: 1,
-            candela: apron ? LIGHT.apronFloodCandela
+            candela: quay ? LIGHT.quayFloodCandela
+              : apron ? LIGHT.apronFloodCandela
               : site ? LIGHT.siteFloodCandela : LIGHT.yardFloodCandela,
-            radius: apron ? LIGHT.apronFloodRadiusM
+            radius: quay ? LIGHT.quayFloodRadiusM
+              : apron ? LIGHT.apronFloodRadiusM
               : site ? LIGHT.siteFloodRadiusM : LIGHT.yardFloodRadiusM,
             dir: [dx / len, dy / len, dz / len],
             /**
@@ -7827,7 +7918,7 @@ export function createCity(options = {}) {
              * the harbour and two block interiors in a session that is about
              * the airfield. STATE §6 carries it.
              */
-            optic: apron ? APRON_FLOOD_OPTIC : undefined,
+            optic: quay ? QUAY_FLOOD_OPTIC : apron ? APRON_FLOOD_OPTIC : undefined,
           });
         }
       }

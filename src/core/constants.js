@@ -437,6 +437,64 @@ export const LIGHT = {
   apronFloodRadiusM: 210,
 
   /**
+   * cd, PEAK. A CONTAINER QUAY'S FLOODLIGHT MAST — SESSION 77, and it is the
+   * SIXTH in the family `parkLampCandela` started.
+   *
+   * IT IS NOT THE APRON'S NUMBER AND THE DIFFERENCE IS THE TASK, NOT THE
+   * PLACE. `apronFloodCandela` is ICAO Annex 14's **20 lx** on an aircraft
+   * stand, which its own derivation calls *"the SAME 20 lx as
+   * `yardFloodCandela`'s loading zone"*. **EN 12464-2's exterior-work table
+   * gives a cargo quay's "cargo handling, loading and unloading" 30 lx at
+   * Uo 0.25** — 1.5× the stand, because a gantry is putting a 30-tonne box on
+   * a lorry and a jet bridge is not. Reusing 144 000 here would have been
+   * CONTRACT §9.2 with a number this project derived itself two sessions ago,
+   * which is the easiest kind to carry unquestioned.
+   *
+   * (The container YARD behind it is the 20 lx one, and the site's own two
+   * terraces already draw that line. It is not lit separately here; the masts
+   * stand on the yard and throw across the step onto the quay, so the yard
+   * gets their near field and the quay gets their aim. Splitting it is a
+   * second luminaire and a later session's.)
+   *
+   * THE GEOMETRY IS THE HARBOUR'S OWN AND IT HAS A STEP IN IT. `harbourSite`
+   * delivers two terraces: the working quay at y **2.117** and the yard at
+   * **8.470**, a **6.353 m** cut face at z = −188. The masts seat in the one
+   * lane on the yard that takes a 3.2 m pad — z ∈ [−188, −180.195], clear of
+   * both container block rows and of all three straddle-carrier lanes — and
+   * throw ACROSS the step onto the quay. So the drop is not the mast:
+   *
+   *     mast   `HARBOUR.mastHeightM` = 30 m, standing at y 8.470
+   *     aim    z = −220, four metres inside the quay face, at y 2.117
+   *     throw  36.0 m         drop  30 + 6.353 = **36.353 m**
+   *     slant  d = hypot(36.0, 36.353) = **51.16 m**   (depression 45.3°)
+   *
+   * SIZE THE WINDOW FIRST, THEN DERIVE THROUGH IT — `siteFloodRadiusM`'s rule:
+   *
+   *     R >= 51.16 / 0.293 = 174.6 m  ->  **180 m**
+   *     window = (1 - 51.16/180)^2    =  0.5123
+   *     I = E·d²/window = 30 x 2617.3 / 0.5123 = 153 275 cd  ->  **153 000**
+   *
+   * CHECKED BACKWARDS (§9 rule 2): `I·window/d²` = **29.95 lx** at the aim
+   * point. ALL THE RATIOS (§9 rule 4): **1.06x an apron mast, 2.55x a site
+   * flood, 42.5x a yard flood, 22.5x a street lamp**, from a mast 1.20x an
+   * apron mast's height. It is within 6% of the apron's peak and it is NOT the
+   * apron's number: 1.5× the illuminance over a 0.85× shorter slant nearly
+   * cancels, and two derivations landing close together is the reassurance
+   * that neither was fitted to the other.
+   *
+   * AND R = 180 IS WHAT PUTS ANY OF IT IN THE COMMITTED FRAME. `updateLampPool`
+   * admits a lamp within `max(radius, CITY.chunkSize)` of the CAMERA, so the
+   * 180 decides how much of the row `sea-harbour` can see: at 157/147/172 m the
+   * west three are in and the east three (221/281/347 m) are not. A radius
+   * derived off a 14 m mast's throw is 130, and 130 sees none of them — which
+   * is why nine of the harbour's eleven existing fixtures are dark in that
+   * frame. The reach is EARNED BY THE THROW, and the throw by the height.
+   */
+  quayFloodCandela: 153000,
+  /** m. The window above, sized before the intensity was derived through it. */
+  quayFloodRadiusM: 180,
+
+  /**
    * lux, below which the photocell closes and the street lights up.
    *
    * Calibrated, not picked: this is the horizontal illuminance this atmosphere

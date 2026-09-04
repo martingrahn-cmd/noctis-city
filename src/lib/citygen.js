@@ -6387,6 +6387,26 @@ export const HARBOUR = {
   x0: 3904,
   x1: 4352,
   /**
+   * THE FLOODLIGHT MASTS — SESSION 77. These two numbers are the INPUT to
+   * `LIGHT.quayFloodCandela` rather than a description of it, and they are
+   * written down twice in two files that may not import each other
+   * (`parsecheck` forbids `src/lib` reading `src/core`) — `AIRFIELD
+   * .mastHeightM`'s own arrangement, and the same rule applies: what cannot be
+   * shared is stated at both ends so a change to one is a visible
+   * disagreement rather than a silent error in the illuminance.
+   *
+   * 30 m: real quay high masts run 30-40 m. This one stands UNDER the tallest
+   * gantry (41.5 m) so the crane line keeps the skyline, which is the argument
+   * `AIRFIELD.mastHeightM` makes about its control tower.
+   *
+   * 4 m inside the quay face: the aim point has to reach the seaward crane
+   * rail, which is the far edge of the working strip. Aiming at the quay's
+   * midpoint — which is what session 71's three masts all did, from three
+   * different places — is what put two of them past their own falloff window.
+   */
+  mastHeightM: 30,
+  mastAimInsetM: 4,
+  /**
    * The quay face, in world z. North of every point of the measured coast over
    * that run (-193 at its northernmost), so the wall stands IN the water for
    * its whole length and no stretch of it is stranded on land.
@@ -18512,9 +18532,79 @@ export function generateChunk(rootSeed, cx, cz) {
          * between two columns and the z is the strip inside the yard's landward
          * edge that no block reaches (blocks end at -137.6).
          */
-        for (const q of [[H.x0 + 84, H.yardZ - 2], [(H.x0 + H.x1) / 2 - 12, H.yardZ - 2], [H.x1 - 100, H.yardZ - 2]]) {
-          if (q[0] < b.x0 || q[0] >= b.x1 || q[1] < b.z0 || q[1] >= b.z1) continue;
-          features.push({ kind: 'flood', x: q[0], z: q[1], height: 14.0, head: 1, aimX: (H.x0 + H.x1) / 2, aimZ: H.quayZ });
+
+        /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND SESSION 77 MOVED THEM AGAIN, BECAUSE ALL THREE WERE BROKEN IN
+         * FOUR SEPARATE WAYS AND NOT ONE OF THEM WAS THE ONE SESSION 71 FIXED.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * Measured before anything was moved, at seed 1337:
+         *
+         *   1. THEY STOOD IN A MOVING STRADDLE CARRIER'S LANE. `river.js` runs
+         *      carrier 2 along z = `apronZ + 55` = -133 with a 5.0 m portal, so
+         *      its swept band is z[-135.5, -130.5] and all three masts sat at
+         *      z = -134. The portal beam passed through each column once a
+         *      stroke. Session 71 moved them out of the container blocks and
+         *      into a vehicle.
+         *   2. TWO OF THE THREE AIMED PAST THEIR OWN FALLOFF WINDOW. All three
+         *      carried one aim point, the quay's midpoint: slant ranges 167.0,
+         *      91.9 and 153.9 m against `siteFloodRadiusM` = 130, and the
+         *      Frostbite window is exactly ZERO at and beyond R. Two masts
+         *      aimed at a place their own light could not reach.
+         *   3. THE AIM IGNORED THE 6.353 m TERRACE STEP — `city.js` took the
+         *      drop as the mast's own height, which is true on a site and false
+         *      on a quay. Delivered depressions 4.81 / 8.77 / 5.22 degrees
+         *      against the 15.8 the crane line needs, so **no mast's beam axis
+         *      met ground inside its own radius**; the west one reached quay
+         *      level 243 m out, over open water. `f.aimDrop` fixes it.
+         *   4. AND THEY BURNED AT NOON, because `updateLampPool` exempts a
+         *      flood from the photocell by testing `l.candela ===
+         *      LIGHT.siteFloodCandela` — a VALUE standing in for a FIXTURE,
+         *      §9's own shape. A quay flood carries a different candela now and
+         *      so it follows the photocell, which is what a quay does.
+         *
+         * SIX MASTS, IN THE ONE LANE THAT TAKES THEM. The yard's only band
+         * clear of both container rows AND all three carrier runs is
+         * z ∈ [-188, -180.195], 7.81 m wide — the strip against the terrace
+         * edge. `MAST_Z` = `apronZ + 4` = -184 seats a 3.4 m pad in the middle
+         * of it. The pitch is the quay's own run over six, **74.67 m**, and
+         * `QUAY_FLOOD_OPTIC`'s 37-degree cone is solved from that pitch rather
+         * than the other way round.
+         *
+         * AND THE SEATS WERE CHECKED AGAINST ALL THREE COMMITTED HARBOUR POSES
+         * BEFORE THEY WERE WRITTEN, which is the one thing session 76 learned
+         * the expensive way — it put a 25 m mast 2.5 m off `af-apron`'s sight
+         * line and got a column up the middle of the frame. Plan distance from
+         * each seat to each pose axis, metres:
+         *
+         *        x        3941  4016  4091  4165  4240  4315
+         *   sea-road      95.5  36.2  23.1  82.4 141.7 201.0
+         *   sea-harbour  157.4 128.9 100.5  72.1  43.7  15.3
+         *   harbour-air  159.0 123.9  88.8  53.7  18.6  16.5
+         *
+         * The worst is 15.3 m and the even pitch misses all three axes on its
+         * own. **x = 4058 does not appear here and that is the point**: it is
+         * the obvious-looking gantry mid-gap and it is 2.8 m off `sea-road`'s
+         * axis — session 76's mistake sitting in the same place, in a different
+         * landscape, waiting.
+         */
+        {
+          const MAST_Z = H.apronZ + 4;
+          const n = 6;
+          const pitch = (H.x1 - H.x0) / n;
+          for (let i = 0; i < n; i++) {
+            const mx = H.x0 + pitch * (i + 0.5);
+            if (mx < b.x0 || mx >= b.x1 || MAST_Z < b.z0 || MAST_Z >= b.z1) continue;
+            features.push({
+              kind: 'flood', x: mx, z: MAST_Z, yawDeg: 0,
+              height: H.mastHeightM, head: 1, quay: 1,
+              /** Straight out over the quay, and the aim is the derivation's. */
+              aimX: mx, aimZ: H.quayZ + H.mastAimInsetM,
+              /** The terrace: this mast stands on the yard and lights the quay. */
+              aimDrop: H.yardY - H.apronY,
+            });
+          }
         }
 
         /**
