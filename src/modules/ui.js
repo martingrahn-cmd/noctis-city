@@ -1158,21 +1158,38 @@ export function createUi(options = {}) {
       g.beginPath(); g.arc(p.x, p.y, 2.6, 0, Math.PI * 2); g.fill();
     }
 
-    // --- where the eye is now.
+    /**
+     * --- WHERE THE EYE IS NOW, AND ITEM 3's PREMISE IS FALSE: THIS HAS BEEN
+     * HERE SINCE SESSION 19. The brief asked for the player's own position and
+     * heading on the map "so a teleport is orientation rather than
+     * disorientation"; the circle and the whisker were in the first version.
+     *
+     * WHAT SESSION 79 CHANGED IS THAT THE MAP GREW UNDER THEM. At session 19's
+     * 11.2 m a pixel the eye was a 5 px ring on a 1 692 m map and there was
+     * nothing else on it; at 19.2 m a pixel there are seventeen cyan
+     * destination ticks and the white ring reads as an eighteenth. So the ring
+     * is filled, the whisker is 22 px, and both get a dark halo — one stroke
+     * under each, which is what makes a marker legible over a relief raster
+     * whose local value it cannot know.
+     */
     const cam = ctx.camera;
     const me = toPx(cam.position.x, cam.position.z);
-    g.strokeStyle = '#ffffff';
-    g.lineWidth = 1.5;
-    g.beginPath(); g.arc(me.x, me.y, 5, 0, Math.PI * 2); g.stroke();
     // Heading, off the camera's own basis rather than off a stored yaw.
     const e = cam.matrixWorld.elements;
     const fx = -e[8];
     const fz = -e[10];
     const fl = Math.hypot(fx, fz) || 1;
-    g.beginPath();
-    g.moveTo(me.x, me.y);
-    g.lineTo(me.x + (fx / fl) * 14, me.y + (fz / fl) * 14);
-    g.stroke();
+    for (const [colour, width, grow] of [['rgba(6,7,9,0.85)', 4.5, 1.6], ['#ffffff', 1.8, 0]]) {
+      g.strokeStyle = colour;
+      g.lineWidth = width;
+      g.beginPath(); g.arc(me.x, me.y, 5.5 + grow, 0, Math.PI * 2); g.stroke();
+      g.beginPath();
+      g.moveTo(me.x + (fx / fl) * 5.5, me.y + (fz / fl) * 5.5);
+      g.lineTo(me.x + (fx / fl) * 22, me.y + (fz / fl) * 22);
+      g.stroke();
+    }
+    g.fillStyle = '#ffffff';
+    g.beginPath(); g.arc(me.x, me.y, 2.4, 0, Math.PI * 2); g.fill();
 
     /**
      * --- north, because a map without one is a picture, AND A SCALE BAR,
