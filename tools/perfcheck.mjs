@@ -286,6 +286,44 @@ async function measureRoute(page, route, { renderScale = 1, silhouettes: wantSil
   const weather = await page.evaluate(() =>
     (window.__APEX_HARNESS__.weatherStats ? window.__APEX_HARNESS__.weatherStats() : null)
   );
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * AND THE FRAME IS SETTLED — SESSION 77. THIS WAS THE LAST CAPTURE PATH IN
+   * THE PROJECT WITHOUT A `settle()`.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * WHAT IT WAS CAPTURING. `waitForCity` polls a worker in blocks of ten
+   * frames, so the frame index at capture is a wall-clock race — session 70
+   * measured 2 808 to 3 038 over 35 runs of ONE source. `post.frameIndex`
+   * drives an 8-sample Halton jitter, so the shot landed on whichever of eight
+   * sub-pixel offsets the machine's milliseconds chose, and session 70
+   * measured the eight phases of one unmodified source as differing pairwise
+   * by **57 801 to 78 979 bytes of 3 499 200**. On top of that the TAA history
+   * was an 1 800-frame MOVING-camera accumulation and the exposure meter was
+   * wherever its 1.9 s time constant had got to.
+   *
+   * `settle()` pins all three: it pads to jitter residue 0, drops the history,
+   * snaps the meter eight times, runs `TAA.settleFrames` = 32 static frames and
+   * snaps again. That is what put ten pins and three unpinned races of
+   * `viaduct-under` on ONE md5 in session 70.
+   *
+   * IT IS PLACED HERE, AFTER `report()` AND EVERY OTHER READ, AND THAT
+   * PLACEMENT IS THE WHOLE OF WHY IT IS SAFE. Every millisecond, every draw
+   * call, every triangle and every census on this route has already been read
+   * into a variable by the line above. Nothing this does can move one of them
+   * — and `highway_speed`'s 404 of 440 is four sessions old and is the number
+   * this project compares everything against. The frame is a picture of the
+   * route's end state 47 frames later, at rest; the timings are of the route.
+   * They describe the same content and not the same instant, and saying so is
+   * cheaper than pretending a moving capture was ever a still one.
+   *
+   * THE COST, BEFORE THE DECISION AND NOT AFTER IT (item 1a): `settle(4)`
+   * renders `pad + 8 + 32 + 4` = 44 to 51 frames, mean 47.5. Twelve route
+   * captures plus nine silhouette poses is 21 settles ≈ 1 000 frames, and at
+   * the 13-26 ms this machine delivers that is **18-26 s on a gate that takes
+   * 1 135** — under 2%.
+   */
+  await page.evaluate(() => window.__APEX_HARNESS__.settle(4));
   const shot = await page.screenshot({ type: 'png' });
 
   /**
