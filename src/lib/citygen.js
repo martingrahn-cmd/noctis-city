@@ -1515,10 +1515,31 @@ export const HEIGHT_DISTRIBUTION = {
  *   0.50          40.98         1.132                  1200
  *   0.52          39.91         1.138                  1123
  *
- * **0.50 preserves the city's mean height to 0.1% and its tall-building count
- * to 1.7%, and still takes the inner/outer ratio from 1.013 to 1.132.** This is
- * a REDISTRIBUTION and the sweep is what makes that a measurement rather than
- * an intention. `HEIGHT_DENSITY_K` = 1.4 takes a sparse district (d 0.15) to
+ * AND 0.50 WAS STILL THE WRONG ANCHOR, WHICH THE GATE FOUND AND THE SWEEP DID
+ * NOT. It preserves the CITY's mean height to 0.1% — and every route this
+ * project measures runs through the CORE, which is exactly where a gradient
+ * adds height. `highway_speed` came back at **405 draws of 440 and 2 668 090
+ * triangles against a 2 630 000 ceiling**: over it, on a budget that had not
+ * moved in five sessions. The mechanism is floors and not metres — over the
+ * inner 17x17 chunks, floors went **23 797 -> 25 108, +5.5%**, while the whole
+ * city moved +0.14%. A mean preserved over a disc says nothing about the
+ * annulus a camera is standing in.
+ *
+ * SO THE ANCHOR IS THE ONE THE ROUTES PAY, swept against the core's own floor
+ * count rather than the city's mean height:
+ *
+ *   MID    core floors (17x17)     world mean h    inner/outer     >= 60 m
+ *   ----   before  23 797               40.93         1.013          1180
+ *   0.50           25 108  (+5.5%)      40.98         1.132          1200
+ *   0.54           23 869  (+0.3%)      38.83         1.140          1065
+ *   0.57           22 892  (-3.8%)      37.19         1.145           968
+ *
+ * **0.54 holds the routes' cost to +0.3% and still buys the ratio 1.013 ->
+ * 1.140** — a better gradient than 0.50 bought, for a city 5.1% shorter on
+ * average. That trade is the right way round: 5% of mean height is not
+ * perceptible and a 14% core-to-rim difference is the whole item. The sweep is
+ * what makes this a measurement rather than an intention, and the FIRST sweep
+ * being against the wrong quantity is why the gate is the last word. `HEIGHT_DENSITY_K` = 1.4 takes a sparse district (d 0.15) to
  * 0.51x and a dense one (d 0.85) to 1.49x — about a factor of 2.9 across the
  * city, which separates a district from its neighbour without making either of
  * them a different world.
@@ -1527,7 +1548,7 @@ export const HEIGHT_DISTRIBUTION = {
  * caller that has no field to offer — and the quay's own third height law is
  * one — keeps the distribution it had.
  */
-const HEIGHT_MID_D = 0.50;
+const HEIGHT_MID_D = 0.54;
 const HEIGHT_DENSITY_K = 1.4;
 
 export function buildingHeightRoll(rng, density = null) {
