@@ -1471,12 +1471,74 @@ export const HEIGHT_DISTRIBUTION = {
   uniformHiM: 64,
 };
 
-export function buildingHeightRoll(rng) {
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * AND SINCE SESSION 78 IT READS THE DENSITY FIELD, WHICH REVERSES A SENTENCE
+ * SESSION 53 WROTE ON PURPOSE.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * That sentence is ninety lines below and it is exact: **"HEIGHT DOES NOT
+ * DEPEND ON DENSITY IN THIS CITY — both correlations are 0.06, which is
+ * nothing — and that is not a defect, it is `buildingHeightRoll` being a
+ * function of `rng` alone."** It was true, it was measured, and "not a defect"
+ * meant "not a bug — it is by construction". It was never a defence of the
+ * look, and the look is what session 78 went and photographed.
+ *
+ * THE FRAME IS THE VERDICT. An elevated pose at (1500, 140, 1500) looking back
+ * at the origin shows the skyline as **a uniform carpet from the foreground to
+ * the horizon, with two or three towers scattered in it and then a hard edge
+ * where the buildings stop and bare ground begins.** That is the operator's
+ * *"the city feels clustered, districts have no tall buildings, the outskirts
+ * do not read as a real place"* (session 61) made visible, and it has stood
+ * unanswered for seventeen sessions.
+ *
+ * WHY DENSITY AND NOT RADIUS. A radial term would make the city a cone, which
+ * is a diagram of a city rather than one. `densityAt` is already the field that
+ * decides how much ground is covered and how many buildings there are — the
+ * same session-53 measurement fits `cover = 0.267 + 0.362·d` and
+ * `count = 7.179 + 5.020·d` — so a district that is dense in plan becoming tall
+ * in section is the ONE term that makes those three agree. It also inherits the
+ * radial fall for free, because `densityAt` multiplies by `cityExtentAt`.
+ *
+ * THE ANCHOR IS SOLVED AND NOT PICKED, AND THE FIRST VALUE WAS WRONG. A scale
+ * whose EXPECTATION is 1 does not preserve the mean of a skewed distribution
+ * that is then clamped at both ends, so `HEIGHT_MID_D` = 0.45 — the delivered
+ * mean density per CHUNK — raised the city 40.93 -> 43.71 m and the count of
+ * buildings over 60 m by 18.7%. That is a triangle budget spent by the back
+ * door, which is not what this change is for. Swept over the whole built city
+ * at seed 1337:
+ *
+ *   MID    city mean h     inner/outer ratio    buildings >= 60 m
+ *   ----   before 40.93         1.013                  1180
+ *   0.45          43.71         1.124                  1401
+ *   0.48          42.08         1.129                  1282
+ *   0.50          40.98         1.132                  1200
+ *   0.52          39.91         1.138                  1123
+ *
+ * **0.50 preserves the city's mean height to 0.1% and its tall-building count
+ * to 1.7%, and still takes the inner/outer ratio from 1.013 to 1.132.** This is
+ * a REDISTRIBUTION and the sweep is what makes that a measurement rather than
+ * an intention. `HEIGHT_DENSITY_K` = 1.4 takes a sparse district (d 0.15) to
+ * 0.51x and a dense one (d 0.85) to 1.49x — about a factor of 2.9 across the
+ * city, which separates a district from its neighbour without making either of
+ * them a different world.
+ *
+ * `density` DEFAULTS TO null AND null IS THE OLD BEHAVIOUR EXACTLY, so any
+ * caller that has no field to offer — and the quay's own third height law is
+ * one — keeps the distribution it had.
+ */
+const HEIGHT_MID_D = 0.50;
+const HEIGHT_DENSITY_K = 1.4;
+
+export function buildingHeightRoll(rng, density = null) {
   if (HEIGHT_DISTRIBUTION.mode === 'uniform') {
     return rng.range(HEIGHT_DISTRIBUTION.uniformLoM, HEIGHT_DISTRIBUTION.uniformHiM);
   }
   const h = rng.logNormal(HEIGHT_DISTRIBUTION.medianM, HEIGHT_DISTRIBUTION.sigmaLn);
-  return Math.min(HEIGHT_DISTRIBUTION.maxM, Math.max(HEIGHT_DISTRIBUTION.minM, h));
+  const scaled = density == null
+    ? h
+    : h * Math.max(0.35, 1 + HEIGHT_DENSITY_K * (density - HEIGHT_MID_D));
+  return Math.min(HEIGHT_DISTRIBUTION.maxM, Math.max(HEIGHT_DISTRIBUTION.minM, scaled));
 }
 
 /**
@@ -1804,7 +1866,7 @@ export function distantMasses(rootSeed, cx, cz) {
      */
     const slack = Math.max(0, step - DISTANT.frontageM);
     const t = (i * step + rng.range(0, slack)) % perim;
-    const h = buildingHeightRoll(rng);
+    const h = buildingHeightRoll(rng, d);
     const material = MATERIAL_NAMES[weightedIndex(rng.next, DISTANT.materialWeights)];
 
     // Which side of the square, and how far along it. Sides are 2*half long.
@@ -12395,7 +12457,7 @@ export function generateChunk(rootSeed, cx, cz) {
 
           const eraName = ERA_NAMES[weightedIndex(eraRng.next, ERA_NAMES.map((n) => CITY_ERAS[n].weight))];
           const era = CITY_ERAS[eraName];
-          const floors = Math.max(3, Math.round(buildingHeightRoll(rng) / era.floor));
+          const floors = Math.max(3, Math.round(buildingHeightRoll(rng, density) / era.floor));
           const height = floors * (era.floor + eraRng.gauss() * 0.05);
 
           /**
