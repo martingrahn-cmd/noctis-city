@@ -10491,14 +10491,61 @@ export const PROP_MODELS = {
      * the worst overlapping its own carriageway by 1.264 m². 1.68 m is under a
      * person and 1.4 m under a hauler's roof.
      */
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * AND THE MASSES ARE FLATTER AND WIDER APART THAN THEY WERE — SESSION 78,
+     * AND THE CROWN WAS 1.4x THE AREA OF ITS OWN BIGGEST BOX.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Session 73's round photographed these and called them a stack of cubes.
+     * The brief for session 78 supposed a SECOND, unidentified population,
+     * because session 22 had already "fixed the city tree" — and there is no
+     * second population. Session 22 was a HEAD-CLEARANCE fix: it moved crowns
+     * UP by 0.35-0.50 m and changed not one dimension, tilt or box count.
+     * Variants 0, 2 and 3 are session 21's shapes untouched, and the object in
+     * session 73's frame was projected back through that pose and identified as
+     * variant 1 at 24.2 m.
+     *
+     * WHY THEY READ AS CUBES, MEASURED RATHER THAN ASSERTED. Orthographic
+     * silhouette over 36 azimuths, crown boxes only:
+     *
+     *   variant   biggest mass       aspect   biggest box as % of crown area
+     *   0 broad   2.30x2.10x2.05     0.895              69.0%
+     *   1 column  1.55x2.10x1.45     0.645              52.0%
+     *   2 open    1.85x1.85x1.70     0.936              71.8%
+     *   3 small   1.50x1.35x1.40     0.928              71.0%
+     *
+     * **For three of the four the whole crown is only 1.4x the projected area
+     * of its own biggest box, and that box is a cube to within 8-11%.** Three
+     * cubes stacked with a tilt still read as one cube: the overlap is doing
+     * nothing because the masses are the same shape at three sizes.
+     *
+     * THE COMMENT ON VARIANT 0 ALREADY SAYS WHY: *"A canopy is not a box and no
+     * number of boxes ARRANGED AS A STACK becomes one ... what reads as a crown
+     * is an outline that is neither flat on top nor straight down the sides."*
+     * It got the height stagger right and the SECTION wrong. A crown is wide
+     * and shallow — a canopy spreads because light is above it — so every mass
+     * here is now about half as tall as it is wide, and the lateral offsets are
+     * a real fraction of the mass rather than a nudge.
+     *
+     * NOTHING MOVES DOWN, WHICH IS SESSION 22's CONSTRAINT KEPT. Every mass is
+     * flatter about the same or a higher centre, so every underside RISES:
+     * variant 0's lowest goes 2.85 -> 3.28 m at scale 1. And the widths cannot
+     * touch the occupancy claim at all — `derivePropHalfAcross` counts only
+     * what is below `HEAD_CLEAR_M` = 2.10 m, which is trunk, so a wider crown
+     * asks for no more ground than it did.
+     *
+     * BOX COUNTS ARE UNCHANGED, so the triangle cost is zero and every census
+     * that counts prop boxes reads what it read before.
+     */
     {
       leanRange: 5,
       boxes: [
         bx(0, 1.30, 0, 0.36, 2.60, 0.36, BARK, 0.92),
         bx(0.06, 2.40, -0.04, 0.30, 0.70, 0.28, BARK, 0.92),
-        bxt(-0.42, 3.90, 0.28, 2.30, 2.10, 2.05, FOLIAGE_A, 0.95, 9, 24),
-        bxt(0.62, 4.45, -0.35, 1.95, 1.75, 1.80, FOLIAGE_C, 0.95, -12, 108),
-        bxt(0.05, 5.22, 0.42, 1.45, 1.30, 1.35, FOLIAGE_B, 0.95, 7, 200),
+        bxt(-0.72, 3.95, 0.46, 3.15, 1.34, 2.70, FOLIAGE_A, 0.95, 9, 24),
+        bxt(0.88, 4.62, -0.58, 2.40, 1.12, 2.05, FOLIAGE_C, 0.95, -12, 108),
+        bxt(0.08, 5.34, 0.62, 1.72, 0.94, 1.58, FOLIAGE_B, 0.95, 7, 200),
       ],
     },
     /**
@@ -10534,9 +10581,9 @@ export const PROP_MODELS = {
         bx(0, 1.60, 0, 0.30, 3.20, 0.30, BARK, 0.92),
         bxt(-0.55, 3.05, 0.15, 1.20, 0.17, 0.30, BARK, 0.92, -14, 90),
         bxt(0.48, 3.55, -0.22, 0.95, 0.15, 0.26, BARK, 0.92, 12, 250),
-        bxt(-0.30, 4.45, 0.20, 1.85, 1.85, 1.70, FOLIAGE_B, 0.95, 11, 40),
-        bxt(0.55, 4.95, -0.18, 1.55, 1.50, 1.45, FOLIAGE_A, 0.95, -9, 165),
-        bxt(-0.05, 5.62, 0.30, 1.10, 1.10, 1.05, FOLIAGE_C, 0.95, 6, 285),
+        bxt(-0.52, 4.52, 0.34, 2.55, 1.18, 2.20, FOLIAGE_B, 0.95, 11, 40),
+        bxt(0.82, 5.02, -0.30, 2.05, 1.00, 1.80, FOLIAGE_A, 0.95, -9, 165),
+        bxt(-0.08, 5.66, 0.48, 1.32, 0.80, 1.24, FOLIAGE_C, 0.95, 6, 285),
       ],
     },
     /**
@@ -10551,9 +10598,9 @@ export const PROP_MODELS = {
       boxes: [
         bxt(-0.14, 0.85, 0.05, 0.20, 1.75, 0.20, BARK, 0.92, 9, 20),
         bxt(0.16, 0.75, -0.08, 0.17, 1.55, 0.17, BARK, 0.92, -11, 190),
-        bxt(-0.28, 2.15, 0.18, 1.50, 1.35, 1.40, FOLIAGE_C, 0.95, 13, 70),
-        bxt(0.42, 2.55, -0.20, 1.25, 1.15, 1.20, FOLIAGE_B, 0.95, -8, 220),
-        bxt(0.02, 3.05, 0.24, 0.85, 0.85, 0.82, FOLIAGE_A, 0.95, 10, 310),
+        bxt(-0.46, 2.22, 0.30, 2.05, 0.86, 1.78, FOLIAGE_C, 0.95, 13, 70),
+        bxt(0.62, 2.60, -0.34, 1.62, 0.74, 1.46, FOLIAGE_B, 0.95, -8, 220),
+        bxt(0.04, 3.08, 0.40, 1.02, 0.58, 0.96, FOLIAGE_A, 0.95, 10, 310),
       ],
     },
   ],
