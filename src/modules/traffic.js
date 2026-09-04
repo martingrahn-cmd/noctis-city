@@ -4155,7 +4155,72 @@ export function createTraffic(options = {}) {
             // camera laterally is the case CONTRACT §5.11 was written for and
             // the one a spline-parameter reconstruction would have got wrong.
             if (type.name === 'moto') {
-              if (rng.next() < 0.004) veh.latTarget = rng.range(-1.1, 1.1);
+              /**
+               * ═══════════════════════════════════════════════════════════
+               * `dt > 0` IS WHY THE FOUR `trade-*` FRAMES ARE REPRODUCIBLE —
+               * SESSION 77, AND IT IS ONE LINE AGAINST A TWO-SESSION DEFECT.
+               * ═══════════════════════════════════════════════════════════
+               *
+               * This drew from `traffic:layout` EVERY FRAME, PER MOTO,
+               * unconditional on dt — and `ctx.rng` caches one stream per name,
+               * so its POSITION is state. At seed 1337 the class roll delivers
+               * 17 motos of 120, so the stream advanced ~17.07 draws per
+               * rendered frame whether or not anything moved. Under `?paused=1`
+               * — which is every look capture, and every perfcheck route, since
+               * `setTimeOfDay` calls `setPaused(true)` — nothing moves at all
+               * and it advanced anyway.
+               *
+               * WHAT THAT COUPLED. `setShot('trade')` jumps the camera 433.75 m
+               * against `SIM_RADIUS` 190, so on the first rebuild after it every
+               * one of the 120 bodies fails the ring test and is recycled
+               * through `seed()`: **7 272 draws consumed in one frame**, from
+               * wherever the stream had got to. And where it had got to is
+               * `240 + 7 272 + 17.07 · F`, with `F` the frames rendered since
+               * boot — which `waitForCity` sets in BLOCKS OF TEN on a worker's
+               * wall clock (session 69 measured 2 808 to 3 038 over 35 runs of
+               * one source). One block of ten frames moves the stream 171
+               * draws and re-places the whole fleet.
+               *
+               * That is STATE 69 §8 item 3 and LOOK.md's session-70 note: the
+               * four `trade-*` frames differing run to run by 3.1-8.1 MB,
+               * *"entirely THE VEHICLES, with the buildings, road, pavement,
+               * pedestrians and street furniture identical to the byte"*.
+               * Session 70 named it a second race, orthogonal to the jitter
+               * phase it had just fixed, and did not chase it. It was never the
+               * resident ring: every refusal `seed()` consults is a pure
+               * function of position and rootSeed. The worker's schedule
+               * reached the fleet through the FRAME COUNT.
+               *
+               * MEASURED, TWO RUNS EACH, md5 of all four `trade-*` frames:
+               *
+               *   before   A d774f2bd 0bb28eac b3fa07b7 49f51122
+               *            B 7a7f6527 48b40b64 21fe2092 44046210   all four differ
+               *   after    E 6e31e5e4 6e5e2d43 61480ac7 e26bc4c9
+               *            F 6e31e5e4 6e5e2d43 61480ac7 e26bc4c9   ALL FOUR IDENTICAL
+               *
+               * AND IT COSTS NOTHING. Every look band is unchanged to the digit
+               * printed — midnight 0.1096, dusk 0.1552, stddev 0.139/0.129,
+               * emitters 84/76, `distinct:midnight|dusk` 0.02846 — the same
+               * three violations and no new one. `highway_speed` reads 404
+               * draws of 440 and 2 466 960 triangles, which is sessions 73-76
+               * exactly.
+               *
+               * The gate is also just correct on its own: a per-FRAME Bernoulli
+               * trial for a lane-drift target makes a moto change its mind
+               * twice as often at 120 fps as at 60. `dt` is in scope here
+               * because `rebuild(ctxRef, dt)` takes it; the boot seed passes
+               * `1/60` so the initial placement is untouched.
+               *
+               * A FIRST ARM GATED ON `step`, WHICH IS NOT IN SCOPE HERE, and
+               * quarantined the whole traffic module. Both runs then came back
+               * byte-identical — a frame with no vehicles in it trivially is —
+               * and it looked exactly like success. `lookcheck` printed
+               * `hard:console` and `hard:faults:midnight` and CONTRACT §2.1's
+               * quarantine is what stopped a green-looking artefact from being
+               * believed. A probe that says yes deserves the suspicion of one
+               * that says no.
+               */
+              if (dt > 0 && rng.next() < 0.004) veh.latTarget = rng.range(-1.1, 1.1);
               veh.lat += (veh.latTarget - veh.lat) * Math.min(1, dt * 1.6);
             }
 
