@@ -1372,6 +1372,40 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets =
    * reached one cell of 67 568).
    */
   const ceilingH = maxEntropyAtMean(metrics.meanLuminance * 255);
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   * IT SAID "THE SCREEN IS NEAR-EMPTY" AND IT CANNOT SEE EMPTINESS —
+   * SESSION 77, AND THE NUMBER IS 0.030 AGAINST 0.244.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * MEASURED, at the `trade` eye at midnight, dry, one pose, two runs of
+   * `lookat --params=fill=0.0` and `fill=1.0`: the two extremes of the frontage-fill law are a
+   * ~60% swing in the city's building population, the largest content change
+   * this project can make with one parameter, and they move this statistic by
+   *
+   *     entropy 5.338 -> 5.308   =  **0.030 bits**
+   *
+   * The same statistic's own run-to-run spread on `downtown_dense`,
+   * `highway_speed` and `night_rain` is **0.220, 0.269 and 0.233 bits**
+   * (session 76, three runs each, printed above). **THE SIGNAL IS AN EIGHTH
+   * OF THE NOISE.** No floor at any value separates a full city from a sparse
+   * one on this instrument, so the sentence this message used to print was not
+   * a threshold that was too tight — it was a claim the statistic cannot make.
+   *
+   * AND THE NOISE HAS A NAME, WHICH SESSION 17 ALREADY WROTE DOWN: a vehicle
+   * coming to rest at the lens. `player` is the only one of the four routes
+   * that walks the PAVEMENT rather than the crown of the road, so no vehicle
+   * can pass its lens, and its entropy spread is **0.015** — a fifteenth of
+   * the other three. Session 76's own `downtown_dense` frame has a car filling
+   * the bottom fifth of it.
+   *
+   * SO THE FLOOR IS A DEGENERACY GUARD AND IS ASSERTED AS ONE. It catches the
+   * failure it was always actually catching — a frame with almost no distinct
+   * levels in it, which is what "the world did not load" looks like — and it
+   * says in its own message that sparseness is not what it measures. The
+   * derivation of 4.3, two-sided and measured, is `budget.json` →
+   * `$screenshotEntropy_s77`.
+   */
   if (metrics.entropy < floors.screenshotEntropy) {
     fail(
       `frame entropy ${metrics.entropy.toFixed(3)} < ${floors.screenshotEntropy} — ` +
@@ -1379,7 +1413,11 @@ function assertRoute({ route, runs, silhouettes, silhouettesPerRun, hudBudgets =
         ? `AND NO FRAME AT THIS LEVEL COULD REACH IT: at mean ${metrics.meanLuminance.toFixed(4)} the ` +
           `maximum entropy any 8-bit histogram can carry is ${ceilingH.toFixed(3)}, so the floor forbids ` +
           `a night street rather than an empty one. Read budget.json $screenshotEntropy_s16.`
-        : `the screen is near-empty (${ceilingH.toFixed(3)} was available at this mean)`)
+        : `the frame is DEGENERATE — almost no distinct levels in it, which is what a world that ` +
+          `did not load looks like (${ceilingH.toFixed(3)} was available at this mean). This floor ` +
+          `does NOT test whether the city is sparse and never could: a 60% swing in the building ` +
+          `population moves this statistic 0.030 bits against a run-to-run spread of ` +
+          `${metrics.entropySpread}. Read budget.json $screenshotEntropy_s77.`)
     );
   }
   const [lo, hi] = floors.meanLuminance;
@@ -1687,6 +1725,32 @@ function solidPNG(v, W = 64, H = 64) {
 }
 
 /**
+ * A frame with exactly `k` equally-populated grey levels, so its Shannon
+ * entropy is `log2(k)` EXACTLY — session 77.
+ *
+ * WHY A SECOND CASE FOR ONE FLOOR. `solidPNG(128)` reads entropy 0, which
+ * rejects at a floor of 4.3 and would reject just as happily at 0.5. A case
+ * three orders away from the threshold proves the assertion is WIRED and
+ * proves nothing about its VALUE — and the value is what session 77 moved. At
+ * `k = 16` this reads exactly 4.000 bits, so it rejects at 4.3 and would pass
+ * anything at or under 4.0: it is the case that notices the floor being
+ * lowered out of usefulness, which is the direction CONTRACT §0 rule 5 cares
+ * about and the direction `solidPNG` cannot see.
+ *
+ * The levels are spread over the full range so the frame's MEAN lands near
+ * 0.5, inside `floors.meanLuminance` — this case must falsify the entropy
+ * floor and not borrow a rejection from the band beside it.
+ */
+function levelsPNG(k, W = 64, H = 64) {
+  const data = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    const v = Math.round((255 * (i % k)) / (k - 1));
+    data[i * 4] = v; data[i * 4 + 1] = v; data[i * 4 + 2] = v; data[i * 4 + 3] = 255;
+  }
+  return encodePNG({ width: W, height: H, channels: 4, data });
+}
+
+/**
  * One entry per assertion. `id` names the thing being falsified and `mutate`
  * breaks exactly it. Adding an assertion without adding a case here fails the
  * coverage check below, which is the whole point.
@@ -1740,6 +1804,9 @@ const FALSIFY = [
    * exactly as the timing cases do."* `ceiling.cpuP95` above is the shape.
    */
   ['floor.screenshotEntropy', (g) => { for (const x of g.runs) x.shot = solidPNG(128); }],
+  /** The near-floor case. `levelsPNG(16)` is exactly 4.000 bits — see its own
+   *  comment for why one case three orders from the threshold is not enough. */
+  ['floor.screenshotEntropy.nearFloor', (g) => { for (const x of g.runs) x.shot = levelsPNG(16); }],
   ['floor.meanLuminance', (g) => { for (const x of g.runs) x.shot = solidPNG(2); }],
   /**
    * SESSION 20. The HUD's copy of the ceilings, drifted by one key. It mutates
@@ -2433,7 +2500,31 @@ try {
     allFails.push(...checked.fails);
 
     await mkdir(new URL('./perf-out/', import.meta.url), { recursive: true });
-    await writeFile(new URL(`./perf-out/${route}.png`, import.meta.url), last.shot);
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE FRAME WRITTEN IS THE ONE THE ASSERTION IS ABOUT — SESSION 77.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * This wrote `last.shot` while the two level statistics have been the
+     * MEDIAN of three runs since session 21, so the PNG on disk and the number
+     * in the report could come from different runs — and in session 76 they
+     * did. `downtown_dense` delivered entropy [4.814 4.898 5.034], failed on
+     * the median 4.898, and wrote the 5.034 frame. The last line of this gate
+     * says *"look at them before changing any numbers in budget.json"*, and a
+     * reader who did was looking at the run that PASSED.
+     *
+     * The median run by entropy is the one both level assertions are decided
+     * on, so it is the one a person has to be able to look at. Ties and an
+     * absent metric fall back to the last run, which is what this always did.
+     */
+    const medianRun = (() => {
+      /** `entropyPerRun` is `runsRaw`'s own order — both are `runs.map(...)`. */
+      const H = checked.metrics.entropyPerRun;
+      if (!Array.isArray(H) || H.length !== runsRaw.length || !H.every(Number.isFinite)) return last;
+      const order = H.map((h, i) => [h, i]).sort((a, b) => a[0] - b[0]);
+      return runsRaw[order[H.length >> 1][1]];
+    })();
+    await writeFile(new URL(`./perf-out/${route}.png`, import.meta.url), medianRun.shot);
     // The poses the silhouette assertions were measured on, written beside the
     // route frame. §10 step 4: a gate that asserts on pixels has to put the
     // pixels somewhere a person can look at them.
@@ -2516,12 +2607,35 @@ try {
       `${maxEntropyAtMean(checked.metrics.meanLuminance * 255).toFixed(3)})  |  ` +
       `median/mean ${checked.metrics.medianOverMean != null ? checked.metrics.medianOverMean.toFixed(3) : '—'}`
     );
-    // The two asserted numbers are the LAST run's; these are all of them. The
-    // assertion cannot see this spread and neither could any report until now.
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THIS LINE SAID "ASSERTED ON THE LAST OF THESE, NOT POOLED" FOR
+     * FIFTY-SIX SESSIONS AND THE NUMBER BESIDE IT REFUTED IT — SESSION 77.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Session 21 moved both level statistics onto the median of three runs
+     * (`meanLuminance` and `entropy`, about eighty lines above `imageStats`,
+     * where the change is written out at length). This log line was not
+     * updated, and it printed its contradiction in its own output every run:
+     * session 76 delivered `entropy [4.814 4.898 5.034]` and asserted
+     * **4.898**, which is the median and not the last.
+     *
+     * WHICH ONE WAS LYING WAS ESTABLISHED FROM THE CODE AND NOT FROM THE
+     * OUTPUT, because an output that agrees with a comment by coincidence is
+     * how this survives: `assertRoute` reads `metrics.entropy`, and
+     * `metrics.entropy` is `median(perRunLevel.map(s => s.entropy))`. The code
+     * pools. The sentence was the lie.
+     *
+     * A COMMENT THAT CONTRADICTS ITS OWN PRINTED NUMBER IS WORSE THAN A SILENT
+     * ONE. This one put "asserted on a single draw" into a session brief and
+     * two STATE files, and every reader for fifty-six sessions had both halves
+     * in front of them at once.
+     */
     log(
       `               per run: mean [${checked.metrics.meanLuminancePerRun.join(' ')}]  ` +
       `entropy [${checked.metrics.entropyPerRun.join(' ')}]  ` +
-      `— ASSERTED ON THE LAST OF THESE, NOT POOLED. See budget.json $screenshotEntropy_s17.`
+      `spread ${checked.metrics.entropySpread}  ` +
+      `— ASSERTED ON THE MEDIAN OF THESE (session 21). See budget.json $screenshotEntropy_s77.`
     );
     if (checked.metrics.silhouetteVehicles != null) {
       log(
