@@ -2593,7 +2593,7 @@ extends the world asks the question of every default it inherits**, and writes
 the answer down beside the extension — which is what session 72's `portRoad`
 reading `exitRoadPorosity` rather than a literal is.
 
-### 9.3 A mechanism exists and nothing calls it — session 77, and it is nine now
+### 9.3 A mechanism exists and nothing calls it — session 77, and it is ten now
 
 §9.1's first variant is *a value written in config that the code does not read*.
 This is its general form and it has now outgrown that heading: **a mechanism is
@@ -2601,7 +2601,7 @@ built, commented, and never wired to the thing it was built for.** It is not the
 same failure as §9.2's — that one is a right number in the wrong county, and
 this one is a right answer nobody asks for.
 
-Nine, and not one of them was found by a gate:
+Ten, and not one of them was found by a gate:
 
 - **`noctisRough` never reached `block:ground`** — session 1 wrote the attribute
   and the terrain never got it, so the earth plane was a mirror for
@@ -2630,6 +2630,25 @@ Nine, and not one of them was found by a gate:
   every chunk crossing, to say *"no answer"* — on the surface that is 30-45% of
   every street frame. The channel was allocated in session 55 for the porosity
   beside it and the roughness half never got a producer.
+
+- **The braking point asks no predicate at all** (session 79). Three readers of
+  *"is there a junction here"* and they ask three different questions: the
+  signal HEAD asks `landmarkOccupies` (session 35) and `cityExtentAt` (session
+  75) at its own position; the PAINT asks `onRoad` before it draws a stop bar;
+  and `nextJunctionAhead` — which decides where a vehicle brakes — asks
+  **nothing**. `riverNoRoad`, `blockNoRoad` and `landmarkOccupies` are all
+  imported into `traffic.js` and all three are used by the vehicle PLACER in
+  the same file. Measured by `tools/stoplineprobe.mjs`: **3 131 vehicle-samples
+  held at a bar for a junction whose crossing road is in the river channel**,
+  at one node, (0, −384). A car stopped at a red for a crossing that is a
+  hundred metres of open water.
+
+  It is the first entry in this list where the mechanism is not merely
+  uncalled: it is called TWICE, by two other readers, at two other points. The
+  §9.1 test — *"two descriptions of one quantity"* — passes, because there is
+  only one predicate. What fails is that one of three consumers does not
+  consult it, which is why nothing in review found it: the grep for callers
+  returns two, and two is not zero.
 
 **AND A NINTH THAT IS THE SAME CLASS WITH AN ARGUMENT POSITION — session 78.**
 `pushCore(x, y, z, sx, sy, sz, yaw = 0, a = albedo, r = rough)`, and the
@@ -2674,6 +2693,21 @@ src/modules/city.js` and to counting the arguments at one call site.
    under its own heading and exits 1 even if nothing else is red, and
    `gateaudit` fails if any assertion did not run on the control frames. A gate
    that cannot run is not a green gate.
+
+   > **AND "THE IDENTICAL N" IS A CLAIM, SO COUNT THE N THIS SESSION —
+   > session 79.** Four gates have been red since session 53 and the shorthand
+   > for reading them has become a phrase: STATE 77 listed `lookcheck`'s three
+   > violations by name and STATE 78 wrote *"`lookcheck` IS THE IDENTICAL
+   > THREE"*. **It was printing four.** Session 78's own height gradient
+   > (`7be7adf`) had turned `stddev:dusk` red — 0.1267 against a floor of
+   > 0.128 — and moved `distinct:midnight|dusk` further from its floor at the
+   > same time, and the session that shipped it read its predecessor's list
+   > instead of its own gate's output. Attributed in session 79 by A/B in
+   > paired worktrees, two runs each, byte-identical every time.
+   >
+   > A standing red is the easiest place in this project to hide a new one,
+   > because the gate's exit code does not change. **Diff the violation LINES
+   > against the previous session's, not the exit codes.**
 4. Look at `tools/look-out/*.png`, and at anything else worth looking at —
    `node tools/lookat.mjs` puts the eye wherever the question is. The numbers
    are necessary and not sufficient.

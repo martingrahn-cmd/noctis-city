@@ -2433,6 +2433,36 @@ street canyon is in the way, which is `stack-street`'s and `arch-street`'s defec
 and needs a re-sited eye rather than a snap. **A pose can be wrong in more than
 one way at once, and fixing the one you measured does not make the frame true.**
 
+### `poseprobe`'s FULLEST ANSWER IS NOT THE RIGHT ANSWER — SESSION 79
+
+Session 79 authored seventeen map destinations, called `poseprobe` once per
+landmark for the seven inside the city, and shot every one before shipping it.
+**Two of the seven were wrong at the azimuth poseprobe ranked FIRST**, and both
+failures are a property of what a ray test can know rather than of this tool:
+
+> **A stand-off test answers *"is anything in the way"*. It never answers *"is
+> this broadside"*, and it has no idea whether the subject is a hole.**
+
+- **THE ARCH.** Its clear azimuth 0° at 84.1% fill is the fullest pose the tool
+  reports, and it looks straight down the arch's own **118 m span**. The
+  delivered frame is a pale column in a street canyon. Azimuth 285° at 160 m and
+  70.9% fill is an arch. For a long object the right azimuth is PERPENDICULAR to
+  its long axis and it will always score a lower fill than the end-on one, so
+  the ranking actively points the wrong way.
+- **THE WEIR.** `basinProfile` is a 105 m lip at **+0.4 m** over a floor at
+  **−10.9 m**. poseprobe's best pose — 320 m out, at the ONE clear azimuth of
+  the 24 it tested — delivers a street with people on it and no basin at all.
+  The arithmetic is closed-form: a sightline from an eye at 1.74 m over a lip at
+  0.4 m does not reach a floor 10.9 m down until **424 m past the lip**, and the
+  bowl is 210 m across. **You cannot see into a bowl from outside it.** Standing
+  ON the rim shows the basin.
+
+So the method that works, and it is three commands: `poseprobe` for the CLEAR
+AZIMUTH SET, the subject's own geometry to choose within it, and `lookat` for
+the frame that decides. **This is also what §9.3's seventh row buys and what it
+does not**: wiring the pose generator to `poseprobe` will stop it standing an
+eye inside a dish, and it will not stop it standing one end-on to an arch.
+
 ### SHOULD A GATE EVER SEE RAIN? — A QUESTION, SESSION 44
 
 Written as a question and not a statement, per §8. Session 44 made rainfall a
