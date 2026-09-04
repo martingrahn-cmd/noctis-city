@@ -1495,7 +1495,7 @@ export function createCity(options = {}) {
      * believed by the lighting — which is why nothing looked lit from
      * underneath and nothing looked wrong. CONTRACT §9.1 carries it.
      */
-    const quad = (x0, z0, x1, z1, y, albedo, kind, porosity = 0) => {
+    const quad = (x0, z0, x1, z1, y, albedo, kind, porosity = 0, finish = 0) => {
       const v = [
         [x0, y, z0], [x1, y, z1], [x1, y, z0],
         [x0, y, z0], [x0, y, z1], [x1, y, z1],
@@ -1511,7 +1511,7 @@ export function createCity(options = {}) {
          * argument is 0 so a caller that has not thought about water gets the
          * impervious surface every quad in this city was before.
          */
-        roughs.push(0, porosity);
+        roughs.push(finish, porosity);
       }
       /**
        * THE SAME RECTANGLE, RECORDED, SO THAT `surfaceAt` READS THE SURFACE
@@ -1921,6 +1921,68 @@ export function createCity(options = {}) {
      * `hardGround` is the macadam `sportGround` is and takes its 0.0 by
      * falling through, which is what it did under its old name.
      */
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * THE FINISH OF A PAVED SURFACE — SESSION 78, AND THE CHANNEL HAS BEEN
+     * ALLOCATED, UPLOADED AND READ SINCE SESSION 55 WITH NOTHING WRITING IT.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `noctisRough` is a vec2 per ground vertex. `.y` is the porosity the wet
+     * terms read and has had a producer since session 55. **`.x` is a
+     * per-vertex ROUGHNESS OVERRIDE, `lights.js` reads it — `if
+     * (vNoctisRough.x > 0.0) roughnessFactor = vNoctisRough.x;` — and
+     * `city:ground` has pushed a literal `0` at every vertex it has ever
+     * emitted.** Two floats per vertex, 25 158 vertices, uploaded every chunk
+     * crossing, to say "no answer". CONTRACT §9.3, and it is the EIGHTH.
+     *
+     * WHY IT IS WORTH A TABLE RATHER THAN A CONSTANT. The walk that opened this
+     * session found the carriageway to be 30-45% of every street frame and one
+     * flat tone in all of it. The variation that does exist is a barbell:
+     * sub-metre to 9 m from the shader's mineral grain, then nothing until the
+     * per-rectangle albedo changes at 120-151 m. **A road rect is 15.0 x 151.4 m
+     * and carries ONE colour and ONE finish over the whole of it.**
+     *
+     * A finish is not a colour and that is the point — `lights.js`'s own
+     * comment beside the term says it: *"Weathered concrete is not a different
+     * grey in patches, it is a different FINISH in patches, and a frame where
+     * only albedo varies reads as a texture rather than a surface."* Asphalt
+     * and flagstone at the same albedo still read as different materials
+     * because one scatters and the other glances.
+     *
+     * AND IT IS NOT ONLY A ROUGHNESS. `mineral = smoothstep(0.42, 0.66,
+     * roughnessFactor)` gates the whole weathering block, so the value chosen
+     * here also decides HOW MUCH GRAIN AND SOIL a surface takes. Everything in
+     * this table is at or above 0.66 so `mineral` stays 1.0 and no surface
+     * loses the weathering it has today; what changes is the finish under it.
+     *
+     * THE NUMBERS ARE THE MATERIAL'S, not a look roll. `materials.ground` is
+     * 0.78 and every kind keeps that unless it is physically a different
+     * surface: hot-rolled asphalt is the roughest thing in a street, a
+     * float-finished concrete carriageway is smoother, a flagstone pavement
+     * smoother still because it is a cut face, and grass is the roughest
+     * surface there is. Zero is still "use the material's", so any kind not
+     * named here is byte-identical to what it was.
+     */
+    const GROUND_FINISH = {
+      /** Hot-rolled asphalt: the roughest paved surface in the city. */
+      road: 0.88,
+      roadConcrete: 0.72,
+      /** Cut flagstone. Smoother than the carriageway it sits beside, which is
+       *  the one contrast a kerb line has to carry in a dry frame. */
+      walk: 0.70,
+      coreGround: 0.74,
+      /** Power-floated slabs, laid to fall and swept. */
+      parkingGround: 0.76,
+      carparkGround: 0.76,
+      /** Broken hardcore and worn concrete: the roughest paved kind. */
+      yardGround: 0.92,
+      hardGround: 0.90,
+      siteGround: 0.94,
+      grass: 0.95,
+    };
+    /** 0 means "no override" — see `quad`. An unnamed kind keeps the material's. */
+    const roughnessFor = (kind) => GROUND_FINISH[kind] || 0;
+
     const porosityFor = (kind) => (
       /**
        * `field` TAKES BARE SOIL's 0.85 AND NOT TURF's 1.0 — session 61,
@@ -2140,7 +2202,20 @@ export function createCity(options = {}) {
         tintOut[2] = alb[2] * g.tone;
         tinted = tintOut;
       }
-      quad(g.x0, g.z0, g.x1, g.z1, y, tinted, CATEGORY_FOR_GROUND[g.kind] || g.kind, porosityFor(g.kind));
+      /**
+       * A CONCRETE CARRIAGEWAY IS A DIFFERENT FINISH AND NOT ONLY A DIFFERENT
+       * GREY. `roadAlbedo` twenty lines up already splits on
+       * `chunk.roadMaterials[0]`, and 36 of 81 detail chunks at seed 1337 are
+       * concrete — so the split exists, it has just only ever been a colour.
+       * The kind stays `road` (the registry category, the porosity and every
+       * gate that counts rectangles are unmoved); only the finish is asked a
+       * second question.
+       */
+      const finish = g.kind === 'road' && chunk.roadMaterials[0] === 'concrete'
+        ? GROUND_FINISH.roadConcrete
+        : roughnessFor(g.kind);
+      quad(g.x0, g.z0, g.x1, g.z1, y, tinted, CATEGORY_FOR_GROUND[g.kind] || g.kind,
+        porosityFor(g.kind), finish);
       /**
        * ═══════════════════════════════════════════════════════════════════
        * THE CUT FACE AT A TERRACE'S EDGE — SESSION 65, AND IT IS SESSION 45's
@@ -7342,9 +7417,44 @@ export function createCity(options = {}) {
     for (let i = 0; i < props.length; i++) { bodies.push(props[i]); bodySkin.push(propSkin[i]); }
     for (let i = 0; i < pillarBoxes.length; i++) { bodies.push(pillarBoxes[i]); bodySkin.push(pillarSkin[i]); }
     for (let i = 0; i < stopBoxes.length; i++) { bodies.push(stopBoxes[i]); bodySkin.push(stopSkin[i]); }
+    /**
+     * ═══════════════════════════════════════════════════════════════════════
+     * A REINSTATEMENT IS NOT ONE COLOUR — SESSION 78.
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * All 328 patches in the gate's region carried the SAME literal, so a
+     * carriageway with six trench reinstatements on it had six identical
+     * rectangles of one grey — which reads as a decal rather than as
+     * maintenance, and is why the walk that opened this session recorded them
+     * as "a smeared ghost" rather than as patches at all.
+     *
+     * WHAT A REINSTATEMENT ACTUALLY VARIES BY IS ITS AGE. Fresh binder course
+     * is nearly black and glossy with bitumen; a two-year-old one has oxidised
+     * toward the parent asphalt and been polished by tyres. So the spread is
+     * one axis — age — driven off the patch's own index through the chunk's
+     * own stream, and both ends are anchored: the black end is the 0.055 this
+     * line has always used, the weathered end is the carriageway's own asphalt,
+     * and NO PATCH IS EVER LIGHTER THAN THE ROAD IT IS CUT INTO.
+     *
+     * `PATCH_PARENT` is that carriageway albedo restated here and not read from
+     * `buildGround`'s `roadAlbedo`, which is local to that function — reaching
+     * for it would have been a ReferenceError and a quarantined city module,
+     * which is session 77's own near-miss one file over. Two readers of one
+     * number is §9.1's shape, so the two sit under one comment: if the
+     * carriageway's asphalt moves, this moves with it.
+     *
+     * Roughness runs the other way and that is the physical half: fresh bitumen
+     * is smooth, an oxidised one is as rough as the road. 0.62 to 0.90 keeps
+     * every value above `mineral`'s 0.66 knee except the freshest, which is
+     * exactly the patch that should not look weathered.
+     */
+    /** `buildGround`'s asphalt, restated — see above. */
+    const PATCH_PARENT = 0.082;
     for (let i = 0; i < patches.length; i++) {
+      const age = ((i * 7 + cx * 13 + cz * 29) % 11) / 10;
+      const k = 0.055 + (PATCH_PARENT - 0.055) * age;
       bodies.push(patches[i]);
-      bodySkin.push({ albedo: [0.055, 0.055, 0.058], roughness: 0.88 });
+      bodySkin.push({ albedo: [k, k, k * 1.045], roughness: 0.62 + 0.28 * age });
     }
     for (let i = 0; i < postBoxes.length; i++) {
       bodies.push(postBoxes[i]);
