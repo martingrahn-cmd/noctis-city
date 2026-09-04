@@ -2593,7 +2593,7 @@ extends the world asks the question of every default it inherits**, and writes
 the answer down beside the extension — which is what session 72's `portRoad`
 reading `exitRoadPorosity` rather than a literal is.
 
-### 9.3 A mechanism exists and nothing calls it — session 77, and it is seven
+### 9.3 A mechanism exists and nothing calls it — session 77, and it is nine now
 
 §9.1's first variant is *a value written in config that the code does not read*.
 This is its general form and it has now outgrown that heading: **a mechanism is
@@ -2601,7 +2601,7 @@ built, commented, and never wired to the thing it was built for.** It is not the
 same failure as §9.2's — that one is a right number in the wrong county, and
 this one is a right answer nobody asks for.
 
-Seven, and not one of them was found by a gate:
+Nine, and not one of them was found by a gate:
 
 - **`noctisRough` never reached `block:ground`** — session 1 wrote the attribute
   and the terrain never got it, so the earth plane was a mirror for
@@ -2624,10 +2624,27 @@ Seven, and not one of them was found by a gate:
   and the pose generator does not call it** (session 77). Seven presets are
   built by a formula that guarantees the subject FITS IN THE FRAME and never
   asks whether anything is in the way; three of the seven are blocked.
+- **`noctisRough.x` is a per-vertex roughness override that `lights.js` reads,
+  and `city:ground` has pushed a literal `0` at every vertex it has ever
+  emitted** (session 78). Two floats per vertex, 25 158 vertices, uploaded on
+  every chunk crossing, to say *"no answer"* — on the surface that is 30-45% of
+  every street frame. The channel was allocated in session 55 for the porosity
+  beside it and the roughness half never got a producer.
+
+**AND A NINTH THAT IS THE SAME CLASS WITH AN ARGUMENT POSITION — session 78.**
+`pushCore(x, y, z, sx, sy, sz, yaw = 0, a = albedo, r = rough)`, and the
+exchange's lantern cap called it with EIGHT arguments: `shade`, a three-element
+array, landed in `yawDeg`, and `rough`, a number, landed in `a`. `setMatrix`
+does `tmpEuler.set(0, yawDeg * DEG, 0)` on an array — NaN — and `addInstanced`
+then does `setRGB(a[0], a[1], a[2])` on a number. **The cap has drawn nothing
+since session 73 built it.** It is not a value nobody reads; it is a value read
+into the wrong slot, and the effect is identical: a mechanism that exists and
+does nothing. It survived for session 75's reason — a thing that fails to draw
+and a thing that was never emitted look the same in a frame.
 
 **WHY IT SURVIVES, AND IT IS NOT §9.2's REASON.** A default in the wrong county
 is confirmed by every reader standing near the origin. **This one is confirmed
-by the COMMENT.** Six of the seven have a paragraph beside them describing the
+by the COMMENT.** Seven of the nine have a paragraph beside them describing the
 work they do, and a reader who checks the paragraph against the intent finds
 them agreeing — because the paragraph and the intent are the same sentence. The
 only thing that disagrees is the call graph, and nothing in review reads that.
@@ -2642,7 +2659,8 @@ The remedy is the cheapest in this document and it is one command: **when a
 session writes a mechanism, it greps for its own callers before writing the
 comment that describes it.** Five of the seven above would have died to
 `grep -n "onAirfieldAt\|pushSignLight\|poseprobe" src tools` at the moment
-they were written.
+they were written. Session 78's two would have died to `grep -n "noctisRough"
+src/modules/city.js` and to counting the arguments at one call site.
 
 ---
 
