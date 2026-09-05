@@ -1969,6 +1969,47 @@ looked most likely:
 > real fixture faces.** The difference is not a rendering detail — it is the
 > whole of the information a red port light and a green starboard one carry.
 
+#### AND THE RULE HAS A SECOND HALF — SESSION 80, 2026-09-06
+
+Session 80 read all **thirty-eight** `glow()` call sites in `city.js` one at a
+time, looking for emitters that deposit no light. It found none — sessions 76
+and 77 had already routed every fixture that needed routing — and found **six
+plates that are drawn every frame and rasterised by nothing**, four of them in
+the geometry sessions 71–77 built the harbour's and the airfield's night around:
+
+- a floodlight rack's own LENS at the housing's mid-depth, 5.2 × 0.7 inside a
+  5.4 × 0.9 box, occluded by its own fixture from every direction — the aim
+  direction included. What had been visible on a quay or apron mast since
+  session 71 was the lamp BOWL;
+- four under-portal gantry floods at `portalY + 0.2` with the cross-beam
+  occupying 16.0–18.4 m: **0.55 m of a 0.7 m plate behind it**, normals pointing
+  INTO the beam 0.1 m away;
+- a pier's two glazing plates given each other's yaws, so both faced into the
+  pier body and neither was visible from anywhere — on a branch whose comment
+  reads *"glazed both long sides, because a pier is seen from both stands"*;
+- a villa's door lamp given `put`'s ABSOLUTE yaw where `glow`'s is RELATIVE, so
+  its world heading was `2·f.yawDeg + 24` on houses yawed 64° to 127°;
+- a hangar's two door-header worklights at yaw 0 on a branch whose own comment
+  says the door faces local −Z;
+- and the villa's real lamp — a `kind: 'lamp'` with a cluster slot — standing at
+  local `(+7.14, 0)`, which is **inside four of the nine boxes the villa draws**.
+
+> **NAME THE CAMERA THAT SEES IT.** Not "is it facing the right way" — that is
+> the session-75 half and it catches only one of these six. A plate can face
+> correctly and still be inside its own housing, behind the beam it hangs off,
+> or on the far side of the box it is bolted to. **A quad whose only viewer is
+> inside a shell has not been built**, and it is indistinguishable in the source
+> from one that works, which is why `grep` finds CONTRACT §9.3's rows and finds
+> none of these.
+
+**THE MEASUREMENT THAT MADE ALL SIX FINDABLE COST THIRTY MINUTES.** Standing at
+the subject and printing the lamp pool's occupancy beside the frame's own
+luminance distribution separates *"the light never arrived"* from *"the light
+arrived and the plate is behind something"* in one command, and those two
+findings want opposite repairs. Session 79 gave three destinations dusk on the
+first reading; the second reading is `tools/destshot.mjs` and one of the three
+carries midnight now.
+
 ### AN EMITTER IS NOT A LIGHT — SESSION 76, 2026-09-03
 
 Session 75 made the airfield's lights appear and closed with *"nothing on the

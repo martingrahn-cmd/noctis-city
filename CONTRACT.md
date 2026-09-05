@@ -2593,7 +2593,7 @@ extends the world asks the question of every default it inherits**, and writes
 the answer down beside the extension — which is what session 72's `portRoad`
 reading `exitRoadPorosity` rather than a literal is.
 
-### 9.3 A mechanism exists and nothing calls it — session 77, and it is ten now
+### 9.3 A mechanism exists and nothing calls it — session 77, and it is eleven now
 
 §9.1's first variant is *a value written in config that the code does not read*.
 This is its general form and it has now outgrown that heading: **a mechanism is
@@ -2601,7 +2601,7 @@ built, commented, and never wired to the thing it was built for.** It is not the
 same failure as §9.2's — that one is a right number in the wrong county, and
 this one is a right answer nobody asks for.
 
-Ten, and not one of them was found by a gate:
+Eleven, and not one of them was found by a gate:
 
 - **`noctisRough` never reached `block:ground`** — session 1 wrote the attribute
   and the terrain never got it, so the earth plane was a mirror for
@@ -2616,6 +2616,27 @@ Ten, and not one of them was found by a gate:
 - **`glow()` pushes a `null` where `pushSignLight` claims a light slot**
   (session 76). Every villa window, quay flood and airfield light built since
   session 62 was an emitter that deposited nothing.
+
+  > **CLOSED, AND IT WAS CLOSED IN TWO HALVES BEFORE ANYBODY SAID SO —
+  > SESSION 80.** Session 76 routed the airfield's thirteen masts and session
+  > 77 the quay's six, each through the `flood` branch of the feature loop with
+  > its own derived candela; nothing else in the file was ever an emitter.
+  > Session 80 read all thirty-eight `glow()` call sites one at a time and
+  > found thirty lit surfaces by construction — windows, fascias, sign blades,
+  > cab glazing, runway and approach LENSES, aircraft position lights, a flood
+  > rack's own face — and eight fixture HOUSINGS, every one of them standing
+  > inside a pool that already exists or unable to express its aim through
+  > `glow()`, which composes a yaw and never a pitch. Measured at session 79's
+  > `harbour-quay` destination at midnight: lamp pool 6 active of 6 candidates,
+  > median surface luminance **3.404 cd/m²** against **0.1900** at session 77's
+  > own point in the same build (session 77 reported 0.1903 there).
+  >
+  > **IT STAYED ON THIS LIST FOR FOUR SESSIONS BECAUSE EACH SESSION READ THE
+  > ROW AND NOT THE CALL GRAPH** — which is the exact inverse of the remedy the
+  > last paragraph of this section states. A row that says *"a mechanism exists
+  > and nothing calls it"* is a claim about `grep`, and it goes stale the same
+  > way a comment does. **When a session carries a row of this table forward, it
+  > re-runs the grep that put it there.**
 - **`if (k >= lit)` in `traffic.js`'s headlamp assignment is unreachable**
   (session 77): `lit = min(lampPool.length 96, lampOrder.length 120)` is always
   96, which is `lampPool.length`. The one switch that turns a headlamp off had
@@ -2650,6 +2671,37 @@ Ten, and not one of them was found by a gate:
   consult it, which is why nothing in review found it: the grep for callers
   returns two, and two is not zero.
 
+  > **REPAIRED IN SESSION 80, AND NOT WHERE IT WAS FOUND.** Teaching
+  > `nextJunctionAhead` to skip a node needs the vehicle's axis and line and a
+  > loop across six call sites, and that function is module-level with no
+  > `rootSeed` in scope. The node stays and the PERMISSION is granted
+  > unconditionally instead: nothing crosses a road that is in the river, so
+  > there is nothing to yield to and no conflict for the phase to protect. One
+  > disjunct on the grant, evaluated only on red, on the same memoised
+  > `crossingMissing` the census beside it already called — one predicate,
+  > three consumers instead of two. Measured: **3 131 samples → 0**.
+
+- **`camLane.dir` is written by the camera-lane scan and read by nothing**
+  (session 80), and its own comment three lines above the reader has claimed
+  otherwise since session 33: *"on the same line, ahead of it. A camera on the
+  pavement, ON THE OTHER CARRIAGEWAY or on a different street is not an
+  obstacle."* Two of those four clauses were in the prose and in no expression.
+  A lane's lateral offset is `dir · LANE_OFFSET[lane]`, so `(dir, lane)`
+  TOGETHER name it, and matching `lane` alone made a camera on one kerbside
+  lane an obstacle in the other, 10.5 m away. And `gapCam` is signed in the
+  vehicle's own travel direction, so a camera BEHIND a vehicle made
+  `gapCam < safe` trivially true and clamped it to exactly 0 m/s wherever it
+  stood — on green, holding permission, invisible to `worstStopLineM` by that
+  statistic's own filter.
+
+  **IT IS THE LARGEST SINGLE FINDING THIS TABLE HAS CARRIED, AND IT IS
+  MEASURED.** `tools/stoplineprobe.mjs`, 25 920 frames at dt = 1/60, three
+  builds differing only in this expression: **2 794 → 3** vehicle-frames
+  stopped with a body inside a junction box, 17 episodes → 1, longest 2.52 s →
+  0.05 s. Four sessions of briefs attributed that census to signal permission
+  and to session 21's exit reservation; it was three lines of car-following,
+  and the operator had reported it as *"cars stop in the middle of the road."*
+
 **AND A NINTH THAT IS THE SAME CLASS WITH AN ARGUMENT POSITION — session 78.**
 `pushCore(x, y, z, sx, sy, sz, yaw = 0, a = albedo, r = rough)`, and the
 exchange's lantern cap called it with EIGHT arguments: `shade`, a three-element
@@ -2681,6 +2733,28 @@ comment that describes it.** Five of the seven above would have died to
 they were written. Session 78's two would have died to `grep -n "noctisRough"
 src/modules/city.js` and to counting the arguments at one call site.
 
+> **AND A SIBLING CLASS THE SAME CENSUS FOUND — SESSION 80: A MECHANISM THAT IS
+> CALLED, IS CORRECT, AND FACES SOMEWHERE NOBODY STANDS.** `grep` finds the
+> rows above; nothing finds these, because in the source they are
+> indistinguishable from the ones that work. Four in one afternoon, all in
+> geometry sessions 71–77 built the harbour's and the airfield's night around:
+>
+> - a floodlight rack's LENS at the housing's mid-depth, 5.2 × 0.7 inside a
+>   5.4 × 0.9 box, occluded by its own fixture from every direction including
+>   the aim;
+> - four under-portal gantry floods at `portalY + 0.2` with the cross-beam at
+>   16.0–18.4, i.e. 0.55 m of a 0.7 m plate behind it, normals pointing INTO
+>   the beam 0.1 m away;
+> - a pier's two glazing plates given each other's yaws, so both faced into the
+>   pier body and neither was visible from anywhere;
+> - a villa's door lamp given `put`'s ABSOLUTE yaw where `glow`'s is RELATIVE,
+>   so its world heading was `2·f.yawDeg + 24` and every lit house showed the
+>   back of it on a `FrontSide` quad.
+>
+> The test is the one LOOK.md §7 already states and it is cheap: **name the
+> camera that sees it.** A quad whose only viewer is inside a shell, behind a
+> beam, or on the far side of the box it is bolted to has not been built.
+
 ---
 
 ## 10. Session ritual
@@ -2708,6 +2782,26 @@ src/modules/city.js` and to counting the arguments at one call site.
    > A standing red is the easiest place in this project to hide a new one,
    > because the gate's exit code does not change. **Diff the violation LINES
    > against the previous session's, not the exit codes.**
+   >
+   > **AND SESSION 80 APPLIED THAT BACKWARDS AND IT PAID.** The four standing
+   > `lookcheck` reds had never had their CONTENT read. Run at session 53's
+   > head (`1f2a3a2`) in a paired worktree and diffed against session 80's:
+   >
+   > ```
+   >                            s53 (1f2a3a2)        s80 HEAD
+   >   distinct:midnight|dusk     0.02954             0.02774   −6.1%, AWAY from 0.03
+   >   facadeAlbedo closest pair  0.168               0.177     +5.4%, toward 0.35
+   >   facadeNeighbours           1.292 1.932 0.229   1.145 1.646 0.216
+   >                                                            all three DOWN; the pair
+   >                                                            that fails went further
+   >                                                            from its own 0.3 bar
+   >   stddev:dusk                green                0.1267   red since 7be7adf (s78)
+   > ```
+   >
+   > **Every one of the three has moved, and two of them the wrong way, over
+   > twenty-seven sessions in which nobody looked inside them.** The exit code
+   > was 1 throughout. A red is a number as well as a colour, and a session
+   > that reports *"the identical N"* has read neither.
 4. Look at `tools/look-out/*.png`, and at anything else worth looking at —
    `node tools/lookat.mjs` puts the eye wherever the question is. The numbers
    are necessary and not sufficient.
