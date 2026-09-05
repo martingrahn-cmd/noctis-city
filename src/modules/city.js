@@ -451,6 +451,20 @@ const MERCURY_SHARE_OF_COLD = 0.35;
 const COLD_SHOP_SHARE = 0.25;
 
 /**
+ * m. THE SIDE OF THE BOX `LIGHT.aviationRedNits` IS DERIVED OVER, and it is
+ * module-level since session 80 because it now has two readers.
+ *
+ * `aviationRedNits` is `I/A` — ICAO Annex 14's 2000 cd over this square — so
+ * the size is the denominator of that constant's own arithmetic and changing
+ * one without the other is CONTRACT §9 with a length. It was a local inside
+ * `buildLandmark`, which was correct while the landmark ring was the only
+ * obstruction light in the world; the control tower is the second, and a second
+ * copy of 0.35 beside a second copy of the radiance is exactly the arrangement
+ * §9.1 is a list of.
+ */
+const BEACON_M = 0.35;
+
+/**
  * The unit-interval hash this file already uses for `lit`, named once.
  *
  * ═══════════════════════════════════════════════════════════════════════════
@@ -5386,7 +5400,39 @@ export function createCity(options = {}) {
              * because `QUAY_FLOOD_OPTIC` is and because session 71 built this
              * whole harbour warm outside.
              */
-            glow(0, f.height + 0.4, 0, hw - 0.2, 0.7, aim,
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND UNTIL SESSION 80 THE LENS WAS INSIDE ITS OWN HOUSING.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `dz` was 0, which is the box's MID-DEPTH, and the quad is smaller
+             * than the box in both dimensions: 5.2 against 5.4 wide, 0.7
+             * against 0.9 tall, on the plane through the box's centre. An
+             * opaque `MeshStandardMaterial` with depth test and depth write is
+             * what `materials.sign` is, so the rack's own head occluded its
+             * lens from every direction — the aim direction included. What has
+             * been visible on a quay or apron mast since session 71 is the lamp
+             * BOWL pushed 2 500 lines below, not this.
+             *
+             * `afstrip`'s runway edge light does it right and did it first: a
+             * 0.5 × 0.34 quad against a 0.34 box, OVERSIZE, so it pokes out and
+             * reads. This takes the other route — forward to the housing's own
+             * front face — because a floodlight's glass IS the front of the
+             * box and a quad standing proud of a 5.4 m rack would read as a
+             * plate floating beside it.
+             *
+             * ALONG THE AIM AND NOT ALONG LOCAL +Z. `glow`'s `dx`/`dz` are
+             * rotated by `f.yawDeg`, which is 0 on every mast that sets
+             * `f.head` (both `citygen` push sites), so the local frame is the
+             * world frame here; `aim` is the absolute heading `put` gave the
+             * housing, and three's Y rotation takes local +Z to
+             * `(sin θ, 0, cos θ)`. So the front face is `hd/2` along
+             * `(sin(aim), cos(aim))`, plus 0.02 m of the 1 mm ladder's own
+             * argument at a scale where 1 mm would z-fight a 5.4 m box.
+             */
+            const lensOut = hd / 2 + 0.02;
+            glow(Math.sin((aim * Math.PI) / 180) * lensOut, f.height + 0.4,
+              Math.cos((aim * Math.PI) / 180) * lensOut, hw - 0.2, 0.7, aim,
               f.apron === 1 ? EMITTER_CHROMA.fluorescentCold : EMITTER_CHROMA.sodium,
               LIGHT.signPlateNits * (rack ? 11.0 : 7.0));
           }
@@ -5593,9 +5639,39 @@ export function createCity(options = {}) {
            * against the city's mercury and fluorescent, which is LOOK.md's own
            * sentence and is the thing the lamp-bowl path could not do.
            */
+          /**
+           * ═════════════════════════════════════════════════════════════════
+           * AND THEY WERE 79% BEHIND THE BEAM THEY HANG OFF — SESSION 80.
+           * ═════════════════════════════════════════════════════════════════
+           *
+           * The portal cross-beam is `put(0, portalY + 1.2, sz, 2*legHalf + 3.0, 2.4, 2.6)`,
+           * so it occupies y 16.0–18.4 and z ±[13.7, 16.3]. The floods stood at
+           * `portalY + 0.2` = 16.2 with a half-height of 0.35, i.e. y 15.85 to
+           * 16.55 — **0.55 m of a 0.7 m plate inside the beam**, at a 0.1 m
+           * standoff, with `materials.sign` opaque and depth-writing. From
+           * `sea-harbour` the sight line to the exposed sliver passes within a
+           * centimetre of the beam's soffit. That is `city.js`'s own named
+           * failure four thousand lines up — *"the quads are not backwards,
+           * they are OCCLUDED"* — on the population session 71 built the
+           * harbour's night around.
+           *
+           * BELOW THE SOFFIT, at `portalY − 0.6`: y 15.05–15.75 clears 16.0 by
+           * a quarter of a metre, which is where a flood bolted under a beam
+           * hangs anyway.
+           *
+           * AND `glowOmni`, WHICH IS THE HALF THAT NEEDED A DECISION. Their
+           * normals were ±Z pointing INTO the beam 0.1 m away — the quad at
+           * z −13.6 carried yaw 180 and faced −Z, i.e. the beam at −16.3 to −13.7.
+           * Flipping the yaw would face them into the portal and hide them from
+           * `sea-harbour` and `harbour-air`, the two committed poses that stand
+           * seaward; leaving them faced only the beam. A work flood under a
+           * portal is seen from inside the portal AND from the quay outside it,
+           * which is session 75's own stated case for the primitive. Four quads
+           * become eight, on three cranes, outside every gate's region.
+           */
           for (const sz of [-g, g]) {
             for (const sx of [-legHalf, legHalf]) {
-              glow(sx, portalY + 0.2, sz + (sz < 0 ? 1.4 : -1.4), 1.7, 0.7, sz < 0 ? 180 : 0,
+              glowOmni(sx, portalY - 0.6, sz + (sz < 0 ? 1.4 : -1.4), 1.7, 0.7, sz < 0 ? 180 : 0,
                 EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 5.2);
             }
           }
@@ -5873,7 +5949,28 @@ export function createCity(options = {}) {
           /** Glazed both long sides, because a pier is seen from both stands. */
           for (const sx of [-1, 1]) {
             put(sx * (W / 2 + 0.16), Hh * 0.62, 0, 0.32, Hh * 0.52, R - 2.0, glass, 0.07);
-            glow(sx * (W / 2 + 0.38), Hh * 0.62, 0, R - 2.6, Hh * 0.48, sx < 0 ? 90 : 270,
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * THE TWO YAWS WERE SWAPPED — SESSION 80, AND THE PIER HAS READ AS
+             * A DARK BOX AT NIGHT SINCE SESSION 75 BUILT IT.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `citygen.js` states the convention beside the stands it uses it
+             * for: *"`put` maps local +Z to world +X at yaw 90"*. So the WEST
+             * plate at `x = −(W/2 + 0.38)` given yaw 90 has its front face
+             * pointing +X — 0.38 m into the pier body — and the east plate at
+             * `+(W/2 + 0.38)` given yaw 270 points −X, also into the body.
+             * `materials.sign` is `FrontSide`: a camera on the plate's own side
+             * is culled and a camera on the far side is occluded by the pier
+             * between them, so **both plates are invisible from everywhere**.
+             * The comment this branch carries — *"glazed both long sides,
+             * because a pier is seen from both stands"* — describes the
+             * intent exactly and the expression inverts it.
+             *
+             * Session 75's own defect, one scale down, in the session-75
+             * geometry that repaired it for the runway. LOOK.md §7.
+             */
+            glow(sx * (W / 2 + 0.38), Hh * 0.62, 0, R - 2.6, Hh * 0.48, sx < 0 ? 270 : 90,
               EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 1.15);
           }
           const bays = Math.max(3, Math.round(R / 12));
@@ -6118,7 +6215,24 @@ export function createCity(options = {}) {
           /** The mast, and the obstruction light on it. */
           put(0, Hh * 1.06, 0, 0.35, Hh * 0.14, 0.35, trim, 0.7);
           for (const yaw of [0, 180]) {
-            glow(0, Hh * 1.135, 0, 0.7, 0.7, yaw, EMITTER_CHROMA.neonRed, LIGHT.signPlateNits * 5.0);
+            /**
+             * THE OBSTRUCTION LIGHT, AND IT WAS 38x TOO DIM AGAINST THIS
+             * PROJECT'S OWN CONSTANT — SESSION 80.
+             *
+             * It was `signPlateNits * 5.0` = 430 cd/m2, a gain typed beside a
+             * quad, while `LIGHT.aviationRedNits` = 16 300 exists for precisely
+             * this fixture and derives itself in `constants.js` from ICAO Annex
+             * 14 Type B's 2000 cd over a `BEACON_M` square. `materials.beacon`
+             * has carried it since session 19 and the eighteen landmark beacons
+             * ride on it. One quantity, two values, 38x apart, in one file —
+             * CONTRACT §9's oldest class.
+             *
+             * THE BOX COMES WITH THE RADIANCE. 16 300 cd/m2 over a 0.7 m square
+             * would be 7 987 cd, four times what the standard asks, because the
+             * nits ARE `2000 / BEACON_M^2`. Taking the constant means taking its
+             * denominator, which is the whole reason `BEACON_M` was hoisted.
+             */
+            glow(0, Hh * 1.135, 0, BEACON_M, BEACON_M, yaw, EMITTER_CHROMA.neonRed, LIGHT.aviationRedNits);
           }
         } else if (f.kind === 'afstand') {
           /**
@@ -9485,7 +9599,6 @@ export function createCity(options = {}) {
      */
     const beacons = [];
     const beaconPhase = [];
-    const BEACON_M = 0.35;
     const pushBeacon = (x, y, z) => {
       if (!owns(x, z)) return;
       beacons.push(setMatrix(x, y, z, BEACON_M, BEACON_M, BEACON_M, 0));
