@@ -3476,6 +3476,43 @@ export function createTraffic(options = {}) {
         inBoxStoppedPastCentre: 0,
         inBoxWitness: null,
         /**
+         * ═══════════════════════════════════════════════════════════════════
+         * AND THE RUN-CUMULATIVE ONE, WHICH IS THE ONE A GATE CAN READ —
+         * SESSION 80, ITEM 2d.
+         * ═══════════════════════════════════════════════════════════════════
+         *
+         * The three counters above are reset every frame, because their reader
+         * is `stoplineprobe`, which integrates them itself over 25 920 frames.
+         * `perfcheck` reads `trafficStats()` ONCE, at the end of a capture, so
+         * a per-frame counter would hand it the last frame's number — and the
+         * last frame of a 900-frame route is not a statistic about the route.
+         * This accumulates for the module's whole life and is never reset, the
+         * same arrangement `seedRejects` and `seedFallbacks` already have.
+         *
+         * WHY IT EXISTS RATHER THAN A WIDER `worstStopLineM`. Item 2d asked to
+         * fix that statistic's filter or retire it, and the measurement says
+         * NEITHER: its filter is CORRECT for the question it asks — *"a vehicle
+         * held at a red must not stand past its own bar"* — and a vehicle with
+         * permission is supposed to have a negative `toStop`, so admitting one
+         * would make the number measure the green light, which is what its own
+         * comment 40 lines below says. What was missing was not a wider filter
+         * but a SECOND STATISTIC for the population the first one excludes by
+         * construction, asserted rather than printed.
+         *
+         * THE CONTROL CAME BEFORE THE FLOOR — §9 row 71. Three builds of
+         * `tools/stoplineprobe.mjs` over the same 25 920 frames at seed 1337,
+         * differing only in the two repairs above:
+         *
+         *     as shipped                        2 794     3 131 phantom
+         *     + the camera-lane guard               3     2 650
+         *     + the phantom-junction grant          0         0
+         *
+         * A statistic that reads zero on a build where the defect is absent and
+         * 2 794 on the build where it is present is an instrument; one that had
+         * only ever been read on the repaired build would be an assumption.
+         */
+        inBoxStoppedPermittedTotal: 0,
+        /**
          * AND THE OTHER HALF, WHICH IS §9.3'S CLASS EXACTLY. Vehicle-frames in
          * which a vehicle is held at a bar for a junction WHOSE CROSSING ROAD
          * DOES NOT EXIST — the river took it, or the origin block, or a
@@ -3882,8 +3919,50 @@ export function createTraffic(options = {}) {
              * it. A camera on the pavement, on the other carriageway or on a
              * different street is not an obstacle and must not slow anything
              * down, or the whole system brakes for a viewpoint it cannot see.
+             *
+             * ═══════════════════════════════════════════════════════════════
+             * AND FOR THIRTY-SIX SESSIONS THE PARAGRAPH ABOVE WAS TRUE OF THE
+             * PROSE AND NOT OF THE EXPRESSION — SESSION 80, AND IT IS THE
+             * OPERATOR'S *"CARS STOP IN THE MIDDLE OF THE ROAD"*.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * Two of the four clauses this comment claims were never written.
+             *
+             *   THE CARRIAGEWAY. `camLane.dir` is assigned by the scan above
+             *     and, until this line, `grep -n 'camLane\.dir'` returned
+             *     exactly one hit — its own assignment. A lane's lateral offset
+             *     is `dir · LANE_OFFSET[lane]`, so (dir, lane) TOGETHER name it:
+             *     (+1, 1) is +5.25 m and (−1, 1) is −5.25 m, two lanes 10.5 m
+             *     apart on opposite sides of the street. Matching `lane` alone
+             *     made a camera on one kerbside lane an obstacle in the other.
+             *     CONTRACT §9.3: a mechanism exists and nothing calls it.
+             *
+             *   AHEAD OF IT. `gapCam` is a SIGNED distance in the vehicle's own
+             *     travel direction, so for any vehicle the camera is BEHIND,
+             *     `gapCam` is large and negative, `gapCam < safe` is trivially
+             *     true, and `max(0, FREE_SPEED · gapCam/safe)` collapses to
+             *     exactly 0. The vehicle brakes at `BRAKE_A` to a dead stop and
+             *     stands wherever it happened to be — mid-block, or with its
+             *     body inside a junction box, on green, holding permission. The
+             *     signal block 340 lines below never sees it, because
+             *     `veh.cleared === nextJ` and `worstStopLineM` is written only
+             *     inside `if (veh.cleared !== nextJ)`.
+             *
+             * MEASURED, `tools/stoplineprobe.mjs`, 25 920 frames at dt = 1/60,
+             * seed 1337, three builds differing only in this expression:
+             *
+             *     as shipped                  2 794 in-box frames, 17 episodes,
+             *                                 longest 151 frames = 2.52 s
+             *     + `camLane.dir === veh.dir`
+             *       and the ahead test            3 in-box frames, 1 episode,
+             *                                 longest 3 frames = 0.05 s
+             *
+             * 99.89% of session 79's census, which four sessions of briefs
+             * attributed to signal permission and to session 21's exit
+             * reservation, was three lines of car-following.
              */
-            if (camLane.axis === veh.axis && camLane.line === veh.line && camLane.lane === veh.lane) {
+            if (camLane.axis === veh.axis && camLane.line === veh.line && camLane.lane === veh.lane
+                && camLane.dir === veh.dir && (camLane.s - veh.s) * veh.dir > 0) {
               const gapCam = (camLane.s - veh.s) * veh.dir - type.len * 0.5 - CAMERA_CLEARANCE;
               if (gapCam < safe) {
                 limit = Math.min(limit, Math.max(0, FREE_SPEED * (gapCam / Math.max(0.1, safe))));
@@ -4120,7 +4199,45 @@ export function createTraffic(options = {}) {
               // Strictly less than, so a vehicle already on the comfortable
               // stopping profile — where toStop === brakeDist by construction —
               // is not granted permission by its own deceleration.
-              if (!pedInRoad && (phase === 0 || (phase === 1 && toStop < brakeDist))) veh.cleared = nextJ;
+              /**
+               * ═══════════════════════════════════════════════════════════════
+               * AND A JUNCTION WITH NO CROSSING ROAD GRANTS UNCONDITIONALLY —
+               * SESSION 80, AND IT IS CONTRACT §9.3's TENTH ROW REPAIRED WHERE
+               * IT IS CHEAPEST RATHER THAN WHERE IT WAS FOUND.
+               * ═══════════════════════════════════════════════════════════════
+               *
+               * Session 79 measured **3 131 vehicle-samples held at a bar for a
+               * junction whose crossing road is in the river**, at one node,
+               * (0, −384) — a car stopped at a red for a hundred metres of open
+               * water. It named the mechanism and declined the repair, because
+               * teaching `nextJunctionAhead` to SKIP such a node needs the
+               * vehicle's axis and line and a loop, and that function is
+               * module-level with no `rootSeed` in scope. Six call sites.
+               *
+               * THE NODE STAYS AND THE PERMISSION IS FREE. Nothing crosses
+               * there, so there is nothing to yield to and no conflict for the
+               * phase to protect: a vehicle at that node may always have it.
+               * One disjunct, one branch, no call site moved, and `veh.cleared`
+               * keeps its whole meaning — the junction this vehicle may occupy.
+               *
+               * IT IS THE THIRD READER OF ONE PREDICATE AND IT ASKS THE SAME
+               * QUESTION THE OTHER TWO DO. The signal HEAD asks
+               * `landmarkOccupies` and `cityExtentAt`; the PAINT asks `onRoad`;
+               * `crossingMissing` is the memoised union of all four and the
+               * census 90 lines below has called it since session 79. This is
+               * CONTRACT §9.1's remedy in one line: one predicate, and now
+               * three consumers instead of two.
+               *
+               * IT IS EVALUATED ONLY ON RED. `||` short-circuits, so a vehicle
+               * on green never asks; the cache is keyed on `axis,node,line` and
+               * the answer for a node is computed once for the session.
+               *
+               * MEASURED, `tools/stoplineprobe.mjs`, the same 25 920 frames:
+               * held-at-a-phantom-junction 3 131 → 2 650 (the camera repair
+               * above) → **0**, and in-box stopped vehicle-frames 3 → **0**.
+               */
+              if (!pedInRoad && (phase === 0 || (phase === 1 && toStop < brakeDist)
+                  || crossingMissing(veh.axis, nextJ, veh.line * CITY.chunkSize))) veh.cleared = nextJ;
             } else if ((phase !== 0 || pedInRoad) && toStop > brakeDist) {
               /**
                * REVOKED, AND `pedInRoad` IS THE SECOND REASON — session 33.
@@ -4186,7 +4303,11 @@ export function createTraffic(options = {}) {
               const half = CITY.roadHalfWidth;
               if (nose > -half && tail < half) {
                 stats.inBoxStopped++;
-                if (veh.cleared === nextJ) stats.inBoxStoppedPermitted++;
+                if (veh.cleared === nextJ) {
+                  stats.inBoxStoppedPermitted++;
+                  /** Run-cumulative, never reset — see the field's own note. */
+                  stats.inBoxStoppedPermittedTotal++;
+                }
                 if (past > 0) stats.inBoxStoppedPastCentre++;
                 if (!stats.inBoxWitness || nose > stats.inBoxWitness.noseIntoBoxM) {
                   stats.inBoxWitness = {

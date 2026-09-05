@@ -241,7 +241,18 @@ console.log('  `worstStopLineM` above is written ONLY for a vehicle WITHOUT perm
 console.log('  A vehicle that entered on green KEEPS permission through the box, on purpose, so every');
 console.log('  one of these is invisible to it. This is the operator\'s "cars stop in the middle of the road".\n');
 console.log(`  vehicle-frames stopped with body in a box            ${inBoxFrames}`);
-console.log(`    of those, HOLDING PERMISSION (invisible above)     ${inBoxPermitted}`);
+console.log(`    of those, HOLDING PERMISSION (invisible above)     ${inBoxPermitted}` +
+  /**
+   * THE SAME QUANTITY, SUMMED THE OTHER WAY — session 80, CONTRACT §9 rule 2.
+   * The left-hand number is this probe integrating a per-frame counter over
+   * 25 920 frames; the right-hand one is `traffic.js`'s own run-cumulative
+   * field, which is what `perfcheck` asserts against
+   * `budget.json` → `trafficLights.maxInBoxStoppedPermitted`. Two paths to one
+   * number, printed together, so a gate reading a field this probe cannot
+   * reproduce says so here rather than in a session's conclusions.
+   */
+  `   module's own cumulative ${api.stats().inBoxStoppedPermittedTotal}` +
+  `${api.stats().inBoxStoppedPermittedTotal === inBoxPermitted ? '  — agree' : '  *** DISAGREE ***'}`);
 console.log(`    of those, ORIGIN past the junction centre          ${inBoxPastCentre}`);
 console.log(`  episodes (runs of consecutive frames)                ${episodes}` +
   `${episodes ? `, longest ${longestEpisode} frames = ${(longestEpisode * DT).toFixed(2)} s` : ''}`);
