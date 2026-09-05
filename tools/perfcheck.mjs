@@ -745,27 +745,37 @@ function assertTrafficContent(route, traffic, budget) {
     }
   }
   /**
-   * AND THE POPULATION THE LINE ABOVE EXCLUDES BY CONSTRUCTION — session 80,
-   * item 2d. `worstStopLineM` is written only for a vehicle WITHOUT permission;
-   * this counts the ones WITH it that stopped anyway with metal inside a box.
-   * Run-cumulative over the module's life, so it is the whole route rather than
-   * its last frame. The whole argument, and the three-build control that
-   * separates 2 794 from 0, is in `budget.json` → `$maxInBoxStoppedPermitted`.
+   * ═══════════════════════════════════════════════════════════════════════
+   * AND THE POPULATION THE LINE ABOVE EXCLUDES BY CONSTRUCTION IS **NOT**
+   * ASSERTED HERE — SESSION 80, AND THE BATTERY IS WHY.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `traffic.stats().inBoxStoppedPermittedTotal` is published and it is a good
+   * instrument: it is what took session 79's census from 2 794 to 0 across
+   * three builds of `traffic.js`, and `tools/stoplineprobe.mjs` prints it beside
+   * its own integration of the per-frame counters (§9 rule 2).
+   *
+   * IT WAS ASSERTED HERE FOR ONE BATTERY AND THE BATTERY REFUSED IT. Same
+   * build, same route, same seed, two runs differing only in what else the
+   * machine was doing: `downtown_dense` delivered **0** at a CPU p95 of
+   * 47.10 ms and **1 133** at 30.80 ms. A vehicle-frame count is a count of
+   * FRAMES, and a route that renders faster delivers more of them and steps the
+   * integration finer — so the quantity moves with the observer's load, which
+   * is CONTRACT §0.2's own category with an integer instead of a millisecond.
+   *
+   * A THRESHOLD THAT SWINGS BY 1 133 WITH THE LOAD IS NOT A THRESHOLD, and
+   * shipping it would have put a gate in this suite that is red on a quiet
+   * machine and green on a busy one — the exact inversion of §0.2's rule that
+   * drift here is one-sided. Withdrawn the same session it was added, with both
+   * measurements recorded in `budget.json` → `$maxInBoxStoppedPermitted` so the
+   * next session argues with the numbers rather than with the idea.
+   *
+   * WHAT A FRAME-RATE-INDEPENDENT FORM WOULD BE: an EPISODE count — one per
+   * time a vehicle comes to rest inside a box — rather than one per frame it
+   * stands there. `stoplineprobe` already computes episodes globally (17 → 1 →
+   * 0 across the three builds); the module does not keep them per vehicle. That
+   * is the next session's five minutes, and it needs its own control.
    */
-  if (T.maxInBoxStoppedPermitted != null) {
-    if (traffic.inBoxStoppedPermittedTotal == null) {
-      fails.push(
-        `${route}: traffic reports no inBoxStoppedPermittedTotal — the census that worstStopLineM ` +
-        `cannot see is UNRUN rather than passed, which is CONTRACT §7.1's quiet gate`
-      );
-    } else if (traffic.inBoxStoppedPermittedTotal > T.maxInBoxStoppedPermitted) {
-      fails.push(
-        `${route}: ${traffic.inBoxStoppedPermittedTotal} vehicle-frames stopped with a body inside a ` +
-        `junction box WHILE HOLDING PERMISSION (max ${T.maxInBoxStoppedPermitted}) — a vehicle granted ` +
-        `the junction must leave it, and every one of these is invisible to worstStopLineM above`
-      );
-    }
-  }
   if (traffic.bodyTypes < T.minBodyTypes) {
     fails.push(
       `${route}: ${traffic.bodyTypes} body types < ${T.minBodyTypes} — a count of kinds, which is why ` +
@@ -1701,9 +1711,6 @@ function goodRun() {
       headlamps: BUDGET.trafficLights.contentHeadlamps,
       /** Session 21 — a held vehicle short of its own line, which is correct. */
       worstStopLineM: BUDGET.trafficLights.minStopLineM + 0.4,
-      /** Session 80 — nobody stopped in a box, which is what the repaired build
-       *  measures (0 over 25 920 frames, `stoplineprobe`). */
-      inBoxStoppedPermittedTotal: BUDGET.trafficLights.maxInBoxStoppedPermitted,
       bodyTypes: 5,
       // Straight off the budget, so the fixture agrees by construction and the
       // two falsifying cases below are the only way this block goes red.
@@ -1930,15 +1937,6 @@ const FALSIFY = [
    */
   ['traffic.stopLinePast', (g, r) => { r.traffic.worstStopLineM = -3.3; }],
   ['traffic.stopLineUnrun', (g, r) => { r.traffic.worstStopLineM = Infinity; }],
-  /**
-   * SESSION 80. The defect exactly as session 79 measured it — 2 794
-   * vehicle-frames stopped with a body inside a junction box while holding
-   * permission — and the UNRUN case, which is the one an inequality alone would
-   * pass and which is how this assertion would go quiet if the field were ever
-   * dropped from `traffic.stats()`.
-   */
-  ['traffic.inBoxStopped', (g, r) => { r.traffic.inBoxStoppedPermittedTotal = 2794; }],
-  ['traffic.inBoxUnrun', (g, r) => { r.traffic.inBoxStoppedPermittedTotal = null; }],
   ['cluster.overflow', (g, r) => { r.routeInfo.cluster.overflow = true; }],
   ['cluster.margin', (g, r) => { r.routeInfo.cluster.occupancyMargin = 0; }],
   ['motion.missingInstrument', (g, r) => { r.motion = null; }],
