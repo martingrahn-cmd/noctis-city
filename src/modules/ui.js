@@ -460,13 +460,17 @@ export function createUi(options = {}) {
         key: 'harbour-quay',
         group: 'the world',
         label: 'harbour quay',
-        t: 0.78,
+        t: 0,
         proves: 'the working quay east along the apron: three portal cranes on their rails, '
           + 'the container stacks either side and the open sea past the quay face. '
-          + 'DUSK AND NOT MIDNIGHT, AND THE MIDNIGHT ARM IS THE REASON — shot at t 0.0 the '
-          + 'same frame is very nearly black, because `glow()` pushes an emissive quad and '
-          + 'no light candidate (CONTRACT §9.3, fifth row, session 76, unrepaired). The quay '
-          + 'floods are visible and light nothing.',
+          + 'MIDNIGHT, AND SESSION 80 MEASURED WHY IT CAN BE — session 79 gave this pose dusk '
+          + 'on the grounds that `glow()` deposits no light and the quay floods light nothing. '
+          + 'The floods are not glow(): they are six `flood` features routed to the lamp pool '
+          + 'by session 77, and at this eye the pool reads 6 active of 6 candidates with a '
+          + 'median surface luminance of 3.404 cd/m2 — 17.9x session 77’s own figure at '
+          + 'session 77’s own point, and 41.6% of the frame under 16/255 against 93.1% there. '
+          + 'The apron is lit and the machinery is dark against it, which is what a working '
+          + 'quay after dark is.',
       }),
       pose([H.branchX - 60, H.yardY, H.yardZ - 8], [H.x1 - 30, H.yardY + 12, H.shedZ + 6], {
         key: 'harbour-yard',
@@ -486,9 +490,12 @@ export function createUi(options = {}) {
           + 'it: the centreline, the two edge rows, the terminal frontage on the right and '
           + 'the hills past the coast. `runZ0` = 250 is the north end — CONTRACT §3.1 is '
           + '−Z north — so this is the row the sea cuts to 14 masts of 30. '
-          + 'DUSK, AND ITEM 2c IS REFUTED BY THE FRAME: the brief said an approach row at '
-          + 'noon shows nothing and wants midnight, and at midnight it shows nothing either '
-          + '— the same §9.3 fifth row as the quay. Dusk is what shows the row AND the runway.',
+          + 'DUSK, AND SESSION 80 MEASURED THE REASON, WHICH IS NOT §9.3’s FIFTH ROW. At this '
+          + 'eye the lamp pool reads 0 active of 0 CANDIDATES: there is no fixture within '
+          + 'reach to be routed or not routed. A runway edge light, a centreline light and an '
+          + 'approach light are lenses aimed at a pilot’s eye — they are lit surfaces by '
+          + 'design and light nothing by design — and the nearest routed mast is on the apron '
+          + '1.5 km south. Dusk is what shows the row AND the runway, and it always would be.',
       }),
       pose([(A.apX0 + A.apX1) / 2, A.level, A.apZ0 + 270], [(A.apX0 + A.apX1) / 2, A.level + 10, A.apZ0 - 20], {
         key: 'airfield-apron',
@@ -497,7 +504,12 @@ export function createUi(options = {}) {
         t: 0.78,
         proves: 'the apron looking north at the terminal: its 302 m of modular frontage, the '
           + 'two piers reaching into the stands, the four apron floodlight masts and the '
-          + '34 m control tower on the right. Dusk, for the same measured reason as the quay.',
+          + '34 m control tower on the right. DUSK, AND SESSION 80 MEASURED WHY — not §9.3’s '
+          + 'fifth row: at midnight this eye has 9 active lamps of 9 candidates and the '
+          + 'frontage, the tower and the masts all read. What does not is the concrete, '
+          + 'because session 76 solved the mast pitch so the pools land on the STANDS and '
+          + 'this pose stands 270 m south of the nearest row. Midnight here is a lit building '
+          + 'across a black plane; dusk is the apron this destination claims to show.',
       }),
       pose([3420, null, -450], [3900, 10, -560], {
         key: 'estuary-mouth',

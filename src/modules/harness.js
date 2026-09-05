@@ -2582,6 +2582,28 @@ export function createHarness(options = {}) {
         },
 
         /**
+         * THE MAP'S OWN DESTINATION LIST — session 80, for `tools/destshot.mjs`.
+         *
+         * `ui.js` builds seventeen poses and its own comment beside
+         * `destinationList` says why a tool must read them rather than rebuild
+         * them: *"a verification that rebuilt the pose beside the thing it
+         * verifies is CONTRACT §9.1's own subject with a camera"*. Session 79
+         * shot all seventeen by retyping each `--pos --target` from the source,
+         * which is exactly that arrangement done by hand — and three of the
+         * seventeen carry `t = 0.78` on a judgement about the midnight arm that
+         * nothing could re-run in one command.
+         *
+         * Null whenever the `ui` module is absent, which is every gate run
+         * there has ever been: `main.js` registers it on `?ui=1`, and `?ui=-1`
+         * (the default) follows `?player=1`. Same shape and same reason as
+         * `info().player` — a thing that is either there or is not.
+         */
+        destinations() {
+          const ui = ctx.get('ui');
+          return ui && ui.destinationList ? ui.destinationList() : null;
+        },
+
+        /**
          * ═══════════════════════════════════════════════════════════════════
          * THE RADIANCE CHAIN'S FOUR BUFFERS. SESSION 55, ITEM 1.
          * ═══════════════════════════════════════════════════════════════════

@@ -17982,9 +17982,59 @@ export function generateChunk(rootSeed, cx, cz) {
        * windows at night, warm against the city's cold"*. The other half is a
        * fourth emissive path and this session did not build one.
        */
-      features.push({ kind: 'lamp', x: hh.x + Math.cos((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
-        z: hh.z + Math.sin((hh.yawDeg * Math.PI) / -180) * (HS.houseL * 0.34),
-        yawDeg: 0, height: 3.4 });
+      /**
+       * ═════════════════════════════════════════════════════════════════════
+       * AND IT WAS INSIDE THE HOUSE — SESSION 80, AND IT IS THE ONLY REAL
+       * LIGHT THIS POPULATION OWNS.
+       * ═════════════════════════════════════════════════════════════════════
+       *
+       * The offset above was `houseL · 0.34` along local +x AND NOTHING ON z,
+       * i.e. local (+7.14, 0). Measured against the boxes `city.js`'s `villa`
+       * branch actually draws, at `houseL` 21 / `houseD` 10 / `houseH` 7.2:
+       *
+       *   the long volume      x [−10.50, 10.50]  z [−5.00,  5.00]  y 0–7.20
+       *   the crossing volume  x [  2.73,  9.87]  z [−13.50, 2.50]  y 0–10.37
+       *   the terrace slab     x [ −9.03,  9.03]  z [  4.70, 13.70]
+       *
+       * (+7.14, 0) is inside BOTH volumes, so the lamp's 3.4 m head and its
+       * `city:bowls` instance stood in the living room under seven and ten
+       * metres of masonry — and it is 4.70 m short of the near edge of the
+       * terrace the comment above names. A light inside a shell in this
+       * renderer has no occluder (`lights.js`: *"a streetlight can spill
+       * through a wall"*), so what it lit was the outside of the house it was
+       * buried in, dimly and from the wrong place.
+       *
+       * CONTRACT §9.1's own sentence with a luminaire in it: anything placed
+       * procedurally is tested against the existing occupancy, or it is not
+       * placed. This one was placed by an offset that was never compared with
+       * the boxes it shares a feature with, and no gate could see it — the
+       * villas stand 3 293 to 4 079 m out and `citycheck`'s region is the
+       * ±640 m square.
+       *
+       * (0.52·L, 1.05·D) = (10.92, 10.50) IS CLEAR OF ALL EIGHT BOXES, checked
+       * one at a time: outside the long volume's z, outside the crossing
+       * volume's z, outside both roof decks' z (±6.70 and −14.20 to 3.20), outside
+       * the terrace slab's x, outside the balustrade blade (z 13.35–13.45) and
+       * its support (|x| ≤ 3.15), and 19 m from the garage. It stands off the
+       * terrace's outboard corner, which is the side that faces the city and
+       * the side `hillside-villas` was committed to look at.
+       *
+       * THE FULL ROTATION, and not the one-scalar form. The old line multiplied
+       * `cos` and `sin` by a single scalar, which can only ever express an
+       * offset along local +x; an offset with a `dz` needs both terms — the
+       * same `(dx·c − dz·s, dx·s + dz·c)` that `put()` and `glow()` compose,
+       * in `citygen`'s own `/-180` convention.
+       */
+      {
+        const c = Math.cos((hh.yawDeg * Math.PI) / -180);
+        const s = Math.sin((hh.yawDeg * Math.PI) / -180);
+        const dx = HS.houseL * 0.52;
+        const dz = HS.houseD * 1.05;
+        features.push({ kind: 'lamp',
+          x: hh.x + dx * c - dz * s,
+          z: hh.z + dx * s + dz * c,
+          yawDeg: 0, height: 3.4 });
+      }
     }
 
     /**

@@ -5041,7 +5041,33 @@ export function createCity(options = {}) {
               EMITTER_CHROMA.tungsten, LIGHT.signPlateNits * 0.7);
             /** One lamp over the door, which is what says the house is occupied
              *  rather than that its lights were left on. */
-            glow(-w * 0.40, 4.3, -d * 0.32 + 2.9, 1.1, 0.5, (f.yawDeg || 0) + 24,
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND ITS YAW WAS APPLIED TWICE — SESSION 80, AND IT IS THE ONLY
+             * `glow` CALL IN THIS FILE THAT PASSED AN ABSOLUTE HEADING.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `put`'s yaw argument is ABSOLUTE — `(yawDeg === undefined ?
+             * (f.yawDeg || 0) : yawDeg)` — so the garage two lines up correctly
+             * takes `(f.yawDeg || 0) + 24` to sit at the angle a drive arrives
+             * at. **`glow`'s is RELATIVE**: it composes `(f.yawDeg || 0) +
+             * yawDeg`. This call passed `put`'s form into `glow`'s, so the
+             * quad's world heading was `2·f.yawDeg + 24`.
+             *
+             * IT IS NOT A SMALL ERROR AND IT IS NOT RANDOM. Counted from the
+             * generator at seed 1337, the twenty-two villas carry yaws of 64°
+             * to 127° in magnitude, so every lamp face was between 64° and 127°
+             * off its own wall — and `materials.sign` is `FrontSide`, so on the
+             * fifteen houses where `f.lit` is 1 the lamp presents its back to
+             * the drive it is over. LOOK.md §7's own class: a quad that draws
+             * perfectly and faces somewhere nobody stands. Session 75 lost a
+             * session to 82 lights doing exactly this.
+             *
+             * The two glazed elevations either side of it pass a literal 0 and
+             * were always right, which is what makes this a copy from the wrong
+             * neighbour rather than a misunderstanding of the transform.
+             */
+            glow(-w * 0.40, 4.3, -d * 0.32 + 2.9, 1.1, 0.5, 24,
               EMITTER_CHROMA.sodium, LIGHT.signPlateNits * 1.4);
           }
         } else if (f.kind === 'canopy') {
@@ -5965,8 +5991,41 @@ export function createCity(options = {}) {
             glow(0, dh * 0.46, D / 2 - 1.8, L - 5.5, dh * 0.80, 180,
               EMITTER_CHROMA.fluorescentDirty, LIGHT.signPlateNits * 1.15);
             /** Worklights on the door header, aimed in over the floor. */
+            /**
+             * ═══════════════════════════════════════════════════════════════
+             * AND THEY FACED THE ONE WAY NOBODY CAN STAND — SESSION 80, AND IT
+             * IS SESSION 75's DEFECT IN THE POPULATION SESSION 75 REPAIRED.
+             * ═══════════════════════════════════════════════════════════════
+             *
+             * `setMatrix` with `yawDeg` 0 leaves a PlaneGeometry's front at
+             * world +Z, and this branch's own comment forty lines up says *"THE
+             * DOOR FACES THE APRON, which is local −Z"*. So these two quads,
+             * 1.5 m inside the door plane at yaw 0, present their FRONTS to the
+             * back wall and their BACKS to every camera that can see into an
+             * open hangar — and `materials.sign` is `FrontSide`. Their sibling
+             * three lines up carries yaw 180 for exactly this reason and is
+             * correct. **These two have never been rasterised by any frame this
+             * project has taken.**
+             *
+             * `glowOmni` AND NOT A FLIPPED YAW, and the distinction is session
+             * 75's own: the flipped yaw would be a fitting whose lens faces the
+             * apron, which is not what a worklight over a door does. What a
+             * camera on the apron actually has is a sight line THROUGH the
+             * opening to a lit fitting hanging under the header — so both faces
+             * are wanted, which is the one case `glowOmni` exists for. Two
+             * quads become four, on one open hangar, outside every gate's
+             * region.
+             *
+             * IT DEPOSITS NO LIGHT AND THAT IS CORRECT HERE. A punctual light
+             * 1.5 m inside a roofed shell has no occluder in this renderer
+             * (`lights.js`: *"a streetlight can spill through a wall"*), so
+             * routing it would put the hangar's interior lighting on its own
+             * outside walls. The concrete in front of the door is already
+             * inside the pools of session 76's three apron masts, which stand
+             * in the gaps between the hangars.
+             */
             for (const px of [-L * 0.28, L * 0.28]) {
-              glow(px, dh + 1.2, -D / 2 + 1.5, 3.2, 0.9, 0,
+              glowOmni(px, dh + 1.2, -D / 2 + 1.5, 3.2, 0.9, 0,
                 EMITTER_CHROMA.fluorescentCold, LIGHT.signPlateNits * 2.4);
             }
             if (f.occupied) {
